@@ -21,7 +21,19 @@ namespace stig {
 		ret
 	};
 
-	enum class x86_operand : uint8_t {};
+	enum class x86_register : uint8_t {
+		rbp
+	};
+
+	struct x86_immediate {
+		uint64_t value;
+
+		bool operator==( const x86_immediate& other ) const {
+			return value == other.value;
+		}
+	};
+
+	using x86_operand = std::variant<x86_register,x86_immediate>;
 
 	struct x86_instruction {
 		uint64_t address;

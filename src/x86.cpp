@@ -60,7 +60,29 @@ namespace stig {
  	    if ( token == "endbr64" ) {
 	    	p_result.instruction.mnemonic = x86_mnemonic::endbr64;
 	    }
+	    if ( token == "push" ) {
+	    	p_result.instruction.mnemonic = x86_mnemonic::push;
+	    }
+	    p_result.pos = iss.tellg();
+	    ++p_result.pos; 
 	    return p_result;
+    }
+
+    // ==============
+    //  Get Register
+    // ==============
+
+    std::optional<x86_register> get_register( const std::string& token ) {
+    	if ( token == "%rbp" ) return x86_register::rbp;
+    	return std::nullopt;
+    }
+
+    // ===============
+    //  Get Immediate
+    // ===============
+
+    std::optional<x86_immediate> get_immediate( const std::string& token ) {
+    	return std::nullopt;
     }
 
     // ================
@@ -68,6 +90,26 @@ namespace stig {
     // ================
 
     std::expected<x86_instruction_parse_result,std::string> parse_operands( x86_instruction_parse_result p_result ) {
+    	if ( p_result.instruction.mnemonic == x86_mnemonic::endbr64 ) {
+    		return p_result;
+    	}
+    	std::string token;
+    	std::istringstream iss( std::string( p_result.buffer ) );
+    	iss.seekg( p_result.pos, std::ios::beg );
+    	while ( iss >> token ) {
+	        auto register_result = get_register( token );
+	        if ( register_result ) {
+	        	p_result.instruction.operands.emplace();
+	        	p_result.instruction.operands->push_back( register_result.value() );
+	        	continue;
+	        }
+	        auto immediate_result = get_immediate( token );
+	        if ( immediate_result ) {
+	        	p_result.instruction.operands->push_back( immediate_result.value() );
+	        	continue;
+	        }
+	        break;
+	    }
     	return p_result;
     }
 

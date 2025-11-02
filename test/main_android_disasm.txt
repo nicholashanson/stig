@@ -1,0 +1,112 @@
+
+main_android:	file format elf64-littleaarch64
+
+Disassembly of section .text:
+
+00000000000015e0 <_start>:
+    15e0: d503249f     	bti	j
+    15e4: d280001d     	mov	x29, #0x0               // =0
+    15e8: d280001e     	mov	x30, #0x0               // =0
+    15ec: 910003e0     	mov	x0, sp
+    15f0: 14000001     	b	0x15f4 <_start_main>
+
+00000000000015f4 <_start_main>:
+    15f4: d503233f     	paciasp
+    15f8: d10103ff     	sub	sp, sp, #0x40
+    15fc: a9037bfd     	stp	x29, x30, [sp, #0x30]
+    1600: 9100c3fd     	add	x29, sp, #0x30
+    1604: b0000008     	adrp	x8, 0x2000 <__cxa_atexit@plt+0x8d0>
+    1608: b0000009     	adrp	x9, 0x2000 <__cxa_atexit@plt+0x8d0>
+    160c: 6f00e400     	movi	v0.2d, #0000000000000000
+    1610: f9446908     	ldr	x8, [x8, #0x8d0]
+    1614: f9446d29     	ldr	x9, [x9, #0x8d8]
+    1618: cb080128     	sub	x8, x9, x8
+    161c: f100051f     	cmp	x8, #0x1
+    1620: ad0083e0     	stp	q0, q0, [sp, #0x10]
+    1624: 3d8003e0     	str	q0, [sp]
+    1628: 5400008b     	b.lt	0x1638 <_start_main+0x44>
+    162c: d503201f     	nop
+    1630: 10011708     	adr	x8, 0x3910 <fini_array_with_sentinels>
+    1634: f9000be8     	str	x8, [sp, #0x10]
+    1638: b0000002     	adrp	x2, 0x2000 <__cxa_atexit@plt+0x8d0>
+    163c: 910003e3     	mov	x3, sp
+    1640: aa1f03e1     	mov	x1, xzr
+    1644: f9447042     	ldr	x2, [x2, #0x8e0]
+    1648: 94000036     	bl	0x1720 <__libc_init@plt>
+
+000000000000164c <__atexit_handler_wrapper>:
+    164c: d503245f     	bti	c
+    1650: b4000060     	cbz	x0, 0x165c <__atexit_handler_wrapper+0x10>
+    1654: aa0003f0     	mov	x16, x0
+    1658: d61f0200     	br	x16
+    165c: d65f03c0     	ret
+
+0000000000001660 <atexit>:
+    1660: d503245f     	bti	c
+    1664: aa0003e1     	mov	x1, x0
+    1668: d503201f     	nop
+    166c: 10ffff00     	adr	x0, 0x164c <__atexit_handler_wrapper>
+    1670: d503201f     	nop
+    1674: 100115a2     	adr	x2, 0x3928 <__dso_handle>
+    1678: 1400002e     	b	0x1730 <__cxa_atexit@plt>
+
+000000000000167c <call_fini_array>:
+    167c: d503233f     	paciasp
+    1680: a9be7bfd     	stp	x29, x30, [sp, #-0x20]!
+    1684: a9014ff4     	stp	x20, x19, [sp, #0x10]
+    1688: 910003fd     	mov	x29, sp
+    168c: b0000013     	adrp	x19, 0x2000 <__cxa_atexit@plt+0x8d0>
+    1690: b0000008     	adrp	x8, 0x2000 <__cxa_atexit@plt+0x8d0>
+    1694: f9446a73     	ldr	x19, [x19, #0x8d0]
+    1698: f9446d08     	ldr	x8, [x8, #0x8d8]
+    169c: eb130108     	subs	x8, x8, x19
+    16a0: 54000100     	b.eq	0x16c0 <call_fini_array+0x44>
+    16a4: 9343fd08     	asr	x8, x8, #3
+    16a8: 8b080e69     	add	x9, x19, x8, lsl #3
+    16ac: d1000514     	sub	x20, x8, #0x1
+    16b0: f85f8129     	ldur	x9, [x9, #-0x8]
+    16b4: d63f0120     	blr	x9
+    16b8: aa1403e8     	mov	x8, x20
+    16bc: b5ffff74     	cbnz	x20, 0x16a8 <call_fini_array+0x2c>
+    16c0: a9414ff4     	ldp	x20, x19, [sp, #0x10]
+    16c4: a8c27bfd     	ldp	x29, x30, [sp], #0x20
+    16c8: d50323bf     	autiasp
+    16cc: d65f03c0     	ret
+
+00000000000016d0 <_Z3addii>:
+    16d0: d10043ff     	sub	sp, sp, #0x10
+    16d4: b9000fe0     	str	w0, [sp, #0xc]
+    16d8: b9000be1     	str	w1, [sp, #0x8]
+    16dc: b9400fe8     	ldr	w8, [sp, #0xc]
+    16e0: b9400be9     	ldr	w9, [sp, #0x8]
+    16e4: 0b090100     	add	w0, w8, w9
+    16e8: 910043ff     	add	sp, sp, #0x10
+    16ec: d65f03c0     	ret
+
+00000000000016f0 <main>:
+    16f0: 2a1f03e0     	mov	w0, wzr
+    16f4: d65f03c0     	ret
+
+Disassembly of section .plt:
+
+0000000000001700 <.plt>:
+    1700: a9bf7bf0     	stp	x16, x30, [sp, #-0x10]!
+    1704: b0000010     	adrp	x16, 0x2000 <__cxa_atexit@plt+0x8d0>
+    1708: f9447e11     	ldr	x17, [x16, #0x8f8]
+    170c: 9123e210     	add	x16, x16, #0x8f8
+    1710: d61f0220     	br	x17
+    1714: d503201f     	nop
+    1718: d503201f     	nop
+    171c: d503201f     	nop
+
+0000000000001720 <__libc_init@plt>:
+    1720: b0000010     	adrp	x16, 0x2000 <__cxa_atexit@plt+0x8d0>
+    1724: f9448211     	ldr	x17, [x16, #0x900]
+    1728: 91240210     	add	x16, x16, #0x900
+    172c: d61f0220     	br	x17
+
+0000000000001730 <__cxa_atexit@plt>:
+    1730: b0000010     	adrp	x16, 0x2000 <__cxa_atexit@plt+0x8d0>
+    1734: f9448611     	ldr	x17, [x16, #0x908]
+    1738: 91242210     	add	x16, x16, #0x908
+    173c: d61f0220     	br	x17
