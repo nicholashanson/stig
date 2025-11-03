@@ -22,7 +22,8 @@ namespace stig {
 	};
 
 	enum class x86_register : uint8_t {
-		rbp
+		rbp,
+		rsp
 	};
 
 	struct x86_immediate {
@@ -60,6 +61,10 @@ namespace stig {
 	std::expected<x86_instruction_parse_result,std::string> parse_address( x86_instruction_parse_result p_result );
 
 	std::expected<x86_instruction_parse_result,std::string> extract_machine_bytes( x86_instruction_parse_result p_result );
+
+	std::vector<std::string> split_token( const std::string& token );
+
+	//std::ostream& operator<<( std::ostream& os, x86_instruction instruction );
 
 }
 

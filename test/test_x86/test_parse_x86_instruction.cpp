@@ -27,3 +27,16 @@ TEST( UnitTest, ParseX86Instruction_Push ) {
 	auto& parsed_instruction = parse_result.value();
 	EXPECT_EQ( parsed_instruction.instruction, expected );
 }
+
+TEST( UnitTest, ParseX86Instruction_Mov ) {
+	std::string mov_instruction = "112e:	48 89 e5             	mov    %rsp,%rbp";
+	stig::x86_instruction expected = {
+		0x112e,
+		std::vector<uint8_t>{ 0x48, 0x89, 0xe5 },
+		stig::x86_mnemonic::mov,
+		std::vector<stig::x86_operand>{ stig::x86_register::rsp, stig::x86_register::rbp }
+	};
+	auto parse_result = stig::parse_x86_instruction( mov_instruction );
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
