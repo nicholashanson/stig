@@ -63,6 +63,9 @@ namespace stig {
 	    if ( token == "push" ) {
 	    	p_result.instruction.mnemonic = x86_mnemonic::push;
 	    }
+	    if ( token == "mov" ) {
+	    	p_result.instruction.mnemonic = x86_mnemonic::mov;
+	    } 
 	    p_result.pos = iss.tellg();
 	    ++p_result.pos; 
 	    return p_result;
@@ -74,6 +77,7 @@ namespace stig {
 
     std::optional<x86_register> get_register( const std::string& token ) {
     	if ( token == "%rbp" ) return x86_register::rbp;
+    	if ( token == "%rsp" ) return x86_register::rsp;
     	return std::nullopt;
     }
 
@@ -84,6 +88,28 @@ namespace stig {
     std::optional<x86_immediate> get_immediate( const std::string& token ) {
     	return std::nullopt;
     }
+
+    // ================
+    //  Contains Comma
+    // ================
+
+    bool contains_comma( const std::string& input ) {
+    	return input.find( ',' ) != std::string::npos;
+	}
+
+	// =============
+    //  Split Token
+    // =============
+
+	std::vector<std::string> split_token( const std::string& token ) {
+	    std::vector<std::string> result;
+	    std::stringstream ss( token );
+	    std::string part;
+	    while ( std::getline( ss, part, ',' ) ) {
+	        result.push_back( part );
+	    }
+	    return result;
+	}
 
     // ================
     //  Parse Operands
@@ -97,18 +123,23 @@ namespace stig {
     	std::istringstream iss( std::string( p_result.buffer ) );
     	iss.seekg( p_result.pos, std::ios::beg );
     	while ( iss >> token ) {
-	        auto register_result = get_register( token );
-	        if ( register_result ) {
-	        	p_result.instruction.operands.emplace();
-	        	p_result.instruction.operands->push_back( register_result.value() );
-	        	continue;
-	        }
-	        auto immediate_result = get_immediate( token );
-	        if ( immediate_result ) {
-	        	p_result.instruction.operands->push_back( immediate_result.value() );
-	        	continue;
-	        }
-	        break;
+    		auto operands = split_token( token );
+    		bool valid_token = true;
+    		p_result.instruction.operands.emplace();
+    		for ( auto& operand : operands ) {
+		        auto register_result = get_register( operand );
+		        if ( register_result ) {
+		        	p_result.instruction.operands->push_back( register_result.value() );
+		        	continue;
+		        }
+		        auto immediate_result = get_immediate( operand );
+		        if ( immediate_result ) {
+		        	p_result.instruction.operands->push_back( immediate_result.value() );
+		        	continue;
+		        }
+		        valid_token = false;
+		    }
+		    break;
 	    }
     	return p_result;
     }
@@ -123,5 +154,27 @@ namespace stig {
 			.and_then( parse_mnemonic )
 			.and_then( parse_operands );
 	}
+
+	// ============================
+    //  Parse x86 Instruction : <<
+    // ============================
+
+    /*
+
+	std::ostream& operator<<( std::ostream& os, x86_instruction instruction ) {
+		const int label_width = 26;
+        os << std::dec << std::setfill( ' ' );
+
+        auto print_field = [&]( const std::string& label, auto value ) {
+            os << std::left << std::setw( label_width ) << label << value << "\n";
+        };
+
+        os << "======X86 INSTRUCTION BEGIN======\n";
+        print_field("Mnemonic:", mnemonic_names.at( instruction::mnemonic ) );
+        os << "======X86 INSTRUCTION END=====\n\n";
+        return os;
+	}
+
+	*/
 
 }
