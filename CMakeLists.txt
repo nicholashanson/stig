@@ -20,6 +20,8 @@ add_executable(test_x86
     test/test_x86/test_parse_address.cpp
     test/test_x86/test_extract_machine_bytes.cpp
     test/test_x86/test_split_token.cpp
+    test/test_x86/test_parse_displacement.cpp
+    test/test_x86/test_get_memory.cpp
     src/x86.cpp
 )
 

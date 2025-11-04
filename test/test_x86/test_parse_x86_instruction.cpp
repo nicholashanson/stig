@@ -40,3 +40,22 @@ TEST( UnitTest, ParseX86Instruction_Mov ) {
 	auto& parsed_instruction = parse_result.value();
 	EXPECT_EQ( parsed_instruction.instruction, expected );
 }
+
+TEST( UnitTest, ParseX86Instruction_Mov_Memory ) {
+	std::string mov_instruction = "1131:	89 7d fc             	mov    %edi,-0x4(%rbp)";
+	stig::x86_memory expected_mem = {
+		stig::x86_register::rbp,
+		std::nullopt,
+		std::nullopt,
+		-4
+	};
+	stig::x86_instruction expected = {
+		0x1131,
+		std::vector<uint8_t>{ 0x89, 0x7d, 0xfc },
+		stig::x86_mnemonic::mov,
+		std::vector<stig::x86_operand>{ stig::x86_register::edi, expected_mem }
+	};
+	auto parse_result = stig::parse_x86_instruction( mov_instruction );
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}

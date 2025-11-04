@@ -22,6 +22,7 @@ namespace stig {
 	};
 
 	enum class x86_register : uint8_t {
+		edi,
 		rbp,
 		rsp
 	};
@@ -34,7 +35,21 @@ namespace stig {
 		}
 	};
 
-	using x86_operand = std::variant<x86_register,x86_immediate>;
+	struct x86_memory {
+    	std::optional<x86_register> base;    
+    	std::optional<x86_register> index;      
+    	std::optional<uint8_t> scale;           
+    	std::optional<int64_t> displacement;  
+
+    	bool operator==( const x86_memory& other ) const {
+    		return base == other.base &&
+    			   index == other.index &&
+    			   scale == other.scale &&
+    			   displacement == other.displacement;
+    	}  
+	};
+
+	using x86_operand = std::variant<x86_register,x86_immediate,x86_memory>;
 
 	struct x86_instruction {
 		uint64_t address;
@@ -63,6 +78,10 @@ namespace stig {
 	std::expected<x86_instruction_parse_result,std::string> extract_machine_bytes( x86_instruction_parse_result p_result );
 
 	std::vector<std::string> split_token( const std::string& token );
+
+	std::expected<int64_t,std::string> parse_displacement( const std::string& token );
+
+	std::expected<x86_memory,std::string> get_memory( const std::string& token );
 
 	//std::ostream& operator<<( std::ostream& os, x86_instruction instruction );
 

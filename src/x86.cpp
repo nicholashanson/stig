@@ -76,6 +76,7 @@ namespace stig {
     // ==============
 
     std::optional<x86_register> get_register( const std::string& token ) {
+    	if ( token == "%edi" ) return x86_register::edi;
     	if ( token == "%rbp" ) return x86_register::rbp;
     	if ( token == "%rsp" ) return x86_register::rsp;
     	return std::nullopt;
@@ -111,6 +112,46 @@ namespace stig {
 	    return result;
 	}
 
+	// ============
+    //  Get Memory
+    // ============
+
+    std::expected<x86_memory,std::string> get_memory( const std::string& token ) {
+    	x86_memory result{};
+    	auto open_paren = token.find( '(' );
+        auto close_paren = token.find( ')' );
+
+        if ( open_paren == std::string::npos || close_paren == std::string::npos ) {
+        	return std::unexpected( "No Pair of Paranetheses found" );
+        }
+        std::string disp_str = token.substr( 0, open_paren );          
+        std::string reg_str  = token.substr( open_paren + 1, close_paren - open_paren - 1 );
+        auto disp_result = parse_displacement( disp_str );
+        if ( !disp_result ) {
+        	return std::unexpected( disp_result.error() );
+        }
+        result.displacement = disp_result.value();
+        auto register_result = get_register( reg_str );
+        if ( !register_result ) {
+        	return std::unexpected( "Unrecognized Register: " + reg_str ); 
+        }
+        result.base = register_result.value();
+        return result;
+    }
+
+   	// ====================
+    //  Parse Displacement
+    // ====================
+
+    std::expected<int64_t,std::string> parse_displacement( const std::string& token ) {
+    	try {
+	        int64_t displacement = std::stoll( token, nullptr, 0 );
+	        return displacement;
+	    } catch ( const std::exception& e ) {
+	        return std::unexpected( std::string( "Invalid displacement: " ) + e.what() );
+	    }
+    }
+
     // ================
     //  Parse Operands
     // ================
@@ -135,6 +176,11 @@ namespace stig {
 		        auto immediate_result = get_immediate( operand );
 		        if ( immediate_result ) {
 		        	p_result.instruction.operands->push_back( immediate_result.value() );
+		        	continue;
+		        }
+		        auto memory_result = get_memory( operand );
+		        if ( memory_result ) {
+		        	p_result.instruction.operands->push_back( memory_result.value() );
 		        	continue;
 		        }
 		        valid_token = false;
