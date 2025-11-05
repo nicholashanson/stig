@@ -23,6 +23,10 @@ add_executable(test_x86
     test/test_x86/test_parse_displacement.cpp
     test/test_x86/test_get_memory.cpp
     test/test_x86/test_parse_function.cpp
+    test/test_x86/test_execute_xor.cpp
+    test/test_x86/test_execute_mov.cpp
+    test/test_x86/test_execute_cmp.cpp
+    test/test_x86/test_execute_push.cpp
     src/x86.cpp
 )
 

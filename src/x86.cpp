@@ -347,6 +347,105 @@ namespace stig {
  		return func;
 	}
 
+	// =============
+    //  Execute Xor
+    // =============
+
+    void execute_xor( const x86_instruction& xor_instr, x86_cpu& cpu ) {
+    	auto& operands = xor_instr.operands.value();
+    	auto lhs = std::visit( [ &cpu ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+        		return cpu.get( op );        
+    		}
+    		return uint64_t{0};
+    	}, operands[ 0 ] );
+		auto rhs = std::visit( [ &cpu ]( auto&& op ) {
+			using T = std::decay_t<decltype( op )>;
+			if constexpr ( std::is_same_v<T,x86_register> ) {
+        		return cpu.get(op);          
+    		}
+    		return uint64_t{0};
+		}, operands[ 1 ] );  
+		auto val = lhs * rhs;
+		std::visit( [ &cpu, val ]( auto&& op ) {
+			using T = std::decay_t<decltype( op )>;
+			if constexpr ( std::is_same_v<T,x86_register> ) {
+        		cpu.set( op, val );         
+    		}
+		}, operands[ 0 ] );
+    }
+
+    // =============
+    //  Execute Mov
+    // =============
+
+    void execute_mov( const x86_instruction& mov_instr, x86_cpu& cpu ) {
+    	auto& operands = mov_instr.operands.value();
+    	auto val = std::visit( [ &cpu ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+        		return cpu.get( op );        
+    		}
+    		return uint64_t{0};
+    	}, operands[ 0 ] );
+    	std::visit( [ &cpu, val ]( auto&& op ) {
+			using T = std::decay_t<decltype( op )>;
+			if constexpr ( std::is_same_v<T,x86_register> ) {
+        		cpu.set( op, val );         
+    		}
+		}, operands[ 1 ] );
+    }
+
+    // =============
+    //  Execute Cmp
+    // =============
+
+    void execute_cmp( const x86_instruction& cmp_instr, x86_cpu& cpu ) {
+    	auto& operands = cmp_instr.operands.value();
+    	auto lhs = std::visit( [ &cpu ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+        		return cpu.get( op );        
+    		}
+    		return uint64_t{0};
+    	}, operands[ 0 ] );
+		auto rhs = std::visit( [ &cpu ]( auto&& op ) {
+			using T = std::decay_t<decltype( op )>;
+			if constexpr ( std::is_same_v<T,x86_register> ) {
+        		return cpu.get(op);          
+    		}
+    		return uint64_t{0};
+		}, operands[ 1 ] );
+		int64_t signed_diff = static_cast<int64_t>( lhs ) - static_cast<int64_t>( rhs );
+		uint64_t unsigned_diff = lhs - rhs;
+		cpu.zero_flag = ( signed_diff == 0 );
+    	cpu.sign_flag = ( signed_diff  < 0 );
+    	cpu.carry_flag = ( lhs < rhs ); 
+    	cpu.overflow_flag = ( ( lhs ^ rhs ) & ( lhs ^ signed_diff ) ) >> 63;
+    }
+
+    // ==============
+    //  Execute Push
+    // ==============
+
+    void execute_push( const x86_instruction& push_instr, x86_cpu& cpu ) {
+    	auto& operands = push_instr.operands.value();
+    	int reg_width{};
+    	auto val = std::visit( [ &cpu, &reg_width ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			reg_width = get_register_width( op );
+        		return cpu.get( op );        
+    		}
+    		return uint64_t{0};
+    	}, operands[ 0 ] );
+    	int size = reg_width / 8;
+    	for ( int i = 0; i < size; ++i ) {
+        	cpu.stack.push( ( val >> ( i * 8 ) ) & 0xff );
+        } 
+    }
+
 	// ============================
     //  Parse x86 Instruction : <<
     // ============================
@@ -368,5 +467,22 @@ namespace stig {
 	}
 
 	*/
+
+
+	// ===============================
+    //  X86_VM :: Execute Instruction
+    // ===============================
+
+	std::expected<void,std::string> x86_vm::execute_instruction( x86_instruction& instruction ) {
+		cpu.rip += instruction.machine_bytes.size();
+
+		switch ( instruction.mnemonic ) {
+			case x86_mnemonic::mov:
+				return {};
+			default:
+				return {};
+		}
+		return {};
+	}
 
 }
