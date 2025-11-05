@@ -7,6 +7,7 @@
 #include <expected>
 #include <iostream>
 #include <optional>
+#include <stack>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -104,16 +105,47 @@ namespace stig {
 
 	enum class x86_register : uint8_t {
 		eax,
+		ebp,
 		edx,
 		edi,
 		esi,
 		rax,
 		rbp,
 		rdi,
+		rdx,
 		rip,
 		rsi,
-		rsp
+		rsp,
+		r8, 
+		r9, 
+		r10, 
+		r11, 
+		r12, 
+		r13, 
+		r14, 
+		r15
 	};
+
+	inline constexpr int get_register_width( const x86_register reg ) {
+	    switch ( reg ) {
+	        case x86_register::rax:
+	        case x86_register::rbp:
+	        case x86_register::rdi:
+	        case x86_register::rip:
+	        case x86_register::rsi:
+	        case x86_register::rsp:
+	        case x86_register::r8:
+	        	return 64;
+	        case x86_register::eax: 
+	        case x86_register::ebp: 
+	        case x86_register::edx:
+	        case x86_register::edi:
+	        case x86_register::esi:
+	        	return 32;
+	        default:
+	        	return 0;
+	    }
+	}
 
 	struct x86_immediate {
 		int64_t value;
@@ -195,6 +227,90 @@ namespace stig {
 	std::expected<function,std::string> parse_function( const std::string& token );
 
 	//std::ostream& operator<<( std::ostream& os, x86_instruction instruction );
+
+	struct x86_cpu {
+		int64_t rax;
+		int64_t rbp;
+		int64_t	rdi;
+		int64_t rdx;
+		int64_t	rip;
+		int64_t	rsi;
+		int64_t	rsp;
+		int64_t r8; 
+		int64_t r9; 
+		int64_t r10; 
+		int64_t r11; 
+		int64_t r12; 
+		int64_t r13; 
+		int64_t r14; 
+		int64_t r15;
+
+		std::stack<uint8_t> stack;
+
+		bool zero_flag = false;
+		bool carry_flag = false;
+		bool sign_flag = false;
+		bool overflow_flag = false;
+
+		uint64_t get( const x86_register reg ) {
+			switch ( reg ) {
+				case x86_register::ebp:
+					return static_cast<uint32_t>( rbp );
+				case x86_register::rax:
+					return static_cast<uint64_t>( rax );
+				case x86_register::rdi:
+					return static_cast<uint64_t>( rdi );
+				case x86_register::rdx:
+					return static_cast<uint64_t>( rdx );
+				case x86_register::r9:
+					return static_cast<uint64_t>( r9 );
+				default:
+					return 0; 
+			}
+		}
+
+		void set( const x86_register reg, uint64_t val ) {
+			switch ( reg ) {
+				case x86_register::ebp: {
+					uint32_t low = static_cast<uint32_t>( val );
+            		rbp = static_cast<int64_t>( static_cast<uint64_t>( low ) );
+            		return;
+            	}
+            	case x86_register::rax: {
+            		rax = static_cast<int64_t>( static_cast<uint64_t>( val ) );
+            		return;
+            	}
+            	case x86_register::rdi: {
+            		rdi = static_cast<int64_t>( static_cast<uint64_t>( val ) );
+            		return;
+            	} 
+            	case x86_register::rdx: {
+            		rdx = static_cast<int64_t>( static_cast<uint64_t>( val ) );
+            		return;
+            	}
+            	case x86_register::r9: {
+            		r9 = static_cast<int64_t>( static_cast<uint64_t>( val ) );
+            		return;
+            	}
+				default:
+					return;
+			}
+		}
+	};
+
+	struct x86_vm {
+		x86_cpu cpu;
+
+		std::expected<void,std::string> execute_instruction( x86_instruction& instruction );
+	};
+
+	void execute_xor( const x86_instruction& xor_instr, x86_cpu& cpu );
+
+	void execute_mov( const x86_instruction& mov_instr, x86_cpu& cpu );
+
+	void execute_cmp( const x86_instruction& cmp_instr, x86_cpu& cpu );
+
+	void execute_push( const x86_instruction& push_instr, x86_cpu& cpu );
 
 }
 
