@@ -264,6 +264,8 @@ namespace stig {
 					return static_cast<uint64_t>( rdi );
 				case x86_register::rdx:
 					return static_cast<uint64_t>( rdx );
+				case x86_register::rsi:
+					return static_cast<uint64_t>( rsi );
 				case x86_register::r9:
 					return static_cast<uint64_t>( r9 );
 				default:
@@ -280,7 +282,7 @@ namespace stig {
             	}
             	case x86_register::edx: {
             		uint32_t low = static_cast<uint32_t>( val );
-            		rax = static_cast<int64_t>( static_cast<uint64_t>( low ) );
+            		rdx = static_cast<int64_t>( static_cast<uint64_t>( low ) );
             		return {};
             	}
             	case x86_register::rax: {
@@ -295,6 +297,10 @@ namespace stig {
             		rdx = static_cast<int64_t>( static_cast<uint64_t>( val ) );
             		return {};
             	}
+            	case x86_register::rsi: {
+            		rsi = static_cast<int64_t>( static_cast<uint64_t>( val ) );
+            		return {};
+            	}
             	case x86_register::r9: {
             		r9 = static_cast<int64_t>( static_cast<uint64_t>( val ) );
             		return {};
@@ -305,24 +311,113 @@ namespace stig {
 		}
 	};
 
-	struct x86_vm {
-		x86_cpu cpu;
+	std::expected<void,std::string> execute_add( const x86_instruction& add_instr, x86_cpu& cpu );
 
-		std::expected<void,std::string> execute_instruction( x86_instruction& instruction );
-	};
+	std::expected<void,std::string> execute_and( const x86_instruction& and_instr, x86_cpu& cpu );
 
-	std::expected<void,std::string> execute_xor( const x86_instruction& xor_instr, x86_cpu& cpu );
-
-	std::expected<void,std::string> execute_mov( const x86_instruction& mov_instr, x86_cpu& cpu );
+	std::expected<void,std::string> execute_call( const x86_instruction& call_instr, x86_cpu& cpu );
 
 	std::expected<void,std::string> execute_cmp( const x86_instruction& cmp_instr, x86_cpu& cpu );
 
-	std::expected<void,std::string> execute_push( const x86_instruction& push_instr, x86_cpu& cpu );
+	std::expected<void,std::string> execute_cmpb( const x86_instruction& cmpb_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_cmpq( const x86_instruction& cmpq_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_endbr64( const x86_instruction& endbr64_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_hlt( const x86_instruction& hlt_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_je( const x86_instruction& je_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_jne( const x86_instruction& jne_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_jmp( const x86_instruction& jmp_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_lea( const x86_instruction& lea_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_mov( const x86_instruction& mov_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_movb( const x86_instruction& movb_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_nopl( const x86_instruction& nopl_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_nopw( const x86_instruction& nopw_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_padding( const x86_instruction& padding_instr, x86_cpu& cpu );
 
 	std::expected<void,std::string> execute_pop( const x86_instruction& pop_instr, x86_cpu& cpu );
 
+	std::expected<void,std::string> execute_push( const x86_instruction& push_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_ret( const x86_instruction& ret_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_sar( const x86_instruction& sar_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_shr( const x86_instruction& shr_instr, x86_cpu& cpu );
+
 	std::expected<void,std::string> execute_test( const x86_instruction& test_instr, x86_cpu& cpu );
 
-}
+	std::expected<void,std::string> execute_xor( const x86_instruction& xor_instr, x86_cpu& cpu );
+
+	struct x86_vm {
+		x86_cpu cpu;
+
+		std::expected<void,std::string> execute_instruction( x86_instruction& instruction ) {
+			switch ( instruction.mnemonic ) {
+		/*0*/	case x86_mnemonic::add:
+					return execute_add( instruction, cpu );
+		/*1*/	case x86_mnemonic::and_:
+					return execute_and( instruction, cpu );
+		/*2*/	case x86_mnemonic::call:
+					return execute_call( instruction, cpu );
+		/*3*/	case x86_mnemonic::cmp:
+					return execute_cmp( instruction, cpu );
+		/*4*/	case x86_mnemonic::cmpb:
+					return execute_cmpb( instruction, cpu );
+		/*5*/	case x86_mnemonic::cmpq:
+					return execute_cmpq( instruction, cpu );
+		/*6*/	case x86_mnemonic::endbr64:
+					return execute_endbr64( instruction, cpu );
+		/*7*/	case x86_mnemonic::hlt:
+					return execute_hlt( instruction, cpu );
+		/*8*/	case x86_mnemonic::je:
+					return execute_je( instruction, cpu );
+		/*9*/	case x86_mnemonic::jmp:
+					return execute_jmp( instruction, cpu );
+		/*10*/	case x86_mnemonic::jne:
+					return execute_jne( instruction, cpu );
+		/*11*/	case x86_mnemonic::lea:
+					return execute_lea( instruction, cpu );
+		/*12*/	case x86_mnemonic::mov:
+					return execute_mov( instruction, cpu );
+		/*13*/	case x86_mnemonic::movb:
+					return execute_movb( instruction, cpu );
+		/*14*/	case x86_mnemonic::nopl:
+					return execute_nopl( instruction, cpu );
+		/*15*/	case x86_mnemonic::nopw:
+					return execute_nopw( instruction, cpu );
+		/*16*/	case x86_mnemonic::padding:
+					return execute_padding( instruction, cpu );
+		/*17*/	case x86_mnemonic::pop:
+					return execute_pop( instruction, cpu );
+		/*18*/	case x86_mnemonic::push:
+					return execute_push( instruction, cpu );
+		/*19*/	case x86_mnemonic::ret:
+					return execute_ret( instruction, cpu );
+		/*20*/	case x86_mnemonic::sar:
+					return execute_sar( instruction, cpu );
+		/*21*/	case x86_mnemonic::shr:
+					return execute_shr( instruction, cpu );
+		/*22*/	case x86_mnemonic::test:
+					return execute_test( instruction, cpu );
+		/*23*/	case x86_mnemonic::xor_:
+					return execute_xor( instruction, cpu );
+				default:
+					return std::unexpected( "Unimplemented instruction" );
+			}
+		}
+	};
+
+} // namespace stig
 
 #endif // X86_HPP
