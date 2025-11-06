@@ -673,9 +673,9 @@ namespace stig {
 			return std::unexpected( "Test Instruction does not contain two Operands" );
 		}
     	auto& operands = test_instr.operands.value();
-    	bool undhandled = false;
+    	bool unhandled = false;
     	std::optional<std::string> error;
-    	auto lhs = std::visit( [ &cpu, &undhandled, &error ]( auto&& op ) {
+    	auto lhs = std::visit( [ &cpu, &unhandled, &error ]( auto&& op ) {
     		using T = std::decay_t<decltype( op )>;
     		if constexpr ( std::is_same_v<T,x86_register> ) {
     			if ( auto result = cpu.get( op ) ) {
@@ -684,17 +684,17 @@ namespace stig {
         			error = result.error();
         		}        
     		}
-    		undhandled = true;
+    		unhandled = true;
     		return uint64_t{0};
     	}, operands[ 0 ] );
-    	if ( undhandled ) {
+    	if ( unhandled ) {
     		if ( error.has_value() ) {
     			return std::unexpected( error.value() );
     		} else {
     			return std::unexpected( "Left-Hand Operand not handled" );
     		}
     	}
-		auto rhs = std::visit( [ &cpu, &undhandled, &error ]( auto&& op ) {
+		auto rhs = std::visit( [ &cpu, &unhandled, &error ]( auto&& op ) {
 			using T = std::decay_t<decltype( op )>;
 			if constexpr ( std::is_same_v<T,x86_register> ) {
         		if ( auto result = cpu.get( op ) ) {
@@ -703,10 +703,10 @@ namespace stig {
         			error = result.error();
         		}
     		}
-    		undhandled = true;
+    		unhandled = true;
     		return uint64_t{0};
 		}, operands[ 1 ] );
-		if ( undhandled ) {
+		if ( unhandled ) {
 			if ( error.has_value() ) {
 				return std::unexpected( error.value() ); 
 			} else {
@@ -718,6 +718,119 @@ namespace stig {
 		cpu.sign_flag = ( result >> 63 ) & 1;
    	 	cpu.carry_flag = false;
     	cpu.overflow_flag = false;
+    	return {};
+    }
+
+    // =============
+    //  Execute Shr
+    // =============
+
+    std::expected<void,std::string> execute_shr( const x86_instruction& shr_instr, x86_cpu& cpu ) {
+    	if ( !shr_instr.operands.has_value() ) {
+    		return std::unexpected( "Shr Instruction does not contain any Operands" );
+    	}
+    	auto& operands = shr_instr.operands.value();
+    	bool unhandled = false;
+    	std::optional<std::string> error;
+    	auto lhs = std::visit( [ &cpu, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_immediate> ) {
+    			return op.value;
+    		}
+    		unhandled = true;
+    		return int64_t{0};
+    	}, operands[ 0 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "Left-Hand Operand not handled" );
+    	}
+    	auto rhs = std::visit( [ &cpu, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			if ( auto res = cpu.get( op ) ) {
+    				return res.value();
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		unhandled = true;
+    		return uint64_t{0};
+    	}, operands[ 1  ] );
+    	if ( unhandled ) {
+    		if ( error.has_value() ) {
+    			return std::unexpected( error.value() );
+    		} else {
+    			return std::unexpected( "Right-Hand Operand not handled" );
+    		}
+    	}
+    	uint64_t val = ( rhs >> lhs );
+    	std::visit( [ &cpu, &val, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			if ( auto res = cpu.set( op, val ) ) {
+    				return;
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		unhandled = true;
+    	}, operands[ 1 ] );
+    	return {};
+    }
+
+    // =============
+    //  Execute Sar
+    // =============
+
+    std::expected<void,std::string> execute_sar( const x86_instruction& sar_instr, x86_cpu& cpu ) {
+    	if ( !sar_instr.operands.has_value() ) {
+    		return std::unexpected( "Sar Instruction does not contain any Operands" );
+    	}
+    	auto& operands = sar_instr.operands.value();
+    	bool unhandled = false;
+    	std::optional<std::string> error;
+    	auto lhs = std::visit( [ &cpu, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_immediate> ) {
+    			return op.value;
+    		}
+    		unhandled = true;
+    		return int64_t{0};
+    	}, operands[ 0 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "Left-Hand Operand not handled" );
+    	}
+    	auto rhs = std::visit( [ &cpu, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			if ( auto res = cpu.get( op ) ) {
+    				return static_cast<int64_t>( res.value() );
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		unhandled = true;
+    		return int64_t{0};
+    	}, operands[ 1  ] );
+    	if ( unhandled ) {
+    		if ( error.has_value() ) {
+    			return std::unexpected( error.value() );
+    		} else {
+    			return std::unexpected( "Right-Hand Operand not handled" );
+    		}
+    	}
+    	uint8_t shift_count = lhs & 0x3f;
+    	int64_t val = ( rhs >> shift_count );
+    	std::visit( [ &cpu, &val, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			if ( auto res = cpu.set( op, val ) ) {
+    				return;
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		unhandled = true;
+    	}, operands[ 1 ] );
     	return {};
     }
 
@@ -742,22 +855,5 @@ namespace stig {
 	sss}
 
 	*/
-
-
-	// ===============================
-    //  X86_VM :: Execute Instruction
-    // ===============================
-
-	std::expected<void,std::string> x86_vm::execute_instruction( x86_instruction& instruction ) {
-		cpu.rip += instruction.machine_bytes.size();
-
-		switch ( instruction.mnemonic ) {
-			case x86_mnemonic::mov:
-				return {};
-			default:
-				return {};
-		}
-		return {};
-	}
 
 }
