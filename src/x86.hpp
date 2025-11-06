@@ -126,7 +126,7 @@ namespace stig {
 		r15
 	};
 
-	inline constexpr int get_register_width( const x86_register reg ) {
+	inline std::expected<int,std::string> get_register_width( const x86_register reg ) {
 	    switch ( reg ) {
 	        case x86_register::rax:
 	        case x86_register::rbp:
@@ -143,7 +143,7 @@ namespace stig {
 	        case x86_register::esi:
 	        	return 32;
 	        default:
-	        	return 0;
+	        	return std::unexpected( "Register Width not found" );
 	    }
 	}
 
@@ -252,10 +252,12 @@ namespace stig {
 		bool sign_flag = false;
 		bool overflow_flag = false;
 
-		uint64_t get( const x86_register reg ) {
+		std::expected<uint64_t,std::string> get( const x86_register reg ) {
 			switch ( reg ) {
 				case x86_register::ebp:
 					return static_cast<uint32_t>( rbp );
+				case x86_register::edx:
+					return static_cast<uint32_t>( rdx );
 				case x86_register::rax:
 					return static_cast<uint64_t>( rax );
 				case x86_register::rdi:
@@ -265,35 +267,40 @@ namespace stig {
 				case x86_register::r9:
 					return static_cast<uint64_t>( r9 );
 				default:
-					return 0; 
+					return std::unexpected( "Unimplemented Register" ); 
 			}
 		}
 
-		void set( const x86_register reg, uint64_t val ) {
+		std::expected<void,std::string> set( const x86_register reg, uint64_t val ) {
 			switch ( reg ) {
 				case x86_register::ebp: {
 					uint32_t low = static_cast<uint32_t>( val );
             		rbp = static_cast<int64_t>( static_cast<uint64_t>( low ) );
-            		return;
+            		return {};
+            	}
+            	case x86_register::edx: {
+            		uint32_t low = static_cast<uint32_t>( val );
+            		rax = static_cast<int64_t>( static_cast<uint64_t>( low ) );
+            		return {};
             	}
             	case x86_register::rax: {
             		rax = static_cast<int64_t>( static_cast<uint64_t>( val ) );
-            		return;
+            		return {};
             	}
             	case x86_register::rdi: {
             		rdi = static_cast<int64_t>( static_cast<uint64_t>( val ) );
-            		return;
+            		return {};
             	} 
             	case x86_register::rdx: {
             		rdx = static_cast<int64_t>( static_cast<uint64_t>( val ) );
-            		return;
+            		return {};
             	}
             	case x86_register::r9: {
             		r9 = static_cast<int64_t>( static_cast<uint64_t>( val ) );
-            		return;
+            		return {};
             	}
 				default:
-					return;
+					return std::unexpected( "Unimplemented Register" );
 			}
 		}
 	};
@@ -304,13 +311,17 @@ namespace stig {
 		std::expected<void,std::string> execute_instruction( x86_instruction& instruction );
 	};
 
-	void execute_xor( const x86_instruction& xor_instr, x86_cpu& cpu );
+	std::expected<void,std::string> execute_xor( const x86_instruction& xor_instr, x86_cpu& cpu );
 
-	void execute_mov( const x86_instruction& mov_instr, x86_cpu& cpu );
+	std::expected<void,std::string> execute_mov( const x86_instruction& mov_instr, x86_cpu& cpu );
 
-	void execute_cmp( const x86_instruction& cmp_instr, x86_cpu& cpu );
+	std::expected<void,std::string> execute_cmp( const x86_instruction& cmp_instr, x86_cpu& cpu );
 
-	void execute_push( const x86_instruction& push_instr, x86_cpu& cpu );
+	std::expected<void,std::string> execute_push( const x86_instruction& push_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_pop( const x86_instruction& pop_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_test( const x86_instruction& test_instr, x86_cpu& cpu );
 
 }
 
