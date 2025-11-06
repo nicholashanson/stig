@@ -30,6 +30,7 @@ add_executable(test_x86
     test/test_x86/test_execute_pop.cpp
     test/test_x86/test_execute_shr.cpp
     test/test_x86/test_execute_sar.cpp
+    test/test_x86/test_execute_ret.cpp
     src/x86.cpp
 )
 

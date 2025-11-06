@@ -485,6 +485,82 @@ namespace stig {
 		return{};
     }
 
+    // ==============
+    //  Execute Movb
+    // ==============
+
+    std::expected<void,std::string> execute_movb( const x86_instruction& movb_instr, x86_cpu& cpu, std::unordered_map<uint64_t,uint8_t>& ram ) {
+    	if ( !movb_instr.operands.has_value() ) {
+    		return std::unexpected( "Movb Instruction has no Operands" );
+    	}
+    	auto& operands = movb_instr.operands.value();
+    	std::optional<std::string> error;
+    	bool unhandled = false;
+    	auto lhs = std::visit( [ &cpu, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			if ( auto res = cpu.get( op ) ) {
+    				return static_cast<uint8_t>( res.value() );
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		if constexpr ( std::is_same_v<T,x86_immediate> ) {
+    			return static_cast<uint8_t>( op.value );
+    		}
+    		unhandled = true;
+    		return uint8_t{0};
+    	}, operands[ 0 ] );
+    	if ( unhandled ) {
+    		if ( error.has_value() ) {
+    			return std::unexpected( error.value() );
+    		} else {
+    			return std::unexpected( "Left-Hand Operand unhandled" );
+    		}
+    	}
+    	auto rhs = std::visit( [ &cpu, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			if ( auto res = cpu.get( op ) ) {
+    				return res.value();
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		if constexpr ( std::is_same_v<T,x86_memory> ) {
+    			uint64_t addr{};
+    			if ( !op.base.has_value() ) {
+    				error = "Memory has no Base Register";
+    				unhandled = true;
+    				return uint64_t{0};
+    			}
+    			if ( !op.displacement.has_value() ) {
+    				error = "Memory has no Displacement";
+    				unhandled = true;
+    				return uint64_t{0};
+    			}
+    			if ( auto res = cpu.get( op.base.value() ) ) {
+    				addr = res.value();
+    				addr += op.displacement.value();
+    				return addr;
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		unhandled = true;
+    		return uint64_t{0};
+    	}, operands[ 1 ] );
+    	if ( unhandled ) {
+    		if ( error.has_value() ) {
+    			return std::unexpected( error.value() );
+    		} else {
+    			return std::unexpected( "Right-Hand Operand unhandled" );
+    		}
+    	}
+    	ram.insert( std::pair<uint64_t,uint8_t>( rhs, lhs ) );
+    	return {};
+    }
+
     // =============
     //  Execute Cmp
     // =============
@@ -831,6 +907,27 @@ namespace stig {
     		}
     		unhandled = true;
     	}, operands[ 1 ] );
+    	return {};
+    }
+
+    // =============
+    //  Execute Ret
+    // =============
+
+    std::expected<void,std::string> execute_ret( const x86_instruction& ret_instr, x86_cpu& cpu ) {
+    	if ( ret_instr.operands.has_value() && !ret_instr.operands->empty() ) {
+    		return std::unexpected( "Ret Instruction contains Operands" );
+    	}
+    	constexpr int size = 8;
+    	uint64_t val = 0;
+    	for ( int i = 0; i < size; ++i ) {
+    		if ( cpu.stack.empty() ) {
+    			return std::unexpected( "Stack Underflow on RET" );
+    		}
+    		val |= static_cast<uint64_t>( cpu.stack.top() ) << ( i * 8 );
+        	cpu.stack.pop();
+    	}
+    	cpu.rip = static_cast<int64_t>( val );
     	return {};
     }
 

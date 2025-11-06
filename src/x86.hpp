@@ -264,6 +264,8 @@ namespace stig {
 					return static_cast<uint64_t>( rdi );
 				case x86_register::rdx:
 					return static_cast<uint64_t>( rdx );
+				case x86_register::rip:
+					return static_cast<uint64_t>( rip );
 				case x86_register::rsi:
 					return static_cast<uint64_t>( rsi );
 				case x86_register::r9:
@@ -297,6 +299,10 @@ namespace stig {
             		rdx = static_cast<int64_t>( static_cast<uint64_t>( val ) );
             		return {};
             	}
+            	case x86_register::rip: {
+            		rip = static_cast<int64_t>( static_cast<uint64_t>( val ) );
+            		return {};
+            	} 
             	case x86_register::rsi: {
             		rsi = static_cast<int64_t>( static_cast<uint64_t>( val ) );
             		return {};
@@ -337,7 +343,7 @@ namespace stig {
 
 	std::expected<void,std::string> execute_mov( const x86_instruction& mov_instr, x86_cpu& cpu );
 
-	std::expected<void,std::string> execute_movb( const x86_instruction& movb_instr, x86_cpu& cpu );
+	std::expected<void,std::string> execute_movb( const x86_instruction& movb_instr, x86_cpu& cpu, std::unordered_map<uint64_t,uint8_t>& ram );
 
 	std::expected<void,std::string> execute_nopl( const x86_instruction& nopl_instr, x86_cpu& cpu );
 
@@ -361,6 +367,7 @@ namespace stig {
 
 	struct x86_vm {
 		x86_cpu cpu;
+		std::unordered_map<uint64_t,uint8_t> ram;
 
 		std::expected<void,std::string> execute_instruction( x86_instruction& instruction ) {
 			switch ( instruction.mnemonic ) {
@@ -391,7 +398,7 @@ namespace stig {
 		/*12*/	case x86_mnemonic::mov:
 					return execute_mov( instruction, cpu );
 		/*13*/	case x86_mnemonic::movb:
-					return execute_movb( instruction, cpu );
+					return execute_movb( instruction, cpu, ram );
 		/*14*/	case x86_mnemonic::nopl:
 					return execute_nopl( instruction, cpu );
 		/*15*/	case x86_mnemonic::nopw:
