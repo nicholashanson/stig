@@ -931,6 +931,81 @@ namespace stig {
     	return {};
     }
 
+    // =============
+    //  Execute Lea
+    // =============
+
+    std::expected<void,std::string> execute_lea( const x86_instruction& lea_instr, x86_cpu& cpu ) {
+    	auto& operands = lea_instr.operands.value();
+    	bool unhandled = false;
+    	std::optional<std::string> error;
+    	uint64_t addr{};
+    	std::visit( [ &cpu, &addr, &unhandled, &error ]( auto&& op ) { 
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_memory> ) {
+    			if ( auto res = cpu.get( op.base.value() ) ) {
+    				addr = res.value() + op.displacement.value();
+    			} else {
+    				error = res.error();
+    			}
+    		} else {
+    			unhandled = true;
+    		}
+    	}, operands[ 0 ] ); 
+    	if ( unhandled ) {
+    		return std::unexpected( "LEA Left-Operand must be Memory" );
+    	}
+    	x86_register dest_reg;
+    	std::visit( [ &cpu, &dest_reg, &unhandled ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			dest_reg = op;
+    		} else {
+    			unhandled = true;
+    		}
+    	}, operands[ 1 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "LEA Right-Operand must be a Register" );
+    	}
+    	if ( error.has_value() ) {
+    		return std::unexpected( error.value() );
+    	}
+    	if ( auto res = cpu.set( dest_reg, addr ) ) {
+    		return {};
+    	} else {
+    		return std::unexpected( res.error() );
+    	}
+    }
+
+    // =============
+    //  Execute Jne
+    // =============
+
+    std::expected<void,std::string> execute_jne( const x86_instruction& jne_instr, x86_cpu& cpu ) {
+    	if ( !cpu.zero_flag ) {
+    		cpu.increment_rpi( jne_instr.machine_bytes.size() );
+    	}
+    	auto& operands = jne_instr.operands.value();
+    	uint64_t addr{};
+    	bool unhandled = false;
+    	std::visit( [ &addr, &unhandled ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_address> ) {
+    			addr = op.addr;
+    			return;
+    		}
+    		unhandled = true;
+    	}, operands[ 0 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "JNE Operand must be an Address" ); 
+    	}
+    	if ( auto res = cpu.set( x86_register::rip, addr ) ) {
+    		return {};
+    	} else {
+    		return std::unexpected( res.error() );
+    	}
+    }
+
 	// ============================
     //  Parse x86 Instruction : <<
     // ============================

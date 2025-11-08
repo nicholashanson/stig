@@ -247,6 +247,10 @@ namespace stig {
 
 		std::stack<uint8_t> stack;
 
+		void increment_rpi( const int val ) {
+			rip += val;
+		}
+ 
 		bool zero_flag = false;
 		bool carry_flag = false;
 		bool sign_flag = false;

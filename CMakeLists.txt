@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(stig_x86_parser)
 
-# Use C++17
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add source files for the library
 set(LIB_SOURCES
     src/x86.cpp
     src/x86.hpp
@@ -31,12 +29,13 @@ add_executable(test_x86
     test/test_x86/test_execute_shr.cpp
     test/test_x86/test_execute_sar.cpp
     test/test_x86/test_execute_ret.cpp
+    test/test_x86/test_execute_lea.cpp
+    test/test_x86/test_execute_jne.cpp
     src/x86.cpp
 )
 
-# Link test executable with library source and GTest
 target_link_libraries(test_x86
     "${CMAKE_SOURCE_DIR}/lib/libgtest.a"
     "${CMAKE_SOURCE_DIR}/lib/libgtest_main.a"
-    pthread   # required by GTest
+    pthread
 )
