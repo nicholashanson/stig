@@ -31,6 +31,8 @@ add_executable(test_x86
     test/test_x86/test_execute_ret.cpp
     test/test_x86/test_execute_lea.cpp
     test/test_x86/test_execute_jne.cpp
+    test/test_x86/test_execute_je.cpp
+    test/test_x86/test_execute_add.cpp
     src/x86.cpp
 )
 
