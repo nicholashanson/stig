@@ -982,7 +982,7 @@ namespace stig {
     // =============
 
     std::expected<void,std::string> execute_jne( const x86_instruction& jne_instr, x86_cpu& cpu ) {
-    	if ( !cpu.zero_flag ) {
+    	if ( cpu.zero_flag ) {
     		cpu.increment_rpi( jne_instr.machine_bytes.size() );
     	}
     	auto& operands = jne_instr.operands.value();
@@ -1000,6 +1000,81 @@ namespace stig {
     		return std::unexpected( "JNE Operand must be an Address" ); 
     	}
     	if ( auto res = cpu.set( x86_register::rip, addr ) ) {
+    		return {};
+    	} else {
+    		return std::unexpected( res.error() );
+    	}
+    }
+
+    // ============
+    //  Execute Je
+    // ============
+
+    std::expected<void,std::string> execute_je( const x86_instruction& je_instr, x86_cpu& cpu ) {
+    	if ( !cpu.zero_flag ) {
+    		cpu.increment_rpi( je_instr.machine_bytes.size() );
+    	}
+    	auto& operands = je_instr.operands.value();
+    	uint64_t addr{};
+    	bool unhandled = false;
+    	std::visit( [ &addr, &unhandled ]( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_address> ) {
+    			addr = op.addr;
+    			return;
+    		}
+    		unhandled = true;
+    	}, operands[ 0 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "JNE Operand must be an Address" ); 
+    	}
+    	if ( auto res = cpu.set( x86_register::rip, addr ) ) {
+    		return {};
+    	} else {
+    		return std::unexpected( res.error() );
+    	}
+    }
+
+    // =============
+    //  Execute Add
+    // =============
+
+    std::expected<void,std::string> execute_add( const x86_instruction& add_instr, x86_cpu& cpu ) {
+    	auto& operands = add_instr.operands.value();
+    	uint64_t val{};
+    	bool unhandled = false;
+    	std::optional<std::string> error;
+    	std::visit( [ &cpu, &val, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype(op)>;
+    		if constexpr ( std::is_same_v<T,x86_immediate> ) {
+    			val = op.value;
+    			return;
+    		}
+    		unhandled = true;
+    	}, operands[ 0 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "Left-Hand Operand is not handled" );
+    	}
+    	uint64_t target_val{};
+    	x86_register target_reg;
+    	std::visit( [ &cpu, &target_val, &target_reg, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype(op)>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			if ( auto res = cpu.get( op ) ) {
+    				target_val = res.value();
+    				target_reg = op;
+    				return;
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		unhandled = true;
+    	}, operands[ 1 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "Right-Hand Operand is not handled" );
+    	}
+    	uint64_t result = target_val + val;
+    	if ( auto res = cpu.set( target_reg, result ) ) {
     		return {};
     	} else {
     		return std::unexpected( res.error() );

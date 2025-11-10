@@ -270,6 +270,8 @@ namespace stig {
 					return static_cast<uint64_t>( rdx );
 				case x86_register::rip:
 					return static_cast<uint64_t>( rip );
+				case x86_register::rsp:
+					return static_cast<uint64_t>( rsp );
 				case x86_register::rsi:
 					return static_cast<uint64_t>( rsi );
 				case x86_register::r9:
@@ -311,6 +313,10 @@ namespace stig {
             		rsi = static_cast<int64_t>( static_cast<uint64_t>( val ) );
             		return {};
             	}
+            	case x86_register::rsp: {
+            		rsp = static_cast<uint64_t>( static_cast<uint64_t>( val ) );
+            		return {};
+            	} 
             	case x86_register::r9: {
             		r9 = static_cast<int64_t>( static_cast<uint64_t>( val ) );
             		return {};
