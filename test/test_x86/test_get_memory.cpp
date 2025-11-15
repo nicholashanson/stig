@@ -9,3 +9,11 @@ TEST( UnitTest, GetMemory ) {
 	ASSERT_TRUE( result ) << result.error();
 	EXPECT_EQ( result.value(), expected );
 }
+
+TEST( UnitTest, GetMemory_IndexScale ) {
+	auto memory_str = "0x0(%rax,%rax,1)";
+	stig::x86_memory expected = { stig::x86_register::rax, stig::x86_register::rax, 1, 0x00 };
+	auto result = stig::get_memory( memory_str );
+	ASSERT_TRUE( result ) << result.error();
+	EXPECT_EQ( result.value(), expected );
+}

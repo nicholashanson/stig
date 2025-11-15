@@ -32,13 +32,15 @@ namespace stig {
 	    iss.seekg( p_result.pos, std::ios::beg );
 	    std::vector<uint8_t> bytes;
 	    while ( iss >> token ) {
-	        if ( token.size() > 2 ) { 
+	        if ( token.size() > 2 && token != "lock" ) { 
 	        	break;
 	        }
 	        bool is_hex = token.find_first_not_of( "0123456789abcdefABCDEF" ) == std::string::npos;
 	        if ( !is_hex ) {
-	        	if ( token == "cs" ) {
+	        	if ( token == "cs" || token == "lock" ) {
+	        		std::cout << "here" << std::endl;
 	        		p_result.pos = iss.tellg();
+	        		std::cout << "pos: " << p_result.pos << std::endl;
 	        		break;
 	        	} 
 	        	break;
@@ -68,6 +70,7 @@ namespace stig {
 	    auto it = mnemonic_map.find( token );
 		if ( it != mnemonic_map.end() ) {
 		    p_result.instruction.mnemonic = it->second;
+		    std::cout << mnemonic_names.at( p_result.instruction.mnemonic ) << std::endl;
 		} else {
 		    return std::unexpected( "Unknown Mnemonic: " + token );
 		}
@@ -123,10 +126,28 @@ namespace stig {
     // =============
 
 	std::vector<std::string> split_token( const std::string& token ) {
+		std::string token_copy( token );
+		bool inside_paren = false;
+		for ( auto& c : token_copy ) {
+			if ( c == '(' ) {
+				inside_paren = true;
+			}
+			if ( c == ')' ) {
+				inside_paren = false;
+			}
+			if ( c == ',' && inside_paren ) {
+				c = '#';
+			}
+		}
 	    std::vector<std::string> result;
-	    std::stringstream ss( token );
+	    std::stringstream ss( token_copy );
 	    std::string part;
 	    while ( std::getline( ss, part, ',' ) ) {
+	    	for ( auto& c : part ) {
+	    		if ( c == '#' ) {
+	    			c = ',';
+	    		}
+	    	}
 	        result.push_back( part );
 	    }
 	    return result;
@@ -137,6 +158,7 @@ namespace stig {
     // ============
 
     std::expected<x86_memory,std::string> get_memory( const std::string& token ) {
+    	std::cout << "token1: " << token << std::endl;
     	x86_memory result{};
     	auto open_paren = token.find( '(' );
         auto close_paren = token.find( ')' );
@@ -152,6 +174,29 @@ namespace stig {
 	        	return std::unexpected( disp_result.error() );
 	        }
 	        result.displacement = disp_result.value();
+	    }
+	    auto first_comma = reg_str.find( ',' );
+	    auto second_comma = std::string::npos; 
+	    if ( first_comma != std::string::npos ) {
+	    	second_comma = reg_str.find( ',', first_comma + 1 );
+	    }  
+	    if ( second_comma != std::string::npos ) {
+	    	auto base_reg_result = get_register( reg_str.substr( 0, first_comma ) );
+	    	if ( !base_reg_result ) {
+	    		return std::unexpected( "Unrecognized Base Register: " + reg_str );
+	    	}
+	    	result.base = base_reg_result.value();
+	    	auto index_reg_result = get_register( reg_str.substr( first_comma + 1, second_comma - first_comma - 1 ) );
+	    	if ( !index_reg_result ) {
+	    		return std::unexpected( "Unrecognized Index Register: " + reg_str ); 
+	    	}
+	    	result.index = index_reg_result.value();
+	    	auto scale_result = parse_displacement( reg_str.substr( second_comma + 1 ) );
+	    	if ( !scale_result ) {
+	    		return std::unexpected( "Unrecognized Scale:" + reg_str );
+	    	}
+	    	result.scale = scale_result.value();
+	    	return result;
 	    }
         auto register_result = get_register( reg_str );
         if ( !register_result ) {
@@ -314,7 +359,6 @@ namespace stig {
 	    std::string line;
 	    while ( std::getline( stream, line ) ) {
 	        if ( !line.empty() ) {  
-	     		std::cout << trim( line ) << std::endl;
 	            lines.push_back( trim( line ) );
 	        }
 	    }
@@ -346,6 +390,18 @@ namespace stig {
 		}
  		return func;
 	}
+
+	// ====================
+    //  Convert to Program
+    // ====================
+
+    std::expected<program,std::string> convert_to_program( function& func ) {
+    	program result;
+    	for ( auto& instr : func.instructions ) {
+    		result.instrs.insert( std::pair<uint64_t,x86_instruction>{ instr.address, instr } );
+    	}
+    	return result;
+    }
 
 	// =============
     //  Execute Xor
@@ -1079,6 +1135,130 @@ namespace stig {
     	} else {
     		return std::unexpected( res.error() );
     	}
+    }
+
+    // =======================
+    //  Get Empty Line Offset
+    // =======================
+
+    int get_empty_line_offset( std::ifstream& file, std::size_t start_line ) {
+    	std::streampos original_pos = file.tellg();
+    	file.clear();
+    	file.seekg(0);
+    	std::string line;
+    	std::size_t current = 0;
+    	while ( current < start_line && std::getline( file, line ) ) {
+    		++current;	
+    	}
+    	if ( current != start_line ) {
+    		file.clear();
+    		file.seekg( original_pos );
+    		return -1;
+    	}
+    	int offset = 0;
+    	while ( std::getline( file, line ) ) {
+    		if ( line.empty() ) {
+    			file.clear();
+    			file.seekg( original_pos );
+    			++offset;
+    			return offset;
+    		}
+    		++offset;
+    	}
+    	file.clear();
+    	file.seekg( original_pos );
+    	return -1;
+    }
+
+    // ===========================
+    //  Get Function Name Line No
+    // ===========================
+
+    std::optional<std::size_t> get_function_name_line_no( std::ifstream& file, const std::string& function_name ) {
+    	std::string line;
+    	std::size_t line_number = 0;
+    	std::regex func_regex( "^0*([0-9A-Fa-f]{1,16})\\s+<" + function_name + ">:\\s*$" );
+    	while ( std::getline( file, line ) ) {
+    		++line_number;
+    		if ( std::regex_search( line, func_regex ) ) {
+    			return line_number;
+    		}
+    	} 
+    	return std::nullopt;
+    }
+
+    // ==================
+    //  Get Function Str
+    // ==================
+
+    std::expected<std::string,std::string> get_function_str( std::ifstream& file, const std::string& function_name ) {
+    	std::string result;
+    	auto line_no_opt = get_function_name_line_no( file, function_name );
+    	if ( !line_no_opt ) {
+    		return std::unexpected( "Function Name not found in File" );
+    	}
+    	auto& line_no = line_no_opt.value();
+    	auto offset = get_empty_line_offset( file, line_no );
+    	if ( offset == -1 ) {
+    		return std::unexpected( "Error Calculating Empty Line Offset" );
+    	}
+    	std::string line;
+    	file.clear();
+    	file.seekg( 0 );
+    	for ( std::size_t i = 0; i < line_no; ++i ) {
+    		std::getline( file, line );
+    	}
+    	result += line + "\n";
+    	while ( offset > 0 ) {
+    		std::getline( file, line );
+    		result += line;
+    		if ( offset != 1 ) {
+    			result += "\n";
+    		}
+    		--offset;
+    	}
+    	return result;
+    }
+
+    // ==================
+    //  Extract Function
+    // ==================
+
+    std::expected<function,std::string> extract_function( const std::string& file_name, const std::string& function_name ) {
+    	std::ifstream file( file_name );
+    	if ( !file ) {
+    		return std::unexpected( "Failed to Open File" );
+    	}
+    	auto res = get_function_str( file, function_name );
+    	if ( !res ) {
+    		return std::unexpected( "Failed to Extract Function String from File" );
+    	}
+    	auto& str = res.value();
+    	auto parse_result = parse_function( str );
+    	if ( !parse_result ) {
+    		return std::unexpected( parse_result.error() );
+    	}
+    	return parse_result.value();
+    }
+
+    // ========================
+    //  Extract Function Names
+    // ========================
+
+    std::expected<std::vector<std::string>,std::string> extract_function_names( const std::string& file_name ) {
+    	std::vector<std::string> result;
+    	std::ifstream file( file_name );
+    	if ( !file ) {
+    		return std::unexpected( "Failed to Open File" );
+    	}
+    	std::string line;
+    	std::smatch match;
+    	while ( std::getline( file, line ) ) {
+    		if ( std::regex_search( line, match, func_name_regex ) ) {
+    			result.push_back( match[ 1 ].str() );
+    		}
+    	}
+    	return result;
     }
 
 	// ============================
