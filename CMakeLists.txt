@@ -33,6 +33,12 @@ add_executable(test_x86
     test/test_x86/test_execute_jne.cpp
     test/test_x86/test_execute_je.cpp
     test/test_x86/test_execute_add.cpp
+    test/test_x86/test_convert_to_program.cpp
+    test/test_x86/test_get_empty_line_offset.cpp
+    test/test_x86/test_get_function_name_line_no.cpp
+    test/test_x86/test_get_function_str.cpp
+    test/test_x86/test_extract_function.cpp
+    test/test_x86/test_extract_function_names.cpp
     src/x86.cpp
 )
 

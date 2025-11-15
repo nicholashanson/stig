@@ -5,8 +5,10 @@
 #include <charconv>
 #include <cstdint>
 #include <expected>
+#include <fstream>
 #include <iostream>
 #include <optional>
+#include <regex>
 #include <stack>
 #include <sstream>
 #include <string>
@@ -14,6 +16,8 @@
 #include <vector>
 
 namespace stig {
+
+	inline std::regex func_name_regex( R"(^[0-9A-Fa-f]{16}\s+<([^>]+)>)" );
 
 	namespace file_format {
 		inline std::string x_86_64 = "file format elf64-x86-64";
@@ -26,6 +30,7 @@ namespace stig {
 		cmp,
 		cmpb,
 		cmpq,
+		cmpxchg,
 		endbr64,
 		hlt,
 		je,
@@ -72,7 +77,8 @@ namespace stig {
 	  	{ x86_mnemonic::cmp,         "cmp" },
 	  	{ x86_mnemonic::xor_,        "xor" },
 	  	{ x86_mnemonic::and_,        "and" },
-	  	{ x86_mnemonic::hlt,         "hlt" }    
+	  	{ x86_mnemonic::hlt,         "hlt" },
+	  	{ x86_mnemonic::cmpxchg, "cmpxchg" }    
     };
 
     static const std::unordered_map<std::string, x86_mnemonic> mnemonic_map = {
@@ -100,7 +106,8 @@ namespace stig {
 	    { "cmp",         x86_mnemonic::cmp },
 	    { "xor",        x86_mnemonic::xor_ },
 	    { "and",        x86_mnemonic::and_ },
-	    { "hlt",         x86_mnemonic::hlt }
+	    { "hlt",         x86_mnemonic::hlt },
+	    { "cmpxchg", x86_mnemonic::cmpxchg }
 	};
 
 	enum class x86_register : uint8_t {
@@ -202,7 +209,21 @@ namespace stig {
 	struct function {
 		std::string name;
 		std::vector<x86_instruction> instructions;
+
+		bool operator==( const function& other ) const {
+			return name == other.name &&
+				   instructions == other.instructions;
+		}
+
 	};
+
+	struct program {
+		uint64_t entry_point;
+		std::unordered_map<uint64_t,x86_instruction> instrs;
+		uint64_t exit_point;
+	};
+
+	std::expected<program,std::string> convert_to_program( function& func );
 
 	struct elf64_x86_64 {
 		std::vector<function> _init;
@@ -325,6 +346,7 @@ namespace stig {
 					return std::unexpected( "Unimplemented Register" );
 			}
 		}
+
 	};
 
 	std::expected<void,std::string> execute_add( const x86_instruction& add_instr, x86_cpu& cpu );
@@ -433,7 +455,26 @@ namespace stig {
 					return std::unexpected( "Unimplemented instruction" );
 			}
 		}
-	};
+
+		uint32_t load_program( program& prog ) {
+			cpu.rip = prog.entry_point;
+			while ( cpu.rip != prog.exit_point ) {
+				execute_instruction( prog.instrs[ cpu.rip ] );
+			}
+			return cpu.rax;
+		}
+
+	}; // x86_vm
+
+	int get_empty_line_offset( std::ifstream& file, std::size_t start_line );
+
+	std::optional<std::size_t> get_function_name_line_no( std::ifstream& file, const std::string& function_name );
+
+	std::expected<std::string,std::string> get_function_str( std::ifstream& file, const std::string& function_name );
+
+	std::expected<function,std::string> extract_function( const std::string& file_name, const std::string& function_name );
+
+	std::expected<std::vector<std::string>,std::string> extract_function_names( const std::string& file_name );
 
 } // namespace stig
 

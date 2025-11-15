@@ -156,6 +156,25 @@ TEST( UnitTest, ParseX86Instruction_Nopl_Memory ) {
 	EXPECT_EQ( parsed_instruction.instruction, expected );
 }
 
+TEST( UnitTest, ParseX86Instruction_Nopw ) {
+	std::string nopw_instruction = "1066:	66 2e 0f 1f 84 00 00 	cs nopw 0x0(%rax,%rax,1)";
+	stig::x86_memory expected_mem {
+		stig::x86_register::rax,
+		stig::x86_register::rax,
+		1,
+		0x00
+	};
+	stig::x86_instruction expected = {
+		0x1066,
+		std::vector<uint8_t>{ 0x66, 0x2e, 0x0f, 0x1f, 0x84, 0x00, 0x00 },
+		stig::x86_mnemonic::nopw,
+		std::vector<stig::x86_operand>{ expected_mem }
+	};
+	auto parse_result = stig::parse_x86_instruction( nopw_instruction );
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
+
 TEST( UnitTest, ParseX86Instruction_Movb ) {
 	std::string movb_instruction = "110c:	c6 05 fd 2e 00 00 01 	movb   $0x1,0x2efd(%rip)        # 4010 <__TMC_END__>";
 	stig::x86_memory expected_mem {
@@ -250,6 +269,26 @@ TEST( UnitTest, ParseX86Instruction_Je ) {
 		std::vector<stig::x86_operand>{ stig::x86_address{ 0x10d8 } }
 	};
 	auto parse_result = stig::parse_x86_instruction( je_instruction );
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
+
+TEST( UnitTest, ParseX86Instruction_Cmpxchg ) {
+	std::string cmpxchg = "4011d1: f0 0f b1 15 67 4a 0b lock cmpxchg %edx,0xb4a67(%rip) # 4b5c40 <lock>";
+	stig::x86_memory mem{
+		stig::x86_register::rip,
+		std::nullopt,
+		std::nullopt,
+		0xb4a67
+	};
+	stig::x86_instruction expected = {
+		0x4011d1,
+		std::vector<uint8_t>{ 0xf0, 0x0f, 0xb1, 0x15, 0x67, 0x4a, 0x0b },
+		stig::x86_mnemonic::cmpxchg,
+		std::vector<stig::x86_operand>{ stig::x86_register::edx, mem }
+	};
+	auto parse_result = stig::parse_x86_instruction( cmpxchg );
+	ASSERT_TRUE( parse_result ) << parse_result.error(); 
 	auto& parsed_instruction = parse_result.value();
 	EXPECT_EQ( parsed_instruction.instruction, expected );
 }
