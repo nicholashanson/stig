@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cstdint>
+#include <cstring>
 #include <expected>
 #include <fstream>
 #include <iostream>
@@ -16,6 +17,40 @@
 #include <vector>
 
 namespace stig {
+
+	struct __attribute__((packed)) elf64_ehdr {
+    	unsigned char e_ident[16];
+	    uint16_t e_type;
+	    uint16_t e_machine;
+	    uint32_t e_version;
+	    uint64_t e_entry;
+	    uint64_t e_phoff;
+	    uint64_t e_shoff;
+	    uint32_t e_flags;
+	    uint16_t e_ehsize;
+	    uint16_t e_phentsize;
+	    uint16_t e_phnum;
+	    uint16_t e_shentsize;
+	    uint16_t e_shnum;
+	    uint16_t e_shstrndx;
+	};
+
+	struct __attribute__((packed)) elf64_shdr {
+	    uint32_t sh_name;
+	    uint32_t sh_type;
+	    uint64_t sh_flags;
+	    uint64_t sh_addr;
+	    uint64_t sh_offset;
+	    uint64_t sh_size;
+	    uint32_t sh_link;
+	    uint32_t sh_info;
+	    uint64_t sh_addralign;
+	    uint64_t sh_entsize;
+	};
+
+	std::expected<elf64_ehdr,std::string> get_elf_header( const std::string& file_name );
+
+	std::expected<std::vector<elf64_shdr>,std::string> parse_elf64_shdr( std::ifstream& file, elf64_ehdr& hdr );
 
 	inline std::regex func_name_regex( R"(^[0-9A-Fa-f]{16}\s+<([^>]+)>)" );
 
@@ -475,6 +510,8 @@ namespace stig {
 	std::expected<function,std::string> extract_function( const std::string& file_name, const std::string& function_name );
 
 	std::expected<std::vector<std::string>,std::string> extract_function_names( const std::string& file_name );
+
+	std::expected<x86_instruction,std::string> parse_x86_instruction( std::span<const uint8_t> bytes );
 
 } // namespace stig
 
