@@ -1274,30 +1274,8 @@ namespace stig {
 		file.read( reinterpret_cast<char*>( buffer.data() ), buffer.size() );
 		elf64_ehdr hdr;
 		std::memcpy( &hdr, buffer.data(), sizeof(hdr) );
-		std::cout << "ELF Header:\n";
-	    std::cout << "  e_ident: ";
-	    for (int i = 0; i < 16; ++i)
-	        std::cout << std::hex << static_cast<int>(hdr.e_ident[i]) << " ";
-	    std::cout << "\n";
-
-	    std::cout << std::dec;
-	    std::cout << "  e_type: " << hdr.e_type << "\n";
-	    std::cout << "  e_machine: " << hdr.e_machine << "\n";
-	    std::cout << "  e_version: " << hdr.e_version << "\n";
-	    std::cout << "  e_entry: 0x" << std::hex << hdr.e_entry << "\n";
-	    std::cout << std::dec;
-	    std::cout << "  e_phoff: " << hdr.e_phoff << "\n";
-	    std::cout << "  e_shoff: " << hdr.e_shoff << "\n";
-	    std::cout << "  e_flags: " << hdr.e_flags << "\n";
-	    std::cout << "  e_ehsize: " << hdr.e_ehsize << "\n";
-	    std::cout << "  e_phentsize: " << hdr.e_phentsize << "\n";
-	    std::cout << "  e_phnum: " << hdr.e_phnum << "\n";
-	    std::cout << "  e_shentsize: " << hdr.e_shentsize << "\n";
-	    std::cout << "  e_shnum: " << hdr.e_shnum << "\n";
-	    std::cout << "  e_shstrndx: " << hdr.e_shstrndx << "\n";
 	    file.seekg(0, std::ios::end);
 		auto filesize = file.tellg();
-		std::cout << "File size: " << filesize << "\n";
 	    return hdr;
 	}
 
