@@ -292,3 +292,9 @@ TEST( UnitTest, ParseX86Instruction_Cmpxchg ) {
 	auto& parsed_instruction = parse_result.value();
 	EXPECT_EQ( parsed_instruction.instruction, expected );
 }
+
+TEST( UnitTest, ParseX86Instruction_Sub_Bytes ) {
+	std::vector<uint8_t> bytes = { 0x48, 0x83, 0xec, 0x08 };
+	auto res = stig::parse_x86_instruction( bytes );
+	ASSERT_TRUE( res ) << res.error();
+}

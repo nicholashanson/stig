@@ -1261,6 +1261,116 @@ namespace stig {
     	return result;
     }
 
+    // ================
+    //  Get Elf Header
+    // ================
+
+    std::expected<elf64_ehdr,std::string> get_elf_header( const std::string& file_name ) {
+		std::ifstream file( file_name, std::ios::binary );
+		if ( !file ) {
+			std::unexpected( "Failed to Open File" );
+		}		
+		std::vector<unsigned char> buffer( 64 );
+		file.read( reinterpret_cast<char*>( buffer.data() ), buffer.size() );
+		elf64_ehdr hdr;
+		std::memcpy( &hdr, buffer.data(), sizeof(hdr) );
+		std::cout << "ELF Header:\n";
+	    std::cout << "  e_ident: ";
+	    for (int i = 0; i < 16; ++i)
+	        std::cout << std::hex << static_cast<int>(hdr.e_ident[i]) << " ";
+	    std::cout << "\n";
+
+	    std::cout << std::dec;
+	    std::cout << "  e_type: " << hdr.e_type << "\n";
+	    std::cout << "  e_machine: " << hdr.e_machine << "\n";
+	    std::cout << "  e_version: " << hdr.e_version << "\n";
+	    std::cout << "  e_entry: 0x" << std::hex << hdr.e_entry << "\n";
+	    std::cout << std::dec;
+	    std::cout << "  e_phoff: " << hdr.e_phoff << "\n";
+	    std::cout << "  e_shoff: " << hdr.e_shoff << "\n";
+	    std::cout << "  e_flags: " << hdr.e_flags << "\n";
+	    std::cout << "  e_ehsize: " << hdr.e_ehsize << "\n";
+	    std::cout << "  e_phentsize: " << hdr.e_phentsize << "\n";
+	    std::cout << "  e_phnum: " << hdr.e_phnum << "\n";
+	    std::cout << "  e_shentsize: " << hdr.e_shentsize << "\n";
+	    std::cout << "  e_shnum: " << hdr.e_shnum << "\n";
+	    std::cout << "  e_shstrndx: " << hdr.e_shstrndx << "\n";
+	    file.seekg(0, std::ios::end);
+		auto filesize = file.tellg();
+		std::cout << "File size: " << filesize << "\n";
+	    return hdr;
+	}
+
+	// ==================
+    //  Parse Elf64 Shdr
+    // ==================
+
+	std::expected<std::vector<elf64_shdr>,std::string> parse_elf64_shdr( std::ifstream& file, elf64_ehdr& hdr ) {
+		std::cout << std::hex << hdr.e_shnum << std::endl;
+		std::vector<elf64_shdr> sections( hdr.e_shnum );
+		std::cout << "size: " << std::dec << sections.size() << std::endl;
+		file.seekg( hdr.e_shoff );
+		for ( std::size_t i = 0; i < hdr.e_shnum; ++i ) {
+			std::cout << i << std::endl;
+			file.read( reinterpret_cast<char*>( &sections[ i ] ), sizeof( elf64_shdr ) );
+			if ( !file ) {
+        		return std::unexpected( "Failed to Read Section Header" );
+    		}
+		}
+		elf64_shdr shstr = sections[ hdr.e_shstrndx ];
+		std::vector<char> shshrtab( shstr.sh_size );
+		file.seekg( shstr.sh_offset );
+		file.read( shshrtab.data(), shshrtab.size() );
+
+		for ( std::size_t i = 0; i < hdr.e_shnum; ++i ) {
+			const char* name = &shshrtab[ sections[ i ].sh_name ];
+		}
+		return sections;
+	}
+
+	// =======================
+    //  Parse x86 Instruction
+    // =======================
+
+	std::expected<x86_instruction,std::string> parse_x86_instruction( std::span<const uint8_t> bytes ) {
+		x86_instruction res;
+		std::size_t pos{};
+		bool rex_present = ( bytes[ 0 ] & 0xf0 ) == 0x40;
+		uint8_t rex;
+		if ( rex_present ) {
+			rex = bytes[ 0 ];
+			pos++;
+		}
+		uint8_t opcode = bytes[ pos++ ];
+		uint8_t modrm = bytes[ pos++ ];
+    	uint8_t mod = ( modrm & 0b11000000 ) >> 6;
+    	uint8_t reg_opcode = ( modrm & 0b00111000 ) >> 3; 
+    	uint8_t rm = modrm & 0b00000111;
+
+    	switch ( reg_opcode ) {
+    		case 5: { 
+    			res.mnemonic = x86_mnemonic::sub; 
+    			break;
+    		}
+    		default:
+    			return std::unexpected( "Unrecognised Reg Opcode" ); 
+    	}
+
+    	x86_register dst;
+    	switch ( rm ) {
+    		case 4: { 
+    			dst = x86_register::rsp; 
+    			break;
+    		}
+    		default: 
+    			return std::unexpected( "Unrecognised Dst" );
+    	}
+
+    	uint8_t imm = bytes[ pos++ ];
+    	res.operands = std::vector<x86_operand>{ dst, x86_immediate( imm ) };
+    	return res;
+	}
+
 	// ============================
     //  Parse x86 Instruction : <<
     // ============================

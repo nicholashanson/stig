@@ -39,6 +39,8 @@ add_executable(test_x86
     test/test_x86/test_get_function_str.cpp
     test/test_x86/test_extract_function.cpp
     test/test_x86/test_extract_function_names.cpp
+    test/test_x86/test_get_elf_header.cpp
+    test/test_x86/test_parse_elf64_shdr.cpp
     src/x86.cpp
 )
 
