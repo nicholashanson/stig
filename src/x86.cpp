@@ -38,9 +38,7 @@ namespace stig {
 	        bool is_hex = token.find_first_not_of( "0123456789abcdefABCDEF" ) == std::string::npos;
 	        if ( !is_hex ) {
 	        	if ( token == "cs" || token == "lock" ) {
-	        		std::cout << "here" << std::endl;
 	        		p_result.pos = iss.tellg();
-	        		std::cout << "pos: " << p_result.pos << std::endl;
 	        		break;
 	        	} 
 	        	break;
@@ -70,7 +68,6 @@ namespace stig {
 	    auto it = mnemonic_map.find( token );
 		if ( it != mnemonic_map.end() ) {
 		    p_result.instruction.mnemonic = it->second;
-		    std::cout << mnemonic_names.at( p_result.instruction.mnemonic ) << std::endl;
 		} else {
 		    return std::unexpected( "Unknown Mnemonic: " + token );
 		}
@@ -158,7 +155,6 @@ namespace stig {
     // ============
 
     std::expected<x86_memory,std::string> get_memory( const std::string& token ) {
-    	std::cout << "token1: " << token << std::endl;
     	x86_memory result{};
     	auto open_paren = token.find( '(' );
         auto close_paren = token.find( ')' );
@@ -1284,12 +1280,9 @@ namespace stig {
     // ==================
 
 	std::expected<std::vector<elf64_shdr>,std::string> parse_elf64_shdr( std::ifstream& file, elf64_ehdr& hdr ) {
-		std::cout << std::hex << hdr.e_shnum << std::endl;
 		std::vector<elf64_shdr> sections( hdr.e_shnum );
-		std::cout << "size: " << std::dec << sections.size() << std::endl;
 		file.seekg( hdr.e_shoff );
 		for ( std::size_t i = 0; i < hdr.e_shnum; ++i ) {
-			std::cout << i << std::endl;
 			file.read( reinterpret_cast<char*>( &sections[ i ] ), sizeof( elf64_shdr ) );
 			if ( !file ) {
         		return std::unexpected( "Failed to Read Section Header" );
