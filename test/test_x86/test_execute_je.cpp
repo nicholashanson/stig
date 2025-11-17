@@ -7,12 +7,12 @@ TEST( UnitTest, ExecuteJe ) {
 	stig::x86_instruction instr = {
 		0,
 		std::vector<uint8_t>{ 0x74, 0x02 },
-		stig::x86_mnemonic::jne,
+		stig::x86_mnemonic::je,
 		std::vector<stig::x86_operand>{ target }
 	};
 	stig::x86_cpu cpu{};
 	cpu.zero_flag = true;
-	auto jne_result = stig::execute_jne( instr, cpu );
+	auto jne_result = stig::execute_je( instr, cpu );
 	ASSERT_TRUE( jne_result ) << jne_result.error();
 	auto get_result = cpu.get( stig::x86_register::rip );
 	ASSERT_TRUE( get_result ) << get_result.error();

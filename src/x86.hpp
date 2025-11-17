@@ -64,16 +64,23 @@ namespace stig {
 		call,
 		cmp,
 		cmpb,
+		cmpl,
 		cmpq,
 		cmpxchg,
 		endbr64,
 		hlt,
+		imul,
+		incl,
+		jae,
+		jb,
 		je,
 		jne,
 		jmp,
 		lea,
 		mov,
 		movb,
+		movslq,
+		or_,
 		padding,
 		nopl,
 		nopw,
@@ -83,7 +90,9 @@ namespace stig {
 		sub,
 		sar,
 		shr,
+		syscall,
 		test,
+		testb,
 		xor_
 	};
 
@@ -95,10 +104,15 @@ namespace stig {
 	    { x86_mnemonic::ret,         "ret" },
 	    { x86_mnemonic::nopl,       "nopl" },
 	    { x86_mnemonic::movb,       "movb" },
+	    { x86_mnemonic::movslq,   "movslq" },
 	    { x86_mnemonic::call,       "call" },
 	    { x86_mnemonic::cmpq,       "cmpq" },
+	    { x86_mnemonic::cmpl,       "cmpl" },
 	    { x86_mnemonic::lea,         "lea" },
 	    { x86_mnemonic::sar,         "sar" },
+	    { x86_mnemonic::imul,       "imul" },
+	    { x86_mnemonic::jae,         "jae" },
+	    { x86_mnemonic::jb,           "jb" },
 	    { x86_mnemonic::je,           "je" },
 	    { x86_mnemonic::add,         "add" },
 	    { x86_mnemonic::sub,         "sub" },
@@ -109,11 +123,15 @@ namespace stig {
 	    { x86_mnemonic::shr,         "shr" },
 	    { x86_mnemonic::test,       "test" },
 	  	{ x86_mnemonic::nopw,       "nopw" },
+	  	{ x86_mnemonic::or_,          "or" },
 	  	{ x86_mnemonic::cmp,         "cmp" },
 	  	{ x86_mnemonic::xor_,        "xor" },
 	  	{ x86_mnemonic::and_,        "and" },
 	  	{ x86_mnemonic::hlt,         "hlt" },
-	  	{ x86_mnemonic::cmpxchg, "cmpxchg" }    
+	  	{ x86_mnemonic::cmpxchg, "cmpxchg" },
+	  	{ x86_mnemonic::testb,     "testb" },
+	  	{ x86_mnemonic::syscall, "syscall" },
+	  	{ x86_mnemonic::incl,       "incl" }     
     };
 
     static const std::unordered_map<std::string, x86_mnemonic> mnemonic_map = {
@@ -125,14 +143,19 @@ namespace stig {
 	    { "ret",         x86_mnemonic::ret },
 	    { "nopl",       x86_mnemonic::nopl },
 	    { "movb",       x86_mnemonic::movb },
+	    { "movslq",   x86_mnemonic::movslq },
 	    { "call",       x86_mnemonic::call },
 	    { "cmpq",       x86_mnemonic::cmpq },
 	    { "lea",         x86_mnemonic::lea },
 	    { "sar",         x86_mnemonic::sar },
+	    { "imul",       x86_mnemonic::imul },
+	    { "jb",           x86_mnemonic::jb },
+	    { "jae",         x86_mnemonic::jae },
 	    { "je",           x86_mnemonic::je },
 	    { "sub",         x86_mnemonic::sub },
 	    { "jmp",         x86_mnemonic::jmp },
 	    { "cmpb",       x86_mnemonic::cmpb },
+	    { "cmpl",       x86_mnemonic::cmpl },
 	    { "jne",         x86_mnemonic::jne },
 	    { "padding", x86_mnemonic::padding },
 	    { "shr",         x86_mnemonic::shr },
@@ -142,12 +165,17 @@ namespace stig {
 	    { "xor",        x86_mnemonic::xor_ },
 	    { "and",        x86_mnemonic::and_ },
 	    { "hlt",         x86_mnemonic::hlt },
-	    { "cmpxchg", x86_mnemonic::cmpxchg }
+	    { "cmpxchg", x86_mnemonic::cmpxchg },
+	    { "testb",     x86_mnemonic::testb },
+	    { "or",          x86_mnemonic::or_ },
+	    { "syscall", x86_mnemonic::syscall },
+	    { "incl",       x86_mnemonic::incl }
 	};
 
 	enum class x86_register : uint8_t {
 		eax,
 		ebp,
+		ecx,
 		edx,
 		edi,
 		esi,
@@ -158,7 +186,8 @@ namespace stig {
 		rip,
 		rsi,
 		rsp,
-		r8, 
+		r8,
+		r8d,
 		r9, 
 		r10, 
 		r11, 
@@ -166,6 +195,56 @@ namespace stig {
 		r13, 
 		r14, 
 		r15
+	};
+
+	static const std::unordered_map<x86_register,std::string> register_names = {
+		{ x86_register::eax, "eax" },
+		{ x86_register::ebp, "ebp" },
+		{ x86_register::ecx, "ecx" },
+		{ x86_register::edx, "edx" },
+		{ x86_register::edi, "edi" },
+		{ x86_register::esi, "esi" },
+		{ x86_register::rax, "rax" },
+		{ x86_register::rbp, "rbp" },
+		{ x86_register::rdi, "rdi" },
+		{ x86_register::rdx, "rdx" },
+		{ x86_register::rip, "rip" },
+		{ x86_register::rsi, "rsi" },
+		{ x86_register::rsp, "rsp" },
+		{ x86_register::r8,   "r8" },
+		{ x86_register::r8d, "r8d" },
+		{ x86_register::r9,   "r9" },
+		{ x86_register::r10, "r10" },
+		{ x86_register::r11, "r11" },
+		{ x86_register::r12, "r12" },
+		{ x86_register::r13, "r13" },
+		{ x86_register::r14, "r14" },
+		{ x86_register::r15, "r15" }
+	};
+
+	static const std::unordered_map<std::string,x86_register> register_map = {
+		{ "eax", x86_register::eax },
+		{ "ebp", x86_register::ebp },
+		{ "ecx", x86_register::ecx },
+		{ "edx", x86_register::edx },
+		{ "edi", x86_register::edi },
+		{ "esi", x86_register::esi },
+		{ "rax", x86_register::rax },
+		{ "rbp", x86_register::rbp },
+		{ "rdi", x86_register::rdi },
+		{ "rdx", x86_register::rdx },
+		{ "rip", x86_register::rip },
+		{ "rsi", x86_register::rsi },
+		{ "rsp", x86_register::rsp },
+		{  "r8",  x86_register::r8 },
+		{ "r8d", x86_register::r8d },
+		{  "r9",  x86_register::r9 },
+		{ "r10", x86_register::r10 },
+		{ "r11", x86_register::r11 },
+		{ "r12", x86_register::r12 },
+		{ "r13", x86_register::r13 },
+		{ "r14", x86_register::r14 },
+		{ "r15", x86_register::r15 }
 	};
 
 	inline std::expected<int,std::string> get_register_width( const x86_register reg ) {
@@ -306,13 +385,17 @@ namespace stig {
 		void increment_rpi( const int val ) {
 			rip += val;
 		}
+
+		void decrement_rsp( const int val ) {
+			rsp -= val;
+		}
  
 		bool zero_flag = false;
 		bool carry_flag = false;
 		bool sign_flag = false;
 		bool overflow_flag = false;
 
-		std::expected<uint64_t,std::string> get( const x86_register reg ) {
+		std::expected<uint64_t,std::string> get( const x86_register reg ) const {
 			switch ( reg ) {
 				case x86_register::ebp:
 					return static_cast<uint32_t>( rbp );
@@ -412,6 +495,8 @@ namespace stig {
 
 	std::expected<void,std::string> execute_movb( const x86_instruction& movb_instr, x86_cpu& cpu, std::unordered_map<uint64_t,uint8_t>& ram );
 
+	std::expected<void,std::string> execute_movslq( const x86_instruction& movslq_instr, x86_cpu& cpu );
+
 	std::expected<void,std::string> execute_nopl( const x86_instruction& nopl_instr, x86_cpu& cpu );
 
 	std::expected<void,std::string> execute_nopw( const x86_instruction& nopw_instr, x86_cpu& cpu );
@@ -432,28 +517,37 @@ namespace stig {
 
 	std::expected<void,std::string> execute_xor( const x86_instruction& xor_instr, x86_cpu& cpu );
 
+	std::expected<void,std::string> execute_sub( const x86_instruction& sub_instr, x86_cpu& cpu );
+
+	std::expected<void,std::string> execute_incl( const x86_instruction& incl_instr, x86_cpu& cpu );
+
+	std::expected<elf64_x86_64,std::string> load_program_from_ojbdump( const std::string& obj_file );
+
 	struct x86_vm {
 		x86_cpu cpu;
 		std::unordered_map<uint64_t,uint8_t> ram;
+		elf64_x86_64 current_program;
 
 		std::expected<void,std::string> execute_instruction( x86_instruction& instruction ) {
 			switch ( instruction.mnemonic ) {
-		/*0*/	case x86_mnemonic::add:
+		    	case x86_mnemonic::add:
 					return execute_add( instruction, cpu );
-		/*1*/	case x86_mnemonic::and_:
+		    	case x86_mnemonic::and_:
 					return execute_and( instruction, cpu );
-		/*2*/	case x86_mnemonic::call:
+		    	case x86_mnemonic::call:
 					return execute_call( instruction, cpu );
-		/*3*/	case x86_mnemonic::cmp:
+		    	case x86_mnemonic::cmp:
 					return execute_cmp( instruction, cpu );
-		/*4*/	case x86_mnemonic::cmpb:
+		    	case x86_mnemonic::cmpb:
 					return execute_cmpb( instruction, cpu );
-		/*5*/	case x86_mnemonic::cmpq:
+		    	case x86_mnemonic::cmpq:
 					return execute_cmpq( instruction, cpu );
-		/*6*/	case x86_mnemonic::endbr64:
+		    	case x86_mnemonic::endbr64:
 					return execute_endbr64( instruction, cpu );
-		/*7*/	case x86_mnemonic::hlt:
+		    	case x86_mnemonic::hlt:
 					return execute_hlt( instruction, cpu );
+				case x86_mnemonic::incl:
+					return execute_incl( instruction, cpu );
 		/*8*/	case x86_mnemonic::je:
 					return execute_je( instruction, cpu );
 		/*9*/	case x86_mnemonic::jmp:
@@ -466,25 +560,29 @@ namespace stig {
 					return execute_mov( instruction, cpu );
 		/*13*/	case x86_mnemonic::movb:
 					return execute_movb( instruction, cpu, ram );
-		/*14*/	case x86_mnemonic::nopl:
+		/*14*/  case x86_mnemonic::movslq:
+					return execute_movslq( instruction, cpu );
+		/*15*/	case x86_mnemonic::nopl:
 					return execute_nopl( instruction, cpu );
-		/*15*/	case x86_mnemonic::nopw:
+		/*16*/	case x86_mnemonic::nopw:
 					return execute_nopw( instruction, cpu );
-		/*16*/	case x86_mnemonic::padding:
+		/*17*/	case x86_mnemonic::padding:
 					return execute_padding( instruction, cpu );
-		/*17*/	case x86_mnemonic::pop:
+		/*18*/	case x86_mnemonic::pop:
 					return execute_pop( instruction, cpu );
-		/*18*/	case x86_mnemonic::push:
+		/*19*/	case x86_mnemonic::push:
 					return execute_push( instruction, cpu );
-		/*19*/	case x86_mnemonic::ret:
+		/*20*/	case x86_mnemonic::ret:
 					return execute_ret( instruction, cpu );
-		/*20*/	case x86_mnemonic::sar:
+		/*21*/	case x86_mnemonic::sar:
 					return execute_sar( instruction, cpu );
-		/*21*/	case x86_mnemonic::shr:
+		/*22*/	case x86_mnemonic::shr:
 					return execute_shr( instruction, cpu );
-		/*22*/	case x86_mnemonic::test:
+		/*23*/  case x86_mnemonic::sub:
+					return execute_sub( instruction, cpu );
+		/*24*/	case x86_mnemonic::test:
 					return execute_test( instruction, cpu );
-		/*23*/	case x86_mnemonic::xor_:
+		/*25*/	case x86_mnemonic::xor_:
 					return execute_xor( instruction, cpu );
 				default:
 					return std::unexpected( "Unimplemented instruction" );
@@ -499,6 +597,10 @@ namespace stig {
 			return cpu.rax;
 		}
 
+		std::expected<void,std::string> load_program( const std::string& obj_file );
+
+		std::expected<void,std::string> execute_next_instr();
+
 	}; // x86_vm
 
 	int get_empty_line_offset( std::ifstream& file, std::size_t start_line );
@@ -512,6 +614,12 @@ namespace stig {
 	std::expected<std::vector<std::string>,std::string> extract_function_names( const std::string& file_name );
 
 	std::expected<x86_instruction,std::string> parse_x86_instruction( std::span<const uint8_t> bytes );
+
+	std::string instr_to_str( const x86_instruction& instr );
+
+	std::string memory_to_str( const x86_memory& mem );
+
+	std::optional<x86_immediate> get_immediate( const std::string& token );
 
 } // namespace stig
 

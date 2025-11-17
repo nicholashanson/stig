@@ -17,6 +17,21 @@ TEST( UnitTest, ExecuteMov ) {
 	EXPECT_EQ( result, 0x01 );
 }
 
+TEST( UnitTest, ExecuteMov_Rdi ) {
+	stig::x86_instruction instr{ 
+		0x401798,
+		std::vector<uint8_t>{ 0x48, 0xc7, 0xc7, 0xbd, 0x18, 0x40, 0x00 },
+		stig::x86_mnemonic::mov,
+		std::vector<stig::x86_operand>{ stig::x86_immediate{ 0x4018bd }, stig::x86_register::rdi }
+	};
+	stig::x86_cpu cpu{};
+	auto exec_res = stig::execute_mov( instr, cpu );
+	ASSERT_TRUE( exec_res ) << exec_res.error();
+	auto get_result = cpu.get( stig::x86_register::rdi );
+	ASSERT_TRUE( get_result ) << get_result.error();
+	EXPECT_EQ( get_result.value(), 0x4018bd );
+}
+
 TEST( UnitTest, ExecuteMovb ) {
 	stig::x86_memory mem = {
 		stig::x86_register::rip,
@@ -36,3 +51,6 @@ TEST( UnitTest, ExecuteMovb ) {
 	ASSERT_TRUE( movb_result ) << movb_result.error();
 	EXPECT_EQ( vm.ram[ 0x000000000000000f + 0x2efd ], 0x01 );
 }
+
+
+

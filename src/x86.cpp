@@ -3,6 +3,74 @@
 namespace stig {
 
 	// ===============
+    //  Memory to Str
+    // ===============
+
+    std::string memory_to_str( const x86_memory& mem ) {
+    	std::ostringstream oss;
+    	oss << std::hex;
+    	if ( mem.displacement.has_value() ) { 
+    		if ( mem.displacement.value() < 0 ) {
+    			oss << "-" << std::hex << std::showbase << -mem.displacement.value(); 
+    		} else {
+    			oss << "0x" << mem.displacement.value();
+    		}
+    	}
+    	oss << "(";
+    	if ( mem.base ) { 
+    		oss << register_names.at( mem.base.value() );
+    	}
+    	if ( mem.index ) { 
+    		oss << "," << register_names.at( mem.index.value() );
+    	}
+    	if ( mem.scale ) { 
+    		oss << "," << static_cast<int>( mem.scale.value() );
+    	}
+    	oss << ")";
+    	return oss.str();
+    }
+
+	// ==============
+    //  Instr to Str
+    // ==============
+
+	std::string instr_to_str( const x86_instruction& instr ) {
+		std::ostringstream oss;
+		oss << std::hex;
+		oss << std::hex << instr.address << ":";
+		oss << " " << mnemonic_names.at( instr.mnemonic );
+		oss << " ";
+		if ( instr.operands.has_value() ) {
+			for ( auto& operand : instr.operands.value() ) {
+				std::visit([ &oss ]( auto&& op ) {
+					using T = std::decay_t<decltype( op )>;
+					if constexpr ( std::is_same_v<T,x86_register> ) {
+						oss << register_names.at( op );
+						return;
+					}
+					if constexpr ( std::is_same_v<T,x86_immediate> ) {
+						oss << std::hex << op.value;
+						return;
+					}
+					if constexpr ( std::is_same_v<T,x86_address> ) {
+						oss << std::hex << op.addr;
+						return;
+					}
+					if constexpr ( std::is_same_v<T,x86_memory> ) {
+						oss << memory_to_str( op );
+						return;
+					}
+					oss << "unhandled";
+				}, operand );
+				oss << ",";
+			}
+		} 
+		std::string s = oss.str();
+    	s.pop_back(); 
+		return s;
+	}
+
+	// ===============
     //  Parse Address
     // ===============
 
@@ -32,12 +100,15 @@ namespace stig {
 	    iss.seekg( p_result.pos, std::ios::beg );
 	    std::vector<uint8_t> bytes;
 	    while ( iss >> token ) {
-	        if ( token.size() > 2 && token != "lock" ) { 
+	    	if ( token == "data16" ) {
+	    		continue;
+	    	}
+	        if ( token.size() > 2 && token != "lock" && token != "addr32" ) { 
 	        	break;
 	        }
 	        bool is_hex = token.find_first_not_of( "0123456789abcdefABCDEF" ) == std::string::npos;
 	        if ( !is_hex ) {
-	        	if ( token == "cs" || token == "lock" ) {
+	        	if ( token == "cs" || token == "lock" || token == "addr32" ) {
 	        		p_result.pos = iss.tellg();
 	        		break;
 	        	} 
@@ -81,17 +152,18 @@ namespace stig {
     // ==============
 
     std::optional<x86_register> get_register( const std::string& token ) {
-    	if ( token == "%eax" ) return x86_register::eax;
-    	if ( token == "%edx" ) return x86_register::edx;
-    	if ( token == "%edi" ) return x86_register::edi;
-    	if ( token == "%esi" ) return x86_register::esi;
-    	if ( token == "%rax" ) return x86_register::rax;
-    	if ( token == "%rbp" ) return x86_register::rbp;
-    	if ( token == "%rdi" ) return x86_register::rdi;
-    	if ( token == "%rip" ) return x86_register::rip;
-    	if ( token == "%rsp" ) return x86_register::rsp;
-    	if ( token == "%rsi" ) return x86_register::rsi;
-    	return std::nullopt;
+    	std::string token_copy = token.substr( 1 );
+    	auto it = std::find_if(
+        	register_map.begin(), register_map.end(),
+        	[&]( const auto& pair ) {
+            	return pair.first == token_copy; 
+        	}
+    	);
+    	if ( it != register_map.end() ) {
+        	return it->second;
+    	} else {
+        	return std::nullopt;
+    	}
     }
 
     // ===============
@@ -101,7 +173,7 @@ namespace stig {
     std::optional<x86_immediate> get_immediate( const std::string& token ) {
     	if ( !token.empty() && token[ 0 ] == '$' ) {
 	        try {
-	            int64_t value = std::stoll( token.substr( 1 ), nullptr, 0 );
+	            uint64_t value = std::stoull( token.substr( 1 ), nullptr, 0 );
 	            return x86_immediate{ value };
 	        } catch ( const std::exception& ) {
 	            return std::nullopt;
@@ -191,7 +263,7 @@ namespace stig {
 	    	if ( !scale_result ) {
 	    		return std::unexpected( "Unrecognized Scale:" + reg_str );
 	    	}
-	    	result.scale = scale_result.value();
+	    	result.scale = static_cast<uint8_t>( scale_result.value() );
 	    	return result;
 	    }
         auto register_result = get_register( reg_str );
@@ -213,6 +285,20 @@ namespace stig {
 	    } catch ( const std::exception& e ) {
 	        return std::unexpected( std::string( "Invalid displacement: " ) + e.what() );
 	    }
+    }
+
+    // =============
+    //  Get Address
+    // =============
+
+    std::optional<x86_address> get_address( const std::string& token ) {
+        try {
+            uint64_t value = std::stoull( token, nullptr, 16 );
+            return x86_address{ value };
+        } catch ( const std::exception& ) {
+            return std::nullopt;
+        }
+	    return std::nullopt;
     }
 
     // ================
@@ -249,6 +335,11 @@ namespace stig {
 		        auto memory_result = get_memory( operand );
 		        if ( memory_result ) {
 		        	p_result.instruction.operands->push_back( memory_result.value() );
+		        	continue;
+		        }
+		        auto address_result = get_address( operand );
+		        if ( address_result ) {
+		        	p_result.instruction.operands->push_back( address_result.value() );
 		        	continue;
 		        }
 		        valid_token = false;
@@ -404,6 +495,7 @@ namespace stig {
     // =============
 
     std::expected<void,std::string> execute_xor( const x86_instruction& xor_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( xor_instr.machine_bytes.size() );
     	if ( !xor_instr.operands.has_value() ) {
     		return std::unexpected( "Xor Instruction does not contain any Operands" );
     	}
@@ -475,6 +567,7 @@ namespace stig {
 				return std::unexpected( "Unhandled Operand" );
 			}
 		}
+		cpu.sign_flag = ( val & ( 1ULL << 63 ) );
 		return {};
     }
 
@@ -483,6 +576,7 @@ namespace stig {
     // =============
 
     std::expected<void,std::string> execute_mov( const x86_instruction& mov_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( mov_instr.machine_bytes.size() );
     	if ( !mov_instr.operands ) {
     		return std::unexpected( "Mov Instruction does not contain any Operands" );
     	}
@@ -504,6 +598,9 @@ namespace stig {
         			error = res.error();
         		}
     		}
+    		if constexpr ( std::is_same_v<T,x86_immediate> ) {
+    			return static_cast<uint64_t>( op.value );
+    		}
     		unhandled = true;
     		return uint64_t{0};
     	}, operands[ 0 ] );
@@ -511,7 +608,7 @@ namespace stig {
     		if ( error.has_value() ) {
     			return std::unexpected( error.value() );
     		} else {
-    			return std::unexpected( "Unhandled Operand" );
+    			return std::unexpected( "Left-Hand Operand unhandled" );
     		}
     	}
     	std::visit( [ &cpu, val, &unhandled, &error ]( auto&& op ) {
@@ -531,7 +628,7 @@ namespace stig {
 			if ( error.has_value() ) {
 				return std::unexpected( error.value() );
 			} else {
-				return std::unexpected( "Unhandled Operand" );
+				return std::unexpected( "Right-Hand Operand unhandled" );
 			}
 		}
 		return{};
@@ -542,6 +639,7 @@ namespace stig {
     // ==============
 
     std::expected<void,std::string> execute_movb( const x86_instruction& movb_instr, x86_cpu& cpu, std::unordered_map<uint64_t,uint8_t>& ram ) {
+    	cpu.increment_rpi( movb_instr.machine_bytes.size() );
     	if ( !movb_instr.operands.has_value() ) {
     		return std::unexpected( "Movb Instruction has no Operands" );
     	}
@@ -618,6 +716,7 @@ namespace stig {
     // =============
 
     std::expected<void,std::string> execute_cmp( const x86_instruction& cmp_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( cmp_instr.machine_bytes.size() );
     	if ( !cmp_instr.operands ) {
     		return std::unexpected( "Cmp Instruction does not contain any Operands" );
     	}
@@ -677,11 +776,48 @@ namespace stig {
     	return {};
     }
 
+    // =================
+    //  Execute Padding
+    // =================
+
+    std::expected<void,std::string> execute_padding( const x86_instruction& pad_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( pad_instr.machine_bytes.size() );
+    	return {};
+    }
+
+    // ==============
+    //  Execute Nopw
+    // ==============
+
+    std::expected<void,std::string> execute_nopw( const x86_instruction& nopw_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( nopw_instr.machine_bytes.size() );
+    	return {};
+    }
+
+    // ==============
+    //  Execute Nopl
+    // ==============
+
+    std::expected<void,std::string> execute_nopl( const x86_instruction& nopl_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( nopl_instr.machine_bytes.size() );
+    	return {};
+    }
+
+    // ================
+    //  Execute Movslq
+    // ================
+
+    std::expected<void,std::string> execute_movslq( const x86_instruction& movslq_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( movslq_instr.machine_bytes.size() );
+    	return {};
+    }
+
     // ==============
     //  Execute Push
     // ==============
 
     std::expected<void,std::string> execute_push( const x86_instruction& push_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( push_instr.machine_bytes.size() );
     	if ( !push_instr.operands ) {
     		return std::unexpected( "Push Instruction does not contain any Operands" );
     	}
@@ -721,7 +857,8 @@ namespace stig {
     	int size = reg_width / 8;
     	for ( int i = 0; i < size; ++i ) {
         	cpu.stack.push( ( val >> ( i * 8 ) ) & 0xff );
-        } 
+        }
+        cpu.decrement_rsp( size );
         return {};
     }
 
@@ -730,6 +867,7 @@ namespace stig {
     // =============
 
     std::expected<void,std::string> execute_pop( const x86_instruction& pop_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( pop_instr.machine_bytes.size() );
     	if ( !pop_instr.operands ) {
     		return std::unexpected( "Pop Instruction does not contain any Operands" );
     	}
@@ -983,11 +1121,53 @@ namespace stig {
     	return {};
     }
 
+	// ==========================
+    //  Calculate Memory Address
+    // ==========================
+
+    /*
+		effective address = base + ( index * scale ) + displacement
+    */
+    std::expected<uint64_t,std::string> calculate_memory_address( const x86_memory& mem, const x86_cpu& cpu ) {
+    	uint64_t base_val;
+    	uint64_t index_val;
+    	uint8_t scale;
+    	int64_t displacement;
+    	if ( mem.base.has_value() ) {
+	    	auto base_res = cpu.get( mem.base.value() );
+	    	if ( !base_res ) {
+	    		return std::unexpected( base_res.error() );
+	    	}
+	    	base_val = base_res.value();
+	    }
+	    if ( mem.index.has_value() ) {
+	    	auto index_res = cpu.get( mem.index.value() );
+	    	if ( !index_res ) {
+	    		return std::unexpected( index_res.error() );
+	    	}
+	    	index_val = index_res.value();
+	    }
+	    if ( mem.base && !mem.index && !mem.displacement && !mem.scale ) {
+	    	return base_val;
+	    }
+	    if ( mem.base && mem.displacement && !mem.scale && !mem.index ) {
+	    	return base_val + mem.displacement.value();
+	    }
+	    if ( mem.base && mem.displacement && mem.scale && mem.index ) {
+	    	return base_val + index_val * mem.scale.value() + mem.displacement.value();
+	    }
+	    if ( mem.base && !mem.displacement && mem.scale && mem.index ) {
+	    	return base_val + index_val * mem.scale.value();
+	    }
+    	return std::unexpected( "Unhandled Effective Address" );
+    }
+
     // =============
     //  Execute Lea
     // =============
 
     std::expected<void,std::string> execute_lea( const x86_instruction& lea_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( lea_instr.machine_bytes.size() );
     	auto& operands = lea_instr.operands.value();
     	bool unhandled = false;
     	std::optional<std::string> error;
@@ -995,10 +1175,11 @@ namespace stig {
     	std::visit( [ &cpu, &addr, &unhandled, &error ]( auto&& op ) { 
     		using T = std::decay_t<decltype( op )>;
     		if constexpr ( std::is_same_v<T,x86_memory> ) {
-    			if ( auto res = cpu.get( op.base.value() ) ) {
-    				addr = res.value() + op.displacement.value();
+    			auto mem_res = calculate_memory_address( op, cpu );
+    			if ( mem_res ) {
+    				addr = mem_res.value(); 
     			} else {
-    				error = res.error();
+    				error = mem_res.error();
     			}
     		} else {
     			unhandled = true;
@@ -1036,6 +1217,7 @@ namespace stig {
     std::expected<void,std::string> execute_jne( const x86_instruction& jne_instr, x86_cpu& cpu ) {
     	if ( cpu.zero_flag ) {
     		cpu.increment_rpi( jne_instr.machine_bytes.size() );
+    		return {};
     	}
     	auto& operands = jne_instr.operands.value();
     	uint64_t addr{};
@@ -1056,6 +1238,121 @@ namespace stig {
     	} else {
     		return std::unexpected( res.error() );
     	}
+    }
+
+    // ==============
+    //  Execute Incl
+    // ==============
+
+    std::expected<void,std::string> execute_incl( const x86_instruction& incl_instr, x86_cpu& cpu ) {
+    	return {};
+    }
+
+    // =============
+    //  Execute Jmp
+    // =============
+
+    std::expected<void,std::string> execute_jmp( const x86_instruction& jmp_instr, x86_cpu& cpu ) {
+    	auto& operands = jmp_instr.operands.value();
+    	if ( operands.size() != 1 ) {
+    		return std::unexpected( "Jmp Instruction must have exactly one Operand" );
+    	}
+    	std::optional<std::string> error;
+    	bool unhandled = false;
+    	std::visit( [ &cpu, &error, &unhandled ] ( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_address> ) {
+    			auto set_res = cpu.set( x86_register::rip, op.addr );
+    			if ( !set_res ) {
+    				error = set_res.error();
+    			}
+    			return;
+    		}
+    		unhandled = true;	
+    	}, operands[ 0 ] );
+		if ( unhandled ) {
+			return std::unexpected( "Operand not handled" );
+		}
+		if ( error.has_value() ) {
+			return std::unexpected( error.value() );
+		}
+		return {};
+    }
+
+    // ==============
+    //  Execute Call
+    // ==============
+
+    std::expected<void,std::string> execute_call( const x86_instruction& call_instr, x86_cpu& cpu ) {
+    	auto& operands = call_instr.operands.value();
+    	if ( operands.size() != 1 ) {
+    		return std::unexpected( "Call Instruction must have exactly one Operand" );
+    	}
+    	std::optional<std::string> error;
+    	bool unhandled = false;
+    	std::visit( [ &cpu, &error, &unhandled ] ( auto&& op ) {
+    		using T = std::decay_t<decltype( op )>;
+    		if constexpr ( std::is_same_v<T,x86_address> ) {
+    			auto set_res = cpu.set( x86_register::rip, op.addr );
+    			if ( !set_res ) {
+    				error = set_res.error();
+    			}
+    			return;
+    		}
+    		unhandled = true;	
+    	}, operands[ 0 ] );
+		if ( unhandled ) {
+			return std::unexpected( "Operand not handled" );
+		}
+		if ( error.has_value() ) {
+			return std::unexpected( error.value() );
+		}
+		return {};
+    }
+
+    // =============
+    //  Execute Hlt
+    // =============
+
+    std::expected<void,std::string> execute_hlt( const x86_instruction& htl_instr, x86_cpu& cpu ) {
+    	return {};
+    }
+
+    // =================
+    //  Execute Endbr64
+    // =================
+
+    std::expected<void,std::string> execute_endbr64( const x86_instruction& endbr64_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( endbr64_instr.machine_bytes.size() );
+    	return {};
+    }
+
+    // ==============
+    //  Execute Cmpb
+    // ==============
+
+    std::expected<void,std::string> execute_cmpb( const x86_instruction& cmpb_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( cmpb_instr.machine_bytes.size() );
+    	return {};
+    }
+
+    // ==============
+    //  Execute Cmpq
+    // ==============
+
+    std::expected<void,std::string> execute_cmpq( const x86_instruction& cmpq_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( cmpq_instr.machine_bytes.size() );
+    	cpu.zero_flag = true;
+    	return {};
+    }
+
+    // =============
+    //  Execute And
+    // =============
+
+    std::expected<void,std::string> execute_and( const x86_instruction& and_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( and_instr.machine_bytes.size() );
+    	return {};
     }
 
     // ============
@@ -1092,6 +1389,7 @@ namespace stig {
     // =============
 
     std::expected<void,std::string> execute_add( const x86_instruction& add_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( add_instr.machine_bytes.size() );
     	auto& operands = add_instr.operands.value();
     	uint64_t val{};
     	bool unhandled = false;
@@ -1126,6 +1424,53 @@ namespace stig {
     		return std::unexpected( "Right-Hand Operand is not handled" );
     	}
     	uint64_t result = target_val + val;
+    	if ( auto res = cpu.set( target_reg, result ) ) {
+    		return {};
+    	} else {
+    		return std::unexpected( res.error() );
+    	}
+    }
+
+    // =============
+    //  Execute Sub
+    // =============
+
+    std::expected<void,std::string> execute_sub( const x86_instruction& sub_instr, x86_cpu& cpu ) {
+    	cpu.increment_rpi( sub_instr.machine_bytes.size() );
+    	auto& operands = sub_instr.operands.value();
+    	uint64_t val{};
+    	bool unhandled = false;
+    	std::optional<std::string> error;
+    	std::visit( [ &cpu, &val, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype(op)>;
+    		if constexpr ( std::is_same_v<T,x86_immediate> ) {
+    			val = op.value;
+    			return;
+    		}
+    		unhandled = true;
+    	}, operands[ 0 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "Left-Hand Operand is not handled" );
+    	}
+    	uint64_t target_val{};
+    	x86_register target_reg;
+    	std::visit( [ &cpu, &target_val, &target_reg, &unhandled, &error ]( auto&& op ) {
+    		using T = std::decay_t<decltype(op)>;
+    		if constexpr ( std::is_same_v<T,x86_register> ) {
+    			if ( auto res = cpu.get( op ) ) {
+    				target_val = res.value();
+    				target_reg = op;
+    				return;
+    			} else {
+    				error = res.error();
+    			}
+    		}
+    		unhandled = true;
+    	}, operands[ 1 ] );
+    	if ( unhandled ) {
+    		return std::unexpected( "Right-Hand Operand is not handled" );
+    	}
+    	uint64_t result = target_val - val;
     	if ( auto res = cpu.set( target_reg, result ) ) {
     		return {};
     	} else {
@@ -1299,6 +1644,17 @@ namespace stig {
 		return sections;
 	}
 
+	// ====================
+    //  Get Reg From Modrm
+    // ====================
+
+	std::optional<x86_register> get_reg_from_modrm( uint8_t reg ) {
+	    switch ( reg ) {
+	        case 0: return x86_register::rax;
+	        default: return std::nullopt;
+	    }
+	}
+
 	// =======================
     //  Parse x86 Instruction
     // =======================
@@ -1319,6 +1675,21 @@ namespace stig {
     	uint8_t rm = modrm & 0b00000111;
 
     	switch ( reg_opcode ) {
+    		case 0: {
+    			switch ( opcode ) {
+    				case 0x83: {
+    					res.mnemonic = x86_mnemonic::add;
+    					break;
+    				}
+    				case 0x85: {
+    					res.mnemonic = x86_mnemonic::test;
+    					break;
+    				} 
+    				default:
+    					return std::unexpected( "Unrecognised Opcode" ); 
+    			}
+    			break;
+    		} 
     		case 5: { 
     			res.mnemonic = x86_mnemonic::sub; 
     			break;
@@ -1329,6 +1700,10 @@ namespace stig {
 
     	x86_register dst;
     	switch ( rm ) {
+    		case 0: {
+    			dst = x86_register::rax;
+    			break;
+    		} 
     		case 4: { 
     			dst = x86_register::rsp; 
     			break;
@@ -1337,9 +1712,91 @@ namespace stig {
     			return std::unexpected( "Unrecognised Dst" );
     	}
 
-    	uint8_t imm = bytes[ pos++ ];
-    	res.operands = std::vector<x86_operand>{ dst, x86_immediate( imm ) };
-    	return res;
+    	switch ( res.mnemonic ) {
+    		case x86_mnemonic::add: 
+    		case x86_mnemonic::sub: {
+    			uint8_t imm = bytes[ pos++ ];
+    			res.operands = std::vector<x86_operand>{ dst, x86_immediate{ imm } };
+    			return res;
+    		}
+    		case x86_mnemonic::test: {
+    			auto reg_opt = get_reg_from_modrm( reg_opcode );
+    			if ( !reg_opt ) {
+    				return std::unexpected( "Unrecognized Reg" );
+    			}
+    			auto& src = reg_opt.value();
+    			res.operands = std::vector<x86_operand>{ dst, src };
+    			return res; 
+    		} 
+    		default:
+    			return std::unexpected( "Unrecognized Mnemonic" );
+    	}
+	}
+
+	// ===========================
+    //  Load Program From Objdump
+    // ===========================
+
+	std::expected<elf64_x86_64,std::string> load_program_from_ojbdump( const std::string& obj_file ) {
+		elf64_x86_64 result;
+		auto res = extract_function( obj_file, "_start" );
+		if ( !res ) {
+			return std::unexpected( res.error() );
+		}
+		auto libc_res = extract_function( obj_file, "__libc_start_main" );
+		if ( !libc_res ) {
+			return std::unexpected( libc_res.error() );
+		}
+		result._init.push_back( res.value() );
+		result._init.push_back( libc_res.value() );
+		return result;
+	}
+
+	std::expected<void,std::string> x86_vm::load_program( const std::string& obj_file ) {
+		cpu.rsp = 0x0000ffffffff000;
+		auto prog_res = load_program_from_ojbdump( obj_file );
+		if ( !prog_res ) {
+			return std::unexpected( prog_res.error() );
+		}
+		current_program = prog_res.value();
+		if ( current_program._init.empty() ) {
+			return std::unexpected( "Programs _init section is empty" );
+		}
+		if ( current_program._init.front().name != "_start" ) {
+			return std::unexpected( "First function in _init section is not _start: " 
+									+ current_program._init.front().name );
+		}
+		if ( current_program._init.front().instructions.empty() ) {
+			return std::unexpected( "_start function contains no instructions" );
+		}
+		auto set_res = cpu.set( x86_register::rip, current_program._init[ 0 ].instructions[ 0 ].address ); 
+		if ( !set_res ) {
+			return std::unexpected( set_res.error() );
+		}
+		return {};
+	}
+
+	// ==============================
+    //  x86_vpm : execute_next_instr
+    // ==============================
+
+	std::expected<void,std::string> x86_vm::execute_next_instr() {
+		bool found = false;
+		for ( auto& func : current_program._init ) {
+			auto& instrs = func.instructions;
+    		auto it = std::find_if( instrs.begin(), instrs.end(),
+    								[&]( auto& instr ) { return instr.address == cpu.rip; } );
+    		if ( it != instrs.end() ) {
+    			found = true;
+    		}
+    		if ( found ) {
+    			return execute_instruction( *it );
+    		}
+    	}
+    	if ( !found ) {
+    		return std::unexpected( "Instracction not found at address " + cpu.rip );
+    	}
+    	return {};
 	}
 
 	// ============================

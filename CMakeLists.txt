@@ -4,15 +4,20 @@ project(stig_x86_parser)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# ---- Sources shared by both executables ----
 set(LIB_SOURCES
     src/x86.cpp
     src/x86.hpp
 )
 
-# Include directories
 include_directories(src include)
 
-# Add the test executable
+# ---- FTXUI ----
+find_package(ftxui REQUIRED)
+
+# ------------------------------------------
+# 1. TEST EXECUTABLE (no FTXUI)
+# ------------------------------------------
 add_executable(test_x86
     test/test_x86/test_parse_x86_instruction.cpp
     test/test_x86/test_parse_address.cpp
@@ -41,7 +46,8 @@ add_executable(test_x86
     test/test_x86/test_extract_function_names.cpp
     test/test_x86/test_get_elf_header.cpp
     test/test_x86/test_parse_elf64_shdr.cpp
-    src/x86.cpp
+    test/test_x86/test_get_immediate.cpp
+    src/x86.cpp        # shared source
 )
 
 target_link_libraries(test_x86
@@ -49,3 +55,18 @@ target_link_libraries(test_x86
     "${CMAKE_SOURCE_DIR}/lib/libgtest_main.a"
     pthread
 )
+
+# ------------------------------------------
+# 2. FTXUI APPLICATION EXECUTABLE
+# ------------------------------------------
+add_executable(cpu_tui
+    src/cpu_ui.cpp      # your new TUI implementation
+    src/x86.cpp         # shared source
+)
+
+target_link_libraries(cpu_tui
+    ftxui::screen
+    ftxui::dom
+    ftxui::component
+)
+

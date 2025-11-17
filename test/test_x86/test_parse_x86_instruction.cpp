@@ -15,6 +15,19 @@ TEST( UnitTest, ParseX86Instruction ) {
 	EXPECT_EQ( parsed_instruction.instruction, expected );
 }
 
+TEST( UnitTest, ParseX86Instruction_Xor ) {
+	std::string xor_instruction = "1044:	31 ed                	xor    %ebp,%ebp";
+	stig::x86_instruction expected = {
+		0x1044,
+		std::vector<uint8_t>{ 0x31, 0xed },
+		stig::x86_mnemonic::xor_,
+		std::vector<stig::x86_operand>{ stig::x86_register::ebp, stig::x86_register::ebp }
+	};
+	auto parse_result = stig::parse_x86_instruction( xor_instruction );
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
+
 TEST( UnitTest, ParseX86Instruction_Push ) {
 	std::string push_instruction = "112d:	55                   	push   %rbp";
 	stig::x86_instruction expected = {
@@ -293,8 +306,114 @@ TEST( UnitTest, ParseX86Instruction_Cmpxchg ) {
 	EXPECT_EQ( parsed_instruction.instruction, expected );
 }
 
+TEST( UnitTest, ParseX86Instruction_Imul ) {
+	std::string imul_instr = "404084:	48 6b 15 ec 18 0b 00 	imul   $0x38,0xb18ec(%rip),%rdx        # 4b5978 <_dl_phnum>";
+	stig::x86_memory mem{
+		stig::x86_register::rip,
+		std::nullopt,
+		std::nullopt,
+		0xb18ec
+	};
+	stig::x86_instruction expected{
+		0x404084,
+		std::vector<uint8_t>{ 0x48, 0x6b, 0x15, 0xec, 0x18, 0x0b, 0x00 },
+		stig::x86_mnemonic::imul,
+		std::vector<stig::x86_operand>{ stig::x86_immediate{ 0x38 }, mem, stig::x86_register::rdx }
+	};
+	auto parse_result = stig::parse_x86_instruction( imul_instr );
+	ASSERT_TRUE( parse_result ) << parse_result.error(); 
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
+
+TEST( UnitTest, ParseX86Instruction_Testb ) {
+	std::string testb_str = "404069:	f6 05 9c 19 0b 00 80 	testb  $0x80,0xb199c(%rip)        # 4b5a0c <_dl_x86_cpu_features+0x4c>";
+	stig::x86_memory mem {
+		stig::x86_register::rip,
+		std::nullopt,
+		std::nullopt,
+		0xb199c
+	};
+	stig::x86_instruction expected {
+		0x404069,
+		std::vector<uint8_t>{ 0xf6, 0x05, 0x9c, 0x19, 0x0b, 0x00, 0x80 },
+		stig::x86_mnemonic::testb,
+		std::vector<stig::x86_operand>{ stig::x86_immediate{ 0x80 }, mem }
+	};
+	auto parse_result = stig::parse_x86_instruction( testb_str );
+	ASSERT_TRUE( parse_result ) << parse_result.error(); 
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
+
+TEST( UnitTest, ParseX86Instruction_And_Rsp ) {
+	std::string and_instr = "40178d:	48 83 e4 f0          	and    $0xfffffffffffffff0,%rsp";
+	stig::x86_instruction expected {
+		0x40178d,
+		std::vector<uint8_t>{ 0x48, 0x83, 0xe4, 0xf0 },
+		stig::x86_mnemonic::and_,
+		std::vector<stig::x86_operand>{ stig::x86_immediate{ int64_t( 0xfffffffffffffff0 ) }, stig::x86_register::rsp }
+	};
+	auto parse_result = stig::parse_x86_instruction( and_instr );
+	ASSERT_TRUE( parse_result ) << parse_result.error(); 
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
+
 TEST( UnitTest, ParseX86Instruction_Sub_Bytes ) {
 	std::vector<uint8_t> bytes = { 0x48, 0x83, 0xec, 0x08 };
 	auto res = stig::parse_x86_instruction( bytes );
 	ASSERT_TRUE( res ) << res.error();
+	EXPECT_EQ( res.value().mnemonic, stig::x86_mnemonic::sub );
 }
+
+TEST( UnitTest, ParseX86Instruction_Test_Bytes ) {
+	std::vector<uint8_t> bytes = { 0x48, 0x85, 0xc0 };
+	auto res = stig::parse_x86_instruction( bytes );
+	ASSERT_TRUE( res ) << res.error();
+	EXPECT_EQ( res.value().mnemonic, stig::x86_mnemonic::test );
+}
+
+TEST( UnitTest, ParseX86Instruction_Add_Bytes ) {
+	std::vector<uint8_t> bytes = { 0x48, 0x83, 0xc4, 0x08 };
+	std::vector<stig::x86_operand> expected_operands{ stig::x86_register::rsp, stig::x86_immediate{ 0x08 } };
+	auto res = stig::parse_x86_instruction( bytes );
+	ASSERT_TRUE( res ) << res.error();
+	EXPECT_EQ( res.value().mnemonic, stig::x86_mnemonic::add );
+	EXPECT_EQ( res.value().operands, expected_operands );
+}
+
+TEST( UnitTest, ParseX86Instruction_Mov_NegMem ) {
+	std::string mov_str = "403fce:	48 89 7d c0          	mov    %rdi,-0x40(%rbp)";
+	stig::x86_memory mem {
+		stig::x86_register::rbp,
+		std::nullopt,
+		std::nullopt,
+		-0x40
+	};
+	stig::x86_instruction expected {
+		0x403fce,
+		std::vector<uint8_t>{ 0x48, 0x89, 0x7d, 0xc0 },
+		stig::x86_mnemonic::mov,
+		std::vector<stig::x86_operand>{ stig::x86_register::rdi, mem }
+	};
+	auto parse_result = stig::parse_x86_instruction( mov_str );
+	ASSERT_TRUE( parse_result ) << parse_result.error(); 
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
+
+TEST( UnitTest, ParseX86Instruction_Jne ) {
+	std::string jne_str = "403ff9:	75 f5                	jne    403ff0 <__libc_start_main+0x40>";
+	stig::x86_instruction expected {
+		0x403ff9,
+		std::vector<uint8_t>{ 0x75, 0xf5 },
+		stig::x86_mnemonic::jne,
+		std::vector<stig::x86_operand>{ stig::x86_address{ 0x403ff0 } }
+	};
+	auto parse_result = stig::parse_x86_instruction( jne_str );
+	ASSERT_TRUE( parse_result ) << parse_result.error(); 
+	auto& parsed_instruction = parse_result.value();
+	EXPECT_EQ( parsed_instruction.instruction, expected );
+}
+
