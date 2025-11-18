@@ -30,7 +30,7 @@ color_scheme monokai = {
     ftxui::Color::Cyan,        // immediate values
     ftxui::Color::Magenta,     // addresses
     ftxui::Color::Green,       // memory
-    ftxui::Color::GrayLight 
+    ftxui::Color::GrayLight    // highlight
 };
 
 std::string hex64( int64_t v ) {
