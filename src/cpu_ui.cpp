@@ -33,12 +33,14 @@ color_scheme monokai = {
     ftxui::Color::GrayLight    // highlight
 };
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 std::string hex64( int64_t v ) {
     std::stringstream ss;
     ss << "0x" << std::hex << std::setw( 16 ) << std::setfill( '0' ) << ( uint64_t )v;
     return ss.str();
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 std::string hex64_zero_width( int64_t v ) {
     std::stringstream ss;
     ss << "0x" << std::hex;
@@ -46,17 +48,17 @@ std::string hex64_zero_width( int64_t v ) {
     return ss.str();
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 std::string hex64_zero_width_addr( int64_t v ) {
     std::stringstream ss;
     ss << std::hex << (uint64_t)v;
     return ss.str();
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ftxui::Element instr_to_element( const stig::x86_instruction& instr, const color_scheme& cs ) {
     using namespace ftxui;
-
     std::vector<Element> operands;
-
     if ( instr.operands.has_value() ) {
         for ( auto& op : instr.operands.value() ) {
             operands.push_back( std::visit([&]( auto&& operand ) -> Element {
@@ -77,16 +79,13 @@ ftxui::Element instr_to_element( const stig::x86_instruction& instr, const color
             }, op));
         }
     }
-
     std::vector<Element> operand_line;
     for (size_t i = 0; i < operands.size(); ++i) {
         operand_line.push_back(operands[i]);
         if (i != operands.size() - 1) {
-            operand_line.push_back(text(", ")); // add comma between operands
+            operand_line.push_back(text(", "));
         }
     }
-
-    // Build the instruction line
     Element line = hbox({
         text(hex64_zero_width_addr(instr.address)) | color(cs.address) | bold,
         text(" "),
@@ -94,10 +93,10 @@ ftxui::Element instr_to_element( const stig::x86_instruction& instr, const color
         text(" "),
         hbox(operand_line)
     });
-
     return line;
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Element cpu_view( const stig::x86_cpu& cpu ) {
     return 
         window(
@@ -132,6 +131,7 @@ Element cpu_view( const stig::x86_cpu& cpu ) {
         );
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Element instr_view( const std::vector<stig::function>& funcs, const color_scheme& cs,
                     const stig::x86_cpu& cpu ) {
     std::vector<Element> lines;
@@ -152,6 +152,7 @@ Element instr_view( const std::vector<stig::function>& funcs, const color_scheme
     return window( text( "Instructions" ), vbox( std::move( lines ) ) );
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Element main_view( stig::x86_vm& vm, const color_scheme& cs ) {
     auto cpu_panel = cpu_view( vm.cpu );
     Element instr_panel;
@@ -166,6 +167,7 @@ Element main_view( stig::x86_vm& vm, const color_scheme& cs ) {
     });
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 int main( int argc, char** argv ) {
     stig::x86_vm vm{};
 
