@@ -898,6 +898,14 @@ instr_16 parse_cmp_imm(short instr) {
 //  Parse ASR
 // ===========
 
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	ASR <Rd>,<Rm>,#<imm5>
+	[15:11] 00010
+	[10:6] imm5
+	[5:3] Rm
+	[2:0] Rd  
+*/
 instr_16 parse_asr_imm(short instr) {
 	instr_16 res;
 	res.op = opcode.asr_imm;
@@ -1184,6 +1192,17 @@ instr_16 parse_bx(short instr) {
 //  Parse CMPBRZ
 // ==============
 
+/*
+	Miscellaneous 16-Bit Instructions
+	CBZ <Rn>,<label>
+	[15:12] 1011
+	[11] op
+	[10] 0
+	[9] i
+	[8] 1
+	[7:3] imm5
+	[2:0] Rn  
+*/
 instr_16 parse_cmp_br_z(short instr) {
 	instr_16 res;
 	res.op = opcode.cmp_br_z;
@@ -1885,10 +1904,10 @@ unittest {
 	}
 
 	test_case[] tests = [
-		test_case(0x2b00, instr_16(op: opcode.cmp_imm,       rn: reg.r3,              imm: 0 )),
-		test_case(0x10b6, instr_16(op: opcode.asr_imm,       rd: reg.r6,  rm: reg.r6, imm: 2 )),
-		test_case(0x3730, instr_16(op: opcode.add_imm_8,     rd: reg.r7,  rn: reg.r7, imm: 48 )),
-		test_case(0x4013, instr_16(op: opcode.and_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r2 )),
+		test_case(0x2b00, instr_16(op: opcode.cmp_imm,       rn: reg.r3,              imm: 0)),
+		test_case(0x10b6, instr_16(op: opcode.asr_imm,       rd: reg.r6,  rm: reg.r6, imm: 2)),
+		test_case(0x3730, instr_16(op: opcode.add_imm_8,     rd: reg.r7,  rn: reg.r7, imm: 48)),
+		test_case(0x4013, instr_16(op: opcode.and_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r2)),
 		test_case(0x2300, instr_16(op: opcode.mov_imm,       rd: reg.r3,              imm: 0)),
 		test_case(0x3902, instr_16(op: opcode.sub_imm_8,     rd: reg.r1,  rn: reg.r1, imm: 2)),
 		test_case(0x00d9, instr_16(op: opcode.lsl_imm,       rd : reg.r1, rm: reg.r3, imm: 3)),
@@ -1929,7 +1948,7 @@ unittest {
 		test_case(0x458c, instr_16(op: opcode.cmp_high_1,    rn: reg.r12, rm: reg.r1)),
 		test_case(0x4463, instr_16(op: opcode.add_high_reg_1,rd: reg.r3,  rn: reg.r3, rm: reg.r12)),
 		test_case(0x1e54, instr_16(op: opcode.sub_imm_3,     rd: reg.r4,  rn: reg.r2, imm: 1)),
-		test_case(0x44e6, instr_16(op: opcode.add_high_reg_2,rd: reg.lr,  rn: reg.lr, rm: reg.r12 )),
+		test_case(0x44e6, instr_16(op: opcode.add_high_reg_2,rd: reg.lr,  rn: reg.lr, rm: reg.r12)),
 		test_case(0x4572, instr_16(op: opcode.cmp_high_2,	 rn: reg.r2,  rm: reg.lr)),
 		test_case(0x4241, instr_16(op: opcode.negs,			 rd: reg.r1,  rn: reg.r0)),
 		test_case(0x58fb, instr_16(op: opcode.ldr_reg,	     rt: reg.r3,  rn: reg.r7, rm: reg.r3))
@@ -2120,7 +2139,49 @@ string get_operands(string line) {
 	return result;
 }
 
+struct ram_mem_section {
+	uint[128 * 1024] cells;
+
+    ref uint opIndex(size_t idx) {
+        return cells[idx];
+    }
+
+    const(uint) opIndex(size_t idx) const {
+        return cells[idx];
+    }
+}
+
+struct flash_mem_section {
+	__gshared uint[1024 * 1024] cells;
+
+    ref uint opIndex(size_t idx) {
+        return cells[idx];
+    }
+
+    const(uint) opIndex(size_t idx) const {
+        return cells[idx];
+    }
+}
+
+struct memory {
+	ram_mem_section ram;
+	flash_mem_section flash;
+
+	static uint stack_base = (128 * 1024) - 1;
+
+	void push(uint sp, uint val) {
+		ram[sp] = val;
+	}
+
+	uint pop(uint sp) {
+		uint res = ram[sp];
+		ram[sp] = 0;
+		return res;
+	}
+}
+
 struct cortex_m_cpu {
+	uint r0;
 	uint r1;
 	uint r2;
 	uint r3;
@@ -2134,19 +2195,676 @@ struct cortex_m_cpu {
 	uint r11;
 	uint r12;
 	uint sp;
-	uint ldr;
+	uint lr;
 	uint pc;
 
 	bool n;
 	bool z;
 	bool c;
 	bool v;
+
+	uint get(reg r) {
+		switch (r) {
+			case reg.r0:
+				return r0;
+			case reg.r1:
+				return r1;
+			case reg.r2:
+				return r2;
+			case reg.r3:
+				return r3;
+			case reg.r4:
+				return r4;
+			case reg.r6:
+				return r6;
+			case reg.r7:
+				return r7;
+			case reg.r10:
+				return r10;
+			case reg.r12:
+				return r12;
+			case reg.pc:
+				return pc;
+			case reg.lr:
+				return lr;
+			case reg.sp:
+				return sp;
+			default:
+				return r3;
+		}
+	}
+
+	void set(reg r, int val) {
+		switch (r) {
+			case reg.r0:
+				r0 = cast(uint)(val);
+				return;
+			case reg.r1:
+				r1 = cast(uint)(val);
+				return;
+			case reg.r2:
+				r2 = cast(uint)(val);
+				return;
+			case reg.r3:
+				r3 = cast(uint)(val);
+				return;
+			case reg.r4:
+				r4 = cast(uint)(val);
+				return;
+			case reg.r6:
+				r6 = cast(uint)(val);
+				return;
+			case reg.r7:
+				r7 = cast(uint)(val);
+				return;
+			case reg.r10:
+				r10 = cast(uint)(val);
+				return;
+			case reg.r12:
+				r12 = cast(uint)(val);
+				return;
+			case reg.pc:
+				pc = cast(uint)(val);
+				return;
+			case reg.lr:
+				lr = cast(uint)(val);
+				return;
+			case reg.sp:
+				sp = cast(uint)(val);
+				return;
+			default:
+				return;
+		}
+	}
 }
 
+// =================
+//  Execute CMP IMM
+// =================
+
 void execute_cmp_imm(instr_16 cmp_imm_instr, ref cortex_m_cpu cpu) {
-	//auto rn_val = cpu.get(cmp_imm_instr.rn);
-	//uint res = rn_val - cmp_imm_instr.imm;
+	int rn_val = cast(int)(cpu.get(cmp_imm_instr.rn));
+	int res = rn_val - cmp_imm_instr.imm;
+	cpu.z = (res == 0);
+	cpu.n = (res < 0);
+	cpu.c = (rn_val >= cmp_imm_instr.imm);
+	cpu.v = (rn_val < 0 && res > 0);
 	return;
+}
+
+// =============
+//  Execute ASR
+// =============
+
+void execute_asr_imm(instr_16 asr_imm_instr, ref cortex_m_cpu cpu) {
+	int rm_value = cast(int)(cpu.get(asr_imm_instr.rm));
+	rm_value = rm_value >> (asr_imm_instr.imm - 1);
+	bool carry = (1 & rm_value);
+	rm_value = rm_value >> 1;
+	if (asr_imm_instr.set_flags) {
+		cpu.z = (rm_value == 0);
+		cpu.n = (rm_value < 0);
+		cpu.c = carry;
+	}
+	cpu.set(asr_imm_instr.rd, rm_value);
+	return;
+}
+
+// =============
+//  Execute ADD
+// =============
+
+void execute_add_imm_8(instr_16 add_imm_8_instr, ref cortex_m_cpu cpu) {
+	int rm_val = cast(int)(cpu.get(add_imm_8_instr.rm));
+	int res = rm_val + add_imm_8_instr.imm;
+	if (add_imm_8_instr.set_flags) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+		cpu.c = (res >= add_imm_8_instr.imm);
+		cpu.v = (rm_val < 0 && res > 0);
+	}
+	cpu.set(add_imm_8_instr.rd, res);
+	return;
+}
+
+// =============
+//  Execute AND
+// =============
+
+void execute_and_reg(instr_16 and_reg_instr, ref cortex_m_cpu cpu) {
+	int rn = cast(int)(cpu.get(and_reg_instr.rn));
+	int rm = cast(int)(cpu.get(and_reg_instr.rm));
+	int res = rn & rm;
+	if (and_reg_instr.set_flags) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+	}
+	cpu.set(and_reg_instr.rd, res);
+	return;
+}
+
+// =============
+//  Execute MOV
+// =============
+
+void execute_mov_imm(instr_16  mov_imm_instr, ref cortex_m_cpu cpu) {
+	cpu.set(mov_imm_instr.rd, mov_imm_instr.imm);
+}
+
+// ==================
+//  Execute SUB IMM8
+// ==================
+
+void execute_sub_imm_8(instr_16 sub_imm_8_instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(sub_imm_8_instr.rn);
+	int res = rn - sub_imm_8_instr.imm;
+	if (sub_imm_8_instr.set_flags) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+		cpu.c = (res >= sub_imm_8_instr.imm);
+		cpu.v = (rn < 0 && res > 0);
+	}
+	cpu.set(sub_imm_8_instr.rd, res);
+}
+
+// =============
+//  Execute LSL 
+// =============
+
+void execute_lsl_imm(instr_16 lsl_imm_instr, ref cortex_m_cpu cpu) {
+	int rm = cpu.get(lsl_imm_instr.rm);
+	int res = rm << (lsl_imm_instr.imm - 1);
+	bool carry = ((res & 0x80000000) != 0);
+	res = res << 1;
+	if (lsl_imm_instr.set_flags) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+		cpu.c = carry;
+	}
+	cpu.set(lsl_imm_instr.rd, res);
+}
+
+// =============
+//  Execute LSR 
+// =============
+
+void execute_lsr_imm(instr_16 lsr_imm_instr, ref cortex_m_cpu cpu) {
+	int rm = cpu.get(lsr_imm_instr.rm);
+	int res = rm >>> (lsr_imm_instr.imm - 1);
+	bool carry = (res & 1);
+	res = res >>> 1;
+	if (lsr_imm_instr.set_flags) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+		cpu.c = carry;
+	}
+	cpu.set(lsr_imm_instr.rd, res);
+}
+
+// =============
+//  Execute LOR
+// =============
+
+void execute_lor_reg(instr_16 lor_reg_instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(lor_reg_instr.rn);
+	int rm = cpu.get(lor_reg_instr.rm);
+	int res = rn | rm;
+	if (lor_reg_instr.set_flags) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+	}
+	cpu.set(lor_reg_instr.rd, res);
+}
+
+// =============
+//  Execute MVN
+// =============
+
+void execute_mvn_reg(instr_16 mvn_reg_instr, ref cortex_m_cpu cpu) {
+	int rm = cpu.get(mvn_reg_instr.rm);
+	int res = ~rm;
+	if (mvn_reg_instr.set_flags) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+	}
+	cpu.set(mvn_reg_instr.rd, res);
+}
+
+// =============
+//  Execute STR
+// =============
+
+void execute_str_imm(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rt = cpu.get(str_imm_instr.rt);
+	int rn = cpu.get(str_imm_instr.rn);
+	int addr = rn + str_imm_instr.imm;
+	mem.ram[addr] = rt;
+}
+
+// =============
+//  Execute LDR
+// =============
+
+void execute_ldr_imm(instr_16 ldr_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rn = cpu.get(ldr_imm_instr.rn);
+	int addr = rn + ldr_imm_instr.imm;
+	int rt = mem.ram[addr];
+	cpu.set(ldr_imm_instr.rt, rt);
+}
+
+// ==============
+//  Execute STRH
+// ==============
+
+void execute_strh_imm(instr_16 strh_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rt = cpu.get(strh_imm_instr.rt);
+	int rn = cpu.get(strh_imm_instr.rn);
+	int addr = rn + strh_imm_instr.imm;
+	int target = mem.ram[addr];
+	target = (target & 0xffff0000) | rt;  
+	mem.ram[addr] = target;
+}
+
+// ==============
+//  Execute LDRH
+// ==============
+
+void execute_ldrh_imm(instr_16 ldrh_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rt = cpu.get(ldrh_imm_instr.rt);
+	int rn = cpu.get(ldrh_imm_instr.rn);
+	int addr = rn + ldrh_imm_instr.imm;
+	int val = mem.ram[addr];
+	rt = (rt & 0xffff0000) | val;  
+	cpu.set(ldrh_imm_instr.rt, rt);
+}
+
+// ==============
+//  Execute LDRB
+// ==============
+
+void execute_ldrb_imm(instr_16 ldrb_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rt = cpu.get(ldrb_imm_instr.rt);
+	int rn = cpu.get(ldrb_imm_instr.rn);
+	int addr = rn + ldrb_imm_instr.imm;
+	int val = mem.ram[addr];
+	rt = (rt & 0xffffff00) | val;  
+	cpu.set(ldrb_imm_instr.rt, rt);
+}
+
+// ==============
+//  Execute STRB
+// ==============
+
+void execute_strb_imm(instr_16 strb_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rt = cpu.get(strb_imm_instr.rt);
+	int rn = cpu.get(strb_imm_instr.rn);
+	int addr = rn + strb_imm_instr.imm;
+	int target = mem.ram[addr];
+	target = (target & 0xffffff00) | rt;  
+	mem.ram[addr] = target;
+}
+
+// =================
+//  Execute CMP REG
+// =================
+
+void execute_cmp_reg(instr_16 cmp_reg_instr, ref cortex_m_cpu cpu) {
+	int rm = cpu.get(cmp_reg_instr.rm);
+	int rn = cpu.get(cmp_reg_instr.rn);
+	int res = rn - rm;
+	cpu.z = (res == 0);
+	cpu.n = (res < 0);
+	cpu.c = (rn >= rm);
+	cpu.v = (rn < 0 && res > 0);
+}
+
+// ==================
+//  Execute LDR POOL
+// ==================
+
+void execute_ldr_pool(instr_16 ldr_pool_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int pc = cpu.get(reg.pc);
+	pc += ldr_pool_instr.imm;
+	int val = mem.flash[pc];
+	cpu.set(ldr_pool_instr.rt, val);
+}
+
+// ============
+//  Execute BX
+// ============
+
+void execute_bx(instr_16 bx_instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(bx_instr.rn);
+	int pc = cpu.get(reg.pc);
+	pc += rn;
+	cpu.set(reg.pc, pc);
+}
+
+// ============
+//  Execute BR
+// ============
+
+void execute_br_t1(instr_16 br_t1_instr, ref cortex_m_cpu cpu) {
+	int pc = cpu.get(reg.pc);
+	pc += br_t1_instr.offset;
+	cpu.set(reg.pc, pc);
+}
+
+// ==================
+//  Execute CMP BR Z
+// ==================
+
+void execute_cmp_br_z(instr_16 cmp_br_z_instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(cmp_br_z_instr.rn);
+	if (rn == 0) {
+		int pc = cpu.get(reg.pc);
+		pc += cmp_br_z_instr.imm;
+		cpu.set(reg.pc, pc);
+	}
+}
+
+// =================
+//  Execute SUB REG
+// =================
+
+void execute_sub_reg(instr_16 sub_reg_instr, ref cortex_m_cpu cpu) {
+	int rm = cpu.get(sub_reg_instr.rm);
+	int rn = cpu.get(sub_reg_instr.rn);
+	int res = rn - rm;
+	cpu.set(sub_reg_instr.rd, res);
+}
+
+// =======================
+//  Execute PUSH MULT REG
+// =======================
+
+void execute_push_mult_reg(instr_16 push_mult_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	foreach (r; push_mult_reg_instr.reg_list) {
+		int sp = cpu.get(reg.sp);
+		mem.push(sp, cpu.get(r));
+		sp -= 1;
+		cpu.set(reg.sp, sp);
+	}
+} 
+
+// ======================
+//  Execute POP MULT REG
+// ======================
+
+void execute_pop_mult_reg(instr_16 pop_mult_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	foreach (r; pop_mult_reg_instr.reg_list) {
+		int sp = cpu.get(reg.sp);
+		sp += 1;
+		int val = mem.pop(sp);
+		cpu.set(r, val);
+		cpu.set(reg.sp, sp);
+	}
+} 
+
+// ===================
+//  Execute CMP BR NZ
+// ===================
+
+void execute_cmp_br_nz(instr_16 cmp_br_nz_instr, ref cortex_m_cpu cpu) {
+	if (cpu.get(cmp_br_nz_instr.rn) != 0) {
+		int pc = cpu.get(reg.pc);
+		pc += cmp_br_nz_instr.offset;
+		cpu.set(reg.pc, pc);
+	}
+}
+
+// ==================
+//  Execute MOV HIGH
+// ==================
+
+void execute_mov_high_1(instr_16 mov_high_1_instr, ref cortex_m_cpu cpu) {
+	cpu.set(mov_high_1_instr.rd, cpu.get(mov_high_1_instr.rm));
+}
+
+// =============
+//  Execute BLX
+// =============
+
+void execute_blx(instr_16 blx_instr, ref cortex_m_cpu cpu) {
+	cpu.set(reg.lr, cpu.get(reg.pc) - 2);
+	cpu.set(reg.pc, cpu.get(blx_instr.rm));
+}
+
+// ================
+//  Execute ADD SP
+// ================
+
+void execute_add_sp(instr_16 add_sp_instr, ref cortex_m_cpu cpu) {
+	int sp = cpu.get(reg.sp);
+	int res = sp + add_sp_instr.imm;
+	cpu.set(add_sp_instr.rd, res);
+}
+
+// ==================
+//  Execute LDRB REG
+// ==================
+
+void execute_ldrb_reg(instr_16 ldrb_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int addr = cpu.get(ldrb_reg_instr.rn) + cpu.get(ldrb_reg_instr.rm);
+	int val = mem.ram[addr];
+	int target = cpu.get(ldrb_reg_instr.rt);
+	target = (target & 0xffffff00) | (val & 0x000000ff);
+	cpu.set(ldrb_reg_instr.rt, target);
+}
+
+// ================
+//  Execute SUB SP
+// ================
+
+void execute_sub_sp(instr_16 sub_sp_instr, ref cortex_m_cpu cpu) {
+	int sp = cpu.get(reg.sp);
+	sp -= sub_sp_instr.imm;
+	cpu.set(reg.sp, sp);
+}
+
+// ==================
+//  Execute ADD IMM3
+// ==================
+
+void execute_add_imm_3(instr_16 add_imm_3_instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(add_imm_3_instr.rn);
+	int res = rn + add_imm_3_instr.imm;
+	cpu.set(add_imm_3_instr.rd, res);
+}
+
+// ====================
+//  Execute ADD LO REG
+// ====================
+
+void execute_add_lo_reg(instr_16 add_lo_reg_instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(add_lo_reg_instr.rn);
+	int rm = cpu.get(add_lo_reg_instr.rm);
+	int res = rn + rm;
+	cpu.set(add_lo_reg_instr.rd, res);
+}
+
+// =================
+//  Execute LSL REG
+// =================
+
+void execute_lsl_reg(instr_16 lsl_reg_instr, ref cortex_m_cpu cpu) {
+	int shift = cpu.get(lsl_reg_instr.rm);
+	int val = cpu.get(lsl_reg_instr.rn);
+	val = val << shift;
+	cpu.set(lsl_reg_instr.rd, val);
+}
+
+// =================
+//  Execute LSR REG
+// =================
+
+void execute_lsr_reg(instr_16 lsr_reg_instr, ref cortex_m_cpu cpu) {
+	int shift = cpu.get(lsr_reg_instr.rm);
+	int val = cpu.get(lsr_reg_instr.rn);
+	val = val >> shift;
+	cpu.set(lsr_reg_instr.rd, val);
+}
+
+// =============
+//  Execute ADR
+// =============
+
+void execute_adr(instr_16 adr_instr, ref cortex_m_cpu cpu) {
+	int pc = cpu.get(reg.pc);
+	pc += adr_instr.imm;
+	cpu.set(adr_instr.rd, pc);
+}
+
+// =============
+//  Execute MOV
+// =============
+
+void execute_mov_high_2(instr_16 mov_high_2_instr, ref cortex_m_cpu cpu) {
+	int rm = cpu.get(mov_high_2_instr.rm);
+	cpu.set(mov_high_2_instr.rd, rm);
+}
+
+// =================
+//  Execute ADD REG
+// =================
+
+void execute_add_reg(instr_16 add_reg_instr, ref cortex_m_cpu cpu) {
+	cpu.set(add_reg_instr.rd, cpu.get(add_reg_instr.rn) + cpu.get(add_reg_instr.rm));
+}
+
+// =================
+//  Execute LDR REG
+// =================
+
+void execute_ldr_reg(instr_16 ldr_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rn = cpu.get(ldr_reg_instr.rn);
+	int rm = cpu.get(ldr_reg_instr.rm);
+	uint addr = rn + rm;
+	int val = mem.ram[addr];
+	cpu.set(ldr_reg_instr.rt, val);
+}
+
+// ==================
+//  Execute SUB IMM3
+// ==================
+
+void execute_sub_imm_3(instr_16 sub_imm_3_instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(sub_imm_3_instr.rn);
+	int res = rn - sub_imm_3_instr.imm;
+	cpu.set(sub_imm_3_instr.rd, res);
+}
+
+// ==============
+//  Execute NEGS
+// ==============
+
+void execute_negs(instr_16 negs_instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(negs_instr.rn);
+	rn = -rn;
+	cpu.set(negs_instr.rd, rn);
+}
+
+// ===============
+//  Execute Instr
+// ===============
+
+void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
+	switch (instr.op) {
+		case opcode.cmp_imm:
+			return execute_cmp_imm(instr, cpu);
+		case opcode.asr_imm:
+			return execute_asr_imm(instr, cpu);
+		case opcode.add_imm_8:
+			return execute_add_imm_8(instr, cpu);
+		case opcode.and_reg:
+			return execute_and_reg(instr, cpu);
+		case opcode.mov_imm:
+			return execute_mov_imm(instr, cpu);
+		case opcode.sub_imm_8:
+			return execute_sub_imm_8(instr, cpu);
+		case opcode.lsl_imm:
+			return execute_lsl_imm(instr, cpu);
+		case opcode.lsr_imm:
+			return execute_lsr_imm(instr, cpu);
+		case opcode.lor_reg:
+			return execute_lor_reg(instr, cpu);
+		case opcode.mvn_reg:
+			return execute_mvn_reg(instr, cpu);
+		case opcode.cmp_reg:
+		case opcode.cmp_high_1:
+		case opcode.cmp_high_2:
+			return execute_cmp_reg(instr, cpu);
+		case opcode.br_t1:
+			return execute_br_t1(instr, cpu);
+		case opcode.cmp_br_z:
+			return execute_cmp_br_z(instr, cpu);
+		case opcode.bx:
+			return execute_bx(instr, cpu);
+		case opcode.sub_reg:
+			return execute_sub_reg(instr, cpu);
+		case opcode.cmp_br_nz:
+			return execute_cmp_br_nz(instr, cpu);
+		case opcode.mov_lo:
+		case opcode.mov_high_1:
+			return execute_mov_high_1(instr, cpu);
+		case opcode.blx:
+			return execute_blx(instr, cpu);
+		case opcode.add_sp:
+			return execute_add_sp(instr, cpu);
+		case opcode.sub_sp:
+			return execute_sub_sp(instr, cpu);
+		case opcode.add_imm_3:
+			return execute_add_imm_3(instr, cpu);
+		case opcode.add_lo_reg:
+			return execute_add_lo_reg(instr, cpu);
+		case opcode.lsl_reg:
+			return execute_lsl_reg(instr, cpu);
+		case opcode.lsr_reg:
+			return execute_lsr_reg(instr, cpu);
+		case opcode.adr:
+			return execute_adr(instr, cpu);
+		case opcode.mov_high_2:
+			return execute_mov_high_2(instr, cpu);
+		case opcode.add_reg:
+		case opcode.add_high_reg_1:
+		case opcode.add_high_reg_2:
+			return execute_add_reg(instr, cpu);
+		case opcode.sub_imm_3:
+			return execute_sub_imm_3(instr, cpu);
+		case opcode.negs:
+			return execute_negs(instr, cpu);
+		default:
+			return;
+	}
+}
+
+void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	switch (instr.op) {
+		case opcode.str_imm:
+			return execute_str_imm(instr, cpu, mem);
+		case opcode.strh_imm:
+			return execute_strh_imm(instr, cpu, mem);
+		case opcode.ldrh_imm:
+			return execute_ldrh_imm(instr, cpu, mem);
+		case opcode.ldrb_imm:
+			return execute_ldrb_imm(instr, cpu, mem);
+		case opcode.strb_imm:
+			return execute_strb_imm(instr, cpu, mem);
+		case opcode.ldr_imm:
+			return execute_ldr_imm(instr, cpu, mem);
+		case opcode.ldr_pool:
+			return execute_ldr_pool(instr, cpu, mem);
+		case opcode.push_mult_reg:
+			return execute_push_mult_reg(instr, cpu, mem);
+		case opcode.pop_mult_reg:
+			return execute_pop_mult_reg(instr, cpu, mem);
+		case opcode.ldrb_reg:
+			return execute_ldrb_reg(instr, cpu, mem);
+		case opcode.ldr_reg:
+			return execute_ldr_reg(instr, cpu, mem);
+		default:
+			return;
+	}
 }
 
 // =================
@@ -2195,6 +2913,296 @@ unittest {
     	}
     }
 }
+
+ram_mem_section make_ram_with(size_t index, uint value)
+{
+    ram_mem_section r;
+    r.cells[index] = value;
+    return r;
+}
+
+ram_mem_section make_ram_with(size_t[] indices, uint[] values)
+{
+	ram_mem_section r;
+	uint count = 0;
+	foreach (i; indices) {
+    	r.cells[i] = values[count];
+    	count++;
+    }
+    return r;
+}
+
+flash_mem_section make_flash_with(size_t index, uint value)
+{
+    flash_mem_section f;
+    f.cells[index] = value;
+    return f;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+	struct test_case {
+		ushort instr_bytes;
+		instr_16 instr;
+		cortex_m_cpu before;
+		cortex_m_cpu expected;
+	}
+
+	struct test_case_mem {
+		ushort instr_bytes;
+		instr_16 instr;
+		cortex_m_cpu before;
+		cortex_m_cpu expected;
+		memory mem_before;
+		memory mem_after;
+	}
+
+	test_case[] tests = [
+		test_case(0x2b00,
+				  instr_16(op: opcode.cmp_imm,       rn: reg.r3,              imm: 0),
+			      cortex_m_cpu(r3: 0),
+			      cortex_m_cpu(z: true, n: false, c: true, v: false)),
+		test_case(0x10b6,
+				  instr_16(op: opcode.asr_imm,       rd: reg.r6,  rm: reg.r6, imm: 2),
+			      cortex_m_cpu(r6: 0b10),
+			      cortex_m_cpu(r6: 0)),
+		test_case(0x1076,
+				  instr_16(op: opcode.asr_imm,       rd: reg.r6,  rm: reg.r6, imm: 1),
+			      cortex_m_cpu(r6: 0b10),
+			      cortex_m_cpu(r6: 0b1)),
+		test_case(0x3730, 
+			      instr_16(op: opcode.add_imm_8,     rd: reg.r7,  rn: reg.r7, imm: 48),
+			      cortex_m_cpu(r7: 0),
+			      cortex_m_cpu(r7: 48)),
+		test_case(0x4013, 
+			      instr_16(op: opcode.and_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r2),
+			      cortex_m_cpu(r3: 0b11100, r2: 0b00111),
+			      cortex_m_cpu(r3: 0b00100, r2: 0b00111)),
+		test_case(0x2300, 
+			      instr_16(op: opcode.mov_imm,       rd: reg.r3,              imm: 0),
+			      cortex_m_cpu(r3: 0b111),
+			      cortex_m_cpu(r3: 0b000)),
+		test_case(0x3902, 
+			      instr_16(op: opcode.sub_imm_8,     rd: reg.r1,  rn: reg.r1, imm: 2),
+			      cortex_m_cpu(r1: 0b0100),
+			      cortex_m_cpu(r1: 0b0010)),
+		test_case(0x00d9, 
+				  instr_16(op: opcode.lsl_imm,       rd : reg.r1, rm: reg.r3, imm: 3),
+				  cortex_m_cpu(r3: 0b00010000000000000000000111000000),
+				  cortex_m_cpu(r3: 0b00010000000000000000000111000000,
+				  			   r1: 0b10000000000000000000111000000000)),
+		test_case(0x099b, 
+				  instr_16(op: opcode.lsr_imm,       rd: reg.r3,  rm: reg.r3, imm: 6),
+				  cortex_m_cpu(r3: 0b00000000000000000111000000000001),
+				  cortex_m_cpu(r3: 0b00000000000000000000000111000000)),
+		test_case(0x4313, 
+			      instr_16(op: opcode.lor_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r2),
+			      cortex_m_cpu(r3: 0b1100, r2: 0b0011),
+			      cortex_m_cpu(r3: 0b1111, r2: 0b0011)),
+		test_case(0x43db, 
+			      instr_16(op: opcode.mvn_reg,       rd: reg.r3,  rm: reg.r3),
+			      cortex_m_cpu(r3: 0b00000000000000000111000000000001),
+			      cortex_m_cpu(r3: 0b11111111111111111000111111111110)),
+		test_case(0x4283, 
+				  instr_16(op: opcode.cmp_reg,       rn: reg.r3,  rm: reg.r0),
+				  cortex_m_cpu(r3: 0, r0: 0),
+			      cortex_m_cpu(z: true, n: false, c: true, v: false)),
+		test_case(0xd002, 
+				  instr_16(op: opcode.br_t1,         cond: condition.eq,      offset: 2),
+				  cortex_m_cpu(pc: 10),
+				  cortex_m_cpu(pc: 12)),
+		test_case(0xb103, 
+			      instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset: 0),
+			      cortex_m_cpu(r3: 0, pc: 10),
+				  cortex_m_cpu(r3: 0, pc: 10)),
+		test_case(0x4718, 
+			      instr_16(op: opcode.bx,            rm: reg.r3),
+			      cortex_m_cpu(r3: 0, pc: 10),
+				  cortex_m_cpu(r3: 0, pc: 10)),
+		test_case(0x1a1b, 
+				  instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0),
+				  cortex_m_cpu(r3: 10, r0: 3),
+				  cortex_m_cpu(r3: 7,  r0: 3)),
+		test_case(0xb943, 
+			      instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,			  offset: 8),
+			      cortex_m_cpu(pc: 10, r3: 1),
+				  cortex_m_cpu(pc: 18, r3: 1)),
+		/*
+		test_case(0xe7cf, 
+			      instr_16(op: opcode.b_n,					 				  imm_long: 0xffffffcf),
+			      cortex_m_cpu(pc: 10, r3: 1),
+				  cortex_m_cpu(pc: 18, r3: 1))
+		*/
+		////test_case(0xbf00, instr_16(op: if_then))
+		test_case(0x469d, 
+			      instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3),
+			      cortex_m_cpu(sp: 10, r3: 1),
+				  cortex_m_cpu(sp: 1,  r3: 1)),
+		test_case(0x460f, 
+				  instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1),
+				  cortex_m_cpu(r7: 10, r1: 1),
+				  cortex_m_cpu(r7: 1,  r1: 1)),
+		test_case(0x4798, 
+				  instr_16(op: opcode.blx,           rm: reg.r3),
+				  cortex_m_cpu(pc: 10, r3: 20),
+				  cortex_m_cpu(pc: 20, lr:  8, r3: 20)),
+		test_case(0xaf00, 
+			      instr_16(op: opcode.add_sp,        rd: reg.r7, 			  imm: 0),
+			      cortex_m_cpu(sp: 10, r7: 20),
+				  cortex_m_cpu(sp: 10, r7: 10)),
+		test_case(0xb092, 
+			      instr_16(op: opcode.sub_sp,		 						  imm: 72),
+			      cortex_m_cpu(sp: 90),
+				  cortex_m_cpu(sp: 18)),
+		test_case(0x1d3b, 
+			      instr_16(op: opcode.add_imm_3,     rd: reg.r3,  rn: reg.r7, imm: 4),
+			      cortex_m_cpu(r3: 3, r7: 4),
+				  cortex_m_cpu(r3: 8, r7: 4)),
+		test_case(0x4413, 
+				  instr_16(op: opcode.add_lo_reg,    rd: reg.r3,  rn: reg.r3, rm: reg.r2),
+				  cortex_m_cpu(r3: 3, r2: 2),
+				  cortex_m_cpu(r3: 5, r2: 2)),
+		test_case(0x409a, 
+			      instr_16(op: opcode.lsl_reg,       rd: reg.r2,  rn: reg.r2, rm: reg.r3),
+			      cortex_m_cpu(r2: 0b0101, r3: 1),
+			      cortex_m_cpu(r2: 0b1010, r3: 1)),
+		test_case(0x40da, 
+			      instr_16(op: opcode.lsr_reg,	     rd: reg.r2,  rn: reg.r2, rm: reg.r3),
+			      cortex_m_cpu(r2: 0b1010, r3: 1),
+			      cortex_m_cpu(r2: 0b0101, r3: 1)),
+		test_case(0xa201, 
+			      instr_16(op: opcode.adr,			 rd: reg.r2,  			  imm: 4),
+			      cortex_m_cpu(r2: 10, pc: 10),
+			      cortex_m_cpu(r2: 14, pc: 10)),
+		/*
+		test_case(0x4652, 
+			      instr_16(op: opcode.mov_high_2, 	 rd: reg.r2,  rm: reg.r10),
+			      cortex_m_cpu(r2: 1, r10: 3),
+			      cortex_m_cpu(r2: 3, r10: 3)),
+		*/
+		/*
+		test_case(0x9300, 
+			      instr_16(op: opcode.str_sp,		 rt: reg.r3,			  imm: 0),
+			      cortex_m_cpu(r2: 1, r10: 3),
+			      cortex_m_cpu(r2: 3, r10: 3))
+		*/
+		test_case(0x1891, 
+			      instr_16(op: opcode.add_reg, 		 rd: reg.r1,  rn: reg.r2, rm: reg.r2),
+			      cortex_m_cpu(r1: 10, r2: 10),
+			      cortex_m_cpu(r1: 20, r2: 10)),
+		test_case(0x458c, 
+			      instr_16(op: opcode.cmp_high_1,    rn: reg.r12, rm: reg.r1),
+			      cortex_m_cpu(r3: 0, r0: 0),
+			      cortex_m_cpu(z: true, n: false, c: true, v: false)),
+		test_case(0x4463, 
+				  instr_16(op: opcode.add_high_reg_1,rd: reg.r3,  rn: reg.r3, rm: reg.r12),
+				  cortex_m_cpu(r3: 3, r12: 4),
+				  cortex_m_cpu(r3: 7, r12: 4)),
+		test_case(0x1e54, 
+			      instr_16(op: opcode.sub_imm_3,     rd: reg.r4,  rn: reg.r2, imm: 1),
+			      cortex_m_cpu(r4: 7, r2: 9),
+			      cortex_m_cpu(r4: 8, r2: 9)),
+		test_case(0x44e6, 
+			      instr_16(op: opcode.add_high_reg_2,rd: reg.lr,  rn: reg.lr, rm: reg.r12),
+			      cortex_m_cpu(lr:  7, r12: 9),
+			      cortex_m_cpu(lr: 16, r12: 9)),
+		test_case(0x4572, 
+			      instr_16(op: opcode.cmp_high_2,	 rn: reg.r2,  rm: reg.lr),
+			      cortex_m_cpu(r2: 0, lr: 0),
+			      cortex_m_cpu(z: true, n: false, c: true, v: false)),
+		test_case(0x4241, 
+			      instr_16(op: opcode.negs,			 rd: reg.r1,  rn: reg.r0),
+				  cortex_m_cpu(r0: 1),
+			      cortex_m_cpu(r1: -1, r0: 1))
+	];
+
+	test_case_mem[] tests_mem = [
+		test_case_mem(0x608b, 
+			          instr_16(op: opcode.str_imm,       rt: reg.r3,  rn: reg.r1, imm: 8),
+			          cortex_m_cpu(r3: 0b0101, r1: 10),
+			          cortex_m_cpu(r3: 0b0101, r1: 10),
+			          memory(ram: make_ram_with(18, 0)),
+			          memory(ram: make_ram_with(18, 0b0101))),
+		test_case_mem(0x80fb, 
+			          instr_16(op: opcode.strh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6),
+			          cortex_m_cpu(r3: 0x0000eeee, r7: 10),
+			          cortex_m_cpu(r3: 0x0000eeee, r7: 10),
+			          memory(ram: make_ram_with(16, 0xffffffff)),
+			          memory(ram: make_ram_with(16, 0xffffeeee))),
+		test_case_mem(0x88fb, 
+			          instr_16(op: opcode.ldrh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6),
+			          cortex_m_cpu(r3: 0xffffffff, r7: 10),
+			          cortex_m_cpu(r3: 0xffffeeee, r7: 10),
+			          memory(ram: make_ram_with(16, 0x0000eeee)),
+			          memory(ram: make_ram_with(16, 0x0000eeee))),
+		test_case_mem(0x781a, 
+					  instr_16(op: opcode.ldrb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0),
+					  cortex_m_cpu(r2: 0xffffffff, r3: 10),
+			          cortex_m_cpu(r2: 0xffffffee, r3: 10),
+			          memory(ram: make_ram_with(10, 0x000000ee)),
+			          memory(ram: make_ram_with(10, 0x000000ee))),
+		test_case_mem(0x701a, 
+				      instr_16(op: opcode.strb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0),
+				      cortex_m_cpu(r2: 0x000000ee, r3: 10),
+			          cortex_m_cpu(r2: 0x000000ee, r3: 10),
+			          memory(ram: make_ram_with(10, 0xffffffff)),
+			          memory(ram: make_ram_with(10, 0xffffffee))),
+		test_case_mem(0x68fb, 
+					  instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 12),
+					  cortex_m_cpu(r3: 0x000000ff, r7: 10),
+			          cortex_m_cpu(r3: 0x000000ee, r7: 10),
+			          memory(ram: make_ram_with(22, 0x000000ee)),
+			          memory(ram: make_ram_with(22, 0x000000ee))),
+		test_case_mem(0x4803, 
+					  instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 12),
+					  cortex_m_cpu(r0: 0x000000ff, pc: 10),
+			          cortex_m_cpu(r0: 0x000000ee, pc: 10),
+			          memory(flash: make_flash_with(22, 0x000000ee)),
+			          memory(flash: make_flash_with(22, 0x000000ee))),
+		test_case_mem(0xb510, 
+			      	  instr_16(op: opcode.push_mult_reg, reg_list: [reg.lr, reg.r4]),
+			      	  cortex_m_cpu(sp: memory.stack_base, lr: 0x000000ff, r4: 0x000000ee),
+			          cortex_m_cpu(sp: memory.stack_base-2, lr: 0x000000ff, r4: 0x000000ee),
+			          memory(),
+			          memory(ram: make_ram_with([memory.stack_base, memory.stack_base-1],
+			          							[0x000000ff, 0x000000ee]))),
+		test_case_mem(0xbd10, 
+				      instr_16(op: opcode.pop_mult_reg,  reg_list: [reg.pc, reg.r4]),
+				      cortex_m_cpu(sp: memory.stack_base-2),
+			          cortex_m_cpu(sp: memory.stack_base, pc: 0x000000ee, r4: 0x000000ff),
+			          memory(ram: make_ram_with([memory.stack_base, memory.stack_base-1],
+			          							[0x000000ff, 0x000000ee])),
+				      memory()),
+		test_case_mem(0x5cd3, 
+			      	  instr_16(op: opcode.ldrb_reg,      rt: reg.r3,  rn: reg.r2, rm: reg.r3),
+			          cortex_m_cpu(r2: 10, r3: 10),
+				      cortex_m_cpu(r3: 0x000000ee, r2: 10),
+				      memory(ram: make_ram_with(20, 0xffffffee)),
+				      memory(ram: make_ram_with(20, 0xffffffee))),
+		test_case_mem(0x58fb, 
+			          instr_16(op: opcode.ldr_reg,	     rt: reg.r3,  rn: reg.r7, rm: reg.r3),
+			          cortex_m_cpu(r3:         10, r7: 10),
+			          cortex_m_cpu(r3: 0xffffffee, r7: 10),
+			          memory(ram: make_ram_with(20, 0xffffffee)),
+				      memory(ram: make_ram_with(20, 0xffffffee)))
+	];
+
+	foreach (t; tests) {
+		execute_instr(t.instr, t.before);
+		assert(
+		    t.before == t.expected,
+		    format("Failed for instruction 0x%04X", t.instr_bytes)
+		);
+    }
+
+    foreach (t; tests_mem) {
+    	execute_load_store(t.instr, t.before, t.mem_before);
+    	assert(
+    		t.before == t.expected && t.mem_before == t.mem_after,
+    		format("Failed for instruction 0x%04X", t.instr_bytes)
+    	);
+    }
+} 
 
 
 
