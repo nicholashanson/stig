@@ -3074,12 +3074,10 @@ unittest {
 			      instr_16(op: opcode.adr,			 rd: reg.r2,  			  imm: 4),
 			      cortex_m_cpu(r2: 10, pc: 10),
 			      cortex_m_cpu(r2: 14, pc: 10)),
-		/*
 		test_case(0x4652, 
 			      instr_16(op: opcode.mov_high_2, 	 rd: reg.r2,  rm: reg.r10),
 			      cortex_m_cpu(r2: 1, r10: 3),
 			      cortex_m_cpu(r2: 3, r10: 3)),
-		*/
 		/*
 		test_case(0x9300, 
 			      instr_16(op: opcode.str_sp,		 rt: reg.r3,			  imm: 0),
@@ -3204,6 +3202,1387 @@ unittest {
     }
 } 
 
+struct instr_32 {
+	opcode op;
+	reg rd;
+	reg rn;
+	reg rm;
+	reg rt;
+	shift_type shift_t;
+	uint imm;
+	ubyte shift_n;
+	int offset;
+	reg[] reg_list;
+	uint ls_bit;
+	uint width;
+	uint ms_bit;
+	reg rd_hi;
+	reg rd_lo;
+	reg rt_2;
+	reg ra;
+}
 
+enum shift_type : ubyte {
+	lsl,
+	lsr,
+	asr,
+	rrx,
+	ror,
+	invalid
+}
+
+shift_type get_shift_type(ubyte type, ubyte imm) {
+	switch (type) {
+		case 0b00:
+			return shift_type.lsl;
+		case 0b01:
+			return shift_type.lsr;
+		case 0b10:
+			return shift_type.asr;
+		case 0b11:
+			if (imm == 0b0000) {
+				return shift_type.rrx;
+			} else {
+				return shift_type.ror;
+			}
+		default:
+			return shift_type.invalid;
+	}
+}
+
+// ===========
+//  Parse ADD
+// ===========
+
+/*
+	Data Processing (Shifted Register)
+	First Half-Word:
+	[15:5] 1110101000
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_add_32_reg(uint instr) {
+	instr_32 res;
+	res.op = opcode.add_32_reg;
+	ubyte rm = cast(ubyte)(instr & 0b1111);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0b1111);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte imm_5 = cast(ubyte)((imm_3 << 2) | (imm_2));
+	res.shift_t = get_shift_type(type, imm_5);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm_5;
+	}
+	return res;
+}
+
+// ==========
+//  Parse BL
+// ==========
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:11] 11110
+	[10] S
+	[9:0] imm10
+	Second Half-Word:
+	[15:14] 11
+	[13] J1
+	[12] 1
+	[11] J2
+	[10:0] imm11
+*/
+instr_32 parse_bl_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.bl_32;
+	ushort imm_11 = cast(ushort)(instr & 0x7ff);
+	ushort imm_10 = cast(ushort)((instr >> 16) & 0x3ff);
+	ubyte j1 = cast(ubyte)((instr >> 13) & 0b1);
+	ubyte j2 = cast(ubyte)((instr >> 11) & 0b1);
+	ubyte s = cast(ubyte)((instr >> 26) &0b1);
+	int imm_32 = (s << 24) | (!(j1 ^ s) << 23) | (!(j2 ^ s) << 22) | (imm_10 << 12) | (imm_11 << 1) | 0b0;
+	if (s == 0b1) {
+		imm_32 |= 0xfe000000;
+	}
+	res.offset = imm_32;
+	return res;
+}
+
+// ===========
+//  Parse NOP
+// ===========
+
+instr_32 parse_nop_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.nop_32;
+	return res;
+}
+
+// ====================
+//  Parse Pop Mult Reg
+// ====================
+
+/*
+	Load Multiple and Store Multiple
+	First Half-Word:
+	[15:6] 1110100010
+	[5] W
+	[4] 1
+	[3:0] Rn
+	Second Half-Word:
+	[15] P
+	[14] M
+	[13] 0
+	[12:0] register_list 
+*/
+instr_32 parse_pop_mult_reg_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.pop_mult_reg_32;
+	ushort reg_list = cast(ushort)(instr & 0xffff);
+	if (reg_list & 0x0001) res.reg_list ~= reg.r0;
+	if (reg_list & 0x0002) res.reg_list ~= reg.r1;
+	if (reg_list & 0x0004) res.reg_list ~= reg.r2;
+	if (reg_list & 0x0008) res.reg_list ~= reg.r3;
+	if (reg_list & 0x0010) res.reg_list ~= reg.r4;
+	if (reg_list & 0x0020) res.reg_list ~= reg.r5;
+	if (reg_list & 0x0040) res.reg_list ~= reg.r6;
+	if (reg_list & 0x0080) res.reg_list ~= reg.r7;
+	if (reg_list & 0x0100) res.reg_list ~= reg.r8;
+	if (reg_list & 0x0200) res.reg_list ~= reg.r9;
+	if (reg_list & 0x0400) res.reg_list ~= reg.r10;
+	if (reg_list & 0x0800) res.reg_list ~= reg.r11;
+	if (reg_list & 0x1000) res.reg_list ~= reg.r12;
+	if (reg_list & 0x2000) res.reg_list ~= reg.sp;
+	if (reg_list & 0x4000) res.reg_list ~= reg.lr;
+	if (reg_list & 0x8000) res.reg_list ~= reg.pc;
+	return res;
+}
+
+uint rotr(uint value, uint n) {
+    n %= 32;
+    return (value >> n) | (value << (32 - n));
+}
+
+// ==================
+//  Parse SUB IMM 32
+// ==================
+
+/*
+	Data Processing (Modified Immediate)
+	First Half-Word:
+	[15:11] 11110
+	[10] i
+	[9:5] 01101
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8 
+*/
+instr_32 parse_sub_imm_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.sub_imm_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+	int rotate_by = (i << 3) | imm_3;
+	uint rotated = rotr(imm_8, rotate_by * 2 + 1);
+	res.imm = rotated;
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// ==================
+//  Parse AND IMM 32
+// ==================
+
+/*
+	Data Processing (Modified Immediate)
+	First Half-Word:
+	[15:11] 11110
+	[10] i
+	[9:5] 00000
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8 
+*/
+instr_32 parse_and_imm_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.and_imm_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+	int rotate_by = (i << 3) | imm_3;
+	uint rotated = rotr(imm_8, rotate_by * 2);
+	res.imm = rotated;
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	//writeln(res.imm);
+	return res;
+}
+
+// ============
+//  Parse UDIV
+// ============
+
+/*
+	Long Multiply, Long Multiply Accumulate, and Divide Operations
+	First Half-Word:
+	[15:4] 11110111011
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] 1111
+	[11:8] Rd
+	[7:4] 1111
+	[3:0] Rm 
+*/
+instr_32 parse_udiv_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.udiv_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rm = cast(reg)(rm);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// ============
+//  Parse UBFX
+// ============
+
+/*
+	Data Processing (Plain Binary Immediate)
+	First Half-Word:
+	[15:4] 111100111100
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm3
+	[5] 0
+	[4:0] widthm1
+*/
+instr_32 parse_ubfx_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.ubfx_32;
+	ubyte width = cast(ubyte)(instr & 0xf);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0x3);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	uint ls_bit = (imm_3 << 2) | imm_2;
+	res.ls_bit = ls_bit;
+	res.width = width + 1;
+	res.rn = cast(reg)(rn);
+	res.rd = cast(reg)(rd);
+	writeln(res.width);
+	return res;
+}
+
+// ===========
+//  Parse MUL
+// ===========
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:4] 111110110000
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] 1111
+	[11:8] Rd
+	[7:4] 0000
+	[3:0] Rm
+*/
+instr_32 parse_mul_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.mul_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// ===========
+//  Parse LSR
+// ===========
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:5] 11111010001
+	[4] S
+	[3:0] Rn 
+	Second Half-Word:
+	[15:12] 1111
+	[11:8] Rd
+	[7:4] 0000
+	[3:0] Rm
+*/
+instr_32 parse_lsr_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.lsr_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// ===========
+//  Parse ORR
+// ===========
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:11] 11110
+	[10] i
+	[9:5] 00010
+	[4] S
+	[3:0] Rn 
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8
+*/
+instr_32 parse_orr_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.orr_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	int rotate_by = (i << 3) | imm_3;
+	uint rotated = rotr(imm_8, rotate_by * 2 + 1);
+	res.imm = rotated;
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	writeln(res.imm);
+	return res;
+}
+
+// ===========
+//  Parse ADD
+// ===========
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:11] 11110
+	[10] i
+	[9:5] 01000
+	[4] S
+	[3:0] Rn 
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8
+*/
+instr_32 parse_add_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.add_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	int rotate_by = (i << 3) | imm_3;
+	uint rotated = rotr(imm_8, rotate_by * 2);
+	res.imm = rotated;
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	writeln(res.imm);
+	return res;
+}
+
+// =======================
+//  Parse Bit Field Clear
+// =======================
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:0] 1111001101101111 
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[7:6] imm2
+	[5] 0
+	[4:0] msb
+*/
+instr_32 parse_bit_fleld_clear_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.add_32;
+	ubyte msb = cast(ubyte)(instr & 0xf);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0x3);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+	uint ls_bit = (imm_3 << 2) | imm_2;
+	uint ms_bit = msb;
+	res.ls_bit = ls_bit;
+	res.rd = cast(reg)(rd);
+	return res;
+}
+
+// =================
+//  Parse Bit Clear
+// =================
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:11] 11110
+	[10] i
+	[9:5] 00001
+	[4] S
+	[3:0] Rn 
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8
+*/
+instr_32 parse_bit_clear_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.bit_clear_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+ 	uint rotate_by = (i << 3) | imm_3;
+	uint rotated = rotr(imm_8, rotate_by * 2);
+	res.imm = rotated;
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	writeln(res.imm);
+	return res;
+}
+
+// ===========
+//  Parse MOV
+// ===========
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:11] 11110
+	[10] i
+	[9:4] 100100
+	[3:0] imm4
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8
+*/
+instr_32 parse_mov_16_imm_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.mov_16_imm_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+	ubyte imm_4 = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+ 	uint imm_32 = (imm_4 << 12) | (i << 11) | (imm_3 << 9) | imm_8;
+	res.imm = imm_32;
+	res.rd = cast(reg)(rd);
+	writeln("xxxxx");
+	writeln(res.imm);
+	return res;
+}
+
+// =============
+//  Parse LDRSB
+// =============
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:4] 111110011001
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[11:0] imm12
+*/
+instr_32 parse_ldrsb_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.ldrsb_32;
+	uint imm_12 = cast(ubyte)(instr & 0xfff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.imm = imm_12;
+	res.rn = cast(reg)(rn);
+	res.rt = cast(reg)(rt);
+	writeln("xxxxx");
+	writeln(res.imm);
+	return res;
+}
+
+// ===========
+//  Parse STR
+// ===========
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:4] 111110000100
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[5:4] imm2
+	[3:0] Rm
+*/
+instr_32 parse_str_reg_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.str_reg_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte imm_2 = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rn = cast(reg)(rn);
+	res.rt = cast(reg)(rt);
+	res.rm = cast(reg)(rm);
+	res.imm = imm_2;
+	writeln("xxxxx");
+	writeln(res.imm);
+	return res;
+}
+
+// ===========
+//  Parse DSB
+// ===========
+
+instr_32 parse_dsb(uint instr) {
+	instr_32 res;
+	res.op = opcode.dsb;
+	return res;
+}
+
+// ===========
+//  Parse RSB
+// ===========
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:11] 11110 
+	[10] i
+	[9:5] 01110
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8
+*/
+instr_32 parse_rsb_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.rsb_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte i = cast(ubyte)((instr >> 20) & 0b1);
+	res.rn = cast(reg)(rn);
+	res.rd = cast(reg)(rd);
+	uint rotate_by = (i << 3) | imm_3;
+	writeln("xxxxx");
+	uint imm = rotr(imm_8, rotate_by * 2);
+	res.imm = imm;
+	writeln(res.imm);
+	return res;
+}
+
+// =============
+//  Parse UMULL
+// =============
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:11] 11110 
+	[10] i
+	[9:5] 01110
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8
+*/
+instr_32 parse_umull(uint instr) {
+	instr_32 res;
+	res.op = opcode.umull_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte rd_hi = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rd_lo = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	res.rd_hi = cast(reg)(rd_hi);
+	res.rd_lo = cast(reg)(rd_lo);
+	writeln("xxxxx");
+	return res;
+}
+
+// ============
+//  Parse STRD
+// ============
+
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:9] 1110100  
+	[8] P
+	[7] U
+	[6] 1
+	[5] W
+	[4] 0
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[11:8] Rt2
+	[7:0] imm8
+*/
+instr_32 parse_strd_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.strd_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rt_2 = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rt = cast(reg)(rt);
+	res.rt_2 = cast(reg)(rt_2);
+	res.rn = cast(reg)(rn);
+	uint imm = (imm_8 << 2) | 0b00;
+	res.imm = imm;
+	writeln("xxxxx");
+	writeln(res.imm);
+	return res;
+}
+
+// =========
+//  Parse B
+// =========
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:11] 11110
+	[10] S
+	[9:0] imm10
+	Second Half-Word:
+	[15:14] 10
+	[13] J1
+	[12] 1
+	[11] J2
+	[10:0] imm11
+*/
+instr_32 parse_b_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.b_32;
+	ushort imm_11 = cast(ushort)(instr & 0x7ff);
+	ushort imm_6 = cast(ushort)((instr >> 16) & 0x3f);
+	ubyte j1 = cast(ubyte)((instr >> 13) & 0b1);
+	ubyte j2 = cast(ubyte)((instr >> 11) & 0b1);
+	ubyte s = cast(ubyte)((instr >> 26) &0b1);
+	int imm_32 = (s << 20) | (!(j1 ^ s) << 19) | (!(j2 ^ s) << 18) | (imm_6 << 12) | (imm_11 << 1) | 0b0;
+	if (s == 0b1) {
+		imm_32 |= 0xffe00000;
+	}
+	res.offset = imm_32;
+	writeln(res.offset);
+	return res;
+}
+
+// =====================
+//  Parse PUSH MULT REG
+// =====================
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:0] 1110100100101101
+	Second Half-Word:
+	[15] 0 
+	[14] M
+	[13] 0
+	[12:0] register_list
+*/
+instr_32 parse_push_mult_reg_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.push_mult_reg_32;
+	ushort reg_list = cast(ushort)(instr & 0xffff);
+	if (reg_list & 0x0001) res.reg_list ~= reg.r0;
+	if (reg_list & 0x0002) res.reg_list ~= reg.r1;
+	if (reg_list & 0x0004) res.reg_list ~= reg.r2;
+	if (reg_list & 0x0008) res.reg_list ~= reg.r3;
+	if (reg_list & 0x0010) res.reg_list ~= reg.r4;
+	if (reg_list & 0x0020) res.reg_list ~= reg.r5;
+	if (reg_list & 0x0040) res.reg_list ~= reg.r6;
+	if (reg_list & 0x0080) res.reg_list ~= reg.r7;
+	if (reg_list & 0x0100) res.reg_list ~= reg.r8;
+	if (reg_list & 0x0200) res.reg_list ~= reg.r9;
+	if (reg_list & 0x0400) res.reg_list ~= reg.r10;
+	if (reg_list & 0x0800) res.reg_list ~= reg.r11;
+	if (reg_list & 0x1000) res.reg_list ~= reg.r12;
+	if (reg_list & 0x2000) res.reg_list ~= reg.sp;
+	if (reg_list & 0x4000) res.reg_list ~= reg.lr;
+	if (reg_list & 0x8000) res.reg_list ~= reg.pc;
+	return res;
+}
+
+// ===============
+//  Parse ORR REG
+// ===============
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:5] 11101010010
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0 
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_orr_reg_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.orr_reg_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = get_shift_type(type, imm);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm;
+	}
+	return res;
+}
+
+// ===========
+//  Parse SUB
+// ===========
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:5] 11101011101
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0 
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_subs_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.subs_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = get_shift_type(type, imm);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm;
+	}
+	return res;
+}
+
+// ===========
+//  Parse SBC
+// ===========
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:5] 11101011101
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0 
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_sbc_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.sbc_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = get_shift_type(type, imm);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm;
+	}
+	return res;
+}
+
+// ===========
+//  Parse ADC
+// ===========
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:5] 11101011010
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0 
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_adc_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.adc_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = get_shift_type(type, imm);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm;
+	}
+	return res;
+}
+
+// ==================
+//  Parse BIT OR NOT
+// ==================
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:5] 11101011010
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0 
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_bit_or_not_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.bit_or_not_32;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	//ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+	uint rotate_by = cast(ubyte)((i << 3) | imm_3);
+	uint rotated = rotr(imm_8, rotate_by * 2);
+	res.imm = rotated;
+	res.rd = cast(reg)(rd);
+	writeln(res.imm);
+	return res;
+}
+
+// =============
+//  Parse LDREX
+// =============
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:4] 111010000101
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[11:8] 1111
+	[7:0] imm8
+*/
+instr_32 parse_ldrex_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.ld_rex;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	uint imm = cast(ubyte)((imm_8 << 2) | 0b00);
+	res.imm = imm;
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	writeln(res.imm);
+	return res;
+}
+
+// =============
+//  Parse STREX
+// =============
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:4] 111010000100
+	[3:0] Rd
+	Second Half-Word:
+	[15:12] Rt
+	[11:8] Rn
+	[7:0] imm8
+*/
+instr_32 parse_strex_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.str_rex;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >>  8) & 0xf);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	uint imm = cast(ubyte)((imm_8 << 2) | 0b00);
+	res.imm = imm;
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.rd = cast(reg)(rd);
+	writeln(res.imm);
+	return res;
+}
+
+// ===========
+//  Parse MLS
+// ===========
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:4] 111110110000
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Ra
+	[11:8] Rd
+	[7:4] 0001
+	[3:0] Rm
+*/
+instr_32 parse_mls_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.mls_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte rd = cast(ubyte)((instr >>  8) & 0xf);
+	ubyte ra = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.ra = cast(reg)(ra);
+	res.rm = cast(reg)(rm);
+	res.rn = cast(reg)(rn);
+	res.rd = cast(reg)(rd);
+	return res;
+}
+
+// ========================
+//  Parse LDRSH(immediate)
+// ========================
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:4] 111110011011  
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[11:0] imm12
+*/
+instr_32 parse_ldh_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.ldh_32;
+	ubyte imm_12 = cast(ubyte)(instr & 0xfff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.imm = imm_12;
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// ===========
+//  Parse TST
+// ===========
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:4] 111010100001
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0 
+	[14:12] imm3
+	[11:8] 1111
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_tst_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.tst_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = get_shift_type(type, imm);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm;
+	}
+	return res;
+}
+
+// =====================
+//  Parse AND(Register)
+// =====================
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:5] 11101010000
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_and_reg_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.and_reg_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf); 
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = get_shift_type(type, imm);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	res.rd = cast(reg)(rd);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm;
+	}
+	return res;
+}
+
+// =====================
+//  Parse BIC(Register)
+// =====================
+
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:5] 11101010001
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_bic_reg_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.bic_reg_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf); 
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = get_shift_type(type, imm);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	res.rd = cast(reg)(rd);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm;
+	}
+	return res;
+}
+
+// ==============
+//  Decode Instr
+// ==============
+
+instr_32 decode_instr(uint instr) {
+	instr_32 res;
+	auto op = decode_mnemonic_32(instr);
+
+	switch (op) {
+		case opcode.add_32_reg:
+			return parse_add_32_reg(instr);
+		case opcode.bl_32:
+			return parse_bl_32(instr);
+		case opcode.nop_32:
+			return parse_nop_32(instr);
+		case opcode.pop_mult_reg_32:
+			return parse_pop_mult_reg_32(instr);
+		case opcode.sub_imm_32:
+			return parse_sub_imm_32(instr);
+		case opcode.and_imm_32:
+			return parse_and_imm_32(instr);
+		case opcode.udiv_32:
+			return parse_udiv_32(instr);
+		case opcode.ubfx_32:
+			return parse_ubfx_32(instr);
+		case opcode.mul_32:
+			return parse_mul_32(instr);
+		case opcode.lsr_32:
+			return parse_lsr_32(instr);
+		case opcode.orr_32:
+			return parse_orr_32(instr);
+		case opcode.add_32:
+			return parse_add_32(instr);
+		case opcode.bit_clear_32:
+			return parse_bit_clear_32(instr);
+		case opcode.mov_16_imm_32:
+			return parse_mov_16_imm_32(instr);
+		case opcode.ldrsb_32:
+			return parse_ldrsb_32(instr);
+		case opcode.str_reg_32:
+			return parse_str_reg_32(instr);
+		case opcode.dsb:
+			return parse_dsb(instr);
+		case opcode.rsb_32:
+			return parse_rsb_32(instr);
+		case opcode.umull_32:
+			return parse_umull(instr);
+		case opcode.strd_32:
+			return parse_strd_32(instr);
+		case opcode.b_32:
+			return parse_b_32(instr);
+		case opcode.push_mult_reg_32:
+			return parse_push_mult_reg_32(instr);
+		case opcode.orr_reg_32:
+			return parse_orr_reg_32(instr);
+		case opcode.subs_32:
+			return parse_subs_32(instr);
+		case opcode.sbc_32:
+			return parse_sbc_32(instr);
+		case opcode.adc_32:
+			return parse_adc_32(instr);
+		case opcode.bit_or_not_32:
+			return parse_bit_or_not_32(instr);
+		case opcode.ld_rex:
+			return parse_ldrex_32(instr);
+		case opcode.str_rex:
+			return parse_strex_32(instr);
+		case opcode.mls_32:
+			return parse_mls_32(instr);
+		case opcode.ldh_32: 
+			return parse_ldh_32(instr);
+		case opcode.tst_32:
+			return parse_tst_32(instr);
+		case opcode.and_reg_32:
+			return parse_and_reg_32(instr);
+		case opcode.bic_reg_32:
+			return parse_bic_reg_32(instr);
+		default:
+			return res;
+	}
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+	struct test_case {
+		uint instr;
+		instr_32 expected;
+	}
+
+	test_case[] tests = [
+		test_case(0xeb0101a3, 
+				  instr_32(op: opcode.add_32_reg, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2)),				// add.w	r1, r1, r3, asr #2
+		test_case(0xf7ffffda,
+				  instr_32(op: opcode.bl_32, offset: -76)),
+		test_case(0xf3af8000, 
+				  instr_32(op: opcode.nop_32)),
+		test_case(0xe8bd4008, 
+				  instr_32(op: opcode.pop_mult_reg_32, reg_list: [reg.r3, reg.lr])),
+		test_case(0xf5a33a80, //  sub.w	sl, r3, #65536	@ 0x10000
+				  instr_32(op: opcode.sub_imm_32, rd: reg.r10, rn: reg.r3, imm: 65536)),
+		test_case(0xf008ff15, 
+				  instr_32(op: opcode.bl_32, offset: 36394)),
+		test_case(0xf009f8a6, 
+				  instr_32(op: opcode.bl_32, offset: 37196)),
+		test_case(0xf003030c, // and.w	r3, r3, #12
+				  instr_32(op: opcode.and_imm_32, rd: reg.r3, rn: reg.r3, imm: 12)),
+		test_case(0xfbb2f3f3, // udiv	r3, r2, r3
+				  instr_32(op: opcode.udiv_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
+		test_case(0xf3c20208, // ubfx	r2, r2, #0, #9
+				  instr_32(op: opcode.ubfx_32, rd: reg.r2, rn: reg.r2, ls_bit: 0, width: 9)),
+		test_case(0xfb02f303, // mul.w	r3, r2, r3
+			      instr_32(op: opcode.mul_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
+		test_case(0xfa22f303, // lsr.w	r3, r2, r3
+				  instr_32(op: opcode.lsr_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
+		test_case(0xf4434380, // orr.w	r3, r3, #16384	@ 0x4000
+				  instr_32(op: opcode.orr_32, rd: reg.r3, rn: reg.r3, imm: 16384)),
+		test_case(0xf1070314, // add.w	r3, r7, #20
+				  instr_32(op: opcode.add_32, rd: reg.r3, rn: reg.r7, imm: 20)),
+		test_case(0xf0230310, // bic.w	r3, r3, #16
+				  instr_32(op: opcode.bit_clear_32, rd: reg.r3, rn: reg.r3, imm: 16)),
+		test_case(0xf64f03ff, // movw	r3, #63743	@ 0xf8ff
+				  instr_32(op: opcode.mov_16_imm_32, rd: reg.r3, imm: 63743)),
+		// 1111 0110 0100 1111 000 0011 1111 1111
+		test_case(0xf9973007, // ldrsb.w	r3, [r7, #7]
+				  instr_32(op: opcode.ldrsb_32, rt: reg.r3, rn: reg.r7, imm: 7)),
+		// 1111 1001 1001 0111 0011 0000 0000 0111
+		test_case(0xf8412023, // str.w	r2, [r1, r3, lsl #2]
+				  instr_32(op: opcode.str_reg_32, rt: reg.r2, rn: reg.r1, rm: reg.r3, imm: 2)),
+		// 1111 1000 0100 0001 0010 0000 0010 0011
+		test_case(0xf3bf8f4f, 
+				  instr_32(op: opcode.dsb)),
+		// 1111 0011 1011 1111 1000 1111 0100 1111
+		test_case(0xf1c30307, // rsb	r3, r3, #7
+				  instr_32(op: opcode.rsb_32, rd: reg.r3, rn: reg.r3, imm: 7)),
+		test_case(0xfba22303, // umull	r2, r3, r2, r3
+				  instr_32(op: opcode.umull_32, rd_lo: reg.r2, rd_hi: reg.r3, rn: reg.r2, rm: reg.r3)),
+		// 1111 1011 1010 0010 0010 0011 0000 0011
+		test_case(0xe9c72300, // strd	r2, r3, [r7]
+				  instr_32(op: opcode.strd_32, rt: reg.r2, rt_2: reg.r3, rn: reg.r7, imm: 0)),
+		// 1110 1001 1100 0111 0010 0011 0000 0000
+		//		  instr_32(op: opcode.strd_32)),
+		test_case(0xf67fae90, // bls.w	8004360
+				  instr_32(op: opcode.b_32, offset: -736)),
+		// 1111 0110 0111 1111 1010 1110 1001 0000
+		test_case(0xe92d4fb0, // stmdb	sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
+				  instr_32(op: opcode.push_mult_reg_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr])),
+		// 1110 1001 0010 1101 0100 1111 1011 0000
+		test_case(0xea4161d2, // orr.w	r1, r1, r2, lsr #27
+				  instr_32(op: opcode.orr_reg_32, rd: reg.r1, rn: reg.r1, rm: reg.r2, shift_t: shift_type.lsr, shift_n: 27)),
+		test_case(0xebb2080a, // subs.w	r8, r2, sl
+				  instr_32(op: opcode.subs_32, rd: reg.r8, rn: reg.r2, rm: reg.r10, shift_t: shift_type.lsl, shift_n: 0)),
+		// 1110 1011 1011 0010 0000 1000 0000 1010
+		test_case(0xeb63090b, // sbc.w	r9, r3, fp
+			      instr_32(op: opcode.sbc_32, rd: reg.r9, rn: reg.r3, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
+		test_case(0xeb45030b, // adc.w	r3, r5, fp
+				  instr_32(op: opcode.adc_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
+		test_case(0xf06f0240, // mvn.w	r2, #64	@ 0x40 
+				  instr_32(op: opcode.bit_or_not_32, rd: reg.r2, imm: 64)),
+		// 1111 0000 0110 1111 0000 0010 0100 0000
+		test_case(0xe8533f00, // ldrex	r3, [r3]
+				  instr_32(op: opcode.ld_rex, rt: reg.r3, rn: reg.r3)),
+		// 1110 1000 0101 0011 0011 1111 0000 0000
+		test_case(0xe8412300, // strex	r3, r2, [r1]
+				  instr_32(op: opcode.str_rex, rd: reg.r3, rt: reg.r2, rn: reg.r1)),
+		test_case(0xfb0e7711, // mls	r7, lr, r1, r7
+				  instr_32(op: opcode.mls_32, rd: reg.r7, rn: reg.lr, rm: reg.r1, ra: reg.r7)),
+		test_case(0xf9b4500c, // ldrsh.w	r5, [r4, #12]
+				  instr_32(op: opcode.ldh_32, rt: reg.r5, rn: reg.r4, imm: 12)),
+		// 1111 1001 1011 0100 0101 0000 0000 1100
+		test_case(0xea1c0f0e, // tst.w	ip, lr
+				  instr_32(op: opcode.tst_32, rn: reg.r12, rm: reg.lr, shift_t: shift_type.lsl)),
+		// 1110 1010 0001 1100 0000 1111 0000 1110
+		test_case(0xea010808, // and.w	r8, r1, r8 
+				  instr_32(op: opcode.and_reg_32, rd: reg.r8, rn: reg.r1, rm: reg.r8)),
+		// 1110 1010 0000 0001 0000 1000 0000 1000
+		test_case(0xea23030c, // bic.w	r3, r3, ip
+				  instr_32(op: opcode.bic_reg_32, rd: reg.r3, rn: reg.r3, rm: reg.r12)),
+		test_case(0xf7ffbfbb, // b.w	8009c5c <_fclose_r>
+				  instr_32(op: opcode.b_32, offset: -138))
+	];//
+
+	foreach (t; tests) {
+		assert(
+		    decode_instr(t.instr) == t.expected,
+		    format("Failed for instruction 0x%08X", t.instr)
+		);
+    }
+}
 
 
