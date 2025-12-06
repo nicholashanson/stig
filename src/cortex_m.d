@@ -1,4 +1,4 @@
-import std.algorithm : all, canFind, map;
+import std.algorithm : all, canFind, map, reverse;
 import std.conv : to, ConvException, parse;
 import std.exception;
 import std.string : indexOf, replace, split, strip, stripLeft;
@@ -8,6 +8,7 @@ import std.format : format;
 import std.stdio;
 import std.regex;
 import std.array;
+import std.typecons : Tuple;
 
 enum reg : ubyte {
 	r0,
@@ -26,6 +27,7 @@ enum reg : ubyte {
 	sp,   	// stack pointer
 	lr,		// link register
 	pc,		// program counter
+	none
 }
 
 struct imm {
@@ -151,7 +153,7 @@ enum instr_grp : ubyte {
 	single_str_3    = 0b100,
 	ldr_pool 		= 0b01001,
 	special         = 0b010001,
-	b_n 			= 0b11100,
+	b_imm_11 		= 0b11100,
 	add_sp          = 0b10101,
 	adr             = 0b10100
 }
@@ -234,14 +236,14 @@ enum opcode : ubyte {
 	and_imm_32,
 	asr_imm,
 	b_32,
-	b_n,
+	b_imm_11,
 	bic_reg_32,
 	bit_clear_32,
 	bit_not_32,
 	bit_or_not_32,
 	bl_32,
 	blx,
-	br_t1,
+	b_cond,
 	bx,
 	cmp_br_z,
 	cmp_br_nz,
@@ -312,6 +314,62 @@ enum opcode : ubyte {
 	umull_32,
 	invalid
 }
+
+enum all_field_tuples = 
+	  field_tuples_add_high_reg_1
+	~ field_tuples_add_high_reg_2
+	~ field_tuples_add_imm_3
+	~ field_tuples_add_imm_8
+	~ field_tuples_add_lo_reg
+	~ field_tuples_add_reg
+	~ field_tuples_add_sp
+	~ field_tuples_adr
+	~ field_tuples_and_reg
+	~ field_tuples_asr_imm
+	~ field_tuples_b_cond
+	~ field_tuples_b_imm_11
+	~ field_tuples_blx
+	~ field_tuples_bx
+	~ field_tuples_cmp_br_nz
+	~ field_tuples_cmp_br_z
+	~ field_tuples_cmp_high_1
+	~ field_tuples_cmp_high_2
+	~ field_tuples_cmp_imm
+	~ field_tuples_cmp_reg
+	~ field_tuples_ldr_imm
+	~ field_tuples_ldr_pool
+	~ field_tuples_ldr_reg
+	~ field_tuples_ldrb_imm
+	~ field_tuples_ldrb_reg
+	~ field_tuples_ldrh_imm
+	~ field_tuples_lor_reg
+	~ field_tuples_lsl_imm
+	~ field_tuples_lsl_reg
+	~ field_tuples_lsr_imm
+	~ field_tuples_lsr_reg
+	~ field_tuples_mov_high_1
+	~ field_tuples_mov_high_2
+	~ field_tuples_mov_imm
+	~ field_tuples_mov_lo
+	~ field_tuples_mvn_reg
+	~ field_tuples_negs
+	~ field_tuples_pop_mult_reg
+	~ field_tuples_push_mult_reg
+	~ field_tuples_str_imm
+	~ field_tuples_str_sp
+	~ field_tuples_strb_imm
+	~ field_tuples_strh_imm
+	~ field_tuples_sub_imm_3
+	~ field_tuples_sub_imm_8
+	~ field_tuples_sub_sp
+	~ field_tuples_sub_reg;
+
+immutable string[][opcode] field_map = (() {
+    string[][opcode] m;
+    foreach(t; all_field_tuples)
+        m[t[0]] = t[1];
+    return m;
+})();
 
 // =================
 //  Decode Mnemonic
@@ -441,7 +499,7 @@ opcode decode_mnemonic(ushort instr) {
     	return opcode.ldr_pool;
     }
     if (cast(ubyte)((instr >> 12) & 0b1111) == 0b1101) {
-    	return opcode.br_t1;
+    	return opcode.b_cond;
     }
     if (cast(ubyte)((instr >> 12) & 0b1111) == instr_grp.misc) {
     	if (cast(ubyte)((instr >> 8) & 0b1111) == misc.cmp_br) {
@@ -504,8 +562,8 @@ opcode decode_mnemonic(ushort instr) {
     	}
 
     }
-    if (cast(ubyte)((instr >> 11) & 0b11111) == instr_grp.b_n) {
-    	return opcode.b_n;
+    if (cast(ubyte)((instr >> 11) & 0b11111) == instr_grp.b_imm_11) {
+    	return opcode.b_imm_11;
     }
     if (cast(ubyte)((instr >> 11) & 0b11111) == instr_grp.add_sp) {
     	return opcode.add_sp;
@@ -542,14 +600,14 @@ unittest {
 		test_case(0x68fb, opcode.ldr_imm),
 		test_case(0x4283, opcode.cmp_reg),
 		test_case(0x4803, opcode.ldr_pool),
-		test_case(0xd002, opcode.br_t1),
+		test_case(0xd002, opcode.b_cond),
 		test_case(0xb103, opcode.cmp_br_z),
 		test_case(0x4718, opcode.bx),
 		test_case(0x1a1b, opcode.sub_reg),
 		test_case(0xb510, opcode.push_mult_reg),
 		test_case(0xb943, opcode.cmp_br_nz),
 		test_case(0xbd10, opcode.pop_mult_reg),
-		test_case(0xe7cf, opcode.b_n),
+		test_case(0xe7cf, opcode.b_imm_11),
 		test_case(0xbf00, opcode.if_then),
 		test_case(0x469d, opcode.mov_high_1),
 		test_case(0x460f, opcode.mov_lo),
@@ -875,28 +933,239 @@ struct instr_16 {
 	reg rm;
 	reg rn;
 	reg rt;
-	ubyte imm;
+	ushort imm;
 	short offset;
 	int imm_long;
 	condition cond;
-	reg[] reg_list;
+	reg[] reg_list = null;
 	bool set_flags;
 }
 
-instr_16 parse_cmp_imm(short instr) {
+// =====================
+//  Parse ADD(Register)
+// =====================
+
+enum field_tuples_add_reg = [Tuple!(opcode, string[])(opcode.add_reg, ["rd","rn","rm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move, and Compare
+	ADD <Rd>,<Rn>,<Rm>
+	[15:9] 0001100
+	[8:6] Rm
+	[5:3] Rn
+	[2:0] Rd
+*/
+instr_16 parse_add_reg(short instr) {
 	instr_16 res;
-	res.op = opcode.cmp_imm;
-	ubyte rn = cast(ubyte)((instr >> 8) & 0b111);
+	res.op = opcode.add_reg;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 6) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =====================
+//  Parse ADD(Register)
+// =====================
+
+enum field_tuples_add_high_reg_1 = [Tuple!(opcode, string[])(opcode.add_high_reg_1, ["rd","rm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	ADD <Rdn>,<Rm>
+	[15:8] 01000100
+	[7] DN
+	[6:3] Rm
+	[2:0] Rdn
+*/
+instr_16 parse_add_high_reg_1(short instr) {
+	instr_16 res;
+	res.op = opcode.add_high_reg_1;
+	ubyte rdn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
+	ubyte dn = cast(ubyte)((instr >> 7) & 0b1);
+	if (dn) {
+		rdn |= 0b1000;
+	}
+	res.rn = cast(reg)(rdn);
+	res.rd = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =====================
+//  Parse ADD(Register)
+// =====================
+
+enum field_tuples_add_high_reg_2 = [Tuple!(opcode, string[])(opcode.add_high_reg_2, ["rd","rm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	ADD <Rdn>,<Rm>
+	[15:8] 01000100
+	[7] DN
+	[6:3] Rm
+	[2:0] Rdn
+*/
+instr_16 parse_add_high_reg_2(short instr) {
+	instr_16 res;
+	res.op = opcode.add_high_reg_2;
+	ubyte rdn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
+	ubyte dn = cast(ubyte)((instr >> 7) & 0b1);
+	if (dn) {
+		rdn |= 0b1000;
+	}
+	res.rn = cast(reg)(rdn);
+	res.rd = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ======================
+//  Parse ADD(Immediate)
+// ======================
+
+enum field_tuples_add_imm_3 = [Tuple!(opcode, string[])(opcode.add_imm_3, ["rd","rn","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move, and Compare
+	ADD <Rd>,<Rn>,#<imm3>
+	[15:9] 0001110
+	[8:6] imm3 
+	[5:3] Rn
+	[2:0] Rd
+*/
+instr_16 parse_add_imm_3(short instr) {
+	instr_16 res;
+	res.op = opcode.add_imm_3;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte imm_3 = cast(ubyte)((instr >> 6) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_3;
+	return res;
+}
+
+// ======================
+//  Parse ADD(Immediate)
+// ======================
+
+enum field_tuples_add_imm_8 = [Tuple!(opcode, string[])(opcode.add_imm_8, ["rn","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	ADD <Rd>,<Rn>,#<imm3>
+	[15:11] 00110
+	[10:8] Rdn
+	[7:0] imm8
+*/
+instr_16 parse_add_imm_8(short instr) {
+	instr_16 res;
+	res.op = opcode.add_imm_8;
+	ubyte rdn = cast(ubyte)((instr >> 8) & 0b111);
+	res.rn = cast(reg)(rdn);
+	res.rd = cast(reg)(rdn);
 	ubyte imm = cast(ubyte)(instr & 0xff);
 	res.imm = imm;
-	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// ==================
+//  Parse ADD LO REG
+// ==================
+
+enum field_tuples_add_lo_reg = [Tuple!(opcode, string[])(opcode.add_lo_reg, ["rd","rm","imm"])];
+/*
+	Special Data Instructions and Branch and Exchange
+	ADD <Rdn>,<Rm>
+	[15:8] 01000100
+	[7] DN
+	[6:3] Rm
+	[2:0] Rdn  
+*/
+instr_16 parse_add_lo_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.add_lo_reg;
+	ubyte rdn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ==============================
+//  Parse ADD(SP Plus Immediate)
+// ==============================
+
+enum field_tuples_add_sp = [Tuple!(opcode, string[])(opcode.add_sp, ["rd","sp","imm"])];
+/*
+	General SP-Relative Address
+	ADD <Rd>,SP,#<imm8>
+	[15:11] 10101
+	[10:8] Rd
+	[7:0] imm8
+*/
+instr_16 parse_add_sp(short instr) {
+	instr_16 res;
+	res.op = opcode.add_sp;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
+	res.imm = imm_8;
+	res.rd = cast(reg)(rd);
 	return res;
 }
 
 // ===========
-//  Parse ASR
+//  Parse ADR
 // ===========
 
+enum field_tuples_adr = [Tuple!(opcode, string[])(opcode.adr, ["rd","pc","imm"])];
+/*
+	Generate PC-Relative Address
+	ADR <Rd>,<Label>
+	[15:11] 10100
+	[10:8] Rd
+	[7:0] imm8  
+*/
+instr_16 parse_adr(short instr) {
+	instr_16 res;
+	res.op = opcode.adr;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
+	res.imm = cast(ubyte)(imm_8 * 4);
+	res.rd = cast(reg)(rd);
+	return res;
+}
+
+// =====================
+//  Parse AND(Register)
+// =====================
+
+enum field_tuples_and_reg = [Tuple!(opcode, string[])(opcode.and_reg, ["rd","rm"])];
+/*
+	Data Processing
+	AND <Rdn>,<Rm>
+	[15:6] 0100000000
+	[5:3] Rm
+	[2:0] Rdn
+*/
+instr_16 parse_and_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.and_reg;
+	ubyte rdn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rn = cast(reg)(rdn);
+	res.rd = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ======================
+//  Parse ASR(Immediate)
+// ======================
+
+enum field_tuples_asr_imm = [Tuple!(opcode, string[])(opcode.asr_imm, ["rm","rd","imm"])];
 /*
 	Shift(Immediate), Add, Subtract, Move and Compare
 	ASR <Rd>,<Rm>,#<imm5>
@@ -917,268 +1186,82 @@ instr_16 parse_asr_imm(short instr) {
 	return res;
 }
 
-// ===========
-//  Parse ADD
-// ===========
+// =========
+//  Parse B
+// =========
 
-instr_16 parse_add_imm_8(short instr) {
+enum field_tuples_b_cond = [Tuple!(opcode, string[])(opcode.b_cond, ["rn","offset"])];
+/*
+	Condtional Branch, and Supervisor Call
+	B <label>
+	[15:12] 1101
+	[11:8] cond
+	[7:0] imm8
+*/
+instr_16 parse_b_cond(short instr) {
 	instr_16 res;
-	res.op = opcode.add_imm_8;
-	ubyte rdn = cast(ubyte)((instr >> 8) & 0b111);
-	res.rn = cast(reg)(rdn);
-	res.rd = cast(reg)(rdn);
-	ubyte imm = cast(ubyte)(instr & 0xff);
-	res.imm = imm;
+	res.op = opcode.b_cond;
+	ubyte cond = cast(ubyte)((instr >> 8 ) & 0xf);
+	ubyte imm_8 = cast(short)(instr & 0xff);
+	res.cond = cast(condition)(cond);
+	res.offset = imm_8;
 	return res;
 }
 
-// ===========
-//  Parse MOV
-// ===========
+// =========
+//  Parse B
+// =========
 
-instr_16 parse_mov_imm(short instr) {
+enum field_tuples_b_imm_11 = [Tuple!(opcode, string[])(opcode.b_imm_11, ["imm"])];
+/*
+	Uncondtional Branch
+	B <label>
+	[15:11] 11100
+	[10:0] imm11
+*/
+instr_16 parse_b_imm_11(short instr) {
 	instr_16 res;
-	res.op = opcode.mov_imm;
-	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
-	ubyte imm = cast(ubyte)(instr & 0xff);
-	res.imm = imm;
-	res.rd = cast(reg)(rd);
-	return res;
-}
-
-// ===========
-//  Parse AND
-// ===========
-
-instr_16 parse_and_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.and_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rn = cast(reg)(rdn);
-	res.rd = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ===========
-//  Parse Sub
-// ===========
-
-instr_16 parse_sub_imm_8(short instr) {
-	instr_16 res;
-	res.op = opcode.sub_imm_8;
-	ubyte rdn = cast(ubyte)((instr >> 8) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	ubyte imm = cast(ubyte)(instr & 0xff);
-	res.imm = imm;
-	return res;
-}
-
-// ===========
-//  Parse LSL
-// ===========
-
-instr_16 parse_lsl_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.lsl_imm;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.imm = imm;
-	return res;
-}
-
-// ===========
-//  Parse LSR
-// ===========
-
-instr_16 parse_lsr_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.lsr_imm;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.imm = imm;
-	return res;
-}
-
-// ===========
-//  Parse LOR
-// ===========
-
-instr_16 parse_lor_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.lor_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ===========
-//  Parse MVN 
-// ===========
-
-instr_16 parse_mvn_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.mvn_reg;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ================
-//  Parse STRH Imm
-// ================
-
-instr_16 parse_strh_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.strh_imm;
-	ubyte rt = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	res.imm = cast(ubyte)(imm * 2);
+	res.op = opcode.b_imm_11;
+	int imm_11 = cast(int)(instr & 0b11111111111);
+	if ((imm_11 & 0x400) == 0x400) {
+        imm_11 |= 0xfffff800;
+	}
+	res.imm_long = imm_11;
 	return res; 
 }
 
-// ===============
-//  Parse STR IMM 
-// ===============
+// =====================
+//  Parse BLX(Register)
+// =====================
 
-instr_16 parse_str_imm(short instr) {
+enum field_tuples_blx = [Tuple!(opcode, string[])(opcode.blx, ["rm"])];
+/*
+	Special Data Instructions and Branch and Exchange
+	BLX <Rm>
+	[15:8] 010001111
+	[6:3] Rm
+	[2:0] 000
+*/
+instr_16 parse_blx(short instr) {
 	instr_16 res;
-	res.op = opcode.str_imm;
-	ubyte rt = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.imm = cast(ubyte)(imm * 4);
-	return res;
-}
-
-// ================
-//  Parse LDRH IMM 
-// ================
-
-instr_16 parse_ldrh_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.ldrh_imm;
-	ubyte rt = cast(ubyte)( instr        & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	res.imm = cast(ubyte)(imm * 2);
-	return res;
-}
-
-// ================
-//  Parse LDRB IMM
-// ================
-
-instr_16 parse_ldrb_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.ldrb_imm;
-	ubyte rt = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	res.imm = imm;
-	return res;
-}
-
-// =================
-//  Parse STRRB IMM
-// =================
-
-instr_16 parse_strb_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.strb_imm;
-	ubyte rt = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	res.imm = imm;
-	return res;
-}
-
-// ===============
-//  Parse LDR IMM 
-// ===============
-
-instr_16 parse_ldr_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.ldr_imm;
-	ubyte rt = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.imm = cast(ubyte)(imm * 4);
-	return res;
-}
-
-// ===============
-//  Parse CMP REG 
-// ===============
-
-instr_16 parse_cmp_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.cmp_reg;
-	ubyte rn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rn = cast(reg)(rn);
+	res.op = opcode.blx;
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
 	res.rm = cast(reg)(rm);
 	return res;
-}
-
-// ================
-//  Parse LDR Pool 
-// ================
-
-instr_16 parse_ldr_pool(short instr) {
-	instr_16 res;
-	res.op = opcode.ldr_pool;
-	ubyte rt = cast(ubyte)((instr >> 8) & 0b111);
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	res.rt = cast(reg)(rt);
-	res.imm = cast(ubyte)(imm_8 * 4);
-	return res;
-}
-
-// =============
-//  Parse BR T1
-// =============
-
-instr_16 parse_br_t1(short instr) {
-	instr_16 res;
-	res.op = opcode.br_t1;
-	ubyte cond = cast(ubyte)((instr >> 8 ) & 0xf);
-	res.cond = cast(condition)(cond);
-	ubyte imm = cast(short)(instr & 0xff);
-	res.offset = imm;
-	return res;
-}
+} 
 
 // ==========
 //  Parse BX
 // ==========
 
+enum field_tuples_bx = [Tuple!(opcode, string[])(opcode.bx, ["rm"])];
+/*
+	Special Data Instructions and Branch and Exchange
+	BX <Rm>
+	[15:7] 010001110
+	[6:3] Rm
+	[2:0] 000
+*/
 instr_16 parse_bx(short instr) {
 	instr_16 res;
 	res.op = opcode.bx;
@@ -1187,10 +1270,37 @@ instr_16 parse_bx(short instr) {
 	return res;
 }
 
-// ==============
-//  Parse CMPBRZ
-// ==============
+// ============
+//  Parse CBNZ
+// ============
 
+enum field_tuples_cmp_br_nz = [Tuple!(opcode, string[])(opcode.cmp_br_nz, ["rn"])];
+/*
+	Miscellaneous 16-Bit Instructions
+	CBNZ <Rn>,<label>
+	[15:12] 1011
+	[11] op
+	[10] 0
+	[9] i
+	[8] 1
+	[7:3] imm5
+	[2:0] Rn  
+*/
+instr_16 parse_cmp_br_nz(short instr) {
+	instr_16 res;
+	res.op = opcode.cmp_br_nz;
+	ubyte rn = cast(ubyte)(instr & 0b111);
+	short imm_5 = cast(short)((instr >> 3) & 0b11111);
+	res.rn = cast(reg)(rn);
+	res.offset = imm_5;
+	return res;
+}
+
+// ===========
+//  Parse CBZ
+// ===========
+
+enum field_tuples_cmp_br_z = [Tuple!(opcode, string[])(opcode.cmp_br_z, ["rn"])];
 /*
 	Miscellaneous 16-Bit Instructions
 	CBZ <Rn>,<label>
@@ -1212,362 +1322,55 @@ instr_16 parse_cmp_br_z(short instr) {
 	return res;
 }
 
-// ===============
-//  Parse CMPBRNZ
-// ===============
+// ======================
+//  Parse CMP(Immediate)
+// ======================
 
-instr_16 parse_cmp_br_nz(short instr) {
+enum field_tuples_cmp_imm = [Tuple!(opcode, string[])(opcode.cmp_imm, ["rn","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	CMP <Rn>,#<imm8>
+	[15:11] 00101
+	[10:8] Rn 
+	[7:0] imm8  
+*/
+instr_16 parse_cmp_imm(short instr) {
 	instr_16 res;
-	res.op = opcode.cmp_br_nz;
+	res.op = opcode.cmp_imm;
+	ubyte rn = cast(ubyte)((instr >> 8) & 0b111);
+	ubyte imm = cast(ubyte)(instr & 0xff);
+	res.imm = imm;
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// =====================
+//  Parse CMP(Register)
+// =====================
+
+enum field_tuples_cmp_reg = [Tuple!(opcode, string[])(opcode.cmp_reg, ["rn","rm"])];
+/*
+	Special Data Instructions and Branch and Exchange
+	CMP <Rn>,<Rm>
+	[15:6] 0100001010
+	[5:3] Rm
+	[2:0] Rn
+*/
+instr_16 parse_cmp_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.cmp_reg;
 	ubyte rn = cast(ubyte)(instr & 0b111);
-	short imm_5 = cast(short)((instr >> 3) & 0b11111);
-	res.rn = cast(reg)(rn);
-	res.offset = imm_5;
-	return res;
-}
-
-// ===============
-//  Parse SUB Reg
-// ===============
-
-instr_16 parse_sub_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.sub_reg;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 6) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// =====================
-//  Parse Push Mult Reg
-// =====================
-
-instr_16 parse_push_mult_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.push_mult_reg;
-	ubyte m = cast(ubyte)((instr >> 8) & 0b1);
-	if (m) {
-		res.reg_list ~= reg.lr;
-	}
-	ubyte reg_mask = cast(ubyte)(instr & 0xff);
-	if (reg_mask & 0b00000001) res.reg_list ~= reg.r0;
-	if (reg_mask & 0b00000010) res.reg_list ~= reg.r1;
-	if (reg_mask & 0b00000100) res.reg_list ~= reg.r2;
-	if (reg_mask & 0b00001000) res.reg_list ~= reg.r3;
-	if (reg_mask & 0b00010000) res.reg_list ~= reg.r4;
-	if (reg_mask & 0b00100000) res.reg_list ~= reg.r5;
-	if (reg_mask & 0b01000000) res.reg_list ~= reg.r6;
-	if (reg_mask & 0b10000000) res.reg_list ~= reg.r7;
-	return res;
-}
-
-// =====================
-//  Parse Push Mult Reg
-// =====================
-
-instr_16 parse_pop_mult_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.pop_mult_reg;
-	ubyte p = cast(ubyte)((instr >> 8) & 0b1);
-	if (p) {
-		res.reg_list ~= reg.pc;
-	}
-	ubyte reg_mask = cast(ubyte)(instr & 0xff);
-	if (reg_mask & 0b00000001) res.reg_list ~= reg.r0;
-	if (reg_mask & 0b00000010) res.reg_list ~= reg.r1;
-	if (reg_mask & 0b00000100) res.reg_list ~= reg.r2;
-	if (reg_mask & 0b00001000) res.reg_list ~= reg.r3;
-	if (reg_mask & 0b00010000) res.reg_list ~= reg.r4;
-	if (reg_mask & 0b00100000) res.reg_list ~= reg.r5;
-	if (reg_mask & 0b01000000) res.reg_list ~= reg.r6;
-	if (reg_mask & 0b10000000) res.reg_list ~= reg.r7;
-	return res;
-}
-
-// ==========
-//  Parse BN
-// ==========
-
-instr_16 parse_b_n(short instr) {
-	instr_16 res;
-	res.op = opcode.b_n;
-	int imm_11 = cast(int)(instr & 0b11111111111);
-	if ((imm_11 & 0x400) == 0x400) {
-        imm_11 |= 0xfffff800;
-	}
-	res.imm_long = imm_11;
-	return res; 
-}
-
-// ===========
-//  Parse MOV
-// ===========
-
-instr_16 parse_mov_high_1(short instr) {
-	instr_16 res;
-	res.op = opcode.mov_high_1;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	ubyte d = cast(ubyte)((instr >> 7) & 0b1);
-	if (d) {
-		rd |= 0b1000;
-	}
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ===========
-//  Parse MOV
-// ===========
-
-instr_16 parse_mov_lo(short instr) {
-	instr_16 res;
-	res.op = opcode.mov_lo;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	ubyte d = cast(ubyte)((instr >> 7) & 0b1);
-	if (d) {
-		rd |= 0b1000;
-	}
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ===========
-//  Parse BLX
-// ===========
-
-instr_16 parse_blx(short instr) {
-	instr_16 res;
-	res.op = opcode.blx;
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	res.rm = cast(reg)(rm);
-	return res;
-} 
-
-// ==============
-//  Parse ADD SP
-// ==============
-
-instr_16 parse_add_sp(short instr) {
-	instr_16 res;
-	res.op = opcode.add_sp;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
-	res.imm = imm_8;
-	res.rd = cast(reg)(rd);
-	return res;
-}
-
-// ================
-//  Parse LDRB REG
-// ================
-
-instr_16 parse_ldrb_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.ldrb_reg;
-	ubyte rt = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 6) & 0b111);
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ==============
-//  Parse SUB SP
-// ==============
-
-instr_16 parse_sub_sp(short instr) {
-	instr_16 res;
-	res.op = opcode.sub_sp;
-	ubyte imm_7 = cast(ubyte)(instr & 0x7f);
-	res.imm = cast(ubyte)(imm_7 * 4);
-	return res;
-}
-
-// ===============
-//  Parse ADD IMM
-// ===============
-
-instr_16 parse_add_imm_3(short instr) {
-	instr_16 res;
-	res.op = opcode.add_imm_3;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm_3 = cast(ubyte)((instr >> 6) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
-	res.imm = imm_3;
-	return res;
-}
-
-// ==================
-//  Parse ADD LO REG
-// ==================
-
-/*
-	Special Data Instructions and Branch and Exchange
-	ADD <Rdn>,<Rm>
-	[15:8] 01000100
-	[7] DN
-	[6:3] Rm
-	[2:0] Rdn  
-*/
-instr_16 parse_add_lo_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.add_lo_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ===============
-//  Parse LSL REG
-// ===============
-
-/*
-	Data Processing
-	LSL <Rdn>,<Rm>
-	[15:6] 0100000010
-	[5:3] Rm
-	[2:0] Rdn  
-*/
-instr_16 parse_lsl_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.lsl_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
 	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ===============
-//  Parse LSR REG
-// ===============
-
-/*
-	Data Processing
-	LSR <Rdn>,<Rm>
-	[15:6] 0100000011
-	[5:3] Rm
-	[2:0] Rdn  
-*/
-instr_16 parse_lsr_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.lsr_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ===========
-//  Parse ADR
-// ===========
-
-/*
-	Generate PC-Relative Address
-	ADR <Rd>,<Label>
-	[15:11] 10100
-	[10:8] Rd
-	[7:0] Imm8  
-*/
-instr_16 parse_adr(short instr) {
-	instr_16 res;
-	res.op = opcode.adr;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
-	res.imm = cast(ubyte)(imm_8 * 4);
-	res.rd = cast(reg)(rd);
-	return res;
-}
-
-// ================
-//  Parse MOV HIGH
-// ================
-
-/*
-	Special Data Instructions and Branch and Exchange
-	MOV <Rd>,<Rm>
-	[15:8] 01000110
-	[7] D
-	[6:3] Rm
-	[2:0] Rd  
-*/
-instr_16 parse_mov_high_2(short instr) {
-	instr_16 res;
-	res.op = opcode.mov_high_2;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ==============
-//  Parse STR SP
-// ==============
-
-/*
-	Load/Store Single Data Item
-	STR <Rt>,[SP,#<imm8>]
-	[15:11] 10010
-	[10:8] Rt
-	[7:0] Imm8
-*/
-instr_16 parse_str_sp(short instr) {
-	instr_16 res;
-	res.op = opcode.str_sp;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rt = cast(ubyte)((instr >> 8) & 0b111);
-	res.imm = imm_8;
-	res.rt = cast(reg)(rt);
-	return res;
-}
-
-// ===============
-//  Parse ADD REG
-// ===============
-
-/*
-	Shift(Immediate), Add, Subtract, Move, and Compare
-	ADD <Rd>,<Rn>,<Rm>
-	[15:9] 0001100
-	[8:6] Rm
-	[5:3] Rn
-	[2:0] Rd
-*/
-instr_16 parse_add_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.add_reg;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 6) & 0b111);
-	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
 	res.rm = cast(reg)(rm);
 	return res;
 }
 
-// ================
-//  Parse CMP HIGH
-// ================
+// =====================
+//  Parse CMP(Register)
+// =====================
 
+enum field_tuples_cmp_high_1 = [Tuple!(opcode, string[])(opcode.cmp_high_1, ["rn","rm"])];
 /*
 	Special Data Instructions and Compare and Exchange
 	CMP <Rn>,<Rm>
@@ -1590,88 +1393,11 @@ instr_16 parse_cmp_high_1(short instr) {
 	return res;
 }
 
-// ====================
-//  Parse ADD HIGH REG
-// ====================
+// =====================
+//  Parse CMP(Register)
+// =====================
 
-/*
-	Special Data Instructions and Compare and Exchange
-	ADD <Rdn>,<Rm>
-	[15:8] 01000100
-	[7] DN
-	[6:3] Rm
-	[2:0] Rdn
-*/
-instr_16 parse_add_high_reg_1(short instr) {
-	instr_16 res;
-	res.op = opcode.add_high_reg_1;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	ubyte dn = cast(ubyte)((instr >> 7) & 0b1);
-	if (dn) {
-		rdn |= 0b1000;
-	}
-	res.rn = cast(reg)(rdn);
-	res.rd = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ====================
-//  Parse ADD HIGH REG
-// ====================
-
-/*
-	Special Data Instructions and Compare and Exchange
-	ADD <Rdn>,<Rm>
-	[15:8] 01000100
-	[7] DN
-	[6:3] Rm
-	[2:0] Rdn
-*/
-instr_16 parse_add_high_reg_2(short instr) {
-	instr_16 res;
-	res.op = opcode.add_high_reg_2;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	ubyte dn = cast(ubyte)((instr >> 7) & 0b1);
-	if (dn) {
-		rdn |= 0b1000;
-	}
-	res.rn = cast(reg)(rdn);
-	res.rd = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ================
-//  Parse SUB IMM3
-// ================
-
-/*
-	Shift(Immediate), Add, Subtract, Move, and Compare
-	SUB <Rd>,<Rn>,#<imm3>
-	[15:9] 0001111
-	[8:6] imm3
-	[5:3] Rn
-	[2:0] Rd
-*/
-instr_16 parse_sub_imm_3(short instr) {
-	instr_16 res;
-	res.op = opcode.sub_imm_3;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm_3 = cast(ubyte)((instr >> 6) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
-	res.imm = imm_3;
-	return res;
-}
-
-// ================
-//  Parse CMP HIGH
-// ================
-
+enum field_tuples_cmp_high_2 = [Tuple!(opcode, string[])(opcode.cmp_high_2, ["rn","rm"])];
 /*
 	Special Data Instructions and Compare and Exchange
 	CMP <Rn>,<Rm>
@@ -1694,31 +1420,58 @@ instr_16 parse_cmp_high_2(short instr) {
 	return res;
 }
 
-// ============
-//  Parse NEGS
-// ============
+// ======================
+//  Parse LDR(Immediate)
+// ======================
 
+enum field_tuples_ldr_imm = [Tuple!(opcode, string[])(opcode.ldr_imm, ["rt","rn","imm"])];
 /*
-	Data Processing
-	NEGS <Rd>,<Rn>
-	[15:6] 0100001001
+	Load/Store Single Data Item
+	LDRB <Rt>,[<Rn>{,#<imm5>}]
+	[15:11] 01101
+	[10:6] imm5
 	[5:3] Rn
-	[2:0] Rd
+	[2:0] Rt
 */
-instr_16 parse_negs(short instr) {
+instr_16 parse_ldr_imm(short instr) {
 	instr_16 res;
-	res.op = opcode.negs;
-	ubyte rd = cast(ubyte)(instr & 0b111);
+	res.op = opcode.ldr_imm;
+	ubyte rt = cast(ubyte)(instr & 0b111);
 	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rd);
+	ubyte imm_5 = cast(ubyte)((instr >> 6) & 0b11111);
+	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
+	res.imm = cast(ubyte)(imm_5 * 4);
 	return res;
 }
 
-// ===============
-//  Parse LDR REG
-// ===============
+// ====================
+//  Parse LDR(Literal)
+// ====================
 
+enum field_tuples_ldr_pool = [Tuple!(opcode, string[])(opcode.ldr_pool, ["rt","pc","imm"])];
+/*
+	Load from Literal Pool
+	LDR <Rt>,<label>
+	[15:11] 01001
+	[10:8] Rm
+	[7:0] imm8
+*/
+instr_16 parse_ldr_pool(short instr) {
+	instr_16 res;
+	res.op = opcode.ldr_pool;
+	ubyte rt = cast(ubyte)((instr >> 8) & 0b111);
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	res.rt = cast(reg)(rt);
+	res.imm = cast(ubyte)(imm_8 * 4);
+	return res;
+}
+
+// =====================
+//  Parse LDR(Register)
+// =====================
+
+enum field_tuples_ldr_reg = [Tuple!(opcode, string[])(opcode.ldr_reg, ["rt","rn","rm"])];
 /*
 	Load/Store Single Data Item
 	LDR <Rt>,[<Rn>,<Rm>]
@@ -1736,6 +1489,595 @@ instr_16 parse_ldr_reg(short instr) {
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =======================
+//  Parse LDRB(Immediate)
+// =======================
+
+enum field_tuples_ldrb_imm = [Tuple!(opcode, string[])(opcode.ldrb_imm, ["rt","rn","imm"])];
+/*
+	Load/Store Single Data Item
+	LDRB <Rt>,[<Rn>{,#<imm5>}]
+	[15:11] 01111
+	[10:6] imm5
+	[5:3] Rn
+	[2:0] Rt
+*/
+instr_16 parse_ldrb_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.ldrb_imm;
+	ubyte rt = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte imm_5 = cast(ubyte)((instr >> 6) & 0b11111);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_5;
+	return res;
+}
+
+// =======================
+//  Parse LDRH(Immediate)
+// =======================
+
+enum field_tuples_ldrh_imm = [Tuple!(opcode, string[])(opcode.ldrh_imm, ["rt","rn","imm"])];
+/*
+	Load/Store Single Data Item
+	LDRH <Rt>,[<Rn>{,#<imm5>}]
+	[15:11] 10001
+	[10:6] imm5
+	[5:3] Rn
+	[2:0] Rt
+*/
+instr_16 parse_ldrh_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.ldrh_imm;
+	ubyte rt = cast(ubyte)( instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte imm_5 = cast(ubyte)((instr >> 6) & 0b11111);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.imm = cast(ubyte)(imm_5 * 2);
+	return res;
+}
+
+// ======================
+//  Parse LSL(Immediate)
+// ======================
+
+enum field_tuples_lsl_imm = [Tuple!(opcode, string[])(opcode.lsl_imm, ["rd","rm","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	LSL <Rd>,<Rm>,#<imm5>
+	[15:11] 00000
+	[10:6] imm5
+	[5:3] Rm
+	[2:0] Rd
+*/
+instr_16 parse_lsl_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.lsl_imm;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
+	res.imm = imm;
+	return res;
+}
+
+// =====================
+//  Parse LSL(Register)
+// =====================
+
+enum field_tuples_lsl_reg = [Tuple!(opcode, string[])(opcode.lsl_reg, ["rd","rm"])];
+/*
+	Data Processing
+	LSL <Rdn>,<Rm>
+	[15:6] 0100000010
+	[5:3] Rm
+	[2:0] Rdn  
+*/
+instr_16 parse_lsl_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.lsl_reg;
+	ubyte rdn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ======================
+//  Parse LSR(Immediate)
+// ======================
+
+enum field_tuples_lsr_imm = [Tuple!(opcode, string[])(opcode.lsr_imm, ["rd","rm","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	LSR <Rd>,<Rm>,#<imm5>
+	[15:11] 00001
+	[10:6] imm5
+	[5:3] Rm
+	[2:0] Rd
+*/
+instr_16 parse_lsr_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.lsr_imm;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
+	res.imm = imm;
+	return res;
+}
+
+// =====================
+//  Parse LSR(Register)
+// =====================
+
+enum field_tuples_lsr_reg = [Tuple!(opcode, string[])(opcode.lsr_reg, ["rd","rm"])];
+/*                
+    Data Processing
+	LSR <Rdn>,<Rm>
+	[15:6] 0100000011
+	[5:3] Rm
+	[2:0] Rdn  
+*/
+instr_16 parse_lsr_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.lsr_reg;
+	ubyte rdn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =====================
+//  Parse MOV(Register)
+// =====================
+
+enum field_tuples_mov_high_1 = [Tuple!(opcode, string[])(opcode.mov_high_1, ["rd","rm"])];
+/*
+	Special Data Instructions and Branch and Exchange
+	MOV <Rd>,<Rm>
+	[15:8] 01000110
+	[7] D
+	[6:3] Rm
+	[2:0] Rd  
+*/
+instr_16 parse_mov_high_1(short instr) {
+	instr_16 res;
+	res.op = opcode.mov_high_1;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
+	ubyte d = cast(ubyte)((instr >> 7) & 0b1);
+	if (d) {
+		rd |= 0b1000;
+	}
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =====================
+//  Parse MOV(Register)
+// =====================
+
+enum field_tuples_mov_high_2 = [Tuple!(opcode, string[])(opcode.mov_high_2, ["rd","rm"])];
+/*
+	Special Data Instructions and Branch and Exchange
+	MOV <Rd>,<Rm>
+	[15:6] 0000000000
+	[7] D
+	[5:3] Rm
+	[2:0] Rd  
+*/
+instr_16 parse_mov_high_2(short instr) {
+	instr_16 res;
+	res.op = opcode.mov_high_2;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ======================
+//  Parse MOV(Immediate)
+// ======================
+
+enum field_tuples_mov_imm = [Tuple!(opcode, string[])(opcode.mov_imm, ["rd","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	ADD <Rd>,<Rn>,#<imm3>
+	[15:11] 00100
+	[10:8] Rd
+	[7:0] imm8
+*/
+instr_16 parse_mov_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.mov_imm;
+	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
+	ubyte imm = cast(ubyte)(instr & 0xff);
+	res.imm = imm;
+	res.rd = cast(reg)(rd);
+	return res;
+}
+
+// =====================
+//  Parse MOV(Register)
+// =====================
+
+enum field_tuples_mov_lo = [Tuple!(opcode, string[])(opcode.mov_lo, ["rd","rm"])];
+/*
+	Special Data Instructions and Branch and Exchange
+	MOV <Rd>,<Rm>
+	[15:8] 01000110
+	[7] D
+	[6:3] Rm
+	[2:0] Rd  
+*/
+instr_16 parse_mov_lo(short instr) {
+	instr_16 res;
+	res.op = opcode.mov_lo;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
+	ubyte d = cast(ubyte)((instr >> 7) & 0b1);
+	if (d) {
+		rd |= 0b1000;
+	}
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =====================
+//  Parse MVN(Register) 
+// =====================
+
+enum field_tuples_mvn_reg = [Tuple!(opcode, string[])(opcode.mvn_reg, ["rd","rm"])];
+/*
+	Data Processing
+	MVN <Rd>,<Rm>
+	[15:6] 0100001111`
+	[5:3] Rm
+	[2:0] Rd
+*/
+instr_16 parse_mvn_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.mvn_reg;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ============
+//  Parse NEGS
+// ============
+
+enum field_tuples_negs = [Tuple!(opcode, string[])(opcode.negs, ["rd","rn"])];
+/*
+	Data Processing
+	NEGS <Rd>,<Rn>
+	[15:6] 0100001001
+	[5:3] Rn
+	[2:0] Rd
+*/
+instr_16 parse_negs(short instr) {
+	instr_16 res;
+	res.op = opcode.negs;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// =====================
+//  Parse ORR(Register)
+// =====================
+
+enum field_tuples_lor_reg = [Tuple!(opcode, string[])(opcode.lor_reg, ["rd","rm"])];
+/*
+	Data Processing
+	ORR <Rdn>,<Rm>
+	[15:6] 0100001100
+	[5:3] Rm
+	[2:0] Rdn
+*/
+instr_16 parse_lor_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.lor_reg;
+	ubyte rdn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ====================
+//  Parse Pop Mult Reg
+// ====================
+
+enum field_tuples_pop_mult_reg = [Tuple!(opcode, string[])(opcode.pop_mult_reg, ["reg_list"])];
+/*
+	Load Multiple Registers
+	LDM <Rn>!,<registers>
+	[15:9] 11001
+	[10:8] Rn
+	[7:0] register_list  
+*/
+instr_16 parse_pop_mult_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.pop_mult_reg;
+	ubyte p = cast(ubyte)((instr >> 8) & 0b1);
+	if (p) {
+		res.reg_list ~= reg.pc;
+	}
+	ubyte reg_mask = cast(ubyte)(instr & 0xff);
+	if (reg_mask & 0x01) res.reg_list ~= reg.r0;
+	if (reg_mask & 0x02) res.reg_list ~= reg.r1;
+	if (reg_mask & 0x04) res.reg_list ~= reg.r2;
+	if (reg_mask & 0x08) res.reg_list ~= reg.r3;
+	if (reg_mask & 0x10) res.reg_list ~= reg.r4;
+	if (reg_mask & 0x20) res.reg_list ~= reg.r5;
+	if (reg_mask & 0x40) res.reg_list ~= reg.r6;
+	if (reg_mask & 0x80) res.reg_list ~= reg.r7;
+	return res;
+}
+
+// =====================
+//  Parse Push Mult Reg
+// =====================
+
+enum field_tuples_push_mult_reg = [Tuple!(opcode, string[])(opcode.push_mult_reg, ["reg_list"])];
+/*
+	Store Multiple Registers
+	STM <Rn>!,<registers>
+	[15:9] 11000
+	[10:8] Rn
+	[7:0] register_list  
+*/
+instr_16 parse_push_mult_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.push_mult_reg;
+	ubyte m = cast(ubyte)((instr >> 8) & 0b1);
+	if (m) {
+		res.reg_list ~= reg.lr;
+	}
+	ubyte reg_mask = cast(ubyte)(instr & 0xff);
+	if (reg_mask & 0x01) res.reg_list ~= reg.r0;
+	if (reg_mask & 0x02) res.reg_list ~= reg.r1;
+	if (reg_mask & 0x04) res.reg_list ~= reg.r2;
+	if (reg_mask & 0x08) res.reg_list ~= reg.r3;
+	if (reg_mask & 0x10) res.reg_list ~= reg.r4;
+	if (reg_mask & 0x20) res.reg_list ~= reg.r5;
+	if (reg_mask & 0x40) res.reg_list ~= reg.r6;
+	if (reg_mask & 0x80) res.reg_list ~= reg.r7;
+	return res;
+}
+
+// ======================
+//  Parse STR(Immediate) 
+// ======================
+
+enum field_tuples_str_imm = [Tuple!(opcode, string[])(opcode.str_imm, ["rt","rn","imm"])];
+/*
+	Load/Store Single Data Item
+	STR <Rt>,[<Rn>{,#<imm5>}]
+	[15:11] 10000
+	[10:6] imm5
+	[5:3] Rn
+	[2:0] Rt
+*/
+instr_16 parse_str_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.str_imm;
+	ubyte rt = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
+	res.imm = cast(ubyte)(imm * 4);
+	return res;
+}
+
+// ========================
+//  Parse STRRB(Immediate)
+// ========================
+
+enum field_tuples_strb_imm = [Tuple!(opcode, string[])(opcode.strb_imm, ["rt","rn","imm"])];
+/*
+	Load/Store Single Data Item
+	STRB <Rt>,[<Rn>{,#<imm5>}]
+	[15:11] 01110
+	[10:6] imm5
+	[5:3] Rn
+	[2:0] Rt
+*/
+instr_16 parse_strb_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.strb_imm;
+	ubyte rt = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte imm_5 = cast(ubyte)((instr >> 6) & 0b11111);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_5;
+	return res;
+}
+
+// =======================
+//  Parse STRH(Immediate)
+// =======================
+
+enum field_tuples_strh_imm = [Tuple!(opcode, string[])(opcode.strh_imm, ["rt","rn","imm"])];
+/*
+	Load/Store Single Data Item
+	STRH <Rd>,<Rm>
+	[15:11] 10000
+	[10:6] imm5
+	[5:3] Rd
+	[2:0] Rt
+*/
+instr_16 parse_strh_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.strh_imm;
+	ubyte rt = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.imm = cast(ubyte)(imm * 2);
+	return res; 
+}
+
+// ======================
+//  Parse LDRB(Register)
+// ======================
+
+enum field_tuples_ldrb_reg = [Tuple!(opcode, string[])(opcode.ldrb_reg, ["rt","rn","rm"])];
+/*
+	Load/Store Single Data Item
+	LDRB <Rt>,[<Rn>,<Rm>]
+	[15:9] 0101110
+	[8:6] Rm
+	[5:3] Rn
+	[2:0] Rt
+*/
+instr_16 parse_ldrb_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.ldrb_reg;
+	ubyte rt = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 6) & 0b111);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ======================
+//  Parse STR(Immediate)
+// ======================
+
+enum field_tuples_str_sp = [Tuple!(opcode, string[])(opcode.str_sp, ["rt","sp","imm"])];
+/*
+	Load/Store Single Data Item
+	STR <Rt>,[SP,#<imm8>]
+	[15:11] 10010
+	[10:8] Rt
+	[7:0] imm8
+*/
+instr_16 parse_str_sp(short instr) {
+	instr_16 res;
+	res.op = opcode.str_sp;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rt = cast(ubyte)((instr >> 8) & 0b111);
+	res.imm = imm_8;
+	res.rt = cast(reg)(rt);
+	return res;
+}
+
+// ======================
+//  Parse SUB(Immediate)
+// ======================
+
+enum field_tuples_sub_imm_3 = [Tuple!(opcode, string[])(opcode.sub_imm_3, ["rd","rn","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move, and Compare
+	SUB <Rd>,<Rn>,#<imm3>
+	[15:9] 0001111
+	[8:6] imm3
+	[5:3] Rn
+	[2:0] Rd
+*/
+instr_16 parse_sub_imm_3(short instr) {
+	instr_16 res;
+	res.op = opcode.sub_imm_3;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte imm_3 = cast(ubyte)((instr >> 6) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_3;
+	return res;
+}
+
+// ======================
+//  Parse SUB(Immediate)
+// ======================
+
+enum field_tuples_sub_imm_8 = [Tuple!(opcode, string[])(opcode.sub_imm_8, ["rd","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	SUB <Rd>,<Rn>,#<imm8>
+	[15:9] 0001111
+	[8:6] imm3
+	[5:3] Rn
+	[2:0] Rd
+*/
+instr_16 parse_sub_imm_8(short instr) {
+	instr_16 res;
+	res.op = opcode.sub_imm_8;
+	ubyte rdn = cast(ubyte)((instr >> 8) & 0b111);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	ubyte imm = cast(ubyte)(instr & 0xff);
+	res.imm = imm;
+	return res;
+}
+
+// =====================
+//  Parse SUB(Register)
+// =====================
+
+enum field_tuples_sub_reg = [Tuple!(opcode, string[])(opcode.sub_reg, ["rd","rn","rm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move, and Compare
+	SUB <Rd>,<Rn>,<Rm>
+	[15:9] 0001101
+	[8:6] Rm
+	[5:3] Rn
+	[2:0] Rd  
+*/
+instr_16 parse_sub_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.sub_reg;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 6) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ===============================
+//  Parse SUB(SP Minus Immediate)
+// ===============================
+
+enum field_tuples_sub_sp = [Tuple!(opcode, string[])(opcode.sub_sp, ["sp","imm"])];
+/*
+	Miscellaneous 16-Bit Instructions
+	SUB SP,SP,#<imm7>
+	[15:7] 101100001
+	[6:0] imm7  
+*/
+instr_16 parse_sub_sp(short instr) {
+	instr_16 res;
+	res.op = opcode.sub_sp;
+	ubyte imm_7 = cast(ubyte)(instr & 0x7f);
+	res.imm = cast(ubyte)(imm_7 * 4);
 	return res;
 }
 
@@ -1803,8 +2145,8 @@ instr_16 decode_instr(ushort instr) {
        	case opcode.ldr_pool:
        		return parse_ldr_pool(instr); 
 
-       	case opcode.br_t1:
-       		return parse_br_t1(instr);
+       	case opcode.b_cond:
+       		return parse_b_cond(instr);
 
        	case opcode.cmp_br_z:
        		return parse_cmp_br_z(instr);
@@ -1824,8 +2166,8 @@ instr_16 decode_instr(ushort instr) {
        	case opcode.pop_mult_reg: 
        		return parse_pop_mult_reg(instr);
 
-       	case opcode.b_n:
-       		return parse_b_n(instr);
+       	case opcode.b_imm_11:
+       		return parse_b_imm_11(instr);
 
        	case opcode.mov_high_1:
        		return parse_mov_high_1(instr);
@@ -1921,14 +2263,14 @@ unittest {
 		test_case(0x68fb, instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 12)),
 		test_case(0x4283, instr_16(op: opcode.cmp_reg,       rn: reg.r3,  rm: reg.r0)),
 		test_case(0x4803, instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 12)),
-		test_case(0xd002, instr_16(op: opcode.br_t1,         cond: condition.eq,      offset: 2)),
+		test_case(0xd002, instr_16(op: opcode.b_cond,         cond: condition.eq,      offset: 2)),
 		test_case(0xb103, instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset: 0)),
 		test_case(0x4718, instr_16(op: opcode.bx,            rm: reg.r3)),
 		test_case(0x1a1b, instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0)),
 		test_case(0xb510, instr_16(op: opcode.push_mult_reg, reg_list: [reg.lr, reg.r4])),
 		test_case(0xb943, instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,			  offset: 8)),
 		test_case(0xbd10, instr_16(op: opcode.pop_mult_reg,  reg_list: [reg.pc, reg.r4])),
-		test_case(0xe7cf, instr_16(op: opcode.b_n,					 				  imm_long: 0xffffffcf)),
+		test_case(0xe7cf, instr_16(op: opcode.b_imm_11,					 		      imm_long: 0xffffffcf)),
 		//test_case(0xbf00, instr_16(op: if_then))
 		test_case(0x469d, instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3)),
 		test_case(0x460f, instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1)),
@@ -2563,9 +2905,9 @@ void execute_bx(instr_16 bx_instr, ref cortex_m_cpu cpu) {
 //  Execute BR
 // ============
 
-void execute_br_t1(instr_16 br_t1_instr, ref cortex_m_cpu cpu) {
+void execute_b_cond(instr_16 b_cond_instr, ref cortex_m_cpu cpu) {
 	int pc = cpu.get(reg.pc);
-	pc += br_t1_instr.offset;
+	pc += b_cond_instr.offset;
 	cpu.set(reg.pc, pc);
 }
 
@@ -2813,8 +3155,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 		case opcode.cmp_high_1:
 		case opcode.cmp_high_2:
 			return execute_cmp_reg(instr, cpu);
-		case opcode.br_t1:
-			return execute_br_t1(instr, cpu);
+		case opcode.b_cond:
+			return execute_b_cond(instr, cpu);
 		case opcode.cmp_br_z:
 			return execute_cmp_br_z(instr, cpu);
 		case opcode.bx:
@@ -3027,7 +3369,7 @@ unittest {
 				  cortex_m_cpu(r3: 0, r0: 0),
 			      cortex_m_cpu(z: true, n: false, c: true, v: false)),
 		test_case(0xd002, 
-				  instr_16(op: opcode.br_t1,         cond: condition.eq,      offset: 2),
+				  instr_16(op: opcode.b_cond,        cond: condition.eq,      offset: 2),
 				  cortex_m_cpu(pc: 10),
 				  cortex_m_cpu(pc: 12)),
 		test_case(0xb103, 
@@ -3247,6 +3589,7 @@ enum shift_type : ubyte {
 	asr,
 	rrx,
 	ror,
+	none,
 	invalid
 }
 
@@ -5233,4 +5576,217 @@ unittest {
     	);
     }
 }
+
+string[opcode] opcode_strings = [
+	opcode.add_imm_3: "adds",
+	opcode.add_imm_8: "adds",
+	opcode.add_high_reg_1: "add",
+	opcode.add_high_reg_2: "add",
+	opcode.add_lo_reg: "add",
+	opcode.add_reg: "adds",
+	opcode.add_sp: "add",
+	opcode.adr: "add",
+	opcode.asr_imm: "asrs",
+	opcode.and_reg: "ands",
+	opcode.cmp_high_1: "cmp",
+	opcode.cmp_high_2: "cmp",
+	opcode.cmp_imm: "cmp",
+	opcode.cmp_reg: "cmp",
+	opcode.ldr_imm: "ldr",
+	opcode.ldr_pool: "ldr",
+	opcode.ldr_reg: "ldr",
+	opcode.ldrb_imm: "ldrb",
+	opcode.ldrb_reg: "ldrb",
+	opcode.ldrh_imm: "ldrh",
+	opcode.lor_reg: "orrs",
+	opcode.lsl_imm: "lsls",
+	opcode.lsl_reg: "lsls",
+	opcode.lsr_imm: "lsrs",
+	opcode.lsr_reg: "lsrs",
+	opcode.mov_high_1: "mov",
+	opcode.mov_high_2: "mov",
+	opcode.mov_imm: "movs",
+	opcode.mov_lo: "mov",
+	opcode.mvn_reg: "mvns",
+	opcode.negs: "negs",
+	opcode.pop_mult_reg: "pop",
+	opcode.push_mult_reg: "push",
+	opcode.str_imm: "str",
+	opcode.strb_imm: "strb",
+	opcode.strh_imm: "strh",
+	opcode.str_sp: "str",
+	opcode.sub_imm_3: "subs",
+	opcode.sub_imm_8: "subs",
+	opcode.sub_reg: "subs",
+	opcode.sub_sp: "sub"
+];
+
+string get_register_name(reg r) {
+	switch (r) {
+		case reg.r10:
+			return "sl";
+		case reg.r11:
+			return "fp";
+		case reg.r12:
+			return "ip";
+		default: 
+			return r.to!string;
+	}
+}
+
+bool is_store(opcode op) {
+	switch (op) {
+		case opcode.ldr_imm:
+		case opcode.ldr_pool:
+		case opcode.ldr_reg:
+		case opcode.ldrb_imm:
+		case opcode.ldrb_reg:
+		case opcode.ldrh_imm:
+		case opcode.str_imm:
+		case opcode.strb_imm:
+		case opcode.strh_imm:
+			return true;
+		default:
+			return false;
+	}
+}
+
+string convert_to_string(ushort instr) {
+	instr_16 parsed_instr = decode_instr(instr);
+	writeln(parsed_instr.op);
+	string res = opcode_strings[parsed_instr.op];
+	string[] ops;
+	res ~= " ";
+	foreach (field; field_map[parsed_instr.op]) {
+		if (field == "rt") {
+			ops ~= get_register_name(parsed_instr.rt);
+		}
+		if (field == "rn") {
+			string rn_s;
+			if (is_store(parsed_instr.op)) {
+				rn_s ~= "[";
+			}
+			rn_s ~= get_register_name(parsed_instr.rn);
+			ops ~= rn_s;
+		}
+		if (field == "rd") {
+			ops ~= get_register_name(parsed_instr.rd);
+		}
+		if (field == "rm") {
+			string rm_s;
+			rm_s ~= get_register_name(parsed_instr.rm);
+			if (is_store(parsed_instr.op)) {
+				rm_s ~= "]";
+			}
+			ops ~= rm_s;
+		}
+		if (field == "imm") {
+			if (parsed_instr.imm == 0 && parsed_instr.op == opcode.add_lo_reg) {
+				continue;
+			}
+			string imm = "#";
+			imm ~= parsed_instr.imm.to!string;
+			if (parsed_instr.op == opcode.str_sp || is_store(parsed_instr.op)) {
+				imm ~= "]";
+			}
+			ops ~= imm; 
+		}
+		if (field == "reg_list") {
+			auto reg_list_copy = parsed_instr.reg_list.reverse;
+			string first = "{"; 
+			first ~= get_register_name(reg_list_copy[0]);
+			ops ~= first;
+			for (uint i = 1; i < reg_list_copy.length - 1; ++i) {
+				ops ~= get_register_name(reg_list_copy[i]);
+			}
+			string last;
+			last ~= get_register_name(reg_list_copy[reg_list_copy.length - 1]);
+			last ~= "}";
+			ops ~= last; 
+		}
+		if (field == "sp") {
+			if (parsed_instr.op == opcode.str_sp) {
+				ops ~= "[sp";
+			} else {
+				ops ~= "sp";
+			}
+		}
+		if (field == "pc") {
+			if (parsed_instr.op == opcode.ldr_pool) {
+				ops ~= "[pc";
+			} else {
+				ops ~= "pc";
+			}
+		}
+	}
+	res ~= ops.join(", ");
+	return res;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+	struct test_case {
+		ushort instr;
+		string expected;
+	}
+
+	test_case[] tests = [
+		test_case(0x2b00, "cmp r3, #0"),
+		test_case(0x10b6, "asrs r6, r6, #2"),
+		test_case(0x3730, "adds r7, #48"),
+		test_case(0x4013, "ands r3, r2"),
+		test_case(0x2300, "movs r3, #0"),		
+		test_case(0x3902, "subs r1, #2"),
+		test_case(0x00d9, "lsls r1, r3, #3"),
+		test_case(0x099b, "lsrs r3, r3, #6"),
+		test_case(0x4313, "orrs r3, r2"),
+		test_case(0x43db, "mvns r3, r3"),
+		test_case(0x4283, "cmp r3, r0"),
+		//test_case(0xd002)
+		//test_case(0xb103)
+		//test_case(0x4718)
+		test_case(0x1a1b, "subs r3, r3, r0"),
+		//test_case(0xb943)
+		//test_case(0xe7cf)
+		//test_case(0xbf00)
+		test_case(0x469d, "mov sp, r3"),		
+		test_case(0x460f, "mov r7, r1"),
+		//test_case(0x4798) // blx
+		test_case(0xaf00, "add r7, sp, #0"),
+		test_case(0xb092, "sub sp, #72"),
+		test_case(0x1d3b, "adds r3, r7, #4"),
+		test_case(0x4413, "add r3, r2"),
+		test_case(0x409a, "lsls r2, r3"),
+		test_case(0x40da, "lsrs r2, r3"),	
+		test_case(0xa201, "add r2, pc, #4"),
+		test_case(0x4652, "mov r2, sl"),
+		test_case(0x9300, "str r3, [sp, #0]"),
+		test_case(0x1891, "adds r1, r2, r2"),
+		test_case(0x458c, "cmp ip, r1"),
+		test_case(0x4463, "add r3, ip"),		
+		test_case(0x1e54, "subs r4, r2, #1"),
+		test_case(0x44e6, "add lr, ip"),
+		test_case(0x4572, "cmp r2, lr"),
+		test_case(0x4241, "negs r1, r0"),
+		test_case(0x608b, "str r3, [r1, #8]"),
+		test_case(0x80fb, "strh r3, [r7, #6]"),
+		test_case(0x88fb, "ldrh r3, [r7, #6]"),
+		test_case(0x781a, "ldrb r2, [r3, #0]"),
+		test_case(0x701a, "strb r2, [r3, #0]"),
+		test_case(0x68fb, "ldr r3, [r7, #12]"),
+		test_case(0x4803, "ldr r0, [pc, #12]"),
+		test_case(0xb510, "push {r4, lr}"),
+		test_case(0xbd10, "pop {r4, pc}"),
+		test_case(0x5cd3, "ldrb r3, [r2, r3]"),
+		test_case(0x58fb, "ldr r3, [r7, r3]")
+	];
+
+	foreach (t; tests) {
+		string actual = convert_to_string(t.instr);
+		assert(
+		    actual == t.expected,
+		    format("Failed for instruction [0x%04X], got '%s'", t.instr, actual)
+		);
+    }
+} 
 
