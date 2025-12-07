@@ -1,7 +1,7 @@
-import std.algorithm : all, canFind, map, reverse;
+import std.algorithm : all, canFind, map, reverse, startsWith;
 import std.conv : to, ConvException, parse;
 import std.exception;
-import std.string : indexOf, replace, split, strip, stripLeft;
+import std.string : indexOf, replace, split, splitLines, strip, stripLeft;
 import std.traits;
 import std.variant : Algebraic;
 import std.format : format;
@@ -5588,6 +5588,8 @@ string[opcode] opcode_strings = [
 	opcode.adr: "add",
 	opcode.asr_imm: "asrs",
 	opcode.and_reg: "ands",
+	opcode.b_cond: "b",
+	opcode.b_imm_11: "b",
 	opcode.cmp_high_1: "cmp",
 	opcode.cmp_high_2: "cmp",
 	opcode.cmp_imm: "cmp",
@@ -5788,5 +5790,116 @@ unittest {
 		    format("Failed for instruction [0x%04X], got '%s'", t.instr, actual)
 		);
     }
-} 
+}
 
+string get_function_str(string file_name, string function_name) {
+	File file;
+	try {
+		file = File(file_name, "r");
+	} catch (Exception e) {
+		writeln("Error opening file: ", e.msg);
+		return "";
+	}
+    auto lines = file.byLineCopy.array;
+    ptrdiff_t start = -1;
+    foreach (i, line; lines) {
+        if (line.canFind(function_name)) {
+            start = i;
+            break;
+        }
+    }
+    if (start == -1) {
+        return "";
+    }
+    ptrdiff_t end = start + 1;
+    while (end < lines.length && lines[end].strip.length > 0) {
+        ++end;
+    }
+    return lines[start .. end].join("\n");
+}
+
+immutable reset_handler =
+    "0800a18c <Reset_Handler>:\n"
+  ~ " 800a18c:	f8df d034 	ldr.w	sp, [pc, #52]	@ 800a1c4 <LoopFillZerobss+0xe>\n"
+  ~ " 800a190:	f7f6 f89c 	bl	80002cc <SystemInit>\n"
+  ~ " 800a194:	480c      	ldr	r0, [pc, #48]	@ (800a1c8 <LoopFillZerobss+0x12>)\n"
+  ~ " 800a196:	490d      	ldr	r1, [pc, #52]	@ (800a1cc <LoopFillZerobss+0x16>)\n"
+  ~ " 800a198:	4a0d      	ldr	r2, [pc, #52]	@ (800a1d0 <LoopFillZerobss+0x1a>)\n"
+  ~ " 800a19a:	2300      	movs	r3, #0\n"
+  ~ " 800a19c:	e002      	b.n	800a1a4 <LoopCopyDataInit>";
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+	string actual = get_function_str("../test/cortex_m_asm.txt", "Reset_Handler");
+	auto bytesExpected = cast(ubyte[]) reset_handler;
+	auto bytesGot = cast(ubyte[]) actual;
+	writeln(bytesExpected);
+	writeln(bytesGot);
+	assert(actual == reset_handler,
+		   format("Failed, got '%s'", actual));
+}
+
+alias instruction = Algebraic!(instr_16, instr_32);
+
+struct addr_instr {
+	instruction i;
+	uint _in_32;
+	ushort _in_16;
+	uint _addr;
+
+	this(uint addr, string bytes_string) {
+		_addr = addr;
+		if (bytes_string.length == 8) {
+			_in_32 = parse!uint(bytes_string, 16);
+			writeln(_in_32);
+			i = decode_instr(_in_32);
+		}
+		if (bytes_string.length == 4) {
+			_in_16 = cast(ushort) parse!uint(bytes_string, 16);
+			writeln(_in_16);
+			i = decode_instr(_in_16);
+		}
+	}
+}
+
+struct func {
+	string name;
+	addr_instr[] instrs;
+}
+
+func get_function(string file_name, string function_name) {
+	string f_s = get_function_str(file_name, function_name);
+	auto lines = f_s.splitLines();
+    func f;
+    f.name = "Reset_Handler";
+
+    foreach(line; lines[1..$]) {
+        line = line.strip();
+        if (line.length == 0) continue;
+        auto parts = split(line, ":");
+        if (parts.length < 2) continue;
+        auto addr_str = parts[0].strip();
+
+        string addr_str_clean = addr_str.startsWith("0x") ? addr_str[2..$] : addr_str;
+		uint addr = parse!uint(addr_str_clean, 16);
+
+        auto rest = parts[1].strip();
+        auto bytes_part = rest.split("\t")[0].replace(" ", "");
+        f.instrs ~= addr_instr(addr, bytes_part);        
+    }
+    return f;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+	func actual = get_function("../test/cortex_m_asm.txt", "Reset_Handler");
+	func expected = func(name: "Reset_Handler",
+		   			     instrs: [addr_instr(0x800a18c, "f8dfd034"),
+		   			              addr_instr(0x800a190, "f7f6f89c"),
+		   			              addr_instr(0x800a194,     "480c"),
+		   			              addr_instr(0x800a196,     "490d"),
+		   			              addr_instr(0x800a198,     "4a0d"),
+		   			              addr_instr(0x800a19a,     "2300"),
+		   			              addr_instr(0x800a19c,	    "e002")]);
+	assert(actual == expected);
+}
