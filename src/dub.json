@@ -1,0 +1,10 @@
+{
+    "name": "stig",
+    "description": "CPU emulator with TUI",
+    "authors": ["nicholashanson"],
+    "dependencies": {
+        "ncurses": "~>1.0.0"
+    },
+    "targetType": "executable",
+    "sourcePaths": ["."]
+}
