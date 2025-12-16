@@ -89,7 +89,7 @@ void draw_screen(cortex_m_vm vm, func[] functions) {
                 try {
                     auto i32 = ins.i.get!instr_32;
                     s = convert_to_string(ins._in_32);
-                    if (i32.op == opcode.bl_32) {
+                    if (i32.op == opcode.bl_32 || i32.op == opcode.b_32) {
                         uint target = ins._addr + i32.offset + 4;
                         s ~= format(" %x", target);
                     }
@@ -99,8 +99,13 @@ void draw_screen(cortex_m_vm vm, func[] functions) {
                 }
             }
 
-            mvwprintw(instrPad, instrPadRow++, instrPadCol,
-                      toStringz(format("%x: %s %s", ins._addr, ins._instr_bytes, s)));
+            if (ins._instr_bytes.length == 8) {
+                mvwprintw(instrPad, instrPadRow++, instrPadCol,
+                          toStringz(format("%x: %s     %s", ins._addr, ins._instr_bytes, s)));
+            } else {
+                mvwprintw(instrPad, instrPadRow++, instrPadCol,
+                          toStringz(format("%x: %s         %s", ins._addr, ins._instr_bytes, s)));
+            }
 
             if (ins._addr == vm.cpu.pc)
                 wattroff(instrPad, A_REVERSE);
@@ -159,7 +164,22 @@ void main(string[] args) {
         "main",
         "HAL_Init",
         "HAL_NVIC_SetPriorityGrouping",
-        "__NVIC_SetPriorityGrouping"
+        "__NVIC_SetPriorityGrouping",
+        "HAL_InitTick",
+        "HAL_SYSTICK_Config",
+        "SysTick_Config",
+        "HAL_MspInit",
+        "SystemClock_Config",
+        "memset",
+        "MX_GPIO_Init",
+        "MX_USART1_UART_Init",
+        "HAL_UART_Init",
+        "HAL_UART_MspInit",
+        "HAL_GPIO_Init",
+        "UART_SetConfig",
+        "HAL_RCC_GetPCLK2Freq",
+        "HAL_RCC_GetHCLKFreq",
+        "__aeabi_uldivmod"
     ];
 
     func[] f_s;
@@ -184,6 +204,9 @@ void main(string[] args) {
         }
         if (ch == 'x') { // scroll up
             padPos = max(padPos - 1, 0);
+        }
+        if (ch == 'b') {
+            padPos = cast(int)(vm.current_program.length + (f_s.length * 2) - LINES);
         }
 
         draw_screen(vm, f_s);

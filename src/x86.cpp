@@ -1794,7 +1794,7 @@ namespace stig {
     		}
     	}
     	if ( !found ) {
-    		return std::unexpected( "Instracction not found at address " + cpu.rip );
+    		return std::unexpected( "Instruction not found at address " + cpu.rip );
     	}
     	return {};
 	}
