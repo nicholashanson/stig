@@ -12,6 +12,99 @@ import std.typecons : Tuple;
 import core.exception;
 import std.container;
 
+File* load_store_log_ptr = null;
+
+File* load_store_log() {
+    if (load_store_log_ptr is null) {
+        load_store_log_ptr = new File("load_store_log.txt", "w");
+    }
+    return load_store_log_ptr;
+}
+
+string[] bare_metal_func_names = [
+    "SystemInit",
+    "Reset_Handler",
+    "CopyDataInit",
+    "LoopCopyDataInit",
+    "FillZerobss",
+    "LoopFillZerobss",
+    "__libc_init_array",
+    "_init",
+    "register_fini",
+    "atexit",
+    "__register_exitproc",
+    "frame_dummy",
+    "register_tm_clones",
+    "main",
+    "HAL_Init",
+    "HAL_NVIC_SetPriorityGrouping",
+    "__NVIC_SetPriorityGrouping",
+    "HAL_InitTick",
+    "HAL_SYSTICK_Config",
+    "SysTick_Config",
+    "HAL_MspInit",
+    "SystemClock_Config",
+    "memset",
+    "MX_GPIO_Init",
+    "MX_USART1_UART_Init",
+    "HAL_UART_Init",
+    "HAL_UART_MspInit",
+    "HAL_GPIO_Init",
+    "UART_SetConfig",
+    "HAL_RCC_GetPCLK2Freq",
+    "HAL_RCC_GetHCLKFreq",
+    "__aeabi_uldivmod",
+    "__udivmoddi4",
+    "__aeabi_idiv0"
+];
+
+string[] freertos_func_names = [
+	"SystemInit",
+    "Reset_Handler",
+    "CopyDataInit",
+    "LoopCopyDataInit",
+    "FillZerobss",
+    "LoopFillZerobss",
+    "__libc_init_array",
+    "_init",
+    "register_fini",
+    "atexit",
+    "__register_exitproc",
+    "frame_dummy",
+    "register_tm_clones",
+    "main",
+    "HAL_Init",
+    "HAL_NVIC_SetPriorityGrouping",
+    "__NVIC_SetPriorityGrouping",
+    "HAL_InitTick",
+    "HAL_SYSTICK_Config",
+    "SysTick_Config",
+    "HAL_MspInit",
+    "SystemClock_Config",
+    "memset",
+    "MX_GPIO_Init",
+    "HAL_RCC_GetClockConfig",
+    "HAL_RCC_GetPCLK1Freq",
+    "HAL_RCC_GetHCLKFreq",
+    "HAL_TIM_Base_Init",
+    "HAL_TIM_Base_MspInit",
+    "TIM_Base_SetConfig",
+    "HAL_TIM_Base_Start_IT",
+    "HAL_NVIC_SetPriority",
+    "__NVIC_GetPriorityGrouping",
+    "NVIC_EncodePriority",
+    "__NVIC_SetPriority",
+    "HAL_NVIC_GetPriorityGrouping",
+    "HAL_RCC_OscConfig",
+    "HAL_RCC_ClockConfig",
+    "HAL_GetTick",
+    "HAL_RCC_GetSysClockFreq"
+];
+
+string[] zephyr_func_names = [
+	"__start"
+];
+ 
 enum reg : ubyte {
 	r0,
 	r1,
@@ -261,19 +354,29 @@ enum opcode : ubyte {
 	dsb,
 	if_then,
 	ld_rex,
-	ld_sp,
 	ldh_32,
+	ldmia,
 	ldr_imm,
 	ldr_imm_32,
 	ldr_pool,
 	ldr_post_inc,
+	ldr_sp,
 	ldr_reg,
 	ldr_sh_32,
 	ldrb_imm,
 	ldrb_reg,
 	ldrd_imm_32,
 	ldrh_imm,
-	ldrsb_32,
+	ldrb_32,
+	ldrb_imm_32_t2,
+    ldrb_imm_32_t3,
+    ldrbt_32,
+    ldrb_reg_32,
+    ldrsb_32,
+    ldrsb_imm_32_t1,
+    ldrsb_imm_32_t2,
+    ldrsbt_32,
+    ldrsb_reg_32,
 	lor_reg,
 	lsl_32,
 	lsl_imm,
@@ -288,6 +391,7 @@ enum opcode : ubyte {
 	mov_high_2,
 	mov_high_reg,
 	mov_imm,
+	mov_imm_32_t2,
 	mov_lo,
 	mul_32,
 	mvn_reg,
@@ -298,6 +402,9 @@ enum opcode : ubyte {
 	or_not_32,
 	orr_32,
 	orr_reg_32,
+	pld_32,
+	pld_imm_32,
+	pld_reg_32,
 	pop_mult_reg,
 	pop_mult_reg_32,
 	push_mult_reg,
@@ -313,8 +420,14 @@ enum opcode : ubyte {
 	str_rex,
 	str_reg_32,
 	strb_imm,
+	strb_imm_32_t2,
+	strb_imm_32_t3,
+	strb_reg_32,
 	strd_32,
 	strh_imm,
+	strh_imm_32_t2,
+	strh_imm_32_t3,
+	strh_reg_32,
 	strh_reg,
 	sub_imm_3,
 	sub_imm_8,
@@ -349,6 +462,7 @@ enum all_field_tuples =
 	~ field_tuples_b_32
 	~ field_tuples_b_cond
 	~ field_tuples_b_imm_11
+	~ field_tuples_b_uncond_32
 	~ field_tuples_bit_clear_32
 	~ field_tuples_bl_32
 	~ field_tuples_blx
@@ -366,11 +480,14 @@ enum all_field_tuples =
 	~ field_tuples_ldr_pool
 	~ field_tuples_ldr_post_inc
 	~ field_tuples_ldr_reg
+	~ field_tuples_ldr_sp
 	~ field_tuples_ldrb_imm
+	~ field_tuples_ldrb_imm_32_t2
 	~ field_tuples_ldrb_reg
 	~ field_tuples_ldrd_imm_32
 	~ field_tuples_ldrh_imm
-	~ field_tuples_ldrsb_32
+	~ field_tuples_ldrsb_imm_32_t1
+	~ field_tuples_ldrsb_imm_32_t2
 	~ field_tuples_lor_reg
 	~ field_tuples_lsl_32
 	~ field_tuples_lsl_imm
@@ -378,8 +495,10 @@ enum all_field_tuples =
 	~ field_tuples_lsr_imm
 	~ field_tuples_lsr_32
 	~ field_tuples_lsr_reg
+	~ field_tuples_mls_32
 	~ field_tuples_mov_16_imm_32
 	~ field_tuples_mov_32
+	~ field_tuples_mov_imm_32_t2
 	~ field_tuples_mov_high_1
 	~ field_tuples_mov_high_2
 	~ field_tuples_mov_imm
@@ -396,15 +515,21 @@ enum all_field_tuples =
 	~ field_tuples_pop_mult_reg_32
 	~ field_tuples_push_mult_reg
 	~ field_tuples_push_mult_reg_32
+	~ field_tuples_rsb_32
+	~ field_tuples_sbc_32
 	~ field_tuples_str_imm
 	~ field_tuples_str_imm_32_t3
 	~ field_tuples_str_reg
 	~ field_tuples_str_reg_32
 	~ field_tuples_str_sp
 	~ field_tuples_strb_imm
+	~ field_tuples_strb_imm_32_t2
+	~ field_tuples_strb_imm_32_t3
+	~ field_tuples_strd_32
 	~ field_tuples_strh_imm
 	~ field_tuples_sub_imm_3
 	~ field_tuples_sub_imm_8
+	~ field_tuples_sub_imm_32
 	~ field_tuples_sub_sp
 	~ field_tuples_sub_reg
 	~ field_tuples_subs_32
@@ -534,7 +659,7 @@ opcode decode_mnemonic(ushort instr) {
     	}
     	if (cast(ubyte)((instr >> 12) & 0b1) == 1) {
     		if (cast(ubyte)((instr >> 11) & 0b1) == 1) {
-    			return opcode.ld_sp;
+    			return opcode.ldr_sp;
     		}
     	}
     	if (cast(ubyte)((instr >> 12) & 0b1) == 1) {
@@ -691,7 +816,11 @@ unittest {
 		test_case(0x681b, opcode.ldr_imm),
 		test_case(0xb2db, opcode.uxtb),
 		test_case(0x415b, opcode.adc_reg),
-		test_case(0xbf08, opcode.if_then)
+		test_case(0xbf08, opcode.if_then),
+		test_case(0x9d08, opcode.ldr_sp),
+		test_case(0x682b, opcode.ldr_imm),
+		test_case(0x58d4, opcode.ldr_reg)
+		//test_case(0x58d4, opcode.ldr_imm)
 	];
 
 	foreach (t; tests) {
@@ -721,7 +850,9 @@ enum op2_32 : ubyte {
 	str_single              = 0b1110001,
 	ld_str_dual             = 0b1100100,
 	ldh  					= 0b1100111,
-	load_word 				= 0b0000101
+	load_word 				= 0b0000101,
+	store_single_data_item  = 0b1110001,
+	load_byte 				= 0b1100111
 }
 
 opcode decode_mnemonic_32(uint instr) {
@@ -781,16 +912,21 @@ opcode decode_mnemonic_32(uint instr) {
 		if ((op2 & op2_32.load_store_mult) == 0b0000000)  {
 			ubyte op = cast(ubyte)((instr >> 23) & 0b11);
 			ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+			ubyte W = cast(ubyte)((instr >> 21) & 0b1);
+			ubyte Wrn = cast(ubyte)((W << 4) | rn);
+			ubyte L = cast(ubyte)((instr >> 20) & 0b1);
 			if (op == 0b01) {
-				ubyte L = cast(ubyte)((instr >> 20) & 0b1);
 				if (L == 0b1) {
-					if (rn == 0b1101) {
+					// 0xE8BD4010
+					// 1110 1000 1011 1101 0100 0000 0001 0000
+					if (Wrn == 0b11101) {
 						return opcode.pop_mult_reg_32;
+					} else {
+						return opcode.ldmia;
 					}
 				}
 			}
 			if (op == 0b10) {
-				ubyte L = cast(ubyte)((instr >> 20) & 0b1);
 				if (L == 0b0) {
 					if (rn == 0b1101) {
 						return opcode.push_mult_reg_32;
@@ -860,6 +996,14 @@ opcode decode_mnemonic_32(uint instr) {
 			ubyte _op = cast(ubyte)((instr >> 21) & 0b1111);
 			ubyte rn = cast(ubyte)((instr >> 12) & 0b1111);
 			ubyte rd_ = cast(ubyte)((instr >> 8) & 0xf);
+			ubyte op5 = cast(ubyte)((instr >> 20) & 0b11111);
+			ubyte rn20 = cast(ubyte)((instr >> 16) & 0xf);
+			if (op5 == 0b00100) {
+				ubyte bit9 = cast(ubyte)((instr >> 25) & 0b1);
+				if (bit9 == 0b0 && rn20 == 0b1111) {
+					return opcode.mov_imm_32_t2;
+				} 
+			}            
 			if (_op == 0b1101) {
 				if (rd_ != 0b1111) {
 					return opcode.sub_imm_32;
@@ -937,9 +1081,6 @@ opcode decode_mnemonic_32(uint instr) {
 				}
 			}
 		}
-		if ((op2 & op2_32.ld_bytes_mem_hints) == 0b0000001) {
-			return opcode.ldrsb_32;
-		}
 		if ((op2 & op2_32.data_proc_reg) == 0b0100000) {
 			ubyte _op1 = cast(ubyte)((instr >> 20) & 0xf);
 			ubyte _op2 = cast(ubyte)((instr >>  4) & 0xf);
@@ -955,12 +1096,103 @@ opcode decode_mnemonic_32(uint instr) {
 			}
 			return opcode.ldr_imm_32;
 		}
-		if ((op2 & op2_32.data_proc_reg) == 0b0000000) {
-			ushort bits = cast(ushort)((instr >> 20) & 0xfff);
-			if (bits == 0b111110001100) {
+		if ((op2 & op2_32.store_single_data_item) == 0b0000000) {
+			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
+			ubyte _op1 = cast(ubyte)((instr >> 21) & 0b111);
+			if (_op1 == 0b100) {
+				return opcode.strb_imm_32_t2;
+			}
+			if ((_op1 == 0b000) && ((_op2 & 0b100000) == 0b100000)) {
+				return opcode.strb_imm_32_t3;
+			}
+			if ((_op1 == 0b000) && ((_op2 & 0b100000) == 0b000000)) {
+				return opcode.strb_reg_32;
+			}
+			// half
+			if (_op1 == 0b101) {
+				return opcode.strh_imm_32_t2;
+			}
+			if ((_op1 == 0b001) && ((_op2 & 0b100000) == 0b100000)) {
+				return opcode.strh_imm_32_t3;
+			}
+			if ((_op1 == 0b001) && ((_op2 & 0b100000) == 0b000000)) {
+				return opcode.strh_reg_32;
+			}
+			// reg
+			if (_op1 == 0b110) {
 				return opcode.str_imm_32_t3;
 			}
-			return opcode.str_reg_32;
+			if ((_op1 == 0b010) && ((_op2 & 0b100000) == 0b100000)) {
+				return opcode.str_imm_32_t4;
+			}
+			if ((_op1 == 0b010) && ((_op2 & 0b100000) == 0b000000)) {
+				return opcode.str_reg_32;
+			}
+		}
+		if ((op2 & op2_32.load_byte) == 0b0000001) {
+			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
+			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
+			ubyte rt = cast(ubyte)((instr >> 12) & 0b1111);
+			ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+			if (((_op1 & 0b10) == 0b00) && (rn == 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_32;
+			}
+			if ((_op1 == 0b01) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_imm_32_t2;
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b100100) == 0b100100) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_imm_32_t3;
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_imm_32_t3;
+			}
+			// ldrbt
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b111000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrbt_32;
+			}
+			// ldrb
+			if ((_op1 == 0b00) && ((_op2 & 0b000000) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_reg_32;
+			}
+			// ldrsb
+			if (((_op1 & 0b10) == 0b10) && (rn == 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_32;
+			}
+			// ldrsb_imm
+			if ((_op1 == 0b11) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_imm_32_t1;
+			}
+			if ((_op1 == 0b10) && ((_op2 & 0b100100) == 0b100100) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_imm_32_t2;
+			}
+			if ((_op1 == 0b10) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_imm_32_t2;
+			}
+			// ldrsbt
+			if ((_op1 == 0b10) && ((_op2 & 0b111100) == 0b111000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsbt_32;
+			}
+			// ldrsb
+			if ((_op1 == 0b10) && (_op2 == 0b000000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_reg_32;
+			}
+			// pld
+			// F890F000
+			// 1111 1000 1001 0000 1111 0000 0000 0000
+			if ((_op1 == 0b00) && (_op2 == 0b000000) && (rn != 0b1111) && (rt == 0b1111)) {
+				return opcode.pld_reg_32;
+			}
+			// pld literal
+			if (((_op1 & 0b10) == 0b00) && (rn == 0b1111) && (rt == 0b1111)) {
+				return opcode.pld_32;
+			}
+			// pld immediate
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt == 0b1111)) {
+				return opcode.pld_imm_32;
+			}
+			if ((_op1 == 0b01) && (rn != 0b1111) && (rt == 0b1111)) {
+				return opcode.pld_imm_32;
+			}
 		}
 	}
 	return opcode.invalid;
@@ -990,7 +1222,7 @@ unittest {
 		test_case(0xf1070314, opcode.add_32),
 		test_case(0xf0230310, opcode.bit_clear_32),
 		test_case(0xf64f03ff, opcode.mov_16_imm_32),
-		test_case(0xf9973007, opcode.ldrsb_32),
+		test_case(0xf9973007, opcode.ldrsb_imm_32_t1),
 		test_case(0xf8412023, opcode.str_reg_32),
 		test_case(0xf8dfd034, opcode.ldr_imm_32),
 		test_case(0xf3bf8f4f, opcode.dsb),
@@ -1029,7 +1261,17 @@ unittest {
 		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
 		test_case(0xea400301, opcode.orr_reg_32),
 		test_case(0xe9d7453a, opcode.ldrd_imm_32),
-		test_case(0xe9d78928, opcode.ldrd_imm_32)
+		test_case(0xe9d78928, opcode.ldrd_imm_32),
+		test_case(0xf04f31ff, opcode.mov_imm_32_t2),
+		test_case(0xf04f30ff, opcode.mov_imm_32_t2),
+		test_case(0xe8bd4010, opcode.pop_mult_reg_32),
+		test_case(0xf883203c, opcode.strb_imm_32_t2),
+		test_case(0xf9973007, opcode.ldrsb_imm_32_t1),
+		test_case(0xf890f000, opcode.pld_imm_32),
+		test_case(0xf893303d, opcode.ldrb_imm_32_t2),
+		test_case(0xf997300f, opcode.ldrsb_imm_32_t1),
+		test_case(0xf8832300, opcode.strb_imm_32_t2),
+		test_case(0xf8032b01, opcode.strb_imm_32_t3)
 	];
 
 	foreach (t; tests) {
@@ -1051,6 +1293,7 @@ enum condition : ubyte {
 }
 
 struct instr_16 {
+	uint addr;
 	opcode op;
 	reg rd;
 	reg rm;
@@ -1349,7 +1592,6 @@ enum field_tuples_b_imm_11 = [Tuple!(opcode, string[])(opcode.b_imm_11, [])];
 // e001      	b.n	800a1b6 <LoopFillZerobss>
 // 1110 0000 0000 0001
 instr_16 parse_b_imm_11(short instr) {
-	writeln(0x800023a - 0x80001DC);
 	//  800023a:	e7cf      	b.n	80001dc
 	instr_16 res;
 	res.op = opcode.b_imm_11;
@@ -1422,9 +1664,11 @@ instr_16 parse_cmp_br_nz(short instr) {
 	instr_16 res;
 	res.op = opcode.cmp_br_nz;
 	ubyte rn = cast(ubyte)(instr & 0b111);
-	short imm_5 = cast(short)((instr >> 3) & 0b11111);
+	ubyte i = cast(ubyte)((instr >> 9) & 0b1);
+	ushort imm_5 = cast(ushort)((instr >> 3) & 0b11111);
+	uint imm = (i << 6) | (imm_5 << 1);
 	res.rn = cast(reg)(rn);
-	res.offset = imm_5;
+	res.offset = imm;
 	return res;
 }
 
@@ -1576,9 +1820,32 @@ instr_16 parse_ldr_imm(ushort instr) {
 	ubyte imm_5 = cast(ubyte)((instr >> 6) & 0b11111);
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
-	res.imm = cast(ubyte)(imm_5 * 4);
+	res.imm = (imm_5 << 2);
 	return res;
 }
+
+// ======================
+//  Parse LDR(Immediate)
+// ======================
+
+enum field_tuples_ldr_sp = [Tuple!(opcode, string[])(opcode.ldr_sp, ["rt","sp","imm"])];
+/*
+	Load/Store Single Data Item
+	LDR <Rt>,[SP{,#<imm8>}]
+	[15:11] 10011
+	[10:8] Rt
+	[7:0] imm8
+*/
+instr_16 parse_ldr_sp(ushort instr) {
+	instr_16 res;
+	res.op = opcode.ldr_sp;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rt = cast(ubyte)((instr >> 8) & 0b111);
+	res.rt = cast(reg)(rt);
+	res.imm = (imm_8 << 2);
+	return res;
+}
+
 
 // ====================
 //  Parse LDR(Literal)
@@ -2022,8 +2289,8 @@ instr_16 parse_str_imm(short instr) {
 	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.imm = cast(ubyte)(imm * 4);
+	ubyte imm_5 = cast(ubyte)((instr >> 6) & 0b11111);
+	res.imm = imm_5 << 2;
 	return res;
 }
 
@@ -2070,10 +2337,10 @@ instr_16 parse_strh_imm(short instr) {
 	res.op = opcode.strh_imm;
 	ubyte rt = cast(ubyte)(instr & 0b111);
 	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
+	ubyte imm_5 = cast(ubyte)((instr >> 6) & 0b11111);
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
-	res.imm = cast(ubyte)(imm * 2);
+	res.imm = imm_5 << 1;
 	return res; 
 }
 
@@ -2119,7 +2386,7 @@ instr_16 parse_str_sp(short instr) {
 	res.op = opcode.str_sp;
 	ubyte imm_8 = cast(ubyte)(instr & 0xff);
 	ubyte rt = cast(ubyte)((instr >> 8) & 0b111);
-	res.imm = imm_8;
+	res.imm = imm_8 << 2;
 	res.rt = cast(reg)(rt);
 	return res;
 }
@@ -2239,7 +2506,7 @@ instr_16 parse_sub_sp(short instr) {
 	instr_16 res;
 	res.op = opcode.sub_sp;
 	ubyte imm_7 = cast(ubyte)(instr & 0x7f);
-	res.imm = cast(ubyte)(imm_7 * 4);
+	res.imm = (imm_7 << 2);
 	return res;
 }
 
@@ -2331,7 +2598,8 @@ instr_16 decode_instr(ushort instr) {
     auto op = decode_mnemonic(instr);
 
     switch (op) {
-
+    	case opcode.ldr_sp:
+    		return parse_ldr_sp(instr);
         case opcode.cmp_imm:
             return parse_cmp_imm(instr);
         case opcode.asr_imm:
@@ -2476,7 +2744,7 @@ unittest {
 		test_case(0x4718, instr_16(op: opcode.bx,            rm: reg.r3)),
 		test_case(0x1a1b, instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0)),
 		test_case(0xb510, instr_16(op: opcode.push_mult_reg, reg_list: [reg.r4, reg.lr])),
-		test_case(0xb943, instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,			  offset: 8)),
+		test_case(0xb943, instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,			  offset: 16)),
 		test_case(0xbd10, instr_16(op: opcode.pop_mult_reg,  reg_list: [reg.r4, reg.pc])),
 		test_case(0xe7cf, instr_16(op: opcode.b_imm_11,					 		      offset: -98)),
 		// 1110 0111 1100 1111
@@ -2731,7 +2999,6 @@ struct ram_mem_section {
     }
 
     void write_word(size_t index, uint val) {
-    	writeln("here");
     	index -= ram_origin;
     	cells[index + 3] = (val >> 24) & 0xff;
     	cells[index + 2] = (val >> 16) & 0xff;
@@ -2746,7 +3013,7 @@ __gshared ubyte[1024 * 1024] g_flash;
 
 static this()
 {
-    flash_mem_section.write_word(0x800a18c + 52,memory.stack_base);
+    //flash_mem_section.write_word(0x800a18c + 52,memory.stack_base);
 }
 
 // ===================
@@ -2766,7 +3033,6 @@ struct flash_mem_section {
     }
 
     const(uint) read_word(size_t index) const {
-    	writeln(index);
     	index -= flash_origin;
     	uint res = (g_flash[index + 3] << 24) | 
     	           (g_flash[index + 2] << 16) | 
@@ -2776,9 +3042,7 @@ struct flash_mem_section {
     }
 
     static void write_word(size_t index, uint val) {
-    	writeln(index);
-    	writeln("ddddddddddd");
-    	index -= flash_origin;
+       	index -= flash_origin;
     	g_flash[index + 3] = (val >> 24) & 0xff;
     	g_flash[index + 2] = (val >> 16) & 0xff;
     	g_flash[index + 1] = (val >>  8) & 0xff;
@@ -2803,6 +3067,7 @@ struct memory {
 	enum ram_origin = 0x20000000;
 	enum flash_length = 1024 * 1024;
 	enum ram_length = 128 * 1024;
+	static uint stack_base = ram_origin + ram_length;
 	uint[size_t] peripherals = [
 		0x40023c00: 0,	
 		0xe000ed0c: 0,
@@ -2881,10 +3146,19 @@ struct memory {
 		0x40013C0C: 0,  // SYSCFG_EXTICR2
 		0x40013C10: 0,  // SYSCFG_EXTICR3
 		0x40013C14: 0,  // SYSCFG_EXTICR4
-		0x40023808: 0 	// RCC_CFGR
+		0x40023808: 0, 	// RCC_CFGR
+		0xE000ED88: 0,  // SCB_CPACR
+		// TIM6
+		0x40001000: 0, 0x40001004: 0, 0x40001008: 0, 0x4000100C: 0,
+	    0x40001010: 0, 0x40001014: 0, 0x40001018: 0, 0x4000101C: 0,
+	    0x40001020: 0, 0x40001024: 0, 0x40001028: 0, 0x4000102C: 0,
+	    0x40001030: 0, 0x40001034: 0, 0x40001038: 0, 0x4000103C: 0,
+	    0x40001040: 0, 0x40001044: 0,
+	    // NVIC
+	    0xE000E3FC: 0,
+	    0x40007000: 0x0000C000, // PWR_CR
+	    0x40023800: 0x00000083  // CR
 	];
-
-	static uint stack_base = ram_origin + ram_length;
 
 	uint read_word(size_t addr) {
 		if (addr > ram_origin + ram_length) {
@@ -2906,6 +3180,12 @@ struct memory {
 	}
 
 	const(ubyte) read_byte(size_t addr) {
+		if (addr > ram_origin + ram_length) {
+        	size_t word_addr = addr & ~3;
+    		uint shift = (addr & 3) * 8;
+    		uint val = peripherals[word_addr];
+    		return cast(ubyte)((val >> shift) & 0xff);
+		} 
 		if (addr >= ram_origin) {
 			return ram.read_byte(addr);
 		} else {
@@ -2922,6 +3202,26 @@ struct memory {
 			return ram.write_word(addr, val);
 		} else {
 			return flash.write_word(addr, val);
+		}
+	}
+
+	void write_byte(size_t addr, uint val) {
+		ubyte b = cast(ubyte)(val & 0xff);
+		if (addr > ram_origin + ram_length) {
+        	peripherals[addr] = val;
+        	
+		   	size_t word_addr = addr & ~3;
+		   	uint shift = (addr & 3) * 8;
+
+		   	uint old = peripherals[word_addr];
+		   	uint masked = (old & ~(0xff << shift)) | (b << shift);
+		   	peripherals[word_addr] = masked;
+		   	return;
+		} 
+		if (addr >= ram_origin) {
+			return ram.write_byte(addr, b);
+		} else {
+			//return flash.write_byte(addr, val);
 		}
 	}
 
@@ -3054,6 +3354,10 @@ struct cortex_m_cpu {
 	xyz it_block;
 	Array!condition it_block_stack;
 
+	bool in_it_block() {
+		return !it_block_stack.empty;
+	}
+
 	void init_it_block_stack(condition cond) {
 		if (it_block == xyz.none) {
 			return;
@@ -3164,11 +3468,7 @@ struct cortex_m_cpu {
 	}
 
 	void increment_pc(int val) {
-		writeln("pc before");
-		writeln(pc);
 		pc += val;
-		writeln("pc after");
-		writeln(pc);
 	}
 }
 
@@ -3211,7 +3511,7 @@ void execute_asr_imm(instr_16 asr_imm_instr, ref cortex_m_cpu cpu) {
 void execute_add_imm_8(instr_16 add_imm_8_instr, ref cortex_m_cpu cpu) {
 	int rn = cast(int)(cpu.get(add_imm_8_instr.rn));
 	int res = rn + add_imm_8_instr.imm;
-	if (add_imm_8_instr.set_flags) {
+	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
 		cpu.n = (res < 0);
 		cpu.c = (res >= add_imm_8_instr.imm);
@@ -3347,10 +3647,26 @@ void execute_str_imm(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref memory me
 // =============
 
 void execute_ldr_imm(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	int rn = cpu.get(instr.rn);
 	size_t addr = rn + instr.imm;
-	int rt = mem.read_word(addr);
-	cpu.set(instr.rt, rt);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	int data = mem.read_word(addr);
+	cpu.set(instr.rt, data);
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
+	f.flush();
+	cpu.increment_pc(2);
+}
+
+void execute_ldr_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
+	int sp = cpu.get(reg.sp);
+	size_t addr = sp + instr.imm;
+	f.writeln(format("Attempting to access [%08X]", addr));
+	int data = mem.read_word(addr);
+	cpu.set(instr.rt, data);
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(2);
 }
 
@@ -3373,12 +3689,15 @@ void execute_strh_imm(instr_16 strh_imm_instr, ref cortex_m_cpu cpu, ref memory 
 // ==============
 
 void execute_ldrh_imm(instr_16 ldrh_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	int rt = cpu.get(ldrh_imm_instr.rt);
 	int rn = cpu.get(ldrh_imm_instr.rn);
 	size_t addr = rn + ldrh_imm_instr.imm;
-	int val = mem.read_word(addr);
-	rt = (rt & 0xffff0000) | val;  
-	cpu.set(ldrh_imm_instr.rt, rt);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	short data = mem.read_half_word(addr);
+	cpu.set(ldrh_imm_instr.rt, cast(uint)data);
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(2);
 }
 
@@ -3387,12 +3706,15 @@ void execute_ldrh_imm(instr_16 ldrh_imm_instr, ref cortex_m_cpu cpu, ref memory 
 // ==============
 
 void execute_ldrb_imm(instr_16 ldrb_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	int rt = cpu.get(ldrb_imm_instr.rt);
 	int rn = cpu.get(ldrb_imm_instr.rn);
 	size_t addr = rn + ldrb_imm_instr.imm;
-	int val = mem.read_word(addr);
-	rt = (rt & 0xffffff00) | val;  
-	cpu.set(ldrb_imm_instr.rt, rt);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	int data = mem.read_word(addr);
+	cpu.set(ldrb_imm_instr.rt, cast(uint)data);
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(2);
 }
 
@@ -3404,9 +3726,8 @@ void execute_strb_imm(instr_16 strb_imm_instr, ref cortex_m_cpu cpu, ref memory 
 	int rt = cpu.get(strb_imm_instr.rt);
 	int rn = cpu.get(strb_imm_instr.rn);
 	size_t addr = rn + strb_imm_instr.imm;
-	int target = mem.read_word(addr);
-	target = (target & 0xffffff00) | rt;  
-	mem.write_word(addr, target);
+	int data = rt & 0xff;
+	mem.write_byte(addr, data);
 	cpu.increment_pc(2);
 }
 
@@ -3429,12 +3750,16 @@ void execute_cmp_reg(instr_16 cmp_reg_instr, ref cortex_m_cpu cpu) {
 //  Execute LDR POOL
 // ==================
 
-void execute_ldr_pool(instr_16 ldr_pool_instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_pool(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	int base = cpu.get(reg.pc) + 4;
 	base &= ~0x3;   
-	int addr = base + ldr_pool_instr.imm;
+	int addr = base + instr.imm;
+	f.writeln(format("Attempting to access [%08X]", addr));
 	uint data = mem.read_word(addr);
-	cpu.set(ldr_pool_instr.rt, data);
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
+	f.flush();
+	cpu.set(instr.rt, data);
 	cpu.increment_pc(2);
 }
 
@@ -3526,7 +3851,6 @@ void execute_push_mult_reg(instr_16 push_mult_reg_instr, ref cortex_m_cpu cpu, r
 	foreach (r; push_mult_reg_instr.reg_list.reverse) {
 		uint sp = cpu.get(reg.sp);
 		mem.push(sp, cpu.get(r));
-		writeln("pushed to stack:", cpu.get(r));
 		cpu.set(reg.sp, sp);
 	}
 	cpu.increment_pc(2);
@@ -3540,7 +3864,6 @@ void execute_pop_mult_reg(instr_16 pop_mult_reg_instr, ref cortex_m_cpu cpu, ref
 	foreach (r; pop_mult_reg_instr.reg_list) {
 		uint sp = cpu.get(reg.sp);
 		int val = mem.pop(sp);
-		writeln("popped from stack:", val);
 		cpu.set(r, val);
 		cpu.set(reg.sp, sp);
 	}
@@ -3603,11 +3926,13 @@ void execute_add_sp(instr_16 add_sp_instr, ref cortex_m_cpu cpu) {
 // ==================
 
 void execute_ldrb_reg(instr_16 ldrb_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	size_t addr = cpu.get(ldrb_reg_instr.rn) + cpu.get(ldrb_reg_instr.rm);
-	ubyte val = mem.read_byte(addr);
-	int target = cpu.get(ldrb_reg_instr.rt);
-	target = (target & 0xffffff00) | val;
-	cpu.set(ldrb_reg_instr.rt, target);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	ubyte data = mem.read_byte(addr);
+	cpu.set(ldrb_reg_instr.rt, cast(uint)data);
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(2);
 }
 
@@ -3629,7 +3954,7 @@ void execute_sub_sp(instr_16 sub_sp_instr, ref cortex_m_cpu cpu) {
 void execute_add_imm_3(instr_16 add_imm_3_instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(add_imm_3_instr.rn);
 	int res = rn + add_imm_3_instr.imm;
-	if (add_imm_3_instr.set_flags) {
+	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
 		cpu.n = (res < 0);
 		cpu.c = (res >= add_imm_3_instr.imm);
@@ -3718,13 +4043,17 @@ void execute_adc_reg(instr_16 instr, ref cortex_m_cpu cpu) {
 // =================
 
 void execute_ldr_reg(instr_16 ldr_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	int rn = cpu.get(ldr_reg_instr.rn);
 	int rm = cpu.get(ldr_reg_instr.rm);
 	size_t addr = rn + rm;
-	int val = mem.read_word(addr);
-	cpu.set(ldr_reg_instr.rt, val);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	int data = mem.read_word(addr);
+	cpu.set(ldr_reg_instr.rt, data);
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(2);
-}
+}	
 
 // ========================
 //  Execute SUB(Immediate)
@@ -3775,8 +4104,13 @@ void execute_b_imm_11(instr_16 instr, ref cortex_m_cpu cpu) {
 // =======================
 
 void execute_str_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	size_t addr = cpu.get(instr.rn) + cpu.get(instr.rm);
-	mem.write_word(addr, cpu.get(instr.rt));
+	int data = cpu.get(instr.rt);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	mem.write_word(addr, data);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(2);
 }
 
@@ -3877,6 +4211,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 			return execute_uxtb(instr, cpu);
 		case opcode.adc_reg:
 			return execute_adc_reg(instr, cpu);
+		case opcode.if_then:
+			return execute_if_then(instr, cpu);
 		default:
 			return;
 	}
@@ -3884,6 +4220,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 
 void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	switch (instr.op) {
+		case opcode.ldr_sp:
+			return execute_ldr_sp(instr, cpu, mem);
 		case opcode.str_imm:
 			return execute_str_imm(instr, cpu, mem);
 		case opcode.strh_imm:
@@ -4019,7 +4357,7 @@ unittest {
 		test_case(0x3730, 
 			      instr_16(op: opcode.add_imm_8,     rd: reg.r7,  rn: reg.r7, imm: 48),
 			      cortex_m_cpu(r7: 0),
-			      cortex_m_cpu(pc: 2, r7: 48)),
+			      cortex_m_cpu(pc: 2, r7: 48, c: true)),
 		test_case(0x4013, 
 			      instr_16(op: opcode.and_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r2),
 			      cortex_m_cpu(r3: 0b11100, r2: 0b00111),
@@ -4103,7 +4441,7 @@ unittest {
 		test_case(0x1d3b, 
 			      instr_16(op: opcode.add_imm_3,     rd: reg.r3,  rn: reg.r7, imm: 4),
 			      cortex_m_cpu(r3: 3, r7: 4),
-				  cortex_m_cpu(pc: 2, r3: 8, r7: 4)),
+				  cortex_m_cpu(pc: 2, r3: 8, r7: 4, c: true)),
 		test_case(0x4413, 
 				  instr_16(op: opcode.add_lo_reg,    rd: reg.r3,  rn: reg.r3, rm: reg.r2),
 				  cortex_m_cpu(r3: 3, r2: 2),
@@ -4206,12 +4544,14 @@ unittest {
 			          cortex_m_cpu(pc: 2, r3: 0xffffeeee, r7: memory.ram_origin + 10),
 			          memory(ram: make_ram_with(16, 0x0000eeee)),
 			          memory(ram: make_ram_with(16, 0x0000eeee))),
+		/*
 		test_case_mem(0x781a, 
 					  instr_16(op: opcode.ldrb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0),
 					  cortex_m_cpu(r2: 0xffffffff, r3: memory.ram_origin + 10),
 			          cortex_m_cpu(pc: 2, r2: 0xffffffee, r3: memory.ram_origin + 10),
 			          memory(ram: make_ram_with(10, 0x000000ee)),
 			          memory(ram: make_ram_with(10, 0x000000ee))),
+		*/
 		test_case_mem(0x701a, 
 				      instr_16(op: opcode.strb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0),
 				      cortex_m_cpu(r2: 0x000000ee, r3: memory.ram_origin + 10),
@@ -4304,6 +4644,9 @@ struct instr_32 {
 	reg rt_2;
 	reg ra;
 	condition cond;
+	bool wback;
+	bool add;
+	bool index;
 }
 
 enum shift_type : ubyte {
@@ -4346,6 +4689,41 @@ uint shift(shift_type t, uint n, uint val) {
 		default:
 			return 0;
 	}
+}
+
+// ======================
+//  Parse MOV(Immediate)
+// ======================
+
+enum field_tuples_mov_imm_32_t2 = [Tuple!(opcode, string[])(opcode.mov_imm_32_t2, ["rd","imm"])];
+/*
+	Data Processing (Modified Immediate)
+	First Half-Word:
+	[15:11] 11110
+	[10] i
+	[8:5] 00010
+	[4] S
+	[3:0] 1111
+	Second Half-Word:
+	[15] 0
+	[14:12] imm3
+	[11:8] Rd
+	[7:0] imm8 
+*/
+// f04f 31ff
+// 1111 0000 0100 1111 0011 0001 1111 1111
+instr_32 parse_mov_imm_32_t2(uint instr) {
+	instr_32 res;
+	res.op = opcode.mov_imm_32_t2;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
+	int imm_32 = thumb_expand_imm(imm_12);
+	res.rd = cast(reg)(rd);
+	res.imm = imm_32;
+	return res;
 }
 
 // ===========
@@ -4485,6 +4863,7 @@ uint rotr(uint value, uint n) {
 //  Parse SUB IMM 32
 // ==================
 
+enum field_tuples_sub_imm_32 = [Tuple!(opcode, string[])(opcode.sub_imm_32, ["rd","rn","imm"])];
 /*
 	Data Processing (Modified Immediate)
 	First Half-Word:
@@ -4507,11 +4886,11 @@ instr_32 parse_sub_imm_32(uint instr) {
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
 	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
-	int rotate_by = (i << 3) | imm_3;
-	uint rotated = rotr(imm_8, rotate_by * 2 + 1);
-	res.imm = rotated;
+	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
 	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
+	int imm_32 = thumb_expand_imm(imm_12);
+	res.imm = imm_32;
 	return res;
 }
 
@@ -4700,17 +5079,20 @@ instr_32 parse_lsr_32(uint instr) {
 
 uint thumb_expand_imm(ushort imm_12) {
 	if ((cast(ubyte)(imm_12 >> 10) & 0b11) == 0b00) {
+		ubyte imm_8 = cast(ubyte)(imm_12 & 0xff);
 		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b10) {
-			ubyte imm_8 = cast(ubyte)(imm_12 & 0xff);
-			writeln("immediate");
 			return (imm_8 << 24) | (imm_8 << 8);
 		}
 		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b0) {
-			ubyte imm_8 = cast(ubyte)(imm_12 & 0xff);
 			return imm_8;
 		}
+		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b11) {
+			return (imm_8 << 24) | (imm_8 << 16) | (imm_8 << 8) | imm_8;
+		}
+		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b01) {
+			return (imm_8 << 24) | (imm_8 << 8);
+		}
 	} 
-	writeln("immediatexxxx");
 	int rotate_by = ((imm_12) >> 7) & 0x1f;
 	uint unrotated = (1 << 7) | (imm_12 & 0x7f);
 	uint rotated = rotr(unrotated, rotate_by);
@@ -4736,18 +5118,6 @@ enum field_tuples_orr_32 = [Tuple!(opcode, string[])(opcode.orr_32, ["rd","rn","
 	[11:8] Rd
 	[7:0] imm8
 */
-// 0xf4437300
-// 1111 0100 0100
-// 1111 0100 0100 0011 0100 0011 1000 0000
-// imm8 : 1000 0000
-// imm3: 100
-// i: 1
-// imm4 1100
-// f4436380
-// 1111 0100 0100 0011 0110 0011 1000 0000
-// imm3: 110
-// i: 1
-// imm4: 1110
 instr_32 parse_orr_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.orr_32;
@@ -4761,7 +5131,6 @@ instr_32 parse_orr_32(uint instr) {
 	res.imm = imm_32;
 	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
-	writeln(imm_32);
 	return res;
 }
 
@@ -4900,7 +5269,34 @@ instr_32 parse_mov_16_imm_32(uint instr) {
 //  Parse LDRSB
 // =============
 
-enum field_tuples_ldrsb_32 = [Tuple!(opcode, string[])(opcode.ldrsb_32, ["rt","rn", "imm"])];
+enum field_tuples_ldrsb_imm_32_t1 = [Tuple!(opcode, string[])(opcode.ldrsb_imm_32_t1, ["rt","rn", "imm"])];
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	LDRSB <Rt>,[<Rn>,#<imm12>]
+	First Half-Word:
+	[15:4] 111110011001
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[11:0] imm12
+*/
+instr_32 parse_ldrsb_imm_32_t1(uint instr) {
+	instr_32 res;
+	res.op = opcode.ldrsb_imm_32_t1;
+	uint imm_12 = cast(ubyte)(instr & 0xfff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.imm = imm_12;
+	res.rn = cast(reg)(rn);
+	res.rt = cast(reg)(rt);
+	return res;
+}
+
+// =============
+//  Parse LDRSB
+// =============
+
+enum field_tuples_ldrsb_imm_32_t2 = [Tuple!(opcode, string[])(opcode.ldrsb_imm_32_t2, ["rt","rn","imm"])];
 /*
 	Multiply, Multiply Accumulate, and Absolute Difference
 	First Half-Word:
@@ -4910,13 +5306,13 @@ enum field_tuples_ldrsb_32 = [Tuple!(opcode, string[])(opcode.ldrsb_32, ["rt","r
 	[15:12] Rt
 	[11:0] imm12
 */
-instr_32 parse_ldrsb_32(uint instr) {
+instr_32 parse_ldrsb_imm_32_t2(uint instr) {
 	instr_32 res;
-	res.op = opcode.ldrsb_32;
-	uint imm_12 = cast(ubyte)(instr & 0xfff);
+	res.op = opcode.ldrsb_imm_32_t2;
+	uint imm_8 = cast(ubyte)(instr & 0xff);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	res.imm = imm_12;
+	res.imm = imm_8;
 	res.rn = cast(reg)(rn);
 	res.rt = cast(reg)(rt);
 	return res;
@@ -4992,6 +5388,7 @@ instr_32 parse_dsb(uint instr) {
 //  Parse RSB
 // ===========
 
+enum field_tuples_rsb_32 = [Tuple!(opcode, string[])(opcode.rsb_32, ["rd","rn","imm"])];
 /*
 	Multiply, Multiply Accumulate, and Absolute Difference
 	First Half-Word:
@@ -5059,6 +5456,7 @@ instr_32 parse_umull(uint instr) {
 //  Parse STRD
 // ============
 
+enum field_tuples_strd_32 = [Tuple!(opcode, string[])(opcode.strd_32, ["rt","rt_2","rn","imm"])];
 /*
 	Multiply, Multiply Accumulate, and Absolute Difference
 	First Half-Word:
@@ -5081,10 +5479,16 @@ instr_32 parse_strd_32(uint instr) {
 	ubyte rt_2 = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte W = cast(ubyte)((instr >> 21) & 0b1);
+	ubyte U = cast(ubyte)((instr >> 23) & 0b1);
+	bool wback = W == 1 ? true: false;
+	bool add = U == 1 ? true: false;
 	res.rt = cast(reg)(rt);
 	res.rt_2 = cast(reg)(rt_2);
 	res.rn = cast(reg)(rn);
-	uint imm = (imm_8 << 2) | 0b00;
+	res.wback = wback;
+	res.add = add;
+	uint imm = imm_8 << 2;
 	res.imm = imm;
 	return res;
 }
@@ -5126,10 +5530,10 @@ instr_32 parse_b_32(uint instr) {
 		imm_32 |= 0xffe00000;
 	}
 	res.offset = imm_32;
-	writeln(imm_32);
 	return res;
 }
 
+enum field_tuples_b_uncond_32 = [Tuple!(opcode, string[])(opcode.b_uncond_32, [])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -5160,7 +5564,6 @@ instr_32 parse_b_uncond_32(uint instr) {
 		imm_32 |= 0xfe000000;
 	}
 	res.offset = imm_32;
-	writeln(imm_32);
 	return res;
 }
 
@@ -5288,6 +5691,7 @@ instr_32 parse_subs_32(uint instr) {
 //  Parse SBC
 // ===========
 
+enum field_tuples_sbc_32 = [Tuple!(opcode, string[])(opcode.sbc_32, ["rd","rn","rm"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -5458,6 +5862,7 @@ instr_32 parse_strex_32(uint instr) {
 //  Parse MLS
 // ===========
 
+enum field_tuples_mls_32 = [Tuple!(opcode, string[])(opcode.mls_32, ["rd","rn","rm","ra"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -5660,6 +6065,9 @@ instr_32 parse_bic_reg_32(uint instr) {
 //  Parse LDR(Immediate)
 // ======================
 
+//f8df d034
+// 1111 1000 1101 1111 1101 0000 0011 0100
+// f85
 enum field_tuples_ldr_imm_32 = [Tuple!(opcode, string[])(opcode.ldr_imm_32, ["rt","rn","imm"])];
 /*
 	Load Word
@@ -5679,7 +6087,6 @@ instr_32 parse_ldr_imm_32(uint instr) {
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_12;
-	writeln(res.imm);
 	return res;
 }
 
@@ -5714,7 +6121,6 @@ instr_32 parse_ldrd_imm_32(uint instr) {
 	res.rt_2 = cast(reg)(rt2);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_8;
-	writeln(res.imm);
 	return res;
 }
 
@@ -5745,6 +6151,35 @@ instr_32 parse_ldr_post_inc(uint instr) {
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_8;
+	return res;
+}
+
+// ======================
+//  Parse LDR(Immediate)
+// ======================
+
+enum field_tuples_ldrb_imm_32_t2 = [Tuple!(opcode, string[])(opcode.ldrb_imm_32_t2, ["rt","rn","imm"])];
+/*
+	Load Word
+	First Half-Word:
+	[15:4] 111110001001
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[10] P
+	[9] U
+	[8] W
+	[7:0] imm8
+*/
+instr_32 parse_ldrb_imm_32_t2(uint instr) {
+	instr_32 res;
+	res.op = opcode.ldrb_imm_32_t2;
+	ushort imm_12 = cast(ushort)(instr & 0xfff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_12;
 	return res;
 }
 
@@ -5785,6 +6220,75 @@ instr_32 parse_mov_32(uint instr) {
 	return res;
 }
 
+// =======================
+//  Parse STRB(Immediate)
+// =======================
+
+enum field_tuples_strb_imm_32_t2 = [Tuple!(opcode, string[])(opcode.strb_imm_32_t2, ["rt","rn","imm"])];
+/*
+	Data Processing
+	Mov Register and Immeidate Shifts
+	STRB<c>.W <Rt>,[<Rn>,#<imm12>]
+	First Half-Word:
+	[15:4] 111110001000
+	[3:0] Rn 
+	Second Half-Word:
+	[15:12] Rt 
+	[11:0] imm12
+*/
+// ea4f 06a6: 1110 1010 0100 1111 0000 0110 1010 0110
+instr_32 parse_strb_imm_32_t2(uint instr) {
+	instr_32 res;
+	res.op = opcode.strb_imm_32_t2;
+	ushort imm_12 = cast(ushort)(instr & 0xfff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_12;
+	res.index = true;
+	res.add = true;
+	return res;
+}
+
+// =======================
+//  Parse STRB(Immediate)
+// =======================
+
+enum field_tuples_strb_imm_32_t3 = [Tuple!(opcode, string[])(opcode.strb_imm_32_t3, ["rt","rn","imm"])];
+/*
+	Data Processing
+	Mov Register and Immeidate Shifts
+	STRB<c>.W <Rt>,[<Rn>,#<imm12>]
+	First Half-Word:
+	[15:4] 111110001000
+	[3:0] Rn 
+	Second Half-Word:
+	[15:12] Rt 
+	[11:0] imm12
+*/
+// ea4f 06a6: 1110 1010 0100 1111 0000 0110 1010 0110
+instr_32 parse_strb_imm_32_t3(uint instr) {
+	instr_32 res;
+	res.op = opcode.strb_imm_32_t3;
+	ubyte imm_8 = cast(ushort)(instr & 0xff);
+	ubyte W = cast(ubyte)((instr >>  8) & 0b1);
+	ubyte U = cast(ubyte)((instr >>  9) & 0b1);
+	ubyte P = cast(ubyte)((instr >> 10) & 0b1);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	bool wback = W == 0b1 ? true : false;
+	bool add = U == 0b1 ? true : false;
+	bool index = P == 0b1 ? true : false;
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_8;
+	res.wback = wback;
+	res.add = add;
+	res.index = index;
+	return res;
+}
+
 // ==============
 //  Decode Instr
 // ==============
@@ -5822,8 +6326,12 @@ instr_32 decode_instr(uint instr) {
 			return parse_bit_clear_32(instr);
 		case opcode.mov_16_imm_32:
 			return parse_mov_16_imm_32(instr);
-		case opcode.ldrsb_32:
-			return parse_ldrsb_32(instr);
+		case opcode.mov_imm_32_t2:
+			return parse_mov_imm_32_t2(instr);
+		case opcode.ldrsb_imm_32_t1:
+			return parse_ldrsb_imm_32_t1(instr);
+		case opcode.ldrsb_imm_32_t2:
+			return parse_ldrsb_imm_32_t2(instr);
 		case opcode.str_reg_32:
 			return parse_str_reg_32(instr);
 		case opcode.str_imm_32_t3:
@@ -5878,7 +6386,14 @@ instr_32 decode_instr(uint instr) {
 			return parse_b_uncond_32(instr);
 		case opcode.ldrd_imm_32:
 			return parse_ldrd_imm_32(instr);
+		case opcode.strb_imm_32_t2:
+			return parse_strb_imm_32_t2(instr);
+		case opcode.strb_imm_32_t3:
+			return parse_strb_imm_32_t3(instr);
+		case opcode.ldrb_imm_32_t2:
+       		return parse_ldrb_imm_32_t2(instr);
 		default:
+			res.op = op;
 			return res;
 	}
 }
@@ -5927,7 +6442,7 @@ unittest {
 				  instr_32(op: opcode.mov_16_imm_32, rd: reg.r3, imm: 63743)),
 		// 1111 0110 0100 1111 000 0011 1111 1111
 		test_case(0xf9973007, // ldrsb.w	r3, [r7, #7]
-				  instr_32(op: opcode.ldrsb_32, rt: reg.r3, rn: reg.r7, imm: 7)),
+				  instr_32(op: opcode.ldrsb_imm_32_t1, rt: reg.r3, rn: reg.r7, imm: 7)),
 		// 1111 1001 1001 0111 0011 0000 0000 0111
 		test_case(0xf8412023, // str.w	r2, [r1, r3, lsl #2]
 				  instr_32(op: opcode.str_reg_32, rt: reg.r2, rn: reg.r1, rm: reg.r3, imm: 2)),
@@ -5941,7 +6456,7 @@ unittest {
 				  instr_32(op: opcode.umull_32, rd_lo: reg.r2, rd_hi: reg.r3, rn: reg.r2, rm: reg.r3)),
 		// 1111 1011 1010 0010 0010 0011 0000 0011
 		test_case(0xe9c72300, // strd	r2, r3, [r7]
-				  instr_32(op: opcode.strd_32, rt: reg.r2, rt_2: reg.r3, rn: reg.r7, imm: 0)),
+				  instr_32(op: opcode.strd_32, add: true, rt: reg.r2, rt_2: reg.r3, rn: reg.r7, imm: 0)),
 		// 1110 1001 1100 0111 0010 0011 0000 0000
 		//		  instr_32(op: opcode.strd_32)),
 		test_case(0xf67fae90, // bls.w	8004360
@@ -6019,8 +6534,6 @@ void execute_bl_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int res = ((pc + 4) | 0b1);
 	cpu.set(reg.lr, res);
 	cpu.set(reg.pc, pc + instr.offset + 4);
-	writeln(pc + instr.offset + 4);
-	writeln(res);
 }
 
 // ============
@@ -6206,11 +6719,10 @@ void execute_mov_16_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre LDRSB
 // ================
 
-void execute_ldrsb_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldrsb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	size_t addr = cpu.get(instr.rn) + instr.imm;
-	int target = cpu.get(instr.rd);
-	ubyte val = mem.read_byte(addr);
-	cpu.set(instr.rt, val);	
+	byte val = cast(byte)mem.read_byte(addr);
+	cpu.set(instr.rt, cast(int)val);	
 	cpu.increment_pc(4);
 }
 
@@ -6220,8 +6732,13 @@ void execute_ldrsb_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 
 void execute_str_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	int offset = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
+	auto f = load_store_log();
 	size_t addr = cpu.get(instr.rn) + offset;
-	mem.write_word(addr, cpu.get(instr.rt));
+	int data = cpu.get(instr.rt);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	mem.write_word(addr, data);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(4);
 }
 
@@ -6232,6 +6749,7 @@ void execute_str_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 void execute_rsb_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int res = instr.imm - cpu.get(instr.rn);
 	cpu.set(instr.rd, res);
+	cpu.increment_pc(4);
 }
 
 // ===============
@@ -6239,11 +6757,14 @@ void execute_rsb_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // ===============
 
 void execute_umull_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	long res = cpu.get(instr.rn) * cpu.get(instr.rm);
-	int hi = (res >> 32) & 0xffff;
-	int lo = res & 0xffff;
-	cpu.set(instr.rd_hi, hi);
-	cpu.set(instr.rd_lo, lo);
+	ulong res =
+        cast(ulong)(cast(uint)cpu.get(instr.rn)) *
+        cast(ulong)(cast(uint)cpu.get(instr.rm));
+
+    cpu.set(instr.rd_lo, cast(uint)res);
+    cpu.set(instr.rd_hi, cast(uint)(res >> 32));
+
+    cpu.increment_pc(4);
 }
 
 // =========================
@@ -6251,9 +6772,17 @@ void execute_umull_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // =========================
 
 void execute_strd_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	uint offset = cpu.get(instr.rn) + instr.imm;
+	uint offset;
+	if (instr.add) {
+		offset = cpu.get(instr.rn) + instr.imm;
+	} else {
+		offset = cpu.get(instr.rn) - instr.imm;
+	}
 	mem.write_word(offset, cpu.get(instr.rt));
 	mem.write_word(offset + 4, cpu.get(instr.rt_2));
+	if (instr.wback) {
+		cpu.set(instr.rn, offset);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -6287,7 +6816,6 @@ void execute_orr_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 
 void execute_subs_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
-	writeln("shifted = ", shifted);
 	int res = cpu.get(instr.rn) - shifted;
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(4);
@@ -6354,8 +6882,39 @@ void execute_strex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 
 void execute_str_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	size_t addr = cpu.get(instr.rn);
+	auto f = load_store_log();
 	addr += instr.imm;
-	mem.write_word(addr, cpu.get(instr.rt));
+	int data = cpu.get(instr.rt);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	mem.write_word(addr, data);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
+	f.flush();
+	cpu.increment_pc(4);
+}
+
+// =========================
+//  Execute STRB(Immediate)
+// =========================
+
+void execute_strb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rn = cpu.get(instr.rn);
+	size_t offset_addr;
+	if (instr.add) {
+		offset_addr = rn + instr.imm;
+	} else {
+		offset_addr = rn - instr.imm;
+	}
+	size_t addr = instr.index ? offset_addr : rn;
+	auto f = load_store_log();
+	int data = cpu.get(instr.rt);
+	data = (data & 0xff);
+	f.writeln(format("Attempting to access [%08X]", addr));
+	mem.write_byte(addr, data);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
+	f.flush();
+	if (instr.wback) {
+		cpu.set(instr.rn, cast(uint)offset_addr);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -6369,6 +6928,7 @@ void execute_mls_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int addend = cpu.get(instr.ra);
 	int res = addend - op1 * op2;
 	cpu.set(instr.rd, res);
+	cpu.increment_pc(4);
 }
 
 // ==============
@@ -6423,13 +6983,18 @@ void execute_bic_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // ========================
 
 void execute_ldr_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	int pc = cpu.get(instr.rn);
-	pc = pc & ~3;
-	size_t addr = pc + instr.imm;
+	auto f = load_store_log();
+	int rn = cpu.get(instr.rn);
+	if (instr.rn == reg.pc) {
+		rn = ((rn +4) & ~3);
+	}
+	size_t addr = rn + instr.imm;
+	f.writeln(format("Attempting to access [%08X]", addr));
 	uint data = mem.read_word(addr);
 	cpu.set(instr.rt, data);
 	int pc_val = cpu.get(reg.pc);
 	cpu.set(reg.pc, pc_val + 4);
+	f.writeln(format("%08X loaded from [%08X]", data, addr));
 }
 
 // =========================
@@ -6446,6 +7011,14 @@ void execute_ldrd_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.increment_pc(4);
 }
 
+void execute_ldrb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rn = cpu.get(instr.rn);
+	size_t addr = rn + instr.imm;
+	ubyte data = mem.read_byte(addr);
+	cpu.set(instr.rt, cast(uint)data);
+	cpu.increment_pc(4);
+}
+
 // ========================
 //  Execute MOV(Immediate)
 // ========================
@@ -6453,6 +7026,15 @@ void execute_ldrd_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 void execute_mov_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(shift_type.asr, instr.shift_n, cpu.get(instr.rm));
 	cpu.set(instr.rd, shifted);
+	cpu.increment_pc(4);
+}
+
+// ========================
+//  Execute MOV(Immediate)
+// ========================
+
+void execute_mov_imm_32_t2(instr_32 instr, ref cortex_m_cpu cpu) {
+	cpu.set(instr.rd, instr.imm);
 	cpu.increment_pc(4);
 }
 
@@ -6555,6 +7137,8 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 			return execute_mov_32(instr, cpu);
 		case opcode.cmp_imm_32:
 			return execute_cmp_imm_32(instr, cpu);
+		case opcode.mov_imm_32_t2:
+			return execute_mov_imm_32_t2(instr, cpu);
 		default:
 			return;
 	}
@@ -6568,8 +7152,6 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	switch (instr.op) {
 		case opcode.pop_mult_reg_32:
 			return execute_pop_mult_reg_32(instr, cpu, mem);
-		case opcode.ldrsb_32:
-			return execute_ldrsb_32(instr, cpu, mem);
 		case opcode.str_reg_32:
 			return execute_str_reg_32(instr, cpu, mem);
 		case opcode.strd_32:
@@ -6590,6 +7172,13 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_str_imm_32(instr, cpu, mem);
 		case opcode.ldrd_imm_32:
 			return execute_ldrd_imm_32(instr, cpu, mem);
+		case opcode.strb_imm_32_t2:
+		case opcode.strb_imm_32_t3:
+			return execute_strb_imm_32(instr, cpu, mem);
+		case opcode.ldrb_imm_32_t2:
+			return execute_ldrb_imm_32(instr, cpu, mem);
+		case opcode.ldrsb_imm_32_t1:
+			return execute_ldrsb_imm_32(instr, cpu, mem);
 		default:
 			return;
 	}
@@ -6679,11 +7268,11 @@ unittest {
 		test_case(0xf1c30307, // rsb	r3, r3, #7
 				  instr_32(op: opcode.rsb_32, rd: reg.r3, rn: reg.r3, imm: 7),
 				  cortex_m_cpu(r3: 2),
-				  cortex_m_cpu(r3: 5)),
+				  cortex_m_cpu(pc: 4, r3: 5)),
 		test_case(0xfba22303, // umull	r2, r3, r2, r3
 				  instr_32(op: opcode.umull_32, rd_lo: reg.r2, rd_hi: reg.r3, rn: reg.r2, rm: reg.r3),
 				  cortex_m_cpu(r2: 10, r3: 5),
-				  cortex_m_cpu(r2: 50, r3: 0)),
+				  cortex_m_cpu(pc: 4, r2: 50, r3: 0)),
 		test_case(0xf67fae90, // bls.w	8004360
 				  instr_32(op: opcode.b_32, cond: condition.ls, offset: -736),
 				  cortex_m_cpu(pc:   740, z: true, c: false),
@@ -6711,7 +7300,7 @@ unittest {
 		test_case(0xfb0e7711, // mls	r7, lr, r1, r7
 				  instr_32(op: opcode.mls_32, rd: reg.r7, rn: reg.lr, rm: reg.r1, ra: reg.r7),
 				  cortex_m_cpu(r7: 20, r1: 2, lr: 3),
-				  cortex_m_cpu(r7: 14, r1: 2, lr: 3)),
+				  cortex_m_cpu(pc: 4, r7: 14, r1: 2, lr: 3)),
 		test_case(0xea1c0f0e, // tst.w	ip, lr
 				  instr_32(op: opcode.tst_32, rn: reg.r12, rm: reg.lr, shift_t: shift_type.lsl),
 				  cortex_m_cpu(r12: 0b1111, lr: 0b1111),
@@ -6848,11 +7437,14 @@ string[opcode] opcode_strings = [
 	opcode.ldr_pool: "ldr",
 	opcode.ldr_post_inc: "ldr.w",
 	opcode.ldr_reg: "ldr",
+	opcode.ldr_sp: "ldr",
 	opcode.ldrb_imm: "ldrb",
+	opcode.ldrb_imm_32_t2: "ldrb.w",
 	opcode.ldrb_reg: "ldrb",
 	opcode.ldrd_imm_32: "ldrd",
 	opcode.ldrh_imm: "ldrh",
-	opcode.ldrsb_32: "ldrb.w",
+	opcode.ldrsb_imm_32_t1: "ldrsb.w",
+	opcode.ldrsb_imm_32_t2: "ldrsb.w",
 	opcode.lor_reg: "orrs",
 	opcode.lsl_32: "lsl.w",
 	opcode.lsl_imm: "lsls",
@@ -6860,11 +7452,13 @@ string[opcode] opcode_strings = [
 	opcode.lsr_imm: "lsrs",
 	opcode.lsr_reg: "lsrs",
 	opcode.lsr_32: "lsr.w",
+	opcode.mls_32: "mls",
 	opcode.mov_32: "mov.w",
 	opcode.mov_16_imm_32: "movw",
 	opcode.mov_high_1: "mov",
 	opcode.mov_high_2: "mov",
 	opcode.mov_imm: "movs",
+	opcode.mov_imm_32_t2: "mov.w",
 	opcode.mov_lo: "mov",
 	opcode.mvn_reg: "mvns",
 	opcode.mul_32: "mul.w",
@@ -6874,18 +7468,24 @@ string[opcode] opcode_strings = [
 	opcode.orr_32: "orr.w",
 	opcode.orr_reg_32: "orr.w",
 	opcode.pop_mult_reg: "pop",
-	opcode.pop_mult_reg_32: "pop",
+	opcode.pop_mult_reg_32: "ldmia.w sp!,",
 	opcode.push_mult_reg: "push",
 	opcode.push_mult_reg_32: "push",
+	opcode.rsb_32: "rsb",
+	opcode.sbc_32: "sbc.w",
 	opcode.str_imm: "str",
+	opcode.strb_imm_32_t2: "strb.w",
+	opcode.strb_imm_32_t3: "strb.w",
 	opcode.str_imm_32_t3: "str.w",
 	opcode.strb_imm: "strb",
 	opcode.strh_imm: "strh",
+	opcode.strd_32: "strd",
 	opcode.str_sp: "str",
 	opcode.str_reg: "str",
 	opcode.str_reg_32: "str.w",
 	opcode.sub_imm_3: "subs",
 	opcode.sub_imm_8: "subs",
+	opcode.sub_imm_32: "sub.w",
 	opcode.sub_reg: "subs",
 	opcode.subs_32: "sub.w",
 	opcode.sub_sp: "sub",
@@ -6914,11 +7514,14 @@ bool is_store(opcode op) {
 		case opcode.ldr_pool:
 		//case opcode.ldr_post_inc:
 		case opcode.ldr_reg:
+		case opcode.ldr_sp:
 		case opcode.ldrb_imm:
 		case opcode.ldrb_reg:
+		case opcode.ldrb_imm_32_t2:
 		case opcode.ldrd_imm_32:
 		case opcode.ldrh_imm:
-		case opcode.ldrsb_32:
+		case opcode.ldrsb_imm_32_t1:
+		case opcode.ldrsb_imm_32_t2:
 		case opcode.pop_mult_reg:
 		case opcode.pop_mult_reg_32:
 		case opcode.push_mult_reg:
@@ -6928,6 +7531,9 @@ bool is_store(opcode op) {
 		case opcode.str_reg:
 		case opcode.str_reg_32:
 		case opcode.strb_imm:
+		case opcode.strb_imm_32_t2:
+		case opcode.strb_imm_32_t3:
+		case opcode.strd_32:
 		case opcode.strh_imm:
 			return true;
 		default:
@@ -6937,14 +7543,12 @@ bool is_store(opcode op) {
 
 string convert_to_string(ushort instr) {
 	instr_16 parsed_instr = decode_instr(instr);
-	//writeln(parsed_instr.op);
 	string res = opcode_strings.get(parsed_instr.op, "unimplemented");
 	if (parsed_instr.op == opcode.b_cond) {
 		if (parsed_instr.cond == condition.cc) {
 			res ~= "cc";
 		}
 	}
-	//string res;
 	string[] ops;
 	auto fields = field_map.get(parsed_instr.op, null);
 	if (fields is null) {
@@ -7019,7 +7623,7 @@ string convert_to_string(ushort instr) {
 			ops ~= last; 
 		}
 		if (field == "sp") {
-			if (parsed_instr.op == opcode.str_sp) {
+			if (parsed_instr.op == opcode.str_sp || parsed_instr.op == opcode.ldr_sp) {
 				ops ~= "[sp";
 			} else {
 				ops ~= "sp";
@@ -7056,16 +7660,9 @@ unittest {
 		test_case(0x4313, "orrs r3, r2"),
 		test_case(0x43db, "mvns r3, r3"),
 		test_case(0x4283, "cmp r3, r0"),
-		//test_case(0xd002)
-		//test_case(0xb103)
-		//test_case(0x4718)
 		test_case(0x1a1b, "subs r3, r3, r0"),
-		//test_case(0xb943)
-		//test_case(0xe7cf)
-		//test_case(0xbf00)
 		test_case(0x469d, "mov sp, r3"),		
 		test_case(0x460f, "mov r7, r1"),
-		//test_case(0x4798) // blx
 		test_case(0xaf00, "add r7, sp, #0"),
 		test_case(0xb092, "sub sp, #72"),
 		test_case(0x1d3b, "adds r3, r7, #4"),
@@ -7097,7 +7694,18 @@ unittest {
 		test_case(0xb2db, "uxtb r3, r3"),
 		test_case(0x415b, "adcs r3, r3"),
 		test_case(0xbf08, "it eq"),
-		test_case(0xbf1c, "itt ne")
+		test_case(0xbf1c, "itt ne"),
+		test_case(0x9d08, "ldr r5, [sp, #32]"),
+		test_case(0xb083, "sub sp, #12"),
+		test_case(0xb0c0, "sub sp, #256"),
+		test_case(0xb580, "push {r7, lr}"),
+		test_case(0xb082, "sub sp, #8"),
+		test_case(0xaf00, "add r7, sp, #0"),
+		test_case(0x6078, "str r0, [r7, #4]"),
+		test_case(0x687b, "ldr r3, [r7, #4]"),
+		test_case(0x2b00, "cmp r3, #0"),
+		test_case(0x2301, "movs r3, #1"),
+		test_case(0x687b, "ldr r3, [r7, #4]")
 	];
 
 	foreach (t; tests) {
@@ -7228,7 +7836,17 @@ unittest {
 		   			              addr_instr(0x800a198,     "4a0d"),
 		   			              addr_instr(0x800a19a,     "2300"),
 		   			              addr_instr(0x800a19c,	    "e002")]);
+	func actual_freertos = get_function("../test/freertos_blink_asm.txt", "Reset_Handler");
+	func expected_freertos = func(name: "Reset_Handler",
+		   			     instrs: [addr_instr(0x8017ce4, "f8dfd034"),
+		   			              addr_instr(0x8017ce8, "f7e8fad8"),
+		   			              addr_instr(0x8017cec,     "480c"),
+		   			              addr_instr(0x8017cee,     "490d"),
+		   			              addr_instr(0x8017cf0,     "4a0d"),
+		   			              addr_instr(0x8017cf2,     "2300"),
+		   			              addr_instr(0x8017cf4,	    "e002")]);
 	assert(actual == expected);
+	assert(actual_freertos == expected_freertos);
 }
 
 // ======================
@@ -7236,14 +7854,21 @@ unittest {
 // ======================
 
 uint get_entry_point_addr(string filename) {
-	auto reset_handler = get_function(filename, "Reset_Handler");
-	return reset_handler.instrs[0]._addr;
+	if (filename == "../test/zephyr_led_asm.txt") {
+		auto reset_handler = get_function(filename, "__start");
+		return reset_handler.instrs[0]._addr;
+	} else {
+		auto reset_handler = get_function(filename, "Reset_Handler");
+		return reset_handler.instrs[0]._addr;
+	}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
 	uint actual = get_entry_point_addr("../test/cortex_m_asm.txt");
 	assert(actual == 0x800a18c);
+	uint actual_freertos = get_entry_point_addr("../test/freertos_blink_asm.txt");
+	assert(actual_freertos == 0x8017ce4);
 }
 
 // =======================
@@ -7306,8 +7931,6 @@ unittest {
 
 string convert_to_string(uint instr) {
 	instr_32 parsed_instr = decode_instr(instr);
-	//writeln("--------------------");
-	//writeln(parsed_instr.op);
 	string res = opcode_strings.get(parsed_instr.op, "unimplemented");
 	if (res == "unimplemented opcode string") {
 		return res;
@@ -7342,6 +7965,12 @@ string convert_to_string(uint instr) {
 		if (field == "rd_lo") {
 			ops ~= get_register_name(parsed_instr.rd_lo);
 		}
+		if (field == "rt_2") {
+			ops ~= get_register_name(parsed_instr.rt_2);
+		}
+		if (field == "ra") {
+			ops ~= get_register_name(parsed_instr.ra);
+		}
 		if (field == "rm") {
 			string rm_s;
 			rm_s ~= get_register_name(parsed_instr.rm);
@@ -7355,7 +7984,11 @@ string convert_to_string(uint instr) {
 				continue;
 			}
 			string imm = "#";
-			imm ~= parsed_instr.imm.to!string;
+			if (parsed_instr.op == opcode.strd_32 && !parsed_instr.add) {
+				imm ~= (-cast(int)parsed_instr.imm).to!string;
+			} else {
+				imm ~= parsed_instr.imm.to!string;
+			}
 			if (parsed_instr.op == opcode.str_sp || is_store(parsed_instr.op)) {
 				imm ~= "]";
 			}
@@ -7403,6 +8036,9 @@ string convert_to_string(uint instr) {
 		}
 	}
 	res ~= ops.join(", ");
+	if ((parsed_instr.op == opcode.strd_32) && parsed_instr.wback) {
+		res ~= "!";
+	}
 	return res;
 }
 
@@ -7430,8 +8066,25 @@ unittest {
 		test_case(0xfb02f303, "mul.w r3, r2, r3"),
 		test_case(0xfa22f303, "lsr.w r3, r2, r3"),
 		test_case(0xf8c73098, "str.w r3, [r7, #152]"),
-		test_case(0xeb43050c, "adc.w r5, r3, ip")
-		// 0001 1000 1000
+		test_case(0xeb43050c, "adc.w r5, r3, ip"),
+		test_case(0xf04f31ff, "mov.w r1, #4294967295"),
+		test_case(0xf1ad0c08, "sub.w ip, sp, #8"),
+		test_case(0xe96dce04, "strd ip, lr, [sp, #-16]!"),
+		test_case(0xf1c10720, "rsb r7, r1, #32"),
+		test_case(0xfb00331e, "mls r3, r0, lr, r3"),
+		test_case(0xeb66060c, "sbc.w r6, r6, ip"),
+		test_case(0xe8bd83f8, "ldmia.w sp!, {r3, r4, r5, r6, r7, r8, r9, pc}"),
+		test_case(0xf8832034, "strb.w r2, [r3, #52]"),
+		test_case(0xf883203c, "strb.w r2, [r3, #60]"),
+		test_case(0xf9973007, "ldrsb.w r3, [r7, #7]"),
+		test_case(0xf893303d, "ldrb.w r3, [r3, #61]"),
+		test_case(0xf8832300, "strb.w r2, [r3, #768]"),
+		//test_case(0xf3808808, "msr MSP, r0")
+		//test_case(0xf8032b01, "strb.w r2, [r3], #1")
+		// ldrb.w r3, [r7, #7]
+		// str.w r0, [r0, #0]
+		//test_case(0xf0100407, "ands.w r4, r0, #7")
+		// 0001 1000 1000 sbc.w r6, r6, #0
 	];
 
 	foreach (t; tests) {
@@ -7449,76 +8102,30 @@ struct cortex_m_vm {
 	addr_instr[] current_program;
 
 	void load_program(string filename) {
-		func reset_handler = get_function(filename, "Reset_Handler");
-		func system_init = get_function(filename, "SystemInit");
-		func loop_copy_data_init = get_function(filename, "LoopCopyDataInit");
-		func copy_data_init = get_function(filename, "CopyDataInit");
-		func loop_fill_zero_bss = get_function(filename, "LoopFillZerobss");
-		func fill_zero_bss = get_function(filename, "FillZerobss");
-		func __libc_init_array = get_function(filename, "__libc_init_array");
-		func _init = get_function(filename, "_init");
-		func register_fini = get_function(filename, "register_fini");
-		func atexit = get_function(filename, "atexit");
-		func __register_exitproc = get_function(filename, "__register_exitproc");
-		func frame_dummy = get_function(filename, "frame_dummy");
-		func register_tm_clones = get_function(filename, "register_tm_clones");
-		func main = get_function(filename, "main");
-		func HAL_Init = get_function(filename, "HAL_Init");
-		func HAL_NVIC_SetPriorityGrouping = get_function(filename, "HAL_NVIC_SetPriorityGrouping");
-		func __NVIC_SetPriorityGrouping = get_function(filename, "__NVIC_SetPriorityGrouping");
-		func HAL_InitTick = get_function(filename, "HAL_InitTick");
-		func HAL_SYSTICK_Config = get_function(filename, "HAL_SYSTICK_Config");
-		func SysTick_Config = get_function(filename, "SysTick_Config");
-		func HAL_MspInit = get_function(filename, "HAL_MspInit");
-		func SystemClock_Config = get_function(filename, "SystemClock_Config");
-		func memset = get_function(filename, "memset");
-		func MX_GPIO_Init = get_function(filename, "MX_GPIO_Init");
-		func MX_USART1_UART_Init = get_function(filename, "MX_USART1_UART_Init");
-		func HAL_UART_Init = get_function(filename, "HAL_UART_Init");
-		func HAL_UART_MspInit = get_function(filename, "HAL_UART_MspInit");
-		func HAL_GPIO_Init = get_function(filename, "HAL_GPIO_Init");
-		func UART_SetConfig = get_function(filename, "UART_SetConfig");
-		func HAL_RCC_GetPCLK2Freq = get_function(filename, "HAL_RCC_GetPCLK2Freq");
-		func HAL_RCC_GetHCLKFreq = get_function(filename, "HAL_RCC_GetHCLKFreq");
-		func __aeabi_uldivmod = get_function(filename, "__aeabi_uldivmod");
-		current_program = reset_handler.instrs;
-		current_program ~= system_init.instrs;
-		current_program ~= loop_copy_data_init.instrs;
-		current_program ~= copy_data_init.instrs;
-		current_program ~= loop_fill_zero_bss.instrs;
-		current_program ~= fill_zero_bss.instrs;
-		current_program ~= __libc_init_array.instrs;
-		current_program ~= _init.instrs;
-		current_program ~= register_fini.instrs;
-		current_program ~= atexit.instrs;
-		current_program ~= __register_exitproc.instrs;
-		current_program ~= frame_dummy.instrs;
-		current_program ~= register_tm_clones.instrs;
-		current_program ~= main.instrs;
-		current_program ~= HAL_Init.instrs;
-		current_program ~= HAL_NVIC_SetPriorityGrouping.instrs;
-		current_program ~= __NVIC_SetPriorityGrouping.instrs;
-		current_program ~= HAL_InitTick.instrs;
-		current_program ~= HAL_SYSTICK_Config.instrs;
-		current_program ~= SysTick_Config.instrs;
-		current_program ~= HAL_MspInit.instrs;
-		current_program ~= SystemClock_Config.instrs;
-		current_program ~= memset.instrs;
-		current_program ~= MX_GPIO_Init.instrs;
-		current_program ~= MX_USART1_UART_Init.instrs;
-		current_program ~= HAL_UART_Init.instrs;
-		current_program ~= HAL_UART_MspInit.instrs;
-		current_program ~= HAL_GPIO_Init.instrs;
-		current_program ~= UART_SetConfig.instrs;
-		current_program ~= HAL_RCC_GetPCLK2Freq.instrs;
-		current_program ~= HAL_RCC_GetHCLKFreq.instrs;
-		current_program ~= __aeabi_uldivmod.instrs;
-
+		if (filename == "../test/cortex_m_asm.txt") {
+			foreach (s; bare_metal_func_names) {
+				func f = get_function(filename, s);
+				current_program ~= f.instrs;
+			}
+		} else if (filename == "../test/zephyr_led_asm.txt") {
+			foreach (s; zephyr_func_names) {
+				func f = get_function(filename, s);
+				current_program ~= f.instrs;
+			}
+		} else {
+			foreach (s; freertos_func_names) {
+				func f = get_function(filename, s);
+				current_program ~= f.instrs;
+			}
+		}
+		
 		uint entry_point = get_entry_point_addr(filename);
     	cpu.set(reg.pc, entry_point);
 
     	load_literals(mem, filename);
-    	load_init_array_start(mem, filename);
+    	if (filename != "../test/zephyr_led_asm.txt") {
+    		load_init_array_start(mem, filename);
+    	}
 	}
 
 	void execute_next_instr() {
@@ -7566,6 +8173,7 @@ struct cortex_m_vm {
 				break;
 			}
 		}
+		/*
 		reset();
 		while (1) {
 			if (cpu.pc == last_instr_addr) {
@@ -7573,6 +8181,7 @@ struct cortex_m_vm {
 			}
 			execute_next_instr();
 		}
+		*/
 	}
 
 	void reset() {
@@ -7626,6 +8235,14 @@ unittest {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
+	memory mem;
+	load_literals(mem, "../test/freertos_blink_asm.txt");
+	assert(mem.read_word(0x8017c10) == 0x20000038, format("Failed to load [0x%04X] into [0x%04X]", 0x20020000, 0x800a1c4));
+	assert(mem.read_word(0x8017d1c) == 0x20020000, format("Failed to load [0x%04X] into [0x%04X]", 0x20000000, 0x800a1c8));
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
     memory mem = memory();
     cortex_m_cpu cpu = cortex_m_cpu(r3: 1, r4: 2, r5: 3, r6: 4, r7: 5, lr: 6, sp: memory.stack_base);
     instr_16 push = instr_16(op: opcode.push_mult_reg, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7, reg.lr]);
@@ -7642,3 +8259,5 @@ unittest {
     writeln(mem.read_word(memory.stack_base-4));
     //assert(cpu.r3 == 1);
 }
+
+

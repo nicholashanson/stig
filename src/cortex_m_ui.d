@@ -7,14 +7,17 @@ import std.stdio;
 import std.conv;
 import std.algorithm;
 import core.runtime : Runtime;
+import core.time : MonoTime, dur;
 
 // Global pad and scroll offset:
 WINDOW* instrPad;
 int padPos = 0;
 
-void draw_screen(cortex_m_vm vm, func[] functions) {
-    clear(); // clear screen
-
+void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
+    static uint previous_pc = 0;
+    if (vm.cpu.pc != previous_pc) {
+        //clear(); // clear screen
+    }
     // ----------------------------
     // Left pane: registers
     // ----------------------------
@@ -43,173 +46,234 @@ void draw_screen(cortex_m_vm vm, func[] functions) {
     printReg("pc", vm.cpu.pc);
 
     regY++;
-    uint ptr = vm.cpu.sp;
-    while (ptr < vm.mem.stack_base) {
-        uint val = vm.mem.read_word(ptr);
-        mvwprintw(stdscr, regY++, regX, toStringz(format("%08x: %08x", ptr, val)));
-        ptr += 4;
+    if (vm.cpu.sp != 0) {
+        uint ptr = vm.cpu.sp;
+        while (ptr < vm.mem.stack_base) {
+            uint val = vm.mem.read_word(ptr);
+            mvwprintw(stdscr, regY++, regX, toStringz(format("%08x: %08x", ptr, val)));
+            ptr += 4;
+        }
     }
 
     // ----------------------------
     // Right pane: instructions ON PAD
     // ----------------------------
-    werase(instrPad);  // clear pad for redraw
-
     int instrPadRow = 0;
     int instrPadCol = 0;
+    int currentPcRow = 0; 
 
-    foreach (f; functions) {
-        mvwprintw(instrPad, instrPadRow++, instrPadCol,
-                      toStringz(format("%s", f.name)));
-        foreach (ins; f.instrs) {
-            string s;
+    bool pad_changed = key_press;
+    if (true) { 
+        //werase(instrPad);
+        previous_pc = vm.cpu.pc;
+        pad_changed = true;
+        foreach (f; functions) {
+            mvwprintw(instrPad, instrPadRow++, instrPadCol,
+                          toStringz(format("%s", f.name)));
+            foreach (ins; f.instrs) {
+                string s;
 
-            if (ins._addr == vm.cpu.pc)
-                wattron(instrPad, A_REVERSE);
-
-            try {
-                auto i16 = ins.i.get!instr_16;
-                s = convert_to_string(ins._in_16);
-
-                if (i16.op == opcode.b_cond || i16.op == opcode.b_imm_11) {
-                    uint target = ins._addr + i16.offset + 4;
-                    s ~= format("%8x", target);
+                if (ins._addr == vm.cpu.pc) {
+                    wattron(instrPad, A_REVERSE);
+                    currentPcRow = instrPadRow;
                 }
-                if (i16.op == opcode.cmp_br_z || i16.op == opcode.cmp_br_nz) {
-                    uint target = ins._addr + i16.offset + 4;
-                    s ~= format(" %4x", target);
-                }
-                if (i16.op == opcode.ldr_pool) {
-                    int base = ins._addr + 4;
-                    base &= ~0x3;
-                    s ~= format("#[%8x]", base + i16.imm);
-                }
-            }
-            catch (Exception e) {
+
                 try {
-                    auto i32 = ins.i.get!instr_32;
-                    s = convert_to_string(ins._in_32);
-                    if (i32.op == opcode.bl_32 || i32.op == opcode.b_32) {
-                        uint target = ins._addr + i32.offset + 4;
-                        s ~= format(" %x", target);
+                    auto i16 = ins.i.get!instr_16;
+                    s = convert_to_string(ins._in_16);
+
+                    if (i16.op == opcode.b_cond || i16.op == opcode.b_imm_11) {
+                        uint target = ins._addr + i16.offset + 4;
+                        s ~= format("%8x", target);
+                    }
+                    if (i16.op == opcode.cmp_br_z || i16.op == opcode.cmp_br_nz) {
+                        uint target = ins._addr + i16.offset + 4;
+                        s ~= format(" %4x", target);
+                    }
+                    if (i16.op == opcode.ldr_pool) {
+                        int base = ins._addr + 4;
+                        base &= ~0x3;
+                        s ~= format("#[%8x]", base + i16.imm);
                     }
                 }
-                catch (Exception) {
-                    s = "Unknown instruction type";
+                catch (Exception e) {
+                    try {
+                        auto i32 = ins.i.get!instr_32;
+                        s = convert_to_string(ins._in_32);
+                        if (i32.op == opcode.bl_32 || i32.op == opcode.b_32 || i32.op == opcode.b_uncond_32) {
+                            uint target = ins._addr + i32.offset + 4;
+                            s ~= format(" %x", target);
+                        }
+                    }
+                    catch (Exception) {
+                        s = "Unknown instruction type";
+                    }
+                }
+
+                if (ins._instr_bytes.length == 8) {
+                    mvwprintw(instrPad, instrPadRow++, instrPadCol,
+                              toStringz(format("%x: %s     %s", ins._addr, ins._instr_bytes, s)));
+                } else {
+                    mvwprintw(instrPad, instrPadRow++, instrPadCol,
+                              toStringz(format("%x: %s         %s", ins._addr, ins._instr_bytes, s)));
+                }
+
+                if (ins._addr == vm.cpu.pc) {
+                    wattroff(instrPad, A_REVERSE);
                 }
             }
-
-            if (ins._instr_bytes.length == 8) {
-                mvwprintw(instrPad, instrPadRow++, instrPadCol,
-                          toStringz(format("%x: %s     %s", ins._addr, ins._instr_bytes, s)));
-            } else {
-                mvwprintw(instrPad, instrPadRow++, instrPadCol,
-                          toStringz(format("%x: %s         %s", ins._addr, ins._instr_bytes, s)));
-            }
-
-            if (ins._addr == vm.cpu.pc)
-                wattroff(instrPad, A_REVERSE);
+            instrPadRow++;
         }
-        instrPadRow++;
     }
 
-    refresh();
+    int visibleLines = LINES;
+    int bottomMargin = 5; // minimum lines below PC
+
+    // Scroll up if PC is above view
+    if (currentPcRow < padPos) {
+        padPos = currentPcRow;
+    }
+
+    // Soft scroll down if PC is too close to bottom
+    int distanceToBottom = padPos + visibleLines - currentPcRow - 1;
+    if (distanceToBottom < bottomMargin) {
+        padPos += bottomMargin - distanceToBottom; // scroll just enough to restore margin
+    }
+
     // Draw pad into right side of screen
     int instrScreenX = 50;   // <-- visible position
-    prefresh(instrPad,
-             padPos, 0,           // first line of pad to show
-             0, COLS / 2 - 1,     // location on real screen
-             LINES - 1, COLS - 1  // bottom-right of real screen
-    );
+
+    if (true) {
+        refresh();
+        prefresh(instrPad,
+                 padPos, 0,           // first line of pad to show
+                 0, COLS / 2 - 1,     // location on real screen
+                 LINES - 1, COLS - 1  // bottom-right of real screen
+        );
+    }
 
     //mvwprintw(stdscr, 0, 0, toStringz(format("%d: %d", LINES, COLS)));
 }
 
 void main(string[] args) {
+    bool isPlaying = false;
+    auto lastTime = MonoTime.currTime;       // last execution time
+    auto interval = dur!"msecs"(100);
+    auto lastDraw = MonoTime.currTime;
+    auto frameInterval = dur!"msecs"(33); // ~30 FPS
+
     uint entryPoint = 0; 
+    string objdump_file_name;
 
     if (args.length > 1) {
+        objdump_file_name = args[1];
+    }
+
+    if (args.length > 2) {
         try {
-            entryPoint = to!uint(args[1], 16);
+            entryPoint = to!uint(args[2], 16);
         } catch (ConvException e) {
-            writeln("Invalid entry point: ", args[1]);
+            writeln("Invalid entry point: ", args[2]);
             return;
         }
     }
 
     initscr();
+    scope(exit) endwin();
     cbreak();
     noecho();
     keypad(stdscr, true);
+
+    timeout(100);
 
     // Create a large pad for instructions
     instrPad = newpad(10000, 200);
 
     cortex_m_vm vm;
-    vm.load_program("../test/cortex_m_asm.txt");
-    string[] func_names = [
-        "SystemInit",
-        "Reset_Handler",
-        "CopyDataInit",
-        "LoopCopyDataInit",
-        "FillZerobss",
-        "LoopFillZerobss",
-        "__libc_init_array",
-        "_init",
-        "register_fini",
-        "atexit",
-        "__register_exitproc",
-        "frame_dummy",
-        "register_tm_clones",
-        "main",
-        "HAL_Init",
-        "HAL_NVIC_SetPriorityGrouping",
-        "__NVIC_SetPriorityGrouping",
-        "HAL_InitTick",
-        "HAL_SYSTICK_Config",
-        "SysTick_Config",
-        "HAL_MspInit",
-        "SystemClock_Config",
-        "memset",
-        "MX_GPIO_Init",
-        "MX_USART1_UART_Init",
-        "HAL_UART_Init",
-        "HAL_UART_MspInit",
-        "HAL_GPIO_Init",
-        "UART_SetConfig",
-        "HAL_RCC_GetPCLK2Freq",
-        "HAL_RCC_GetHCLKFreq",
-        "__aeabi_uldivmod"
-    ];
+    vm.load_program(objdump_file_name);
+
+    auto file_mem = File("mem.txt", "w");
+    for (size_t i = memory.flash_origin; i < memory.flash_origin + memory.flash_length; i += 4) {
+        uint val = vm.mem.read_word(i);
+        if (val != 0) {
+            file_mem.writeln("PC = 0x", format("[%08X]: %08X", i, val));
+        }
+    }
+    file_mem.close();
+
+    auto file = File("pc.txt", "w");
 
     func[] f_s;
-    foreach (name; func_names) {
-        func f = get_function("../test/cortex_m_asm.txt", name);
-        f_s ~= f;
+    if (objdump_file_name == "../test/cortex_m_asm.txt") {
+        foreach (name; bare_metal_func_names) {
+            func f = get_function(objdump_file_name, name);
+            f_s ~= f;
+        }
+    } else if (objdump_file_name == "../test/zephyr_led_asm.txt") {
+        foreach (name; zephyr_func_names) {
+            func f = get_function(objdump_file_name, name);
+            f_s ~= f;
+        }
+    } else {
+        foreach (name; freertos_func_names) {
+            func f = get_function(objdump_file_name, name);
+            f_s ~= f;
+        }
     }
 
     if (entryPoint != 0) {
         vm.run_to(entryPoint);
     }
 
-    draw_screen(vm, f_s);
+    bool key_press = false;
+    draw_screen(vm, f_s, key_press);
 
     int ch;
-    while ((ch = getch()) != 'q') {
-        if (ch == KEY_DOWN) {
-            vm.execute_next_instr();
-        }
-        if (ch == 'z') { // scroll down
-            padPos = min(padPos + 1, vm.current_program.length + (f_s.length * 2) - LINES);
-        }
-        if (ch == 'x') { // scroll up
-            padPos = max(padPos - 1, 0);
-        }
-        if (ch == 'b') {
-            padPos = cast(int)(vm.current_program.length + (f_s.length * 2) - LINES);
+    while (true) {
+        ch = getch();
+
+        if (ch != ERR) {
+            if (ch == 'q') {
+                break;
+            }
+            if (ch == KEY_DOWN) {
+                file.writeln("PC = 0x", format("%08X", vm.cpu.pc));
+                file.flush();
+                vm.execute_next_instr();
+            }
+            if (ch == 'z') { // scroll down
+                padPos = min(padPos + 1, vm.current_program.length + (f_s.length * 2) - LINES);
+                key_press = !key_press;
+            }
+            if (ch == 'x') { // scroll up
+                padPos = max(padPos - 1, 0);
+                key_press = !key_press;
+            }
+            if (ch == ' ') { 
+                isPlaying = !isPlaying;
+            }
+            if (ch == 'b') {
+                padPos = cast(int)(vm.current_program.length + (f_s.length * 2) - LINES);
+            }
         }
 
-        draw_screen(vm, f_s);
+        auto now = MonoTime.currTime;
+        if (isPlaying) {
+            auto delta = now - lastTime; // delta is already a Duration
+            if (delta >= interval) {
+                file.writeln("PC = 0x", format("%08X", vm.cpu.pc));
+                file.flush();
+                vm.execute_next_instr();
+                lastTime = now;
+            }
+        }
+        draw_screen(vm, f_s, key_press);
+        /*
+        if (now - lastDraw >= frameInterval) {
+            
+            lastDraw = now;
+        }
+        */
     }
 
     endwin();

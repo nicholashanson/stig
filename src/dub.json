@@ -6,5 +6,8 @@
         "ncurses": "~>1.0.0"
     },
     "targetType": "executable",
-    "sourcePaths": ["."]
+    "sourceFiles": [
+        "cortex_m.d",
+        "cortex_m_ui.d"
+    ]
 }
