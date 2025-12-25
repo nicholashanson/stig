@@ -41,13 +41,13 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
     printReg("r10", vm.cpu.r10);
     printReg("r11", vm.cpu.r11);
     printReg("r12", vm.cpu.r12);
-    printReg("sp", vm.cpu.sp);
+    printReg("sp", vm.cpu.get_sp());
     printReg("lr", vm.cpu.lr);
     printReg("pc", vm.cpu.pc);
 
     regY++;
-    if (vm.cpu.sp != 0) {
-        uint ptr = vm.cpu.sp;
+    if (vm.cpu.get_sp() != 0) {
+        uint ptr = vm.cpu.get_sp();
         while (ptr < vm.mem.stack_base) {
             uint val = vm.mem.read_word(ptr);
             mvwprintw(stdscr, regY++, regX, toStringz(format("%08x: %08x", ptr, val)));

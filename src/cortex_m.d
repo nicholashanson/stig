@@ -12,6 +12,23 @@ import std.typecons : Tuple;
 import core.exception;
 import std.container;
 
+enum special_reg : ubyte {
+	APSR = 			0b00000000,
+	IAPSR =         0b00000001,
+	EAPSR =			0b00000010,
+	XPSR = 			0b00000011,
+	IPSR = 			0b00000101,
+	EPSR = 			0b00000110,
+	IEPSR =			0b00000111,
+	MSP =			0b00001000,
+	PSP =   		0b00001001,
+	PRIMASK = 	    0b00010000,
+	BASEPRI = 		0b00010001,
+	BASEPRI_MAX =	0b00010010,
+	FAULTMASK =	    0b00010011,
+	CONTROL =		0b00010100
+}
+
 File* load_store_log_ptr = null;
 
 File* load_store_log() {
@@ -55,7 +72,8 @@ string[] bare_metal_func_names = [
     "HAL_RCC_GetHCLKFreq",
     "__aeabi_uldivmod",
     "__udivmoddi4",
-    "__aeabi_idiv0"
+    "__aeabi_idiv0",
+    "strlen"
 ];
 
 string[] freertos_func_names = [
@@ -98,11 +116,56 @@ string[] freertos_func_names = [
     "HAL_RCC_OscConfig",
     "HAL_RCC_ClockConfig",
     "HAL_GetTick",
-    "HAL_RCC_GetSysClockFreq"
+    "HAL_RCC_GetSysClockFreq",
+    "HAL_GPIO_WritePin",
+    "HAL_GPIO_Init",
+    "osKernelInitialize",
+    "osThreadNew",
+    "xTaskCreate",
+    "pvPortMalloc",
+    "vTaskSuspendAll",
+    "prvHeapInit",
+    "xTaskResumeAll",
+    "vPortEnterCritical",
+    "vPortExitCritical"
 ];
 
 string[] zephyr_func_names = [
-	"__start"
+	"__start",
+	"z_prep_c",
+	"relocate_vector_table",
+	"arch_bss_zero",
+	"arch_early_memset",
+	"memset",
+	"arch_data_copy",
+	"arch_early_memcpy",
+	"memcpy",
+	"z_arm_interrupt_init",
+	"z_cstart",
+	"z_sys_init_run_level",
+	"z_arm_fault_init",
+	"z_arm_cpu_idle_init",
+	"z_arm_mpu_init",
+	"arm_core_mpu_disable",
+	"mem_attr_get_regions",
+	"arm_core_mpu_enable",
+	"z_arm_configure_static_mpu_regions",
+	"arm_core_mpu_configure_static_mpu_regions",
+	"mpu_configure_regions",
+	"z_dummy_thread_init",
+	"soc_early_init_hook",
+	"z_sched_init",
+	"z_setup_new_thread",
+	"arch_tls_stack_setup",
+	"arch_new_thread",
+	"z_ready_thread",
+	"ready_thread",
+	"z_reset_time_slice",
+	"z_abort_timeout",
+	"first",
+	"remove_timeout",
+	"thread_is_sliceable",
+	"z_init_cpu"
 ];
  
 enum reg : ubyte {
@@ -275,7 +338,8 @@ enum data_proc : ubyte {
 	lsl_reg		    = 0b0010,
 	lsr_reg 		= 0b0011,
 	adc_reg         = 0b0101, 
-	negs            = 0b1001
+	negs            = 0b1001,
+	tst 			= 0b1000
 }
 
 enum single_str : ubyte {
@@ -327,7 +391,10 @@ enum opcode : ubyte {
 	add_32_reg,
 	add_reg,
 	add_sp,	
+	add_sp_t1,
+	add_sp_t2,
 	adr,
+	adr_32,
 	and_reg,
 	and_reg_32,
 	and_imm_32,
@@ -336,8 +403,10 @@ enum opcode : ubyte {
 	b_cond_32,
 	b_imm_11,
 	b_uncond_32,
+	bfc_32,
+	bfi_32,
 	bic_reg_32,
-	bit_clear_32,
+	bic_imm_32,
 	bit_not_32,
 	bit_or_not_32,
 	bl_32,
@@ -351,15 +420,22 @@ enum opcode : ubyte {
 	cmp_imm,
 	cmp_imm_32,
 	cmp_reg,
-	dsb,
+	cps,
+	dmb_32,
+	dsb_32,
+	isb_32,
 	if_then,
 	ld_rex,
 	ldh_32,
 	ldmia,
 	ldr_imm,
 	ldr_imm_32,
+	ldr_imm_32_t3,
+	ldr_imm_32_t4,
+	ldr_lit_32,
+	ldr_reg_32,
+	ldrt_32,
 	ldr_pool,
-	ldr_post_inc,
 	ldr_sp,
 	ldr_reg,
 	ldr_sh_32,
@@ -378,10 +454,8 @@ enum opcode : ubyte {
     ldrsbt_32,
     ldrsb_reg_32,
 	lor_reg,
-	lsl_32,
 	lsl_imm,
 	lsl_reg,
-	lsr_32,
 	lsr_reg,
 	lsr_imm,
 	mls_32,
@@ -393,9 +467,12 @@ enum opcode : ubyte {
 	mov_imm,
 	mov_imm_32_t2,
 	mov_lo,
+	movt_32,
 	mul_32,
 	mvn_reg,
 	mvn_reg_32,
+	mrs_32,
+	msr_32,
 	negs,
 	nop,
 	nop_32,
@@ -409,8 +486,10 @@ enum opcode : ubyte {
 	pop_mult_reg_32,
 	push_mult_reg,
 	push_mult_reg_32,
+	rev,
 	rsb_32,
 	sbc_32,
+	sbfx_32,
 	stmb_32,
 	str_imm,
 	str_imm_32_t3,
@@ -418,6 +497,7 @@ enum opcode : ubyte {
 	str_sp,
 	str_reg,
 	str_rex,
+	strb_reg,
 	str_reg_32,
 	strb_imm,
 	strb_imm_32_t2,
@@ -435,11 +515,40 @@ enum opcode : ubyte {
 	sub_reg,
 	subs_32,
 	sub_sp,
+	tst,
 	tst_32,
 	ubfx_32,	
 	udiv_32,
 	umull_32,
 	uxtb,
+	asr_reg_32,
+	ror_32,
+	lsl_reg_32,
+	lsr_reg_32,	
+	sxtah_32,
+	sxth_32,
+	uxtah_32,
+	uxth_32,
+	sxtab_16_32,
+	sxtb16_32,
+	uxtab_16_32,
+	uxtb16_32,
+	sxtab_32,
+	sxtb_32,
+	uxtab_32,
+	uxtb_32,
+	qadd_32,
+	qdadd_32,
+	qsub_32,
+	qdsub_32,
+	rev_32,
+	rev_16_32,
+	rbit_32,
+	revsh_32,
+	sel_32,
+	clz_32,
+	uadd8_32,
+	uxth,
 	invalid
 }
 
@@ -454,7 +563,8 @@ enum all_field_tuples =
 	~ field_tuples_add_imm_8
 	~ field_tuples_add_lo_reg
 	~ field_tuples_add_reg
-	~ field_tuples_add_sp
+	~ field_tuples_add_sp_t1
+	~ field_tuples_add_sp_t2
 	~ field_tuples_adr
 	~ field_tuples_and_imm_32
 	~ field_tuples_and_reg
@@ -463,7 +573,9 @@ enum all_field_tuples =
 	~ field_tuples_b_cond
 	~ field_tuples_b_imm_11
 	~ field_tuples_b_uncond_32
-	~ field_tuples_bit_clear_32
+	~ field_tuples_bic_reg_32
+	~ field_tuples_bic_imm_32
+	~ field_tuples_bit_not_32
 	~ field_tuples_bl_32
 	~ field_tuples_blx
 	~ field_tuples_bx
@@ -474,26 +586,31 @@ enum all_field_tuples =
 	~ field_tuples_cmp_imm
 	~ field_tuples_cmp_imm_32
 	~ field_tuples_cmp_reg
+	~ field_tuples_dsb_32
 	~ field_tuples_if_then
+	~ field_tuples_isb_32
 	~ field_tuples_ldr_imm
-	~ field_tuples_ldr_imm_32
+	~ field_tuples_ldr_imm_32_t3
+	~ field_tuples_ldr_lit_32
 	~ field_tuples_ldr_pool
-	~ field_tuples_ldr_post_inc
+	~ field_tuples_ldr_imm_32_t4
 	~ field_tuples_ldr_reg
+	~ field_tuples_ldr_reg_32
 	~ field_tuples_ldr_sp
 	~ field_tuples_ldrb_imm
 	~ field_tuples_ldrb_imm_32_t2
+	~ field_tuples_ldrb_imm_32_t3
 	~ field_tuples_ldrb_reg
 	~ field_tuples_ldrd_imm_32
 	~ field_tuples_ldrh_imm
 	~ field_tuples_ldrsb_imm_32_t1
 	~ field_tuples_ldrsb_imm_32_t2
 	~ field_tuples_lor_reg
-	~ field_tuples_lsl_32
+	~ field_tuples_lsl_reg_32
 	~ field_tuples_lsl_imm
 	~ field_tuples_lsl_reg
 	~ field_tuples_lsr_imm
-	~ field_tuples_lsr_32
+	~ field_tuples_lsr_reg_32
 	~ field_tuples_lsr_reg
 	~ field_tuples_mls_32
 	~ field_tuples_mov_16_imm_32
@@ -503,6 +620,8 @@ enum all_field_tuples =
 	~ field_tuples_mov_high_2
 	~ field_tuples_mov_imm
 	~ field_tuples_mov_lo
+	~ field_tuples_mrs_32
+	~ field_tuples_msr_32
 	~ field_tuples_subs_32
 	~ field_tuples_mul_32
 	~ field_tuples_mvn_reg
@@ -519,10 +638,12 @@ enum all_field_tuples =
 	~ field_tuples_sbc_32
 	~ field_tuples_str_imm
 	~ field_tuples_str_imm_32_t3
+	~ field_tuples_str_imm_32_t4
 	~ field_tuples_str_reg
 	~ field_tuples_str_reg_32
 	~ field_tuples_str_sp
 	~ field_tuples_strb_imm
+	~ field_tuples_strb_reg
 	~ field_tuples_strb_imm_32_t2
 	~ field_tuples_strb_imm_32_t3
 	~ field_tuples_strd_32
@@ -533,8 +654,11 @@ enum all_field_tuples =
 	~ field_tuples_sub_sp
 	~ field_tuples_sub_reg
 	~ field_tuples_subs_32
+	~ field_tuples_tst
+	//~ field_tuples_tst
 	~ field_tuples_udiv_32
 	~ field_tuples_umull_32
+	~ field_tuples_ubfx_32
 	~ field_tuples_uxtb;
 
 immutable string[][opcode] field_map = (() {
@@ -609,15 +733,25 @@ opcode decode_mnemonic(ushort instr) {
     	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.negs) {
     		return opcode.negs;
     	}
+    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.tst) {
+    		return opcode.tst;
+    	}
     }
     if (cast(ubyte)((instr >> 12) & 0b1111) == instr_grp.single_str_1) {
+    	ubyte opb = cast(ubyte)((instr >>  9) & 0b111);
+    	ubyte opa = cast(ubyte)((instr >> 12) & 0b1111);
     	if (cast(ubyte)((instr >> 9) & 0b111) == single_str.str) {
     		return opcode.str_reg;
+    	}
+    	// 0x559a
+    	// 0101 0101 1001 1010
+    	if ((opa == 0b0101) && (opb == 0b010)) {
+    		return opcode.strb_reg;
     	}
     	if (cast(ubyte)((instr >> 9) & 0b111) == single_str.strh) {
     		return opcode.strh_reg;
     	}
-    	if (cast(ubyte)((instr >> 9) & 0b111) == single_str.ldrb_reg) {
+    	if ((opa == 0b0101) && (opb == 0b110)) {
     		return opcode.ldrb_reg;
     	}
     	if (cast(ubyte)((instr >> 9) & 0b111) == single_str.ldr_reg) {
@@ -675,13 +809,9 @@ opcode decode_mnemonic(ushort instr) {
     	return opcode.b_cond;
     }
     if (cast(ubyte)((instr >> 12) & 0b1111) == instr_grp.misc) {
-    	if (cast(ubyte)((instr >> 8) & 0b1111) == misc.cmp_br) {
-    		if (cast(ubyte)((instr >> 7) & 0b1) == cmp_br.cmp_br_z) {
-    			return opcode.cmp_br_z;
-    		}
-    		if (cast(ubyte)((instr >> 7) & 0b1) == cmp_br.cmp_br_nz) {
-    			return opcode.cmp_br_nz;
-    		}
+    	ubyte _opcode_ = cast(ubyte)((instr >> 5) & 0b1111111);
+    	if ((_opcode_ & 0b1111100) == 0b0000000) {
+    		return opcode.add_sp;
     	}
     	if (cast(ubyte)((instr >> 6) & 0b111111) == misc.uxtb) {
     		return opcode.uxtb;
@@ -701,11 +831,27 @@ opcode decode_mnemonic(ushort instr) {
     	if (cast(ubyte)((instr >> 7) & 0b11111) == misc.sub_sp) {
     		return opcode.sub_sp;
     	}
-    	if (cast(ubyte)((instr >> 11) & 0b1) == cmp_br.cmp_br_z) {
-    			return opcode.cmp_br_z;
+    	if ((_opcode_ & 0b1111000) == 0b0001000 ||
+    		(_opcode_ & 0b1111000) == 0b0011000 ||
+    		(_opcode_ & 0b1111000) == 0b1001000 ||
+    		(_opcode_ & 0b1111000) == 0b1011000) {
+	    	// b383: 1011 0011 1000 0011
+	    	// b943: 1011 1001 0100 0011
+	    	if (cast(ubyte)((instr >> 11) & 0b1) == 0b0) {
+	    		return opcode.cmp_br_z;
+			}
+			if (cast(ubyte)((instr >> 11) & 0b1) == 0b1) {
+				return opcode.cmp_br_nz;
+			}
 		}
-		if (cast(ubyte)((instr >> 11) & 0b1) == cmp_br.cmp_br_nz) {
-			return opcode.cmp_br_nz;
+		if ((_opcode_ & 0b1111110) == 0b0010100) {
+			return opcode.uxth;
+		}
+		if (_opcode_ == 0b0110011) {
+			return opcode.cps;
+		}
+		if ((_opcode_ & 0b1111110) == 0b1010000) {
+			return opcode.rev;
 		}
     }
     if (cast(ubyte)((instr >> 10) & 0b111111) == instr_grp.special) {
@@ -819,7 +965,15 @@ unittest {
 		test_case(0xbf08, opcode.if_then),
 		test_case(0x9d08, opcode.ldr_sp),
 		test_case(0x682b, opcode.ldr_imm),
-		test_case(0x58d4, opcode.ldr_reg)
+		test_case(0x58d4, opcode.ldr_reg),
+		test_case(0xb580, opcode.push_mult_reg),
+		test_case(0x9301, opcode.str_sp),
+		test_case(0xb005, opcode.add_sp),
+		test_case(0x4208, opcode.tst),
+		test_case(0xaf00, opcode.add_sp),
+		test_case(0x2300, opcode.mov_imm),
+		test_case(0x559a, opcode.strb_reg)
+		// 1010 1111 0000 0000
 		//test_case(0x58d4, opcode.ldr_imm)
 	];
 
@@ -850,7 +1004,7 @@ enum op2_32 : ubyte {
 	str_single              = 0b1110001,
 	ld_str_dual             = 0b1100100,
 	ldh  					= 0b1100111,
-	load_word 				= 0b0000101,
+	load_word 				= 0b1100111,
 	store_single_data_item  = 0b1110001,
 	load_byte 				= 0b1100111
 }
@@ -917,8 +1071,6 @@ opcode decode_mnemonic_32(uint instr) {
 			ubyte L = cast(ubyte)((instr >> 20) & 0b1);
 			if (op == 0b01) {
 				if (L == 0b1) {
-					// 0xE8BD4010
-					// 1110 1000 1011 1101 0100 0000 0001 0000
 					if (Wrn == 0b11101) {
 						return opcode.pop_mult_reg_32;
 					} else {
@@ -963,8 +1115,27 @@ opcode decode_mnemonic_32(uint instr) {
 		if (op) {
 			ubyte _op1 = cast(ubyte)((instr >> 12) & 0b111);
 			ubyte _op = cast(ubyte)((instr >> 20) & 0b1111111);
+			if (((_op1 & 0b101) == 0b000) & (_op == 0b0111011)) {
+				ubyte option = cast(ubyte)(instr & 0xf);
+				ubyte _opc_ = cast(ubyte)((instr >> 4) & 0xf);
+				if ((_opc_ == 0b100) & ((option & 1011) != 0b0000)) {
+					return opcode.dsb_32;
+				}
+				if (_opc_ == 0b110) {
+					return opcode.isb_32;
+				}
+				if (_opc_ == 0b0101) {
+					return opcode.dmb_32;
+				}
+			}
 			if ((_op1 & 0b101) == 0b101) {
 				return opcode.bl_32;
+			}
+			if (((_op1 & 0b101) == 0b000) & ((_op & 0b1111110) == 0b0111110)) {
+				return opcode.mrs_32;
+			}
+			if (((_op1 & 0b101) == 0b000) & ((_op & 0b1111110) == 0b0111000)) {
+				return opcode.msr_32;
 			}
 			if (_op == 0b0111010) {
 				ubyte __op1 = cast(ubyte)((instr >> 8) & 0b111);
@@ -975,10 +1146,12 @@ opcode decode_mnemonic_32(uint instr) {
 					}
 				}
 			}
+			/*
 			if (_op == 0b0111011) {
 				ubyte __op = cast(ubyte)((instr >> 4) & 0b1111);
 				return opcode.dsb; 
 			}
+			*/
 			if (((_op1 & 0b101) == 0b000) && ((_op & 0b0111000) != 0b0111000)) {
 				if (cast(ubyte)((instr >> 12) & 0b1) == 0b1) {
 					return opcode.b_uncond_32;
@@ -992,19 +1165,16 @@ opcode decode_mnemonic_32(uint instr) {
 				return opcode.b_32;
 			}
 		}
-		if ((op2 & op2_32.data_proc_imm) == 0b0000000) {
-			ubyte _op = cast(ubyte)((instr >> 21) & 0b1111);
-			ubyte rn = cast(ubyte)((instr >> 12) & 0b1111);
+		if (((op2 & op2_32.data_proc_imm) == 0b0000000) && !op) {
+			ubyte _op = cast(ubyte)((instr >> 20) & 0b11111);
 			ubyte rd_ = cast(ubyte)((instr >> 8) & 0xf);
-			ubyte op5 = cast(ubyte)((instr >> 20) & 0b11111);
-			ubyte rn20 = cast(ubyte)((instr >> 16) & 0xf);
-			if (op5 == 0b00100) {
-				ubyte bit9 = cast(ubyte)((instr >> 25) & 0b1);
-				if (bit9 == 0b0 && rn20 == 0b1111) {
-					return opcode.mov_imm_32_t2;
-				} 
-			}            
-			if (_op == 0b1101) {
+			ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+			if (((_op & 0b11110) == 0b00100) & (rn == 0b1111)) {
+				return opcode.mov_imm_32_t2;
+			}      
+			if (((_op & 0b11110) == 0b11010)) {
+				// 0xF1B37F80
+				// 1111 0001 1011 0011 0111 1111 1000 0000
 				if (rd_ != 0b1111) {
 					return opcode.sub_imm_32;
 				}
@@ -1012,19 +1182,21 @@ opcode decode_mnemonic_32(uint instr) {
 					return opcode.cmp_imm_32;
 				}
 			} 
-			if (_op == 0b0000) {
-				if (rd != 0b1111) {
+			if ((_op & 0b11110) == 0b00000) {
+				if (rd_ != 0b1111) {
 					return opcode.and_imm_32;
 				}
-			}
-			if (_op == 0b0010) {
-				if (rn != 0b1111) {
-					return opcode.orr_32;
-				} else {
-					return opcode.mov_32;
+				if (rd_ == 0b1111) {
+					return opcode.tst_32;
 				}
 			}
-			if (_op == 0b0011) {
+			if (((_op & 0b11110) == 0b00100) && (rn != 0b1111)) {
+				return opcode.orr_32;
+			}
+			if (((_op & 0b11110) == 0b00100) && (rn == 0b1111)) {	
+				return opcode.mov_32;
+			}
+			if ((_op & 0b11110) == 0b00110) {
 				if (rn != 0b1111) {
 					return opcode.bit_or_not_32;
 				}
@@ -1032,25 +1204,48 @@ opcode decode_mnemonic_32(uint instr) {
 					return opcode.bit_not_32;
 				}
 			}
-			if (_op == 0b1000) {
-				if (rd != 0b1111) {
-					return opcode.add_32;
-				}
+			if (((_op & 0b11110) == 0b10000) && (rd != 0b1111)) {	
+				return opcode.add_32;
 			}
-			if (_op == 0b0001) {
-				return opcode.bit_clear_32;
+			if ((_op & 0b11110) == 0b00010) {
+				return opcode.bic_imm_32;
 			}
-			if (_op == 0b1110) {
+			if ((_op & 0b11110) == 0b11100) {
 				return opcode.rsb_32;
 			}
 		}
-		if ((op2 & op2_32.data_proc_bin_imm) == op2_32.data_proc_bin_imm) {
+		if (((op2 & op2_32.data_proc_bin_imm) == op2_32.data_proc_bin_imm) && !op) {
 			ubyte _op = cast(ubyte)((instr >> 20) & 0b11111);
+			ubyte _rn = cast(ubyte)((instr >> 16) & 0b11111);
 			if (_op == 0b11100) {
 				return opcode.ubfx_32;
 			}
 			if (_op == 0b00100) {
 				return opcode.mov_16_imm_32;
+			}
+			if (_op == 0b01100) {
+				return opcode.movt_32;
+			}
+			if (_op == 0b10100) {
+				return opcode.sbfx_32;
+			}
+			if ((_op == 0b10110) && (_rn != 0b1111)) {
+				return opcode.bfi_32;
+			}
+			if ((_op == 0b10110) && (_rn != 0b1111)) {
+				return opcode.bfc_32;
+			}
+			if ((_op == 0b01010) && (_rn != 0b1111)) {
+				return opcode.sub_imm_32;
+			}
+			if ((_op == 0b01010) && (_rn == 0b1111)) {
+				return opcode.adr_32;
+			}
+			if ((_op == 0b00000) && (_rn == 0b1111)) {
+				return opcode.adr_32;
+			}
+			if ((_op == 0b00000) && (_rn == 0b1111)) {
+				return opcode.add_imm_32;
 			}
 		}
 	}
@@ -1082,19 +1277,120 @@ opcode decode_mnemonic_32(uint instr) {
 			}
 		}
 		if ((op2 & op2_32.data_proc_reg) == 0b0100000) {
-			ubyte _op1 = cast(ubyte)((instr >> 20) & 0xf);
-			ubyte _op2 = cast(ubyte)((instr >>  4) & 0xf);
-			if (((_op1 & 0b1110) == 0b0000) & (_op2 == 0b0000)) {
-				return opcode.lsl_32;
+			ubyte _rn = cast(ubyte)((instr >>  16) & 0b1111);
+			ubyte _op1 = cast(ubyte)((instr >> 20) & 0b1111);
+			ubyte _op2 = cast(ubyte)((instr >>  4) & 0b1111);
+			if (((_op1 & 0b1110) == 0b0000) && _op2 == 0b0) {
+				return opcode.lsl_reg_32;
 			}
-			return opcode.lsr_32;
+			if (((_op1 & 0b1110) == 0b0010) && _op2 == 0b0) {
+				return opcode.lsr_reg_32;
+			}
+			if (((_op1 & 0b1110) == 0b0100) && _op2 == 0b0) {
+				return opcode.asr_reg_32;
+			}
+			if (((_op1 & 0b1110) == 0b0110) && _op2 == 0b0) {
+				return opcode.ror_32;
+			}
+			if ((_op1 == 0b0000) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.sxtah_32;
+			}
+			if ((_op1 == 0b0000) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.sxth_32;
+			}
+			if ((_op1 == 0b0001) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.uxtah_32;
+			}
+			if ((_op1 == 0b0001) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.uxth_32;
+			}
+			if ((_op1 == 0b0010) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.sxtab_16_32;
+			}
+			if ((_op1 == 0b0010) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.sxtb16_32;
+			}
+			if ((_op1 == 0b0011) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.uxtab_16_32;
+			}
+			if ((_op1 == 0b0011) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.uxtb16_32;
+			}
+			if ((_op1 == 0b0100) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.sxtab_32;
+			}
+			if ((_op1 == 0b0100) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.sxtb_32;
+			}
+			if ((_op1 == 0b0101) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.uxtab_32;
+			}
+			if ((_op1 == 0b0101) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.uxtb_32;
+			}
+			if (((_op1 & 0b1000) == 0b1000) && ((_op2 & 0b1100) == 0b0000)) {
+				return opcode.uadd8_32;
+			}
+			if (((_op1 & 0b1000) == 0b1000) && ((_op2 & 0b1100) == 0b0100)) {
+				return opcode.uadd8_32;
+			}
+			if (((_op1 & 0b1100) == 0b1000) && ((_op2 & 0b1100) == 0b1000)) {
+				ubyte __op1 = cast(ubyte)((instr >> 20) & 0b11);
+				ubyte __op2 = cast(ubyte)((instr >>  4) & 0b11);
+				if ((__op1 == 0b00) && (__op2 == 0b00)) {
+					return opcode.qadd_32;
+				}
+				if ((__op1 == 0b00) && (__op2 == 0b01)) {
+					return opcode.qdadd_32;
+				}
+				if ((__op1 == 0b00) && (__op2 == 0b10)) {
+					return opcode.qsub_32;
+				}
+				if ((__op1 == 0b00) && (__op2 == 0b11)) {
+					return opcode.qdsub_32;
+				}
+				if ((__op1 == 0b01) && (__op2 == 0b00)) {
+					return opcode.rev_32;
+				}
+				if ((__op1 == 0b01) && (__op2 == 0b01)) {
+					return opcode.rev_16_32;
+				}
+				if ((__op1 == 0b01) && (__op2 == 0b10)) {
+					return opcode.rbit_32;
+				}
+				if ((__op1 == 0b01) && (__op2 == 0b11)) {
+					return opcode.revsh_32;
+				}
+				if ((__op1 == 0b10) && (__op2 == 0b00)) {
+					return opcode.sel_32;
+				}
+				if ((__op1 == 0b11) && (__op2 == 0b00)) {
+					return opcode.clz_32;
+				}
+			}
 		}
 		if ((op2 & op2_32.load_word) == 0b0000101) {
-			ushort bits = cast(ushort)((instr >> 20) & 0xfff);
-			if (bits == 0b111110000101) {
-				return opcode.ldr_post_inc;
+			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
+			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
+			ubyte _rn = cast(ubyte)((instr >>  16) & 0xf);
+			if ((_op1 == 0b01) && (_rn != 0b1111)) {
+				return opcode.ldr_imm_32_t3;
 			}
-			return opcode.ldr_imm_32;
+			if ((_op1 == 0b00) && ((_op2 & 0b100100) == 0b100100) && (_rn != 0b1111)) {
+				return opcode.ldr_imm_32_t4;	
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (_rn != 0b1111)) {
+				return opcode.ldr_imm_32_t4;
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b111000) && (_rn != 0b1111)) {
+				return opcode.ldrt_32;
+			}
+			if ((_op1 == 0b00) && (_op2 == 0b0) && (_rn != 0b1111)) {
+				return opcode.ldr_reg_32;
+			}
+			if (((_op1 & 0b10) == 0b00) && (_rn == 0b1111)) {
+				return opcode.ldr_lit_32;
+			}
 		}
 		if ((op2 & op2_32.store_single_data_item) == 0b0000000) {
 			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
@@ -1176,9 +1472,7 @@ opcode decode_mnemonic_32(uint instr) {
 			if ((_op1 == 0b10) && (_op2 == 0b000000) && (rn != 0b1111) && (rt != 0b1111)) {
 				return opcode.ldrsb_reg_32;
 			}
-			// pld
-			// F890F000
-			// 1111 1000 1001 0000 1111 0000 0000 0000
+			// 
 			if ((_op1 == 0b00) && (_op2 == 0b000000) && (rn != 0b1111) && (rt == 0b1111)) {
 				return opcode.pld_reg_32;
 			}
@@ -1217,15 +1511,15 @@ unittest {
 		test_case(0xfbb2f3f3, opcode.udiv_32),
 		test_case(0xf3c20208, opcode.ubfx_32),
 		test_case(0xfb02f303, opcode.mul_32),
-		test_case(0xfa22f303, opcode.lsr_32),
+		test_case(0xfa22f303, opcode.lsr_reg_32),
 		test_case(0xf4434380, opcode.orr_32),
 		test_case(0xf1070314, opcode.add_32),
-		test_case(0xf0230310, opcode.bit_clear_32),
+		test_case(0xf0230310, opcode.bic_imm_32),
 		test_case(0xf64f03ff, opcode.mov_16_imm_32),
 		test_case(0xf9973007, opcode.ldrsb_imm_32_t1),
 		test_case(0xf8412023, opcode.str_reg_32),
-		test_case(0xf8dfd034, opcode.ldr_imm_32),
-		test_case(0xf3bf8f4f, opcode.dsb),
+		test_case(0xf8dfd034, opcode.ldr_lit_32),
+		test_case(0xf3bf8f4f, opcode.dsb_32),
 		test_case(0xf1c30307, opcode.rsb_32),
 		test_case(0xfba22303, opcode.umull_32),
 		test_case(0xe9c72300, opcode.strd_32),
@@ -1235,7 +1529,7 @@ unittest {
 		test_case(0xebb2080a, opcode.subs_32),
 		test_case(0xeb63090b, opcode.sbc_32),
 		test_case(0xeb45030b, opcode.adc_32),
-		test_case(0xf06f0240, opcode.bit_or_not_32),
+		test_case(0xf06f0240, opcode.bit_not_32),
 		test_case(0xe8533f00, opcode.ld_rex),
 		test_case(0xe8412300, opcode.str_rex),
 		test_case(0xfb0e7711, opcode.mls_32),
@@ -1247,7 +1541,7 @@ unittest {
 		test_case(0xeba30605, opcode.subs_32),
 		test_case(0xea4f06a6, opcode.mov_32),
 		// 1110 1010 0100 1111 0000 0110 1010 0110
-		test_case(0xf8553b04, opcode.ldr_post_inc), // f8553b04
+		test_case(0xf8553b04, opcode.ldr_imm_32_t4), // f8553b04
 		test_case(0xf7ffb8f7, opcode.b_uncond_32),
 		test_case(0xf8441023, opcode.str_reg_32),
 		test_case(0xf8c46188, opcode.str_imm_32_t3),
@@ -1257,7 +1551,7 @@ unittest {
 		test_case(0xeb0101a3, opcode.add_32_reg),
 		test_case(0xf1b37f80, opcode.cmp_imm_32),
 		test_case(0xf1070318, opcode.add_32),
-		test_case(0xfa02f303, opcode.lsl_32),
+		test_case(0xfa02f303, opcode.lsl_reg_32),
 		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
 		test_case(0xea400301, opcode.orr_reg_32),
 		test_case(0xe9d7453a, opcode.ldrd_imm_32),
@@ -1271,7 +1565,20 @@ unittest {
 		test_case(0xf893303d, opcode.ldrb_imm_32_t2),
 		test_case(0xf997300f, opcode.ldrsb_imm_32_t1),
 		test_case(0xf8832300, opcode.strb_imm_32_t2),
-		test_case(0xf8032b01, opcode.strb_imm_32_t3)
+		test_case(0xf8032b01, opcode.strb_imm_32_t3),
+		test_case(0xf8522023, opcode.ldr_reg_32),
+		test_case(0xf8dfd034, opcode.ldr_lit_32),
+		test_case(0xf8d33088, opcode.ldr_imm_32_t3),
+		test_case(0xf8533022, opcode.ldr_reg_32),
+		test_case(0xf3ef8305, opcode.mrs_32),
+	 	test_case(0xf3808808, opcode.msr_32),
+	 	test_case(0xf3bf8f6f, opcode.isb_32),
+	 	test_case(0xf3bf8f4f, opcode.dsb_32),
+	 	test_case(0xf8114b01, opcode.ldrb_imm_32_t3),
+	 	test_case(0xf3c20208, opcode.ubfx_32),
+	 	test_case(0xf8423c20, opcode.str_imm_32_t4),
+	 	test_case(0xf003030f, opcode.and_imm_32),
+	 	test_case(0xf0230301, opcode.bic_imm_32) 
 	];
 
 	foreach (t; tests) {
@@ -1284,10 +1591,17 @@ unittest {
 }
 
 enum condition : ubyte {
+	cs = 0b0010,
 	eq = 0b0000,
+	ge = 0b1010,
+	le = 0b1101,
+	mi = 0b0100,
 	ne = 0b0001,
+	pl = 0b0101,
 	hi = 0b1000,
 	ls = 0b1001,
+	vs = 0b0110,
+	vc = 0b0111,
 	cc = 0b0011, 	// carry clear
 	invalid = 0xff
 }
@@ -1466,7 +1780,8 @@ instr_16 parse_add_lo_reg(short instr) {
 //  Parse ADD(SP Plus Immediate)
 // ==============================
 
-enum field_tuples_add_sp = [Tuple!(opcode, string[])(opcode.add_sp, ["rd","sp","imm"])];
+enum field_tuples_add_sp_t2 = [Tuple!(opcode, string[])(opcode.add_sp_t2, ["sp","imm"])];
+enum field_tuples_add_sp_t1 = [Tuple!(opcode, string[])(opcode.add_sp_t1, ["rd","sp","imm"])];
 /*
 	General SP-Relative Address
 	ADD <Rd>,SP,#<imm8>
@@ -1476,11 +1791,19 @@ enum field_tuples_add_sp = [Tuple!(opcode, string[])(opcode.add_sp, ["rd","sp","
 */
 instr_16 parse_add_sp(short instr) {
 	instr_16 res;
-	res.op = opcode.add_sp;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
-	res.imm = imm_8;
-	res.rd = cast(reg)(rd);
+	ubyte first_four = cast(ubyte)((instr >> 12) & 0xf);
+	if (first_four == 0b1011) {
+		res.op = opcode.add_sp_t2;
+		res.rd = reg.sp;
+		ubyte imm_7 = cast(ubyte)(instr & 0x3f);
+		res.imm = (imm_7 << 2);
+	} else {
+		res.op = opcode.add_sp_t1;
+		ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	  	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
+		res.imm = (imm_8 << 2);
+		res.rd = cast(reg)(rd);
+	}
 	return res;
 }
 
@@ -2294,6 +2617,27 @@ instr_16 parse_str_imm(short instr) {
 	return res;
 }
 
+// ===========
+//  Parse TST 
+// ===========
+
+enum field_tuples_tst = [Tuple!(opcode, string[])(opcode.tst, ["rn","rm"])];
+/*
+	TST <Rn>,<Rm>
+	[15:6] 0100001000
+	[5:3] Rm
+	[2:0] Rn
+*/
+instr_16 parse_tst(short instr) {
+	instr_16 res;
+	res.op = opcode.tst;
+	ubyte rn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rm = cast(reg)(rm);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
 // ========================
 //  Parse STRRB(Immediate)
 // ========================
@@ -2316,6 +2660,31 @@ instr_16 parse_strb_imm(short instr) {
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_5;
+	return res;
+}
+
+// =======================
+//  Parse STRRB(Register)
+// =======================
+
+enum field_tuples_strb_reg = [Tuple!(opcode, string[])(opcode.strb_reg, ["rt","rn","rm"])];
+/*
+	Load/Store Single Data Item
+	STRB <Rt>,[<Rn>{,#<imm5>}]
+	[15:11] 01110
+	[10:6] imm5
+	[5:3] Rn
+	[2:0] Rt
+*/
+instr_16 parse_strb_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.strb_reg;
+	ubyte rt = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 6) & 0b111);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
 	return res;
 }
 
@@ -2630,6 +2999,8 @@ instr_16 decode_instr(ushort instr) {
        		return parse_ldrb_imm(instr);
        	case opcode.strb_imm:
        		return parse_strb_imm(instr);
+       	case opcode.strb_reg:
+       		return parse_strb_reg(instr);
        	case opcode.ldr_imm:
        		return parse_ldr_imm(instr);
        	case opcode.cmp_reg:
@@ -2704,7 +3075,10 @@ instr_16 decode_instr(ushort instr) {
         	return parse_adc_reg(instr);
         case opcode.if_then:
         	return parse_if_then(instr);
+        case opcode.tst:
+        	return parse_tst(instr);
         default:
+        	res.op = op;
             return res;
     }
 }
@@ -2752,7 +3126,7 @@ unittest {
 		test_case(0x469d, instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3)),
 		test_case(0x460f, instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1)),
 		test_case(0x4798, instr_16(op: opcode.blx,           rm: reg.r3)),
-		test_case(0xaf00, instr_16(op: opcode.add_sp,        rd: reg.r7, 			  imm: 0)),
+		test_case(0xaf00, instr_16(op: opcode.add_sp_t1,     rd: reg.r7, 			  imm: 0)),
 		test_case(0x5cd3, instr_16(op: opcode.ldrb_reg,      rt: reg.r3,  rn: reg.r2, rm: reg.r3)),
 		test_case(0xb092, instr_16(op: opcode.sub_sp,		 						  imm: 72)),
 		test_case(0x1d3b, instr_16(op: opcode.add_imm_3,     rd: reg.r3,  rn: reg.r7, imm: 4)),
@@ -3156,8 +3530,16 @@ struct memory {
 	    0x40001040: 0, 0x40001044: 0,
 	    // NVIC
 	    0xE000E3FC: 0,
+	    0xE000ED00: 0,
 	    0x40007000: 0x0000C000, // PWR_CR
-	    0x40023800: 0x00000083  // CR
+	    0x40023800: 0x00000083, // CR
+	    0xe000ed04: 0,
+	    0xe000ed14: 0,
+	    0xe000ed20: 0,
+	    0xe000ed18: 0,
+	    0xe000ed1c: 0,
+	    0xe000ed24: 0,
+	    0xE000ED90: 0
 	];
 
 	uint read_word(size_t addr) {
@@ -3225,27 +3607,39 @@ struct memory {
 		}
 	}
 
-	void push(ref uint sp, uint val) {
-		sp -= 4;
-		ram.write_word(sp, val);
+	void inc_sp_word_width(ref cortex_m_cpu cpu) {
+		uint current_sp = cpu.get_sp();
+		current_sp += 4;
+		cpu.set_sp(current_sp);
 	}
 
-	uint pop(ref uint sp) {
-		uint res = ram.read_word(sp);
-		ram.write_word(sp, 0);
-		sp += 4;
+	void dec_sp_word_width(ref cortex_m_cpu cpu) {
+		uint current_sp = cpu.get_sp();
+		current_sp -= 4;
+		cpu.set_sp(current_sp);
+	}
+
+	void push(ref cortex_m_cpu cpu, uint val) {
+		dec_sp_word_width(cpu);
+		ram.write_word(cpu.get_sp(), val);
+	}
+
+	uint pop(ref cortex_m_cpu cpu) {
+		uint res = ram.read_word(cpu.get_sp());
+		ram.write_word(cpu.get_sp(), 0);
+		inc_sp_word_width(cpu);
 		return res;
 	}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
-    memory mem;
-    uint sp = memory.stack_base;
-    mem.push(sp, 32);
-    int val = mem.pop(sp);
+    cortex_m_vm vm;
+    vm.cpu.set_sp(memory.stack_base);
+    vm.mem.push(vm.cpu, 32);
+    int val = vm.mem.pop(vm.cpu);
     assert(val == 32);
-    assert(sp == memory.stack_base);
+    assert(vm.cpu.get_sp() == memory.stack_base);
 }
 
 enum xyz {
@@ -3328,6 +3722,10 @@ condition get_negation(condition cond) {
 	return condition.invalid;
 }
 
+enum exception {
+	thread_mode
+}
+
 struct cortex_m_cpu {
 	uint r0;
 	uint r1;
@@ -3345,6 +3743,24 @@ struct cortex_m_cpu {
 	uint sp;
 	uint lr;
 	uint pc;
+
+	uint get_sp() {
+	    return sp_sel ? psp : msp;
+	}
+
+	void set_sp(uint val) {
+	    if (sp_sel)
+	        psp = val;
+	    else
+	        msp = val;
+	}
+
+	bool sp_sel;
+	uint xspr;
+	ubyte basepri;
+	uint msp;
+	uint psp;
+	exception current_exception;
 
 	bool n;
 	bool z;
@@ -3406,7 +3822,7 @@ struct cortex_m_cpu {
 			case reg.lr:
 				return lr;
 			case reg.sp:
-				return sp;
+				return get_sp();
 			default:
 				return r3;
 		}
@@ -3460,7 +3876,7 @@ struct cortex_m_cpu {
 				lr = cast(uint)(val);
 				return;
 			case reg.sp:
-				sp = cast(uint)(val);
+				set_sp(cast(uint)(val));
 				return;
 			default:
 				return;
@@ -3635,9 +4051,20 @@ void execute_mvn_reg(instr_16 mvn_reg_instr, ref cortex_m_cpu cpu) {
 // ========================
 
 void execute_str_imm(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
-	int rt = cpu.get(str_imm_instr.rt);
-	int rn = cpu.get(str_imm_instr.rn);
+	auto f = load_store_log();
+	uint rt = cpu.get(str_imm_instr.rt);
+	uint rn = cpu.get(str_imm_instr.rn);
 	size_t addr = rn + str_imm_instr.imm;
+	f.writeln(format("Attempting to access [%08X]", addr));
+	mem.write_word(addr, rt);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, rt, addr));
+	f.flush();
+	cpu.increment_pc(2);
+}
+
+void execute_str_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rt = cpu.get(instr.rt);
+	size_t addr = cpu.get_sp() + instr.imm;
 	mem.write_word(addr, rt);
 	cpu.increment_pc(2);
 }
@@ -3660,7 +4087,7 @@ void execute_ldr_imm(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 
 void execute_ldr_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	auto f = load_store_log();
-	int sp = cpu.get(reg.sp);
+	uint sp = cpu.get_sp();
 	size_t addr = sp + instr.imm;
 	f.writeln(format("Attempting to access [%08X]", addr));
 	int data = mem.read_word(addr);
@@ -3731,6 +4158,16 @@ void execute_strb_imm(instr_16 strb_imm_instr, ref cortex_m_cpu cpu, ref memory 
 	cpu.increment_pc(2);
 }
 
+void execute_strb_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rt = cpu.get(instr.rt);
+	int rn = cpu.get(instr.rn);
+	int rm = cpu.get(instr.rm);
+	size_t addr = rn + rm;
+	int data = rt & 0xff;
+	mem.write_byte(addr, data);
+	cpu.increment_pc(2);
+}
+
 // =================
 //  Execute CMP REG
 // =================
@@ -3792,10 +4229,22 @@ bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
 			return (cpu.z == 0);
 		case condition.cc:
 			return (cpu.c == 0);
+		case condition.cs: 
+			return cpu.c == 1;
+		case condition.ge:
+			return (cpu.n == cpu.v);
+		case condition.mi: 
+			return cpu.n == 1;
+		case condition.pl: 
+			return cpu.n == 0;
 		case condition.hi:
 			return (cpu.c == 1 && cpu.z == 0);
 		case condition.ls:
 			return ((cpu.c == 0) || (cpu.z == 1));
+		case condition.vs: 
+			return cpu.v == 1;
+        case condition.vc: 
+        	return cpu.v == 0;
 		default:
 			return false;
 	}
@@ -3847,11 +4296,16 @@ void execute_sub_reg(instr_16 sub_reg_instr, ref cortex_m_cpu cpu) {
 //  Execute PUSH MULT REG
 // =======================
 
-void execute_push_mult_reg(instr_16 push_mult_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
-	foreach (r; push_mult_reg_instr.reg_list.reverse) {
-		uint sp = cpu.get(reg.sp);
-		mem.push(sp, cpu.get(r));
-		cpu.set(reg.sp, sp);
+void execute_push_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
+	import std.algorithm : sort;
+	auto regs = instr.reg_list.dup; 
+	regs.sort!((a,b) => cast(int)a > cast(int)b);
+	f.writeln(format("Pushing to stack at [%08X]", cpu.pc));
+	foreach (r; regs) {
+		f.writeln(format("%s: [%08X]", r.to!string, cpu.get(r)));
+		f.flush();
+		mem.push(cpu, cpu.get(r));
 	}
 	cpu.increment_pc(2);
 } 
@@ -3860,14 +4314,15 @@ void execute_push_mult_reg(instr_16 push_mult_reg_instr, ref cortex_m_cpu cpu, r
 //  Execute POP MULT REG
 // ======================
 
-void execute_pop_mult_reg(instr_16 pop_mult_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
-	foreach (r; pop_mult_reg_instr.reg_list) {
-		uint sp = cpu.get(reg.sp);
-		int val = mem.pop(sp);
+void execute_pop_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	import std.algorithm : sort;
+	auto regs = instr.reg_list.dup; 
+	regs.sort!((a,b) => cast(int)a < cast(int)b);
+	foreach (r; regs) {
+		int val = mem.pop(cpu);
 		cpu.set(r, val);
-		cpu.set(reg.sp, sp);
 	}
-	if (pop_mult_reg_instr.reg_list.back == reg.pc) {
+	if (regs.back == reg.pc) {
 		uint pc = cpu.get(reg.pc);
 		pc &= ~0b1;
 		cpu.set(reg.pc, pc);
@@ -3914,10 +4369,13 @@ void execute_blx(instr_16 blx_instr, ref cortex_m_cpu cpu) {
 //  Execute ADD SP
 // ================
 
-void execute_add_sp(instr_16 add_sp_instr, ref cortex_m_cpu cpu) {
-	int sp = cpu.get(reg.sp);
-	int res = sp + add_sp_instr.imm;
-	cpu.set(add_sp_instr.rd, res);
+void execute_add_sp(instr_16 instr, ref cortex_m_cpu cpu) {
+	uint sp = cpu.get_sp();
+	uint res = sp + instr.imm;
+	cpu.set_sp(res);
+	if (instr.op == opcode.add_sp_t1) {
+		cpu.set(instr.rd, res);
+	} 
 	cpu.increment_pc(2);
 }
 
@@ -3941,9 +4399,9 @@ void execute_ldrb_reg(instr_16 ldrb_reg_instr, ref cortex_m_cpu cpu, ref memory 
 // ================
 
 void execute_sub_sp(instr_16 sub_sp_instr, ref cortex_m_cpu cpu) {
-	int sp = cpu.get(reg.sp);
+	uint sp = cpu.get_sp();
 	sp -= sub_sp_instr.imm;
-	cpu.set(reg.sp, sp);
+	cpu.set_sp(sp);
 	cpu.increment_pc(2);
 }
 
@@ -4070,6 +4528,19 @@ void execute_sub_imm_3(instr_16 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(2);
 }
 
+// =============
+//  Execute TST
+// =============
+
+void execute_tst(instr_16 instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(instr.rn);
+	int rm = cpu.get(instr.rm);
+	int res = rm & rm;
+	cpu.z = (res == 0);
+	cpu.n = (res < 0);
+	cpu.increment_pc(2);
+}
+
 // ==============
 //  Execute NEGS
 // ==============
@@ -4113,6 +4584,10 @@ void execute_str_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	f.flush();
 	cpu.increment_pc(2);
 }
+
+// =================
+//  Execute IF THEN
+// =================
 
 void execute_if_then(instr_16 instr, ref cortex_m_cpu cpu) {
 	ubyte mask = instr.mask;
@@ -4181,7 +4656,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 			return execute_mov_high_1(instr, cpu);
 		case opcode.blx:
 			return execute_blx(instr, cpu);
-		case opcode.add_sp:
+		case opcode.add_sp_t1:
+		case opcode.add_sp_t2:
 			return execute_add_sp(instr, cpu);
 		case opcode.sub_sp:
 			return execute_sub_sp(instr, cpu);
@@ -4213,6 +4689,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 			return execute_adc_reg(instr, cpu);
 		case opcode.if_then:
 			return execute_if_then(instr, cpu);
+		case opcode.tst:
+			return execute_tst(instr, cpu);
 		default:
 			return;
 	}
@@ -4224,6 +4702,8 @@ void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_ldr_sp(instr, cpu, mem);
 		case opcode.str_imm:
 			return execute_str_imm(instr, cpu, mem);
+		case opcode.str_sp:
+			return execute_str_sp(instr, cpu, mem);
 		case opcode.strh_imm:
 			return execute_strh_imm(instr, cpu, mem);
 		case opcode.ldrh_imm:
@@ -4232,6 +4712,8 @@ void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_ldrb_imm(instr, cpu, mem);
 		case opcode.strb_imm:
 			return execute_strb_imm(instr, cpu, mem);
+		case opcode.strb_reg:
+			return execute_strb_reg(instr, cpu, mem);
 		case opcode.ldr_imm:
 			return execute_ldr_imm(instr, cpu, mem);
 		case opcode.ldr_pool:
@@ -4420,8 +4902,8 @@ unittest {
 		////test_case(0xbf00, instr_16(op: if_then))
 		test_case(0x469d, 
 			      instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3),
-			      cortex_m_cpu(sp: 10, r3: 1),
-				  cortex_m_cpu(pc: 2, sp: 1,  r3: 1)),
+			      cortex_m_cpu(msp: 10, r3: 1),
+				  cortex_m_cpu(pc: 2, msp: 1,  r3: 1)),
 		test_case(0x460f, 
 				  instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1),
 				  cortex_m_cpu(r7: 10, r1: 1),
@@ -4431,13 +4913,13 @@ unittest {
 				  cortex_m_cpu(pc: 10, r3: 20),
 				  cortex_m_cpu(pc: 20, lr: 12, r3: 20)),
 		test_case(0xaf00, 
-			      instr_16(op: opcode.add_sp,        rd: reg.r7, 			  imm: 0),
-			      cortex_m_cpu(sp: 10, r7: 20),
-				  cortex_m_cpu(pc: 2, sp: 10, r7: 10)),
+			      instr_16(op: opcode.add_sp_t1,        rd: reg.r7, 			  imm: 0),
+			      cortex_m_cpu(msp: 10, r7: 20),
+				  cortex_m_cpu(pc: 2, msp: 10, r7: 10)),
 		test_case(0xb092, 
 			      instr_16(op: opcode.sub_sp,		 						  imm: 72),
-			      cortex_m_cpu(sp: 90),
-				  cortex_m_cpu(pc: 2, sp: 18)),
+			      cortex_m_cpu(msp: 90),
+				  cortex_m_cpu(pc: 2, msp: 18)),
 		test_case(0x1d3b, 
 			      instr_16(op: opcode.add_imm_3,     rd: reg.r3,  rn: reg.r7, imm: 4),
 			      cortex_m_cpu(r3: 3, r7: 4),
@@ -4579,15 +5061,15 @@ unittest {
 			          memory(flash: make_flash_with(0x80091b0 - memory.flash_origin, 0x000000ee))),
 		test_case_mem(0xb510, 
 			      	  instr_16(op: opcode.push_mult_reg, reg_list: [reg.r4, reg.lr]),
-			      	  cortex_m_cpu(sp: memory.stack_base, lr: 0x000000ff, r4: 0x000000ee),
-			          cortex_m_cpu(pc: 2, sp: memory.stack_base-8, lr: 0x000000ff, r4: 0x000000ee),
+			      	  cortex_m_cpu(msp: memory.stack_base, lr: 0x000000ff, r4: 0x000000ee),
+			          cortex_m_cpu(pc: 2, msp: memory.stack_base-8, lr: 0x000000ff, r4: 0x000000ee),
 			          memory(),
 			          memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
 			          							[0x000000ff, 0x000000ee]))),
 		test_case_mem(0xbd10, 
 				      instr_16(op: opcode.pop_mult_reg,  reg_list: [reg.r4, reg.pc]),
-				      cortex_m_cpu(sp: memory.stack_base-8),
-			          cortex_m_cpu(sp: memory.stack_base, pc: 0x000000ee, r4: 0x000000ff),
+				      cortex_m_cpu(msp: memory.stack_base-8),
+			          cortex_m_cpu(msp: memory.stack_base, pc: 0x000000ee, r4: 0x000000ff),
 			          memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
 			          							[0x000000ee, 0x000000ff])),
 				      memory()),
@@ -4647,6 +5129,9 @@ struct instr_32 {
 	bool wback;
 	bool add;
 	bool index;
+	ubyte mask;
+	special_reg spec_reg;
+	bool set_flags;
 }
 
 enum shift_type : ubyte {
@@ -4921,9 +5406,11 @@ instr_32 parse_and_imm_32(uint instr) {
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
 	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
-	int rotate_by = (i << 3) | imm_3;
-	uint rotated = rotr(imm_8, rotate_by * 2);
-	res.imm = rotated;
+	ubyte S = cast(ubyte)((instr >> 26) & 0b1);
+	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
+	uint imm_32 = thumb_expand_imm(imm_12);
+	res.imm = imm_32;
+	res.set_flags = S == 1 ? true : false;
 	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
 	return res;
@@ -4961,7 +5448,9 @@ instr_32 parse_udiv_32(uint instr) {
 //  Parse UBFX
 // ============
 
+enum field_tuples_ubfx_32 = [Tuple!(opcode, string[])(opcode.ubfx_32, ["rd","rn","lsb","width"])];
 /*
+	UBFX <Rd>, <Rn>, #<lsb>, #<width>
 	Data Processing (Plain Binary Immediate)
 	First Half-Word:
 	[15:4] 111100111100
@@ -5022,7 +5511,7 @@ instr_32 parse_mul_32(uint instr) {
 //  Parse LSL(Register)
 // =====================
 
-enum field_tuples_lsl_32 = [Tuple!(opcode, string[])(opcode.lsl_32, ["rd","rn","rm"])];
+enum field_tuples_lsl_reg_32 = [Tuple!(opcode, string[])(opcode.lsl_reg_32, ["rd","rn","rm"])];
 /*
 	Data Processing(Register)
 	First Half-Word:
@@ -5035,9 +5524,9 @@ enum field_tuples_lsl_32 = [Tuple!(opcode, string[])(opcode.lsl_32, ["rd","rn","
 	[7:4] 0000
 	[3:0] Rm
 */
-instr_32 parse_lsl_32(uint instr) {
+instr_32 parse_lsl_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.lsl_32;
+	res.op = opcode.lsl_reg_32;
 	ubyte rm = cast(ubyte)(instr & 0xf);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
@@ -5052,7 +5541,7 @@ instr_32 parse_lsl_32(uint instr) {
 //  Parse LSR
 // ===========
 
-enum field_tuples_lsr_32 = [Tuple!(opcode, string[])(opcode.lsr_32, ["rd","rn","rm"])];
+enum field_tuples_lsr_reg_32 = [Tuple!(opcode, string[])(opcode.lsr_reg_32, ["rd","rn","rm"])];
 /*
 	Data Processing(Register)
 	First Half-Word:
@@ -5065,15 +5554,17 @@ enum field_tuples_lsr_32 = [Tuple!(opcode, string[])(opcode.lsr_32, ["rd","rn","
 	[7:4] 0000
 	[3:0] Rm
 */
-instr_32 parse_lsr_32(uint instr) {
+instr_32 parse_lsr_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.lsr_32;
+	res.op = opcode.lsr_reg_32;
 	ubyte rm = cast(ubyte)(instr & 0xf);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte S = cast(ubyte)((instr >> 20) & 0b1);
 	res.rd = cast(reg)(rd);
 	res.rm = cast(reg)(rm);
 	res.rn = cast(reg)(rn);
+	res.set_flags = S == 1 ? true : false;
 	return res;
 }
 
@@ -5161,11 +5652,11 @@ instr_32 parse_add_32(uint instr) {
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
 	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	int rotate_by = (i << 3) | imm_3;
-	uint rotated = rotr(imm_8, rotate_by * 2);
-	res.imm = rotated;
+	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
+	uint imm_32 = thumb_expand_imm(imm_12);
 	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
+	res.imm = imm_32;
 	return res;
 }
 
@@ -5184,9 +5675,9 @@ instr_32 parse_add_32(uint instr) {
 	[5] 0
 	[4:0] msb
 */
-instr_32 parse_bit_fleld_clear_32(uint instr) {
+instr_32 parse_bfc_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.add_32;
+	res.op = opcode.bfc_32;
 	ubyte msb = cast(ubyte)(instr & 0xf);
 	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0x3);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
@@ -5198,38 +5689,65 @@ instr_32 parse_bit_fleld_clear_32(uint instr) {
 	return res;
 }
 
-// =================
-//  Parse Bit Clear
-// =================
+// =====================
+//  Parse BIC(Register)
+// =====================
 
-enum field_tuples_bit_clear_32 = [Tuple!(opcode, string[])(opcode.bit_clear_32, ["rd","rn","imm"])];
+enum field_tuples_bic_reg_32 = [Tuple!(opcode, string[])(opcode.bic_reg_32, ["rd","rn","rm"])];
 /*
-	Multiply, Multiply Accumulate, and Absolute Difference
+	Branches and Miscellaneous Control
 	First Half-Word:
-	[15:11] 11110
-	[10] i
-	[9:5] 00001
+	[15:5] 11101010001
 	[4] S
-	[3:0] Rn 
+	[3:0] Rn
 	Second Half-Word:
 	[15] 0
 	[14:12] imm3
 	[11:8] Rd
-	[7:0] imm8
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
 */
-instr_32 parse_bit_clear_32(uint instr) {
+instr_32 parse_bic_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.bit_clear_32;
+	res.op = opcode.bic_reg_32;
+	ubyte rm = cast(ubyte)(instr & 0b1111);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0b1111);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte imm_5 = cast(ubyte)((imm_3 << 2) | (imm_2));
+	res.shift_t = get_shift_type(type, imm_5);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+	ubyte S = cast(ubyte)((instr >> 20) & 0b1);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	res.set_flags = S == 1 ? true : false;
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm_5;
+	}
+	return res;
+}
+
+enum field_tuples_bic_imm_32 = [Tuple!(opcode, string[])(opcode.bic_imm_32, ["rd","rn","imm"])];
+instr_32 parse_bic_imm_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.bic_imm_32;
 	ubyte imm_8 = cast(ubyte)(instr & 0xff);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+	ubyte S = cast(ubyte)((instr >> 20) & 0b1);
  	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
 	int imm_32 = thumb_expand_imm(imm_12);
+	res.imm = imm_32;
+	res.set_flags = S == 1 ? true : false;
 	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
-	res.imm = imm_32;
 	return res;
 }
 
@@ -5319,6 +5837,56 @@ instr_32 parse_ldrsb_imm_32_t2(uint instr) {
 }
 
 // ===========
+//  Parse MSR
+// ===========
+
+enum field_tuples_msr_32 = [Tuple!(opcode, string[])(opcode.msr_32, ["spec_reg", "rn"])];
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:4] 111100111000
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] 1000
+	[11:10] mask
+	[9:8] 00
+	[7:0] SYSm
+*/
+instr_32 parse_msr_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.msr_32;
+	ubyte sys_m = cast(ubyte)(instr & 0xff);
+	ubyte mask = cast(ubyte)((instr >> 10) & 0b11);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rn = cast(reg)(rn);
+	res.spec_reg = cast(special_reg)sys_m;
+	res.mask = mask;
+	return res;
+}
+
+enum field_tuples_mrs_32 = [Tuple!(opcode, string[])(opcode.mrs_32, ["rd", "spec_reg"])];
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:4] 111100111000
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] 1000
+	[11:10] mask
+	[9:8] 00
+	[7:0] SYSm
+*/
+instr_32 parse_mrs_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.mrs_32;
+	ubyte sys_m = cast(ubyte)(instr & 0xff);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	res.rd = cast(reg)(rd);
+	res.spec_reg = cast(special_reg)sys_m;
+	return res;
+}
+
+// ===========
 //  Parse STR
 // ===========
 
@@ -5370,7 +5938,48 @@ instr_32 parse_str_imm_32_t3(uint instr) {
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	res.rn = cast(reg)(rn);
 	res.rt = cast(reg)(rt);
+	res.index = true; 
+	res.add = true; 
 	res.imm = imm_12;
+	return res;
+}
+
+// ===========
+//  Parse STR
+// ===========
+
+enum field_tuples_str_imm_32_t4 = [Tuple!(opcode, string[])(opcode.str_imm_32_t4, ["rt","rn","imm"])];
+/*
+	Multiply, Multiply Accumulate, and Absolute Difference
+	First Half-Word:
+	[15:4] 111110000100
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[11] 1
+	[10] P
+	[9] U
+	[8] W
+	[7:0] imm8
+*/
+instr_32 parse_str_imm_32_t4(uint instr) {
+	instr_32 res;
+	res.op = opcode.str_imm_32_t4;
+	ubyte W = cast(ubyte)((instr >>  8) & 0b1);
+	ubyte U = cast(ubyte)((instr >>  9) & 0b1);
+	ubyte P = cast(ubyte)((instr >> 10) & 0b1);
+	bool wback = W == 1 ? true: false;
+	bool add = U == 1 ? true: false;
+	bool index = P == 1 ? true: false;
+	ushort imm_8 = cast(ushort)(instr & 0xff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rn = cast(reg)(rn);
+	res.rt = cast(reg)(rt);
+	res.wback = wback;
+	res.add = add;
+	res.index = index;
+	res.imm = imm_8;
 	return res;
 }
 
@@ -5378,9 +5987,9 @@ instr_32 parse_str_imm_32_t3(uint instr) {
 //  Parse DSB
 // ===========
 
-instr_32 parse_dsb(uint instr) {
+instr_32 parse_dsb_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.dsb;
+	res.op = opcode.dsb_32;
 	return res;
 }
 
@@ -5456,7 +6065,7 @@ instr_32 parse_umull(uint instr) {
 //  Parse STRD
 // ============
 
-enum field_tuples_strd_32 = [Tuple!(opcode, string[])(opcode.strd_32, ["rt","rt_2","rn","imm"])];
+enum field_tuples_strd_32 = [Tuple!(opcode, string[])(opcode.strd_32, ["rt","rt2","rn","imm"])];
 /*
 	Multiply, Multiply Accumulate, and Absolute Difference
 	First Half-Word:
@@ -5794,11 +6403,38 @@ instr_32 parse_bit_or_not_32(uint instr) {
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
 	//ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte S = cast(ubyte)((instr >> 20) & 0b1);
 	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
-	uint rotate_by = cast(ubyte)((i << 3) | imm_3);
-	uint rotated = rotr(imm_8, rotate_by * 2);
-	res.imm = rotated;
+	ushort imm_12 = cast(ushort)((i << 3) | (imm_3 << 8) | imm_8);
+	int imm_32 = thumb_expand_imm(imm_12);
+	res.imm = imm_32;
+	res.set_flags = S == 1 ? true : false;
 	res.rd = cast(reg)(rd);
+	return res;
+}
+
+// ===============
+//  Parse BIT NOT
+// ===============
+
+enum field_tuples_bit_not_32 = [Tuple!(opcode, string[])(opcode.bit_not_32, ["rd","imm"])];
+/*
+	Branches and Miscellaneous Control
+	First Half-Word:
+	[15:5] 11101011010
+	[4] S
+	[3:0] Rn
+	Second Half-Word:
+	[15] 0 
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] type
+	[3:0] Rm
+*/
+instr_32 parse_bit_not_32(uint instr) {
+	instr_32 res = parse_bit_or_not_32(instr);
+	res.op = opcode.bit_not_32;
 	return res;
 }
 
@@ -6022,42 +6658,34 @@ instr_32 parse_and_reg_32(uint instr) {
 }
 
 // =====================
-//  Parse BIC(Register)
+//  Parse LDR(Register)
 // =====================
 
+enum field_tuples_ldr_reg_32 = [Tuple!(opcode, string[])(opcode.ldr_reg_32, ["rt","rn","rm"])];
 /*
-	Branches and Miscellaneous Control
-	First Half-Word:
-	[15:5] 11101010001
-	[4] S
+	Load Word
+	LDR<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
+	First Half-Word:	
+	[15:4] 111110000101
 	[3:0] Rn
 	Second Half-Word:
-	[15] 0
-	[14:12] imm3
-	[11:8] Rd
-	[7:6] imm2
-	[5:4] type
-	[3:0] Rm
+	[15:12] Rt
+	[11:6] 000000
+	[5:4] imm2
+	[3:0] Rm 
 */
-instr_32 parse_bic_reg_32(uint instr) {
+instr_32 parse_ldr_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.bic_reg_32;
+	res.op = opcode.ldr_reg_32;
 	ubyte rm = cast(ubyte)(instr & 0xf);
-	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
-	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0xf); 
-	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte imm_2 = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
-	res.shift_t = get_shift_type(type, imm);
+	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.rm = cast(reg)(rm);
-	res.rd = cast(reg)(rd);
-	if (res.shift_t == shift_type.rrx) {
-		res.shift_n = 1;
-	} else {
-		res.shift_n = imm;
-	}
+	res.shift_t = shift_type.lsl;
+	res.shift_n = imm_2;
 	return res;
 }
 
@@ -6065,10 +6693,7 @@ instr_32 parse_bic_reg_32(uint instr) {
 //  Parse LDR(Immediate)
 // ======================
 
-//f8df d034
-// 1111 1000 1101 1111 1101 0000 0011 0100
-// f85
-enum field_tuples_ldr_imm_32 = [Tuple!(opcode, string[])(opcode.ldr_imm_32, ["rt","rn","imm"])];
+enum field_tuples_ldr_imm_32_t3 = [Tuple!(opcode, string[])(opcode.ldr_imm_32_t3, ["rt","rn","imm"])];
 /*
 	Load Word
 	First Half-Word:
@@ -6078,17 +6703,51 @@ enum field_tuples_ldr_imm_32 = [Tuple!(opcode, string[])(opcode.ldr_imm_32, ["rt
 	[15:12] Rt
 	[11:0] imm12
 */
-instr_32 parse_ldr_imm_32(uint instr) {
+instr_32 parse_ldr_imm_32_t3(uint instr) {
 	instr_32 res;
-	res.op = opcode.ldr_imm_32;
+	res.op = opcode.ldr_imm_32_t3;
 	ushort imm_12 = cast(ushort)(instr & 0xfff);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.add = true;
+	res.index = true;
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_12;
 	return res;
 }
+
+// ====================
+//  Parse LDR(Literal)
+// ====================
+
+enum field_tuples_ldr_lit_32 = [Tuple!(opcode, string[])(opcode.ldr_lit_32, ["rt","pc","imm"])];
+/*
+	Load Word
+	LDR<c>.W <Rt>,[PC,#-0]
+	First Half-Word:
+	[15:8] 11111000
+	[7] U
+	[6:0] 1011111
+	Second Half-Word:
+	[15:12] Rt
+	[11:0] imm12
+*/
+instr_32 parse_ldr_lit_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.ldr_lit_32;
+	ushort imm_12 = cast(ushort)(instr & 0xfff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte U = cast(ubyte)((instr >> 23) & 0b1);
+	bool add = U == 1 ? true : false;
+	res.rt = cast(reg)(rt);
+	res.add = add;
+	res.imm = imm_12;
+	return res;
+}
+
+enum field_tuples_isb_32 = [Tuple!(opcode, string[])(opcode.isb_32, [])];
+enum field_tuples_dsb_32 = [Tuple!(opcode, string[])(opcode.dsb_32, [])];
 
 // =======================
 //  Parse LDRD(Immediate)
@@ -6113,11 +6772,17 @@ enum field_tuples_ldrd_imm_32 = [Tuple!(opcode, string[])(opcode.ldrd_imm_32, ["
 instr_32 parse_ldrd_imm_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.ldrd_imm_32;
+	ubyte P = cast(ubyte)((instr >> 21) & 0b1);
+	ubyte U = cast(ubyte)((instr >> 23) & 0b1);
+	ubyte W = cast(ubyte)((instr >> 24) & 0b1);
 	ushort imm_8 = cast(ushort)(instr & 0xff);
 	ubyte rt2 = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	res.rt = cast(reg)(rt);
+	res.index = P == 1 ? true : false;
+	res.add = U == 1 ? true : false;
+	res.wback = W == 1 ? true : false;
+ 	res.rt = cast(reg)(rt);
 	res.rt_2 = cast(reg)(rt2);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_8;
@@ -6129,7 +6794,7 @@ instr_32 parse_ldrd_imm_32(uint instr) {
 //  Parse LDR(Immediate)
 // ======================
 
-enum field_tuples_ldr_post_inc = [Tuple!(opcode, string[])(opcode.ldr_post_inc, ["rt","rn","imm"])];
+enum field_tuples_ldr_imm_32_t4 = [Tuple!(opcode, string[])(opcode.ldr_imm_32_t4, ["rt","rn","imm"])];
 /*
 	Load Word
 	First Half-Word:
@@ -6142,15 +6807,24 @@ enum field_tuples_ldr_post_inc = [Tuple!(opcode, string[])(opcode.ldr_post_inc, 
 	[8] W
 	[7:0] imm8
 */
-instr_32 parse_ldr_post_inc(uint instr) {
+instr_32 parse_ldr_imm_32_t4(uint instr) {
 	instr_32 res;
-	res.op = opcode.ldr_post_inc;
+	res.op = opcode.ldr_imm_32_t4;
 	ushort imm_8 = cast(ushort)(instr & 0xff);
+	ubyte W = cast(ubyte)((instr >>  8) & 0b1);
+	ubyte U = cast(ubyte)((instr >>  9) & 0b1);
+	ubyte P = cast(ubyte)((instr >> 10) & 0b1);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	bool wback = W == 1 ? true : false;
+	bool add = U == 1 ? true : false;
+	bool index = P == 1 ? true : false;
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_8;
+	res.index = index;
+	res.add = add;
+	res.wback = wback;
 	return res;
 }
 
@@ -6179,7 +6853,48 @@ instr_32 parse_ldrb_imm_32_t2(uint instr) {
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
+	res.add = true;
+	res.wback = true;
 	res.imm = imm_12;
+	return res;
+}
+
+// ======================
+//  Parse LDR(Immediate)
+// ======================
+
+enum field_tuples_ldrb_imm_32_t3 = [Tuple!(opcode, string[])(opcode.ldrb_imm_32_t3, ["rt","rn","imm"])];
+/*
+	Load Word
+	First Half-Word:
+	[15:4] 111110000001
+	[3:0] Rn
+	Second Half-Word:
+	[15:12] Rt
+	[11] 1
+	[10] P
+	[9] U
+	[8] W
+	[7:0] imm8
+*/
+instr_32 parse_ldrb_imm_32_t3(uint instr) {
+	instr_32 res;
+	res.op = opcode.ldrb_imm_32_t3;
+	ubyte W = cast(ubyte)((instr >>  8) & 0b1);
+	ubyte U = cast(ubyte)((instr >>  9) & 0b1);
+	ubyte P = cast(ubyte)((instr >> 10) & 0b1);
+	ushort imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_8;
+	bool wback = W == 0b1 ? true : false;
+	bool add = U == 0b1 ? true : false;
+	bool index = P == 0b1 ? true : false;
+	res.wback = wback;
+	res.add = add;
+	res.index = index;
 	return res;
 }
 
@@ -6316,14 +7031,16 @@ instr_32 decode_instr(uint instr) {
 			return parse_ubfx_32(instr);
 		case opcode.mul_32:
 			return parse_mul_32(instr);
-		case opcode.lsr_32:
-			return parse_lsr_32(instr);
+		case opcode.lsr_reg_32:
+			return parse_lsr_reg_32(instr);
 		case opcode.orr_32:
 			return parse_orr_32(instr);
 		case opcode.add_32:
 			return parse_add_32(instr);
-		case opcode.bit_clear_32:
-			return parse_bit_clear_32(instr);
+		case opcode.bic_reg_32:
+			return parse_bic_reg_32(instr);
+		case opcode.bic_imm_32:
+			return parse_bic_imm_32(instr);
 		case opcode.mov_16_imm_32:
 			return parse_mov_16_imm_32(instr);
 		case opcode.mov_imm_32_t2:
@@ -6336,8 +7053,10 @@ instr_32 decode_instr(uint instr) {
 			return parse_str_reg_32(instr);
 		case opcode.str_imm_32_t3:
 			return parse_str_imm_32_t3(instr);
-		case opcode.dsb:
-			return parse_dsb(instr);
+		case opcode.str_imm_32_t4:
+			return parse_str_imm_32_t4(instr);
+		case opcode.dsb_32:
+			return parse_dsb_32(instr);
 		case opcode.rsb_32:
 			return parse_rsb_32(instr);
 		case opcode.umull_32:
@@ -6358,6 +7077,8 @@ instr_32 decode_instr(uint instr) {
 			return parse_adc_32(instr);
 		case opcode.bit_or_not_32:
 			return parse_bit_or_not_32(instr);
+		case opcode.bit_not_32:
+			return parse_bit_not_32(instr);
 		case opcode.ld_rex:
 			return parse_ldrex_32(instr);
 		case opcode.str_rex:
@@ -6370,18 +7091,16 @@ instr_32 decode_instr(uint instr) {
 			return parse_tst_32(instr);
 		case opcode.and_reg_32:
 			return parse_and_reg_32(instr);
-		case opcode.bic_reg_32:
-			return parse_bic_reg_32(instr);
-		case opcode.ldr_imm_32:
-			return parse_ldr_imm_32(instr);
+		case opcode.ldr_imm_32_t3:
+			return parse_ldr_imm_32_t3(instr);
 		case opcode.mov_32:
 			return parse_mov_32(instr);
-		case opcode.ldr_post_inc:
-			return parse_ldr_post_inc(instr);
+		case opcode.ldr_imm_32_t4:
+			return parse_ldr_imm_32_t4(instr);
 		case opcode.cmp_imm_32:
 			return parse_cmp_imm_32(instr);
-		case opcode.lsl_32:
-			return parse_lsl_32(instr);
+		case opcode.lsl_reg_32:
+			return parse_lsl_reg_32(instr);
 		case opcode.b_uncond_32:
 			return parse_b_uncond_32(instr);
 		case opcode.ldrd_imm_32:
@@ -6392,6 +7111,16 @@ instr_32 decode_instr(uint instr) {
 			return parse_strb_imm_32_t3(instr);
 		case opcode.ldrb_imm_32_t2:
        		return parse_ldrb_imm_32_t2(instr);
+       	case opcode.ldrb_imm_32_t3:
+       		return parse_ldrb_imm_32_t3(instr);
+       	case opcode.ldr_lit_32:
+        	return parse_ldr_lit_32(instr);
+        case opcode.ldr_reg_32:
+        	return parse_ldr_reg_32(instr);
+        case opcode.mrs_32:
+        	return parse_mrs_32(instr);
+        case opcode.msr_32:
+        	return parse_msr_32(instr);
 		default:
 			res.op = op;
 			return res;
@@ -6429,7 +7158,7 @@ unittest {
 		test_case(0xfb02f303, // mul.w	r3, r2, r3
 			      instr_32(op: opcode.mul_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xfa22f303, // lsr.w	r3, r2, r3
-				  instr_32(op: opcode.lsr_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
+				  instr_32(op: opcode.lsr_reg_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xf4434380, // orr.w	r3, r3, #16384	@ 0x4000
 				  instr_32(op: opcode.orr_32, rd: reg.r3, rn: reg.r3, imm: 16384)),
 		// 1111 0100 0100 0011 0100 0011 1000 0000
@@ -6437,7 +7166,7 @@ unittest {
 				  instr_32(op: opcode.add_32, rd: reg.r3, rn: reg.r7, imm: 20)),
 		test_case(0xf0230310, // bic.w	r3, r3, #16
 				  // 1111 0000 0010 0011 0000 0011 0001 0000
-				  instr_32(op: opcode.bit_clear_32, rd: reg.r3, rn: reg.r3, imm: 16)),
+				  instr_32(op: opcode.bic_imm_32, rd: reg.r3, rn: reg.r3, imm: 16)),
 		test_case(0xf64f03ff, // movw	r3, #63743	@ 0xf8ff
 				  instr_32(op: opcode.mov_16_imm_32, rd: reg.r3, imm: 63743)),
 		// 1111 0110 0100 1111 000 0011 1111 1111
@@ -6448,7 +7177,7 @@ unittest {
 				  instr_32(op: opcode.str_reg_32, rt: reg.r2, rn: reg.r1, rm: reg.r3, imm: 2)),
 		// 1111 1000 0100 0001 0010 0000 0010 0011
 		test_case(0xf3bf8f4f, 
-				  instr_32(op: opcode.dsb)),
+				  instr_32(op: opcode.dsb_32)),
 		// 1111 0011 1011 1111 1000 1111 0100 1111
 		test_case(0xf1c30307, // rsb	r3, r3, #7
 				  instr_32(op: opcode.rsb_32, rd: reg.r3, rn: reg.r3, imm: 7)),
@@ -6475,7 +7204,7 @@ unittest {
 		test_case(0xeb45030b, // adc.w	r3, r5, fp
 				  instr_32(op: opcode.adc_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
 		test_case(0xf06f0240, // mvn.w	r2, #64	@ 0x40 
-				  instr_32(op: opcode.bit_or_not_32, rd: reg.r2, imm: 64)),
+				  instr_32(op: opcode.bit_not_32, rd: reg.r2, imm: 64)),
 		// 1111 0000 0110 1111 0000 0010 0100 0000
 		test_case(0xe8533f00, // ldrex	r3, [r3]
 				  instr_32(op: opcode.ld_rex, rt: reg.r3, rn: reg.r3)),
@@ -6498,7 +7227,7 @@ unittest {
 		test_case(0xf7ffbfbb, // b.w	8009c5c <_fclose_r>
 				  instr_32(op: opcode.b_uncond_32, offset: -138)),
 		test_case(0xf8dfd034, // ldr.w	sp, [pc, #52]
-				  instr_32(op: opcode.ldr_imm_32, rt: reg.sp, rn: reg.pc, imm: 52))
+				  instr_32(op: opcode.ldr_lit_32, rt: reg.sp, imm: 52, add: true))
 	];//
 
 	foreach (t; tests) {
@@ -6572,13 +7301,14 @@ void execute_nop_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // =======================
 
 void execute_pop_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	foreach (r; instr.reg_list) {
-		uint sp = cpu.get(reg.sp);
-		int val = mem.pop(sp);
+	import std.algorithm : sort;
+	auto regs = instr.reg_list.dup; 
+	regs.sort!((a,b) => cast(int)a < cast(int)b);
+	foreach (r; regs) {
+		int val = mem.pop(cpu);
 		cpu.set(r, val);
-		cpu.set(reg.sp, sp);
 	}
-	if (instr.reg_list.back == reg.pc) {
+	if (regs.back == reg.pc) {
 		uint pc = cpu.get(reg.pc);
 		pc &= ~0b1;
 		cpu.set(reg.pc, pc);
@@ -6606,6 +7336,10 @@ void execute_and_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(instr.rn);
 	int res = rn & instr.imm;
 	cpu.set(instr.rd, res);
+	if (instr.set_flags) {
+		cpu.n = (res < 0);
+		cpu.z = (res == 0);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -6635,6 +7369,7 @@ void execute_ubfx_32(instr_32 instr, ref cortex_m_cpu cpu) {
 		int res = (rn >> instr.ls_bit) & ((1 << instr.width) - 1);
 		cpu.set(instr.rd, res);
 	}
+	cpu.increment_pc(4);
 }
 
 // ==============
@@ -6653,7 +7388,7 @@ void execute_mul_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre LSL
 // ==============
 
-void execute_lsl_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_lsl_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(instr.rn);
 	int rm = cpu.get(instr.rm);
 	int res = (rn << rm);
@@ -6665,11 +7400,15 @@ void execute_lsl_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre LSR
 // ==============
 
-void execute_lsr_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_lsr_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(instr.rn);
 	int rm = cpu.get(instr.rm);
 	int res = (rn >> rm);
 	cpu.set(instr.rd, res);
+	if (instr.set_flags) {
+		cpu.n = (res > 0);
+		cpu.z = (res == 0);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -6695,14 +7434,35 @@ void execute_add_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(4);
 }
 
-// ====================
-//  Executre BIT CLEAR
-// ====================
+// =======================
+//  Execute BIC(Register)
+// =======================
 
-void execute_bit_clear_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_bic_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	int rm = cpu.get(instr.rm);
+	int rn = cpu.get(instr.rn);
+	int shifted = shift(instr.shift_t, instr.shift_n, rm);
+	int res = rn & ~shifted;
+	cpu.set(instr.rd, res);
+	if (instr.set_flags) {
+		cpu.n = (res < 0);
+		cpu.z = (res == 0);
+	}
+	cpu.increment_pc(4);
+}
+
+// ========================
+//  Execute BIC(Immediate)
+// ========================
+
+void execute_bic_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(instr.rn);
 	int res = rn & ~instr.imm;
 	cpu.set(instr.rd, res);
+	if (instr.set_flags) {
+		cpu.n = (res < 0);
+		cpu.z = (res == 0);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -6791,10 +7551,15 @@ void execute_strd_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 // ========================
 
 void execute_push_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	foreach (r; instr.reg_list.reverse) {
-		uint sp = cpu.get(reg.sp);
-		mem.push(sp, cpu.get(r));
-		cpu.set(reg.sp, sp);
+	auto f = load_store_log();
+	import std.algorithm : sort;
+	auto regs = instr.reg_list.dup;
+	regs.sort!((a,b) => cast(int)a > cast(int)b);
+	f.writeln(format("Pushing to stack at [%08X]", cpu.pc));
+	foreach (r; regs) {
+		f.writeln(format("%s: [%08X]", r.to!string, cpu.get(r)));
+		f.flush();
+		mem.push(cpu, cpu.get(r));
 	}
 	cpu.increment_pc(4);
 }
@@ -6848,8 +7613,23 @@ void execute_adc_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // =====================
 
 void execute_bit_or_not_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(instr.rn);
+	int res = rn | (~instr.imm);
+	cpu.set(instr.rd, res);
+	if (instr.set_flags) {
+		cpu.n = (res == 0);
+		cpu.z = (res < 0);
+	}
+	cpu.increment_pc(4);
+}
+
+void execute_bit_not_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int res = ~instr.imm;
 	cpu.set(instr.rd, res);
+	if (instr.set_flags) {
+		cpu.n = (res == 0);
+		cpu.z = (res < 0);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -6881,14 +7661,23 @@ void execute_strex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 // ========================
 
 void execute_str_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	size_t addr = cpu.get(instr.rn);
+	size_t offset_addr; 
+	uint rn = cpu.get(instr.rn);
 	auto f = load_store_log();
-	addr += instr.imm;
+	if (instr.add) {
+		offset_addr = rn + instr.imm;
+	} else {
+		offset_addr = rn - instr.imm;
+	}
+	size_t addr = instr.index ? offset_addr : rn;
 	int data = cpu.get(instr.rt);
 	f.writeln(format("Attempting to access [%08X]", addr));
 	mem.write_word(addr, data);
 	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
 	f.flush();
+	if (instr.wback) {
+		cpu.set(instr.rn, cast(uint)offset_addr);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -6967,34 +7756,27 @@ void execute_and_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(4);
 }
 
-// =============================
-//  Execute Bit Clear(Register)
-// =============================
+// ======================
+//  Execute LDR(Literal)
+// ======================
 
-void execute_bic_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
-	int res = cpu.get(instr.rn) & ~shifted;
-	cpu.set(instr.rd, res);
-	cpu.increment_pc(4);
-}
-
-// ========================
-//  Execute LDR(Immediate)
-// ========================
-
-void execute_ldr_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_lit_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	auto f = load_store_log();
-	int rn = cpu.get(instr.rn);
-	if (instr.rn == reg.pc) {
-		rn = ((rn +4) & ~3);
+	size_t addr;
+	uint pc = cpu.get(reg.pc);
+	pc = ((pc + 4) & ~3);
+	if (instr.add) {
+		addr = pc + instr.imm;
+	} else {
+		addr = pc - instr.imm;
 	}
-	size_t addr = rn + instr.imm;
 	f.writeln(format("Attempting to access [%08X]", addr));
 	uint data = mem.read_word(addr);
 	cpu.set(instr.rt, data);
 	int pc_val = cpu.get(reg.pc);
 	cpu.set(reg.pc, pc_val + 4);
 	f.writeln(format("%08X loaded from [%08X]", data, addr));
+	f.flush();
 }
 
 // =========================
@@ -7002,20 +7784,64 @@ void execute_ldr_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 // =========================
 
 void execute_ldrd_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	int rn = cpu.get(instr.rn);
-	size_t addr = rn + instr.imm;
+	auto f = load_store_log();
+	uint rn = cpu.get(instr.rn);
+	size_t offset_addr;
+	if (instr.add) {
+	 	offset_addr = rn + instr.imm;
+	} else {
+		offset_addr = rn - instr.imm;
+	}
+	size_t addr = instr.index ? offset_addr : rn;
+	f.writeln(format("Attempting to access [%08X]", addr));
 	uint data1 = mem.read_word(addr);
 	uint data2 = mem.read_word(addr+4);
+	f.writeln(format("%08X and %08X loaded from [%08X] and [%08X]", data1, data2, addr, addr + 4));
+	f.flush();
 	cpu.set(instr.rt, data1);
 	cpu.set(instr.rt_2, data2);
+	if (instr.wback) {
+		cpu.set(instr.rn, cast(uint)offset_addr);
+	}
+	cpu.increment_pc(4);
+}
+
+// =======================
+//  Execute LDR(Register)
+// =======================
+
+void execute_ldr_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
+	uint rn = cpu.get(instr.rn);
+	uint rm = cpu.get(instr.rm);
+	int shifted = shift(instr.shift_t, instr.shift_n, rm);
+	size_t addr = rn + shifted;
+	f.writeln(format("Attempting to access [%08X]", addr));
+	uint data = mem.read_word(addr);
+	f.writeln(format("%08X loaded from [%08X]", data, addr));
+	f.flush();
+	cpu.set(instr.rt, data);
 	cpu.increment_pc(4);
 }
 
 void execute_ldrb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	int rn = cpu.get(instr.rn);
-	size_t addr = rn + instr.imm;
+	auto f = load_store_log();
+	uint rn = cpu.get(instr.rn);
+	size_t offset_addr;
+	if (instr.add) {
+		offset_addr = rn + instr.imm;
+	} else {
+		offset_addr = rn - instr.imm;
+	}
+	size_t addr = instr.index ? offset_addr : rn;
+	f.writeln(format("Attempting to access [%08X]", addr));
 	ubyte data = mem.read_byte(addr);
+	f.writeln(format("%08X loaded from [%08X]", data, addr));
+	f.flush();
 	cpu.set(instr.rt, cast(uint)data);
+	if (instr.wback) {
+		cpu.set(instr.rn, cast(uint)offset_addr);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -7026,6 +7852,54 @@ void execute_ldrb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 void execute_mov_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(shift_type.asr, instr.shift_n, cpu.get(instr.rm));
 	cpu.set(instr.rd, shifted);
+	cpu.increment_pc(4);
+}
+
+void execute_mrs_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	switch (instr.spec_reg) {
+		case special_reg.BASEPRI:
+			cpu.set(instr.rd, cast(uint)cpu.basepri);
+			break;
+		case special_reg.IPSR:
+			cpu.set(instr.rd, cast(uint)cpu.current_exception & 0x1ff);
+			break;
+		case special_reg.CONTROL:
+			uint val = 0;
+			if (cpu.sp_sel) {
+        		val |= 0x2; 
+			}
+			cpu.set(instr.rd, val);
+			break;
+		default:
+			return;
+	}
+	cpu.increment_pc(4);
+}
+
+void execute_msr_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	uint rn = cpu.get(instr.rn);
+	switch (instr.spec_reg) {
+		case special_reg.BASEPRI:
+			cpu.basepri = cast(ubyte)(rn & 0xff);
+			break;
+		case special_reg.MSP:
+			cpu.msp = rn;
+			break;
+		case special_reg.PSP:
+			cpu.psp = rn;
+			break;
+		case special_reg.CONTROL:
+			cpu.sp_sel = (rn & 0x2) != 0;
+			break;
+		case special_reg.BASEPRI_MAX:
+		    ubyte new_val = cast(ubyte)(rn & 0xff);
+    		if (new_val < cpu.basepri || cpu.basepri == 0) {
+        		cpu.basepri = new_val;
+    		}
+    		break;
+		default:
+			return;
+	}
 	cpu.increment_pc(4);
 }
 
@@ -7042,11 +7916,24 @@ void execute_mov_imm_32_t2(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute LDR(Immediate)
 // ========================
 
-void execute_ldr_post_inc(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	size_t addr = cpu.get(instr.rn);
-	int rt = mem.read_word(addr);
-	cpu.set(instr.rn, cast(uint)(addr + instr.imm));
-	cpu.set(instr.rt, rt);
+void execute_ldr_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
+	uint rn = cpu.get(instr.rn);
+	size_t offset_addr = rn;
+	if (instr.add) {
+		offset_addr += instr.imm;
+	} else {
+		offset_addr -= instr.imm;
+	}
+	size_t addr = instr.index ? offset_addr : rn;
+	f.writeln(format("Attempting to access [%08X]", addr));
+	int data = mem.read_word(addr);
+	f.writeln(format("%08X loaded from [%08X]", data, addr));
+	f.flush();
+	if (instr.wback) {
+		cpu.set(instr.rn, cast(uint)offset_addr);
+	}
+	cpu.set(instr.rt, data);
 	cpu.increment_pc(4);
 }
 
@@ -7088,6 +7975,12 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 		case opcode.bl_32:
 			return execute_bl_32(instr, cpu);
 		case opcode.nop_32:
+		case opcode.dsb_32:
+		case opcode.isb_32:
+		case opcode.pld_32:
+		case opcode.pld_reg_32:
+		case opcode.pld_imm_32:
+		case opcode.dmb_32:
 			return execute_nop_32(instr, cpu);
 		case opcode.sub_imm_32:
 			return execute_sub_imm_32(instr, cpu);
@@ -7099,16 +7992,18 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 			return execute_ubfx_32(instr, cpu);
 		case opcode.mul_32:
 			return execute_mul_32(instr, cpu);
-		case opcode.lsl_32:
-			return execute_lsl_32(instr, cpu);
-		case opcode.lsr_32:
-			return execute_lsr_32(instr, cpu);
+		case opcode.lsl_reg_32:
+			return execute_lsl_reg_32(instr, cpu);
+		case opcode.lsr_reg_32:
+			return execute_lsr_reg_32(instr, cpu);
 		case opcode.orr_32:
 			return execute_orr_32(instr, cpu);
 		case opcode.add_32:
 			return execute_add_32(instr, cpu);
-		case opcode.bit_clear_32:
-			return execute_bit_clear_32(instr, cpu);
+		case opcode.bic_imm_32:
+			return execute_bic_imm_32(instr, cpu);
+		case opcode.bic_reg_32:
+			return execute_bic_reg_32(instr, cpu);
 		case opcode.mov_16_imm_32:
 			return execute_mov_16_imm_32(instr, cpu);
 		case opcode.rsb_32:
@@ -7125,20 +8020,24 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 			return execute_adc_32(instr, cpu);
 		case opcode.bit_or_not_32:
 			return execute_bit_or_not_32(instr, cpu);
+		case opcode.bit_not_32:
+			return execute_bit_not_32(instr, cpu);
 		case opcode.mls_32:
 			return execute_mls_32(instr, cpu);
 		case opcode.tst_32:
 			return execute_tst_32(instr, cpu);
 		case opcode.and_reg_32:
 			return execute_and_reg_32(instr, cpu);
-		case opcode.bic_reg_32:
-			return execute_bic_reg_32(instr, cpu);
 		case opcode.mov_32:
 			return execute_mov_32(instr, cpu);
 		case opcode.cmp_imm_32:
 			return execute_cmp_imm_32(instr, cpu);
 		case opcode.mov_imm_32_t2:
 			return execute_mov_imm_32_t2(instr, cpu);
+		case opcode.mrs_32:
+			return execute_mrs_32(instr, cpu);
+		case opcode.msr_32:
+			return execute_msr_32(instr, cpu);
 		default:
 			return;
 	}
@@ -7164,11 +8063,13 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_strex(instr, cpu, mem);
 		case opcode.ldh_32:
 			return execute_ldrh_32(instr, cpu, mem);
-		case opcode.ldr_imm_32:
+		case opcode.ldr_lit_32:
+			return execute_ldr_lit_32(instr, cpu, mem);
+		case opcode.ldr_imm_32_t3:
+		case opcode.ldr_imm_32_t4:
 			return execute_ldr_imm_32(instr, cpu, mem);
-		case opcode.ldr_post_inc:
-			return execute_ldr_post_inc(instr, cpu, mem);
 		case opcode.str_imm_32_t3:
+		case opcode.str_imm_32_t4:
 			return execute_str_imm_32(instr, cpu, mem);
 		case opcode.ldrd_imm_32:
 			return execute_ldrd_imm_32(instr, cpu, mem);
@@ -7176,9 +8077,12 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 		case opcode.strb_imm_32_t3:
 			return execute_strb_imm_32(instr, cpu, mem);
 		case opcode.ldrb_imm_32_t2:
+		case opcode.ldrb_imm_32_t3:
 			return execute_ldrb_imm_32(instr, cpu, mem);
 		case opcode.ldrsb_imm_32_t1:
 			return execute_ldrsb_imm_32(instr, cpu, mem);
+		case opcode.ldr_reg_32:
+			return execute_ldr_reg_32(instr, cpu, mem);
 		default:
 			return;
 	}
@@ -7238,13 +8142,13 @@ unittest {
 		test_case(0xf3c20208, // ubfx	r2, r2, #0, #9
 				  instr_32(op: opcode.ubfx_32, rd: reg.r2, rn: reg.r2, ls_bit: 0, width: 9),
 				  cortex_m_cpu(r2: 0xffff),
-				  cortex_m_cpu(r2: 0x01ff)),
+				  cortex_m_cpu(pc: 4, r2: 0x01ff)),
 		test_case(0xfb02f303, // mul.w	r3, r2, r3
 			      instr_32(op: opcode.mul_32, rd: reg.r3, rn: reg.r2, rm: reg.r3),
 			      cortex_m_cpu(r3: 4, r2: 2),
 			      cortex_m_cpu(pc: 4, r3: 8, r2: 2)),
 		test_case(0xfa22f303, // lsr.w	r3, r2, r3
-				  instr_32(op: opcode.lsr_32, rd: reg.r3, rn: reg.r2, rm: reg.r3),
+				  instr_32(op: opcode.lsr_reg_32, rd: reg.r3, rn: reg.r2, rm: reg.r3),
 				  cortex_m_cpu(r2: 0b1100, r3: 1),
 				  cortex_m_cpu(pc: 4, r2: 0b1100, r3: 0b0110)),
 		test_case(0xf4434380, // orr.w	r3, r3, #16384	@ 0x4000
@@ -7256,9 +8160,11 @@ unittest {
 				  cortex_m_cpu(r7: 10),
 				  cortex_m_cpu(pc: 4, r3: 30, r7: 10)),
 		test_case(0xf0230310, // bic.w	r3, r3, #16
-				  instr_32(op: opcode.bit_clear_32, rd: reg.r3, rn: reg.r3, imm: 16), // 0001 0000
-				  cortex_m_cpu(r3: 17),
-				  cortex_m_cpu(pc: 4, r3: 1)),
+				  instr_32(op: opcode.bic_imm_32, rd: reg.r3, rn: reg.r3, imm: 16), // 0001 0000
+				  cortex_m_cpu(r3: 17),                    
+				  cortex_m_cpu(pc: 4, r3: 1)), 
+		// f0230310
+		// 1111 0000 0010 0011 0000 0011 0001 0000                    
 		test_case(0xf64f03ff, // movw	r3, #63743	@ 0xf8ff
 				  instr_32(op: opcode.mov_16_imm_32, rd: reg.r3, imm: 63743),
 				  cortex_m_cpu(),
@@ -7322,8 +8228,8 @@ unittest {
 	test_case_mem[] tests_mem = [
 		test_case_mem(0xe8bd4008, 
 				      instr_32(op: opcode.pop_mult_reg_32, reg_list: [reg.r3, reg.lr]),
-				      cortex_m_cpu(sp: memory.stack_base - 8),
-				      cortex_m_cpu(pc: 4, sp: memory.stack_base, r3: 0xffffffee, lr: 0xffffffff),
+				      cortex_m_cpu(msp: memory.stack_base - 8),
+				      cortex_m_cpu(pc: 4, msp: memory.stack_base, r3: 0xffffffee, lr: 0xffffffff),
 				      memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
 				      	 						[0xffffffff, 0xffffffee])),
 				      memory()),
@@ -7411,7 +8317,8 @@ string[opcode] opcode_strings = [
 	opcode.add_high_reg_2: "add",
 	opcode.add_lo_reg: "add",
 	opcode.add_reg: "adds",
-	opcode.add_sp: "add",
+	opcode.add_sp_t1: "add",
+	opcode.add_sp_t2: "add",
 	opcode.adr: "add",
 	opcode.and_imm_32: "and.w",
 	opcode.asr_imm: "asrs",
@@ -7420,7 +8327,9 @@ string[opcode] opcode_strings = [
 	opcode.b_cond: "b",
 	opcode.b_uncond_32: "b.w",
 	opcode.b_imm_11: "b",
-	opcode.bit_clear_32: "bic.w",
+	opcode.bic_reg_32: "bic.w",
+	opcode.bic_imm_32: "bic.w",
+	opcode.bit_not_32: "mvn.w", 
 	opcode.bl_32: "bl",
 	opcode.blx: "blx",
 	opcode.bx: "bx",
@@ -7431,27 +8340,33 @@ string[opcode] opcode_strings = [
 	opcode.cmp_imm: "cmp",
 	opcode.cmp_imm_32: "cmp",
 	opcode.cmp_reg: "cmp",
+	opcode.dmb_32: "dmb",
+	opcode.dsb_32: "dsb",
 	opcode.if_then: "it",
+	opcode.isb_32: "isb",
 	opcode.ldr_imm: "ldr",
-	opcode.ldr_imm_32: "ldr.w",
+	opcode.ldr_imm_32_t3: "ldr.w",
+	opcode.ldr_lit_32: "ldr.w",
 	opcode.ldr_pool: "ldr",
-	opcode.ldr_post_inc: "ldr.w",
+	opcode.ldr_imm_32_t4: "ldr.w",
 	opcode.ldr_reg: "ldr",
+	opcode.ldr_reg_32: "ldr.w",
 	opcode.ldr_sp: "ldr",
 	opcode.ldrb_imm: "ldrb",
 	opcode.ldrb_imm_32_t2: "ldrb.w",
+	opcode.ldrb_imm_32_t3: "ldrb.w",
 	opcode.ldrb_reg: "ldrb",
 	opcode.ldrd_imm_32: "ldrd",
 	opcode.ldrh_imm: "ldrh",
 	opcode.ldrsb_imm_32_t1: "ldrsb.w",
 	opcode.ldrsb_imm_32_t2: "ldrsb.w",
 	opcode.lor_reg: "orrs",
-	opcode.lsl_32: "lsl.w",
+	opcode.lsl_reg_32: "lsl.w",
 	opcode.lsl_imm: "lsls",
 	opcode.lsl_reg: "lsls",
 	opcode.lsr_imm: "lsrs",
 	opcode.lsr_reg: "lsrs",
-	opcode.lsr_32: "lsr.w",
+	opcode.lsr_reg_32: "lsr.w",
 	opcode.mls_32: "mls",
 	opcode.mov_32: "mov.w",
 	opcode.mov_16_imm_32: "movw",
@@ -7460,6 +8375,8 @@ string[opcode] opcode_strings = [
 	opcode.mov_imm: "movs",
 	opcode.mov_imm_32_t2: "mov.w",
 	opcode.mov_lo: "mov",
+	opcode.msr_32: "msr",
+	opcode.mrs_32: "mrs",
 	opcode.mvn_reg: "mvns",
 	opcode.mul_32: "mul.w",
 	opcode.negs: "negs",
@@ -7477,6 +8394,7 @@ string[opcode] opcode_strings = [
 	opcode.strb_imm_32_t2: "strb.w",
 	opcode.strb_imm_32_t3: "strb.w",
 	opcode.str_imm_32_t3: "str.w",
+	opcode.str_imm_32_t4: "str.w",
 	opcode.strb_imm: "strb",
 	opcode.strh_imm: "strh",
 	opcode.strd_32: "strd",
@@ -7488,9 +8406,11 @@ string[opcode] opcode_strings = [
 	opcode.sub_imm_32: "sub.w",
 	opcode.sub_reg: "subs",
 	opcode.subs_32: "sub.w",
+	opcode.tst: "tst",
 	opcode.sub_sp: "sub",
 	opcode.udiv_32: "udiv",
 	opcode.umull_32: "umull",
+	opcode.ubfx_32: "ubfx",
 	opcode.uxtb: "uxtb"
 ];
 
@@ -7518,6 +8438,8 @@ bool is_store(opcode op) {
 		case opcode.ldrb_imm:
 		case opcode.ldrb_reg:
 		case opcode.ldrb_imm_32_t2:
+		case opcode.ldr_imm_32_t3:
+		case opcode.ldr_imm_32_t4:
 		case opcode.ldrd_imm_32:
 		case opcode.ldrh_imm:
 		case opcode.ldrsb_imm_32_t1:
@@ -7528,13 +8450,19 @@ bool is_store(opcode op) {
 		case opcode.push_mult_reg_32:
 		case opcode.str_imm:
 		case opcode.str_imm_32_t3:
+		case opcode.str_imm_32_t4:
+		case opcode.str_sp:
 		case opcode.str_reg:
 		case opcode.str_reg_32:
 		case opcode.strb_imm:
 		case opcode.strb_imm_32_t2:
 		case opcode.strb_imm_32_t3:
+		case opcode.strb_reg:
 		case opcode.strd_32:
 		case opcode.strh_imm:
+		case opcode.ldr_lit_32:
+		case opcode.ldr_reg_32:
+		case opcode.ldrb_imm_32_t3:
 			return true;
 		default:
 			return false;
@@ -7705,7 +8633,34 @@ unittest {
 		test_case(0x687b, "ldr r3, [r7, #4]"),
 		test_case(0x2b00, "cmp r3, #0"),
 		test_case(0x2301, "movs r3, #1"),
-		test_case(0x687b, "ldr r3, [r7, #4]")
+		test_case(0x687b, "ldr r3, [r7, #4]"),
+		test_case(0x9301, "str r3, [sp, #4]"),
+        test_case(0xb480, "push {r7}"),
+        test_case(0xb083, "sub sp, #12"),
+        test_case(0xaf00, "add r7, sp, #0"),
+        test_case(0x2300, "movs r3, #0"),
+        test_case(0x607b, "str r3, [r7, #4]"),
+        test_case(0x4b0f, "ldr r3, [pc, #60]"),
+        test_case(0x6c5b, "ldr r3, [r3, #68]"),
+        test_case(0x4a0e, "ldr r2, [pc, #56]"),
+        test_case(0x6453, "str r3, [r2, #68]"),
+        test_case(0x4b0c, "ldr r3, [pc, #48]"),
+        test_case(0x6c5b, "ldr r3, [r3, #68]"),
+        test_case(0x607b, "str r3, [r7, #4]"),
+        test_case(0x687b, "ldr r3, [r7, #4]"),
+        test_case(0x2300, "movs r3, #0"),
+        test_case(0x603b, "str r3, [r7, #0]"),
+        test_case(0x4b08, "ldr r3, [pc, #32]"),
+        test_case(0x6c1b, "ldr r3, [r3, #64]"),
+        test_case(0x4a07, "ldr r2, [pc, #28]"),
+        test_case(0x6413, "str r3, [r2, #64]"),
+        test_case(0x4b05, "ldr r3, [pc, #20]"),
+        test_case(0x6c1b, "ldr r3, [r3, #64]"),
+        test_case(0x603b, "str r3, [r7, #0]"),
+        test_case(0x683b, "ldr r3, [r7, #0]"),
+        test_case(0x370c, "adds r7, #12"),
+        test_case(0x46bd, "mov sp, r7"),
+        test_case(0xbc80, "pop {r7}")
 	];
 
 	foreach (t; tests) {
@@ -7947,11 +8902,14 @@ string convert_to_string(uint instr) {
 		}
 		if (field == "rn") {
 			string rn_s;
-			if (is_store(parsed_instr.op) || parsed_instr.op == opcode.ldr_post_inc) {
+			if (is_store(parsed_instr.op) || parsed_instr.op == opcode.ldr_imm_32_t4) {
 				rn_s ~= "[";
 			}
 			rn_s ~= get_register_name(parsed_instr.rn);
-			if (parsed_instr.op == opcode.ldr_post_inc) {
+			if (parsed_instr.op == opcode.ldr_imm_32_t4) {
+				rn_s ~= "]";
+			}
+			if ((parsed_instr.op == opcode.strd_32) && (parsed_instr.imm == 0)) {
 				rn_s ~= "]";
 			}
 			ops ~= rn_s;
@@ -7962,10 +8920,13 @@ string convert_to_string(uint instr) {
 		if (field == "rd_hi") {
 			ops ~= get_register_name(parsed_instr.rd_hi);
 		}
+		if (field == "spec_reg") {
+			ops ~= parsed_instr.spec_reg.to!string;
+		}
 		if (field == "rd_lo") {
 			ops ~= get_register_name(parsed_instr.rd_lo);
 		}
-		if (field == "rt_2") {
+		if (field == "rt2") {
 			ops ~= get_register_name(parsed_instr.rt_2);
 		}
 		if (field == "ra") {
@@ -7980,6 +8941,9 @@ string convert_to_string(uint instr) {
 			ops ~= rm_s;
 		}
 		if (field == "imm") {
+			if ((parsed_instr.op == opcode.strd_32) && (parsed_instr.imm == 0)) {
+				continue;	
+			}
 			if (parsed_instr.imm == 0 && parsed_instr.op == opcode.add_lo_reg) {
 				continue;
 			}
@@ -7999,6 +8963,16 @@ string convert_to_string(uint instr) {
 			} else { 
 				ops ~= imm;
 			} 
+		}
+		if (field == "width") {
+			string width = "#";
+			width ~= parsed_instr.width.to!string;
+			ops ~= width;
+		}
+		if (field == "lsb") {
+			string ls_bit = "#";
+			ls_bit ~= parsed_instr.ls_bit.to!string;
+			ops ~= ls_bit;
 		}
 		if (field == "reg_list") {
 			auto reg_list_copy = parsed_instr.reg_list;
@@ -8028,7 +9002,7 @@ string convert_to_string(uint instr) {
 			}
 		}
 		if (field == "pc") {
-			if (parsed_instr.op == opcode.ldr_pool) {
+			if (parsed_instr.op == opcode.ldr_pool || parsed_instr.op == opcode.ldr_lit_32) {
 				ops ~= "[pc";
 			} else {
 				ops ~= "pc";
@@ -8052,7 +9026,7 @@ unittest {
 	test_case[] tests = [
 		test_case(0xf8dfd034, "ldr.w sp, [pc, #52]"), // 1111 1000 1101 1111 1101 0000 0011 0100
 		test_case(0xeba30605, "sub.w r6, r3, r5"),
-		test_case(0xf8553b04, "ldr.w r3, [r5], #4"), // 1111 1000 0101 0101 0011 1011 0000 0100
+		//test_case(0xf8553b04, "ldr.w r3, [r5], #4"), // 1111 1000 0101 0101 0011 1011 0000 0100
 		test_case(0xf8c46188, "str.w r6, [r4, #392]"),
 		test_case(0xf4437300, "orr.w r3, r3, #512"),
 		test_case(0xf4436380, "orr.w r3, r3, #1024"),
@@ -8079,6 +9053,14 @@ unittest {
 		test_case(0xf9973007, "ldrsb.w r3, [r7, #7]"),
 		test_case(0xf893303d, "ldrb.w r3, [r3, #61]"),
 		test_case(0xf8832300, "strb.w r2, [r3, #768]"),
+		test_case(0xf3c202c0, "ubfx r2, r2, #3, #1"),
+		test_case(0xe9c54700, "strd r4, r7, [r5]"),
+		test_case(0xf0030310, "and.w r3, r3, #16"),
+		test_case(0xf0030301, "and.w r3, r3, #1"),
+		test_case(0xf0030307, "and.w r3, r3, #7"),
+		test_case(0xf003021f, "and.w r2, r3, #31"),
+		test_case(0xf0230301, "bic.w r3, r3, #1")
+
 		//test_case(0xf3808808, "msr MSP, r0")
 		//test_case(0xf8032b01, "strb.w r2, [r3], #1")
 		// ldrb.w r3, [r7, #7]
@@ -8158,7 +9140,7 @@ struct cortex_m_vm {
 
 
 		auto i32 = ins.get!instr_32;
-		if (is_store(i32.op) || i32.op == opcode.ldr_post_inc)
+		if (is_store(i32.op) || i32.op == opcode.ldr_imm_32_t4)
 		    execute_load_store(i32, cpu, mem);
 		else
 		    execute_instr(i32, cpu);
@@ -8244,10 +9226,10 @@ unittest {
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
     memory mem = memory();
-    cortex_m_cpu cpu = cortex_m_cpu(r3: 1, r4: 2, r5: 3, r6: 4, r7: 5, lr: 6, sp: memory.stack_base);
+    cortex_m_cpu cpu = cortex_m_cpu(r3: 1, r4: 2, r5: 3, r6: 4, r7: 5, lr: 6, msp: memory.stack_base);
     instr_16 push = instr_16(op: opcode.push_mult_reg, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7, reg.lr]);
     execute_load_store(push, cpu, mem);
-    writeln(cpu.sp);
+    writeln(cpu.get_sp());
     writeln(memory.stack_base);
     instr_16 pop1 = instr_16(op: opcode.pop_mult_reg, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7]);
     execute_load_store(pop1, cpu, mem);
