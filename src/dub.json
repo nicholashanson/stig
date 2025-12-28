@@ -8,6 +8,7 @@
     "targetType": "executable",
     "sourceFiles": [
         "cortex_m.d",
-        "cortex_m_ui.d"
+        "cortex_m_ui.d",
+        "thumb_2_opcodes.d"
     ]
 }
