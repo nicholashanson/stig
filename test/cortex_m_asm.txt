@@ -16322,7 +16322,6 @@ Disassembly of section .text:
 08008f88 <__aeabi_idiv0>:
  8008f88:	4770      	bx	lr
  8008f8a:	bf00      	nop
-	...
 
 08008fc0 <strlen>:
  8008fc0:	b430      	push	{r4, r5}

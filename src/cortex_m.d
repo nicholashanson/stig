@@ -12,6 +12,7 @@ import std.typecons : Tuple;
 import core.exception;
 import std.container;
 import thumb_2_opcodes;
+import memory_sections;
 
 enum special_reg : ubyte {
 	APSR = 			0b00000000,
@@ -164,7 +165,9 @@ string[] freertos_func_names = [
     "xPortStartScheduler",
     "vPortSetupTimerInterrupt",
     "vPortEnableVFP",
-    "prvPortStartFirstTask"
+    "prvPortStartFirstTask",
+    "SVC_Handler",
+    "vTaskSwitchContext"
 ];
 
 string[] zephyr_func_names = [
@@ -457,6 +460,7 @@ enum all_field_tuples =
 	~ field_tuples_sub_sp
 	~ field_tuples_sub_reg
 	~ field_tuples_subs_32
+	~ field_tuples_svc
 	~ field_tuples_tst
 	//~ field_tuples_tst
 	~ field_tuples_udiv_32
@@ -1078,7 +1082,8 @@ unittest {
 	 	test_case(0xfab0f080, opcode.clz_32),
 	 	test_case(0xf1100f16, opcode.cmn_32),
 	 	test_case(0xf8973033, opcode.ldrb_imm_32_t2),
-	 	test_case(0xf8a320f8, opcode.strh_imm_32_t2)
+	 	test_case(0xf8a320f8, opcode.strh_imm_32_t2),
+	 	test_case(0xe8b04ff0, opcode.ldmia)
 	];
 
 	foreach (t; tests) {
@@ -1401,6 +1406,22 @@ instr_16 parse_b_cond(short instr) {
 	int imm_32 = cast(int)s << 1;
 	res.cond = cast(condition)(cond);
 	res.offset = imm_32;
+	return res;
+}
+
+enum field_tuples_svc = [Tuple!(opcode, string[])(opcode.svc, ["imm"])];
+/*
+	Condtional Branch, and Supervisor Call
+	B <label>
+	[15:12] 1101
+	[11:8] cond
+	[7:0] imm8
+*/
+instr_16 parse_svc(short instr) {
+	instr_16 res;
+	res.op = opcode.svc;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	res.imm = imm_8;
 	return res;
 }
 
@@ -2876,106 +2897,6 @@ string get_operands(string line) {
 	return result;
 }
 
-// =================
-//  RAM Mem Section
-// =================
-
-struct ram_mem_section {
-	ubyte[128 * 1024] cells;
-
-    const(ubyte) read_byte(size_t index) const {
-    	index -= ram_origin;
-        return cells[index];
-    }
-
-    const(ushort) read_half_word(size_t index) {
-    	index -= ram_origin;
-    	ushort res = (cells[index + 1] << 8) | cells[index];
-    	return res;
-    }
-
-    const(uint) read_word(size_t index) {
-    	index -= ram_origin;
-    	uint res = (cells[index + 3] << 24) | 
-    	           (cells[index + 2] << 16) | 
-    	           (cells[index + 1] <<  8) | 
-    	            cells[index    ];
-    	return res;
-    }
-
-    void write_byte(size_t index, ubyte val) {
-    	index -= ram_origin;
-    	cells[index] = val;
-    }
-
-    void write_half_word(size_t index, ushort val) {
-    	index -= ram_origin;
-    	cells[index + 1] = (val >> 8) & 0xff;
-    	cells[index] =  val       & 0xff;
-    }
-
-    void write_word(size_t index, uint val) {
-    	index -= ram_origin;
-    	cells[index + 3] = (val >> 24) & 0xff;
-    	cells[index + 2] = (val >> 16) & 0xff;
-    	cells[index + 1] = (val >>  8) & 0xff;
-    	cells[index] =      val        & 0xff;
-    }
-
-    static enum ram_origin = 0x20000000;
-}
-
-__gshared ubyte[1024 * 1024] g_flash;
-
-static this()
-{
-    //flash_mem_section.write_word(0x800a18c + 52,memory.stack_base);
-}
-
-// ===================
-//  Flash Mem Section
-// ===================
-
-struct flash_mem_section {
-    const(ubyte) read_byte(size_t index) const {
-    	index -= flash_origin;
-        return g_flash[index];
-    }
-
-    const(ushort) read_half_word(size_t index) const {
-    	index -= flash_origin;
-    	ushort res = (g_flash[index + 1] << 8) | g_flash[index];
-    	return res;
-    }
-
-    const(uint) read_word(size_t index) const {
-    	index -= flash_origin;
-    	uint res = (g_flash[index + 3] << 24) | 
-    	           (g_flash[index + 2] << 16) | 
-    	           (g_flash[index + 1] <<  8) |  
-    	            g_flash[index];
-    	return res;
-    }
-
-    static void write_word(size_t index, uint val) {
-       	index -= flash_origin;
-    	g_flash[index + 3] = (val >> 24) & 0xff;
-    	g_flash[index + 2] = (val >> 16) & 0xff;
-    	g_flash[index + 1] = (val >>  8) & 0xff;
-    	g_flash[index    ] =  val        & 0xff;
-    }
-
-    enum flash_origin = 0x8000000;
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
-    flash_mem_section flash;
-    flash.write_word(memory.flash_origin, 32);
-    uint read_value = flash.read_word(memory.flash_origin);
-    assert(read_value == 32, "Failed to read word from flash");
-}
-
 struct memory {
 	ram_mem_section ram;
 	flash_mem_section flash;
@@ -3111,7 +3032,10 @@ struct memory {
 
 	uint read_word(size_t addr) {
 		if (addr == 0x08000000) {
-			return 0x00000220;
+			return 0x20020000;
+		}
+		if (addr == 0x0800002C) {
+			return 0x08014210;
 		}
 		if (addr > ram_origin + ram_length) {
         	return peripherals[addr];
@@ -3302,7 +3226,8 @@ condition get_negation(condition cond) {
 }
 
 enum exception {
-	thread_mode
+	thread_mode,
+	SVC_IRQn = 11
 }
 
 struct cortex_m_cpu {
@@ -3834,6 +3759,24 @@ void execute_uxth(instr_16 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(2);
 }
 
+void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	if (cpu.current_exception == exception.thread_mode) {
+		mem.push(cpu, cpu.r0);
+		mem.push(cpu, cpu.r1);
+		mem.push(cpu, cpu.r2);
+		mem.push(cpu, cpu.r3);
+		mem.push(cpu, cpu.r12);
+		mem.push(cpu, cpu.lr);
+		mem.push(cpu, cpu.pc);
+		//mem.push(cpu, cpu.get_xpsr());
+	}
+	cpu.current_exception = exception.SVC_IRQn;
+	cpu.sp_sel = false;
+	cpu.npriv = true;
+	uint pc = mem.read_word(mem.flash_origin + 4 * exception.SVC_IRQn);
+	cpu.set(reg.pc, pc);
+}
+
 bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
 	switch (cond) {
 		case condition.eq:
@@ -4349,6 +4292,8 @@ void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_ldr_reg(instr, cpu, mem);
 		case opcode.str_reg:
 			return execute_str_reg(instr, cpu, mem);
+		case opcode.svc:
+			return execute_svc(instr, cpu, mem);
 		default:
 			return;
 	}
@@ -7033,6 +6978,10 @@ void execute_pop_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory me
 	}
 }
 
+void execute_ldmia(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	cpu.increment_pc(4);
+}
+
 // ==================
 //  Executre SUB IMM
 // ==================
@@ -7872,6 +7821,8 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_ldrsb_imm_32(instr, cpu, mem);
 		case opcode.ldr_reg_32:
 			return execute_ldr_reg_32(instr, cpu, mem);
+		case opcode.ldmia:
+			return execute_ldmia(instr, cpu, mem);
 		default:
 			return;
 	}
@@ -8259,6 +8210,8 @@ bool is_store(opcode op) {
 		case opcode.ldr_reg_32:
 		case opcode.ldrb_imm_32_t3:
 		case opcode.strh_imm_32_t2:
+		case opcode.svc:
+		case opcode.ldmia:
 			return true;
 		default:
 			return false;

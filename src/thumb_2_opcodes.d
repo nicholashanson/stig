@@ -172,6 +172,7 @@ enum opcode : ubyte {
 	rbit_32,
 	revsh_32,
 	sel_32,
+	svc,
 	uadd8_32,
 	uxth,
 	invalid
@@ -193,16 +194,12 @@ enum instr_grp : ubyte {
 
 enum alu_imm : ubyte {
 	add_8           = 0b110,
-	add_3 			= 0b01110,
 	asr             = 0b010,
 	cmp				= 0b101,
 	lsl             = 0b000,
 	lsr 			= 0b001,
 	movs            = 0b100,
-	subs_8			= 0b111,
-	sub_reg			= 0b01101,
-	add_reg         = 0b01100,
-	sub_imm_3  		= 0b01111
+	subs_8			= 0b111
 }
 
 enum data_proc : ubyte {
@@ -258,30 +255,31 @@ enum special : ubyte {
 // =================
 
 opcode decode_mnemonic(ushort instr) { 
-    if (cast(ubyte)((instr >> 14) & 0b11) == instr_grp.alu_imm) {
+    if (((instr >> 14) & 0b11) == instr_grp.alu_imm) {
     	ubyte opcode_ = cast(ubyte)((instr >> 9) & 0b11111);
-    	if (((instr >> 11) & 0b111) == alu_imm.cmp) {
+    	ubyte opcode_short = cast(ubyte)((opcode_ >> 2) & 0b111);
+    	if (opcode_short == alu_imm.cmp) {
     		return opcode.cmp_imm;
     	}
-    	if (((instr >> 11) & 0b111) == alu_imm.movs) {
+    	if (opcode_short == alu_imm.movs) {
     		return opcode.mov_imm;
     	}
-    	if (((instr >> 11) & 0b111) == alu_imm.subs_8) {
+    	if (opcode_short == alu_imm.subs_8) {
     		return opcode.sub_imm_8;
     	}
     	if (opcode_ == 0b01110) {
     		return opcode.add_imm_3;
     	}
-    	if (((instr >> 11) & 0b111) == alu_imm.add_8) {
+    	if (opcode_short == alu_imm.add_8) {
     		return opcode.add_imm_8;
     	}
-    	if (((instr >> 11) & 0b111) == alu_imm.asr) {
+    	if (opcode_short == alu_imm.asr) {
     		return opcode.asr_imm;
     	}
-    	if (((instr >> 11) & 0b111) == alu_imm.lsl) {
+    	if (opcode_short == alu_imm.lsl) {
     		return opcode.lsl_imm;
     	}
-    	if (((instr >> 11) & 0b111) == alu_imm.lsr) {
+    	if (opcode_short == alu_imm.lsr) {
     		return opcode.lsr_imm;
     	}
     	if (opcode_ == 0b01101) {
@@ -295,35 +293,36 @@ opcode decode_mnemonic(ushort instr) {
     	}
     }
     if (cast(ubyte)((instr >> 10) & 0b111111) == instr_grp.data_proc) {
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.and) {
+    	ubyte opcode_ = cast(ubyte)((instr >> 6) & 0b1111);
+    	if (opcode_ == data_proc.and) {
     		return opcode.and_reg;
     	}
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.lor) {
+    	if (opcode_ == data_proc.lor) {
     		return opcode.lor_reg;
     	}
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.mvn) {
+    	if (opcode_ == data_proc.mvn) {
     		return opcode.mvn_reg;
     	}
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.cmp) {
+    	if (opcode_ == data_proc.cmp) {
     		return opcode.cmp_reg;
     	}
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.lsl_reg) {
+    	if (opcode_ == data_proc.lsl_reg) {
     		return opcode.lsl_reg;
     	}
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.lsr_reg) {
+    	if (opcode_ == data_proc.lsr_reg) {
     		return opcode.lsr_reg;
     	}
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.adc_reg) {
+    	if (opcode_ == data_proc.adc_reg) {
     		return opcode.adc_reg;
     	}
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.negs) {
+    	if (opcode_ == data_proc.negs) {
     		return opcode.negs;
     	}
-    	if (cast(ubyte)((instr >> 6) & 0b1111) == data_proc.tst) {
+    	if (opcode_ == data_proc.tst) {
     		return opcode.tst;
     	}
     }
-    if (cast(ubyte)((instr >> 12) & 0b1111) == instr_grp.single_str_1) {
+    if (((instr >> 12) & 0b1111) == instr_grp.single_str_1) {
     	ubyte opb = cast(ubyte)((instr >>  9) & 0b111);
     	ubyte opa = cast(ubyte)((instr >> 12) & 0b1111);
     	if (cast(ubyte)((instr >> 9) & 0b111) == single_str.str) {
@@ -344,24 +343,24 @@ opcode decode_mnemonic(ushort instr) {
     		return opcode.ldr_reg;
     	}
     }
-    if (cast(ubyte)((instr >> 13) & 0b111)  == instr_grp.single_str_2) {
-    	if (cast(ubyte)((instr >> 12) & 0b1) == 0) {
-    		if (cast(ubyte)((instr >> 11) & 0b1) == 0) {
+    if (((instr >> 13) & 0b111)  == instr_grp.single_str_2) {
+    	if (((instr >> 12) & 0b1) == 0) {
+    		if (((instr >> 11) & 0b1) == 0) {
     			return opcode.str_imm;
     		}
     	}
-    	if (cast(ubyte)((instr >> 12) & 0b1) == 0) {
-    		if (cast(ubyte)((instr >> 11) & 0b1) == 1) {
+    	if (((instr >> 12) & 0b1) == 0) {
+    		if (((instr >> 11) & 0b1) == 1) {
     			return opcode.ldr_imm;
     		}
     	}
-    	if (cast(ubyte)((instr >> 12) & 0b1) == 1) {
-    		if (cast(ubyte)((instr >> 11) & 0b1) == 0) {
+    	if (((instr >> 12) & 0b1) == 1) {
+    		if (((instr >> 11) & 0b1) == 0) {
     			return opcode.strb_imm;
     		}
     	}
     	if (cast(ubyte)((instr >> 12) & 0b1) == 1) {
-    		if (cast(ubyte)((instr >> 11) & 0b1) == 1) {
+    		if (((instr >> 11) & 0b1) == 1) {
     			return opcode.ldrb_imm;
     		}
     	}
@@ -391,8 +390,13 @@ opcode decode_mnemonic(ushort instr) {
     if (cast(ubyte)((instr >> 11) & 0b11111) == instr_grp.ldr_pool) {
     	return opcode.ldr_pool;
     }
-    if (cast(ubyte)((instr >> 12) & 0b1111) == 0b1101) {
-    	return opcode.b_cond;
+    if (((instr >> 12) & 0b1111) == 0b1101) {
+    	if (((instr >> 8) & 0b1111) == 0b1111) {
+    		return opcode.svc;
+
+    	} else {
+    		return opcode.b_cond;
+    	}
     }
     if (cast(ubyte)((instr >> 12) & 0b1111) == instr_grp.misc) {
     	ubyte _opcode_ = cast(ubyte)((instr >> 5) & 0b1111111);
@@ -569,10 +573,10 @@ unittest {
 		test_case(0x1e54, opcode.sub_imm_3),
 		test_case(0x1a1b, opcode.sub_reg),
 		test_case(0xb092, opcode.sub_sp),
+		test_case(0xdf00, opcode.svc),
 		test_case(0x4208, opcode.tst),
 		test_case(0xb2db, opcode.uxtb),
-		test_case(0xb29a, opcode.uxth),
-		test_case(0x58d4, opcode.ldr_imm)
+		test_case(0xb29a, opcode.uxth)
 	];
 
 	foreach (t; tests) {

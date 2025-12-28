@@ -8,6 +8,7 @@ import std.conv;
 import std.algorithm;
 import core.runtime : Runtime;
 import core.time : MonoTime, dur;
+import thumb_2_opcodes;
 
 // Global pad and scroll offset:
 WINDOW* instrPad;
@@ -27,6 +28,9 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
     auto printReg = (string name, uint val) {
         mvwprintw(stdscr, regY++, regX, toStringz(format("%s: %08x", name, val)));
     };
+    auto printFlag = (string name, bool val) {
+        mvwprintw(stdscr, regY++, regX, toStringz(format("%s: %d", name, val)));
+    };
 
     printReg("r0", vm.cpu.r0);
     printReg("r1", vm.cpu.r1);
@@ -44,6 +48,10 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
     printReg("sp", vm.cpu.get_sp());
     printReg("lr", vm.cpu.lr);
     printReg("pc", vm.cpu.pc);
+    printFlag("z", vm.cpu.z);
+    printFlag("n", vm.cpu.n);
+    printFlag("c", vm.cpu.c);
+    printFlag("v", vm.cpu.v);
 
     regY++;
     if (vm.cpu.get_sp() != 0) {
