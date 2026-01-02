@@ -42,7 +42,8 @@ enum opcode : ubyte {
 	if_then,
 	ld_rex,
 	ldh_32,
-	ldmia,
+	ldmdb_32,
+	ldmia_32,
 	ldr_imm,
 	ldr_imm_32,
 	ldr_imm_32_t3,
@@ -99,6 +100,7 @@ enum opcode : ubyte {
 	push_mult_reg_32,
 	rev,
 	stmb_32,
+	stmia_32,
 	str_imm,
 	str_imm_32_t3,
 	str_imm_32_t4,
@@ -630,7 +632,7 @@ enum op2_32 : ubyte {
 	data_proc_reg           = 0b1110000,
 	ld_bytes_mem_hints      = 0b1100111,
 	str_single              = 0b1110001,
-	ld_str_dual             = 0b1100100,
+	load_store_dual         = 0b1100100,
 	ldh  					= 0b1100111,
 	load_word 				= 0b1100111,
 	store_single_data_item  = 0b1110001,
@@ -743,6 +745,56 @@ opcode decode_data_proc_imm(uint instr) {
 	return opcode.invalid;  
 }
 
+// ========================
+//  Decode Load Store Mult
+// ========================
+
+opcode decode_load_store_mult(uint instr) {
+	ubyte op   = cast(ubyte)((instr >> 23) & 0x3);
+	ubyte rn   = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte W    = cast(ubyte)((instr >> 21) & 0x1);
+	ubyte Wrn  = cast(ubyte)((W << 4) | rn);
+	ubyte L    = cast(ubyte)((instr >> 20) & 0x1);
+	ubyte op_L = cast(ubyte)((op << 1) | L);
+	final switch (op_L) {
+		case 0b011: return Wrn == 0b11101 ? opcode.pop_mult_reg_32 : opcode.ldmia_32;
+		case 0b100: return Wrn == 0b11101 ? opcode.push_mult_reg_32 : opcode.stmb_32;
+		case 0b101: return opcode.ldmdb_32;
+		case 0b010: return opcode.stmia_32;
+	}
+	return opcode.invalid;
+}
+
+// ========================
+//  Decode Load Store Dual
+// ========================
+
+opcode decode_load_store_dual(uint instr) {
+	ubyte op1 = cast(ubyte)((instr >> 23) & 0x3);
+	ubyte op2 = cast(ubyte)((instr >> 20) & 0x3);
+	ubyte op1_masked = cast(ubyte)(op1 & 0b10);
+	ubyte op2_masked = cast(ubyte)(op2 & 0b01);
+	if (op1_masked == 0b00 && op2 == 0b10) {
+		return opcode.strd_32;
+	}
+	if (op1_masked == 0b10 && op2_masked == 0b00) {
+		return opcode.strd_32;
+	}
+	if (op1_masked == 0b00 && op2 == 0b11) {
+		return opcode.ldrd_imm_32;
+	}
+	if (op1_masked == 0b10 && op2_masked == 0b01) {
+		return opcode.ldrd_imm_32;
+	}
+	if (op1 == 0b00 && op2 == 0b01) {
+		return opcode.ld_rex;
+	}
+	if (op2 == 0b00 && op1 == 0b00) {
+		return opcode.str_rex;
+	}
+	return opcode.invalid;
+}
+
 opcode decode_mnemonic_32(uint instr) {
 	ubyte op1 = cast(ubyte)((instr >> 27) & 0b11);
 	ubyte op2 = cast(ubyte)((instr >> 20) & 0b1111111);
@@ -751,49 +803,10 @@ opcode decode_mnemonic_32(uint instr) {
 			return decode_data_proc_shift_reg(instr);
 		}
 		if ((op2 & op2_32.load_store_mult) == 0b0000000)  {
-			ubyte op = cast(ubyte)((instr >> 23) & 0b11);
-			ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
-			ubyte W = cast(ubyte)((instr >> 21) & 0b1);
-			ubyte Wrn = cast(ubyte)((W << 4) | rn);
-			ubyte L = cast(ubyte)((instr >> 20) & 0b1);
-			if (op == 0b01) {
-				if (L == 0b1) {
-					if (Wrn == 0b11101) {
-						return opcode.pop_mult_reg_32;
-					} else {
-						return opcode.ldmia;
-					}
-				}
-			}
-			if (op == 0b10) {
-				if (L == 0b0) {
-					if (rn == 0b1101) {
-						return opcode.push_mult_reg_32;
-					}
-				}
-			}
+			return decode_load_store_mult(instr);
 		}
-		if ((op2 & op2_32.ld_str_dual) == 0b0000100) {
-			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
-			ubyte _op2 = cast(ubyte)((instr >> 20) & 0b11);
-			if (((_op1 & 0b10) == 0b00) && (_op2 == 0b10)) {
-				return opcode.strd_32;
-			}
-			if (((_op1 & 0b10) == 0b10) && ((_op2 & 0b01) == 0b00)) {
-				return opcode.strd_32;
-			}
-			if (((_op1 & 0b10) == 0b00) && (_op2 == 0b11)) {
-				return opcode.ldrd_imm_32;
-			}
-			if (((_op1 & 0b10) == 0b10) && ((_op2 & 0b01) == 0b01)) {
-				return opcode.ldrd_imm_32;
-			}
-			if ((_op1 == 0b00) && (_op2 == 0b01)) {
-				return opcode.ld_rex;
-			}
-			if ((_op2 == 0b00) && (_op1 == 0b00)) {
-				return opcode.str_rex;
-			}
+		if ((op2 & op2_32.load_store_dual) == 0b0000100) {
+			return decode_load_store_dual(instr);
 		}
 	}
 	if (op1 == op1_32.grp2) {
@@ -1198,7 +1211,7 @@ unittest {
 	 	test_case(0xf1100f16, opcode.cmn_imm_32),
 	 	test_case(0xf8973033, opcode.ldrb_imm_32_t2),
 	 	test_case(0xf8a320f8, opcode.strh_imm_32_t2),
-	 	test_case(0xe8b04ff0, opcode.ldmia),
+	 	test_case(0xe8b04ff0, opcode.ldmia_32),
 	    test_case(0xea620205, opcode.orn_reg_32),
 	    test_case(0xea4f06a6, opcode.asr_imm_32),
 	    test_case(0xf4434380, opcode.orr_imm_32)
