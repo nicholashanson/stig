@@ -675,6 +675,26 @@ opcode decode_data_proc_shift_reg(uint instr) {
 	return opcode.invalid;
 }
 
+// ==========================
+//  Decode Data Proc Bin Imm
+// ==========================
+
+opcode decode_data_proc_bin_imm(uint instr) {
+	enum ubyte pc = 0xf;
+	ubyte op = cast(ubyte)((instr >> 20) & 0x1f);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	final switch (op)
+	{
+		case 0b00000: return rn == pc ? opcode.adr_32 : opcode.add_imm_32;
+		case 0b10110: return rn == pc ? opcode.bfc_32 : opcode.bfi_32;
+		case 0b00100: return opcode.mov_16_imm_32;
+		case 0b01100: return opcode.movt_32;
+		case 0b10100: return opcode.sbfx_32;
+		case 0b01010: return rn == pc ? opcode.adr_32 : opcode.sub_imm_32;
+		case 0b11100: return opcode.ubfx_32;
+	}
+}
+
 opcode decode_mnemonic_32(uint instr) {
 	ubyte op1 = cast(ubyte)((instr >> 27) & 0b11);
 	ubyte op2 = cast(ubyte)((instr >> 20) & 0b1111111);
@@ -839,38 +859,7 @@ opcode decode_mnemonic_32(uint instr) {
 			}
 		}
 		if (((op2 & op2_32.data_proc_bin_imm) == op2_32.data_proc_bin_imm) && !op) {
-			ubyte _op = cast(ubyte)((instr >> 20) & 0b11111);
-			ubyte _rn = cast(ubyte)((instr >> 16) & 0b11111);
-			if (_op == 0b11100) {
-				return opcode.ubfx_32;
-			}
-			if (_op == 0b00100) {
-				return opcode.mov_16_imm_32;
-			}
-			if (_op == 0b01100) {
-				return opcode.movt_32;
-			}
-			if (_op == 0b10100) {
-				return opcode.sbfx_32;
-			}
-			if ((_op == 0b10110) && (_rn != 0b1111)) {
-				return opcode.bfi_32;
-			}
-			if ((_op == 0b10110) && (_rn != 0b1111)) {
-				return opcode.bfc_32;
-			}
-			if ((_op == 0b01010) && (_rn != 0b1111)) {
-				return opcode.sub_imm_32;
-			}
-			if ((_op == 0b01010) && (_rn == 0b1111)) {
-				return opcode.adr_32;
-			}
-			if ((_op == 0b00000) && (_rn == 0b1111)) {
-				return opcode.adr_32;
-			}
-			if ((_op == 0b00000) && (_rn == 0b1111)) {
-				return opcode.add_imm_32;
-			}
+			return decode_data_proc_bin_imm(instr);
 		}
 	}
 	if (op1 == op1_32.grp3) {
