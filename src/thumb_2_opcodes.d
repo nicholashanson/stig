@@ -2,7 +2,6 @@ import std.format;
 import std.conv;
 
 enum opcode : ubyte {
-	adc_32,
 	adc_reg,
 	add_32,
 	add_high_reg_1,
@@ -11,7 +10,6 @@ enum opcode : ubyte {
 	add_imm_8,
 	add_imm_32,
 	add_lo_reg,
-	add_32_reg,
 	add_reg,
 	add_sp,	
 	add_sp_t1,
@@ -19,7 +17,6 @@ enum opcode : ubyte {
 	adr,
 	adr_32,
 	and_reg,
-	and_reg_32,
 	and_imm_32,
 	asr_imm,
 	b_32,
@@ -28,7 +25,6 @@ enum opcode : ubyte {
 	b_uncond_32,
 	bfc_32,
 	bfi_32,
-	bic_reg_32,
 	bic_imm_32,
 	bit_not_32,
 	bit_or_not_32,
@@ -86,7 +82,6 @@ enum opcode : ubyte {
 	mla_32,
 	mls_32,
 	mov_16_imm_32,
-	mov_32,
 	mov_high_1,
 	mov_high_2,
 	mov_high_reg,
@@ -96,15 +91,13 @@ enum opcode : ubyte {
 	movt_32,
 	mul_32,
 	mvn_reg,
-	mvn_reg_32,
 	mrs_32,
 	msr_32,
 	negs,
 	nop,
 	nop_32,
-	or_not_32,
+	orn_32,
 	orr_32,
-	orr_reg_32,
 	pld_32,
 	pld_imm_32,
 	pld_reg_32,
@@ -114,7 +107,6 @@ enum opcode : ubyte {
 	push_mult_reg_32,
 	rev,
 	rsb_32,
-	sbc_32,
 	sbfx_32,
 	stmb_32,
 	str_imm,
@@ -142,7 +134,6 @@ enum opcode : ubyte {
 	subs_32,
 	sub_sp,
 	tst,
-	tst_32,
 	ubfx_32,	
 	udiv_32,
 	umull_32,
@@ -175,7 +166,23 @@ enum opcode : ubyte {
 	svc,
 	uadd8_32,
 	uxth,
-	invalid
+	invalid,
+
+	// --------------------------Data Processing (Shifted Register)-------------------------- 
+	and_reg_32, // bitwise AND
+	add_reg_32, // add
+	adc_reg_32, // add with carry
+	bic_reg_32, // bitwise bit clear
+	cmn_reg_32, // compare negative
+	cmp_reg_32, // compare
+	mov_reg_32,	// move
+	mvn_reg_32, // bitwise NOT
+	orn_reg_32, // bitwise OR NOT
+	orr_reg_32, // bitwise OR
+	sbc_reg_32,	// subtract with carry
+	sub_reg_32,
+	tst_reg_32	// test
+	// -------------------------------------------------------------------------------------- 
 }
 
 enum instr_grp : ubyte {
@@ -584,6 +591,609 @@ unittest {
 		assert(
 		    actual == t.expected,
 		    format("Failed for instruction 0x%04X, got %s instead of %s", t.instr, actual.to!string, t.expected.to!string)
+		);
+    }
+}
+
+enum op1_32 : ubyte {
+	grp1				 	= 0b01,
+	grp2					= 0b10,
+	grp3					= 0b11
+}
+
+enum op2_32 : ubyte {
+	data_proc_shift_reg 	= 0b0100000,	// Data Processing (Shifted Register)
+	data_proc_bin_imm 		= 0b0100000,
+	load_store_mult 		= 0b1100100,
+	data_proc_imm           = 0b0100000,
+	long_mult               = 0b1111000,
+	mult					= 0b1111000,
+	data_proc_reg           = 0b1110000,
+	ld_bytes_mem_hints      = 0b1100111,
+	str_single              = 0b1110001,
+	ld_str_dual             = 0b1100100,
+	ldh  					= 0b1100111,
+	load_word 				= 0b1100111,
+	store_single_data_item  = 0b1110001,
+	load_byte 				= 0b1100111
+}
+
+// ============================
+//  Decode Data Proc Shift Reg
+// ============================
+
+opcode decode_data_proc_shift_reg(uint instr) {
+	ubyte op = cast(ubyte)((instr >> 21) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte rd = cast(ubyte)((instr >>  8) & 0xf);
+	ubyte s  = cast(ubyte)((instr >> 20) & 0x1);
+	enum ubyte pc = 0xf;
+	final switch (op)
+	{
+		case 0b1101: 
+			if (rd == pc && s == 1) return opcode.cmp_reg_32; 
+			if (rd != pc) return opcode.sub_reg_32;
+			return opcode.invalid;
+		case 0b1011: return opcode.sbc_reg_32;
+		case 0b1010: return opcode.adc_reg_32;
+		case 0b1000: return rd == pc ? opcode.cmn_reg_32 : opcode.add_reg_32;
+		case 0b0011: return rn == pc ? opcode.mvn_reg_32 : opcode.orn_reg_32; 
+		case 0b0010: return rn == pc ? opcode.mov_reg_32 : opcode.orr_reg_32;
+		case 0b0001: return opcode.bic_reg_32;
+		case 0b0000:
+			if (rd == pc && s == 1) return opcode.tst_reg_32;
+			if (rd != pc) return opcode.and_reg_32;
+			return opcode.invalid;
+	}
+	return opcode.invalid;
+}
+
+opcode decode_mnemonic_32(uint instr) {
+	ubyte op1 = cast(ubyte)((instr >> 27) & 0b11);
+	ubyte op2 = cast(ubyte)((instr >> 20) & 0b1111111);
+	if (op1 == op1_32.grp1) { 
+		if ((op2 & op2_32.data_proc_shift_reg) == op2_32.data_proc_shift_reg) {
+			return decode_data_proc_shift_reg(instr);
+		}
+		if ((op2 & op2_32.load_store_mult) == 0b0000000)  {
+			ubyte op = cast(ubyte)((instr >> 23) & 0b11);
+			ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+			ubyte W = cast(ubyte)((instr >> 21) & 0b1);
+			ubyte Wrn = cast(ubyte)((W << 4) | rn);
+			ubyte L = cast(ubyte)((instr >> 20) & 0b1);
+			if (op == 0b01) {
+				if (L == 0b1) {
+					if (Wrn == 0b11101) {
+						return opcode.pop_mult_reg_32;
+					} else {
+						return opcode.ldmia;
+					}
+				}
+			}
+			if (op == 0b10) {
+				if (L == 0b0) {
+					if (rn == 0b1101) {
+						return opcode.push_mult_reg_32;
+					}
+				}
+			}
+		}
+		if ((op2 & op2_32.ld_str_dual) == 0b0000100) {
+			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
+			ubyte _op2 = cast(ubyte)((instr >> 20) & 0b11);
+			if (((_op1 & 0b10) == 0b00) && (_op2 == 0b10)) {
+				return opcode.strd_32;
+			}
+			if (((_op1 & 0b10) == 0b10) && ((_op2 & 0b01) == 0b00)) {
+				return opcode.strd_32;
+			}
+			if (((_op1 & 0b10) == 0b00) && (_op2 == 0b11)) {
+				return opcode.ldrd_imm_32;
+			}
+			if (((_op1 & 0b10) == 0b10) && ((_op2 & 0b01) == 0b01)) {
+				return opcode.ldrd_imm_32;
+			}
+			if ((_op1 == 0b00) && (_op2 == 0b01)) {
+				return opcode.ld_rex;
+			}
+			if ((_op2 == 0b00) && (_op1 == 0b00)) {
+				return opcode.str_rex;
+			}
+		}
+	}
+	if (op1 == op1_32.grp2) {
+		ubyte op = cast(ubyte)((instr >> 15) & 0b1); 
+		ubyte rd = cast(ubyte)((instr >> 20) & 0b1111); 
+		if (op) {
+			ubyte _op1 = cast(ubyte)((instr >> 12) & 0b111);
+			ubyte _op = cast(ubyte)((instr >> 20) & 0b1111111);
+			if (((_op1 & 0b101) == 0b000) & (_op == 0b0111011)) {
+				ubyte option = cast(ubyte)(instr & 0xf);
+				ubyte _opc_ = cast(ubyte)((instr >> 4) & 0xf);
+				if ((_opc_ == 0b100) & ((option & 1011) != 0b0000)) {
+					return opcode.dsb_32;
+				}
+				if (_opc_ == 0b110) {
+					return opcode.isb_32;
+				}
+				if (_opc_ == 0b0101) {
+					return opcode.dmb_32;
+				}
+			}
+			if ((_op1 & 0b101) == 0b101) {
+				return opcode.bl_32;
+			}
+			if (((_op1 & 0b101) == 0b000) & ((_op & 0b1111110) == 0b0111110)) {
+				return opcode.mrs_32;
+			}
+			if (((_op1 & 0b101) == 0b000) & ((_op & 0b1111110) == 0b0111000)) {
+				return opcode.msr_32;
+			}
+			if (_op == 0b0111010) {
+				ubyte __op1 = cast(ubyte)((instr >> 8) & 0b111);
+				ubyte __op2 = cast(ubyte)(instr & 0b11111111);
+				if (__op1 == 0b000) {
+					if (__op2 == 0b00000000) {
+						return opcode.nop_32;
+					}
+				}
+			}
+			/*
+			if (_op == 0b0111011) {
+				ubyte __op = cast(ubyte)((instr >> 4) & 0b1111);
+				return opcode.dsb; 
+			}
+			*/
+			if (((_op1 & 0b101) == 0b000) && ((_op & 0b0111000) != 0b0111000)) {
+				if (cast(ubyte)((instr >> 12) & 0b1) == 0b1) {
+					return opcode.b_uncond_32;
+				}
+				return opcode.b_32;
+			}
+			if ((_op1 & 0b101) == 0b001) {
+				if (cast(ubyte)((instr >> 12) & 0b1) == 0b1) {
+					return opcode.b_uncond_32;
+				}
+				return opcode.b_32;
+			}
+		}
+		if (((op2 & op2_32.data_proc_imm) == 0b0000000) && !op) {
+			ubyte _op = cast(ubyte)((instr >> 20) & 0b11111);
+			ubyte rd_ = cast(ubyte)((instr >> 8) & 0xf);
+			ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+			if (((_op & 0b11110) == 0b00100) & (rn == 0b1111)) {
+				return opcode.mov_imm_32_t2;
+			}      
+			if (((_op & 0b11110) == 0b11010)) {
+				// 0xF1B37F80
+				// 1111 0001 1011 0011 0111 1111 1000 0000
+				if (rd_ != 0b1111) {
+					return opcode.sub_imm_32;
+				}
+				if (rd_ == 0b1111) {
+					return opcode.cmp_imm_32;
+				}
+			} 
+			if ((_op & 0b11110) == 0b00000) {
+				if (rd_ != 0b1111) {
+					return opcode.and_imm_32;
+				}
+				if (rd_ == 0b1111) {
+					return opcode.tst_reg_32;
+				}
+			}
+			if (((_op & 0b11110) == 0b00100) && (rn != 0b1111)) {
+				return opcode.orr_32;
+			}
+			if (((_op & 0b11110) == 0b00100) && (rn == 0b1111)) {	
+				return opcode.mov_reg_32;
+			}
+			if ((_op & 0b11110) == 0b00110) {
+				if (rn != 0b1111) {
+					return opcode.bit_or_not_32;
+				}
+				if (rn == 0b1111) {
+					return opcode.bit_not_32;
+				}
+			}
+			// 0xf1100f16
+			if (((_op & 0b11110) == 0b10000) && (rd_ == 0b1111)) {	
+				return opcode.cmn_32;
+				// 1111 0001 0001 0000 0000 1111 0001 0110
+			}
+			if (((_op & 0b11110) == 0b10000) && (rd_ != 0b1111)) {	
+				return opcode.add_32;
+			}
+			if ((_op & 0b11110) == 0b00010) {
+				return opcode.bic_imm_32;
+			}
+			if ((_op & 0b11110) == 0b11100) {
+				return opcode.rsb_32;
+			}
+		}
+		if (((op2 & op2_32.data_proc_bin_imm) == op2_32.data_proc_bin_imm) && !op) {
+			ubyte _op = cast(ubyte)((instr >> 20) & 0b11111);
+			ubyte _rn = cast(ubyte)((instr >> 16) & 0b11111);
+			if (_op == 0b11100) {
+				return opcode.ubfx_32;
+			}
+			if (_op == 0b00100) {
+				return opcode.mov_16_imm_32;
+			}
+			if (_op == 0b01100) {
+				return opcode.movt_32;
+			}
+			if (_op == 0b10100) {
+				return opcode.sbfx_32;
+			}
+			if ((_op == 0b10110) && (_rn != 0b1111)) {
+				return opcode.bfi_32;
+			}
+			if ((_op == 0b10110) && (_rn != 0b1111)) {
+				return opcode.bfc_32;
+			}
+			if ((_op == 0b01010) && (_rn != 0b1111)) {
+				return opcode.sub_imm_32;
+			}
+			if ((_op == 0b01010) && (_rn == 0b1111)) {
+				return opcode.adr_32;
+			}
+			if ((_op == 0b00000) && (_rn == 0b1111)) {
+				return opcode.adr_32;
+			}
+			if ((_op == 0b00000) && (_rn == 0b1111)) {
+				return opcode.add_imm_32;
+			}
+		}
+	}
+	if (op1 == op1_32.grp3) {
+		ubyte _op = cast(ubyte)((instr >> 20) & 0b111);
+		if ((op2 & op2_32.ldh) == 0b0000011) {
+			return opcode.ldh_32;
+		}
+		if ((op2 & op2_32.long_mult) == 0b0111000) {
+			if (_op == 0b011) { 
+				return opcode.udiv_32;
+			}
+			if (_op == 0b010) {
+				return opcode.umull_32;
+			}
+		}
+		if ((op2 & op2_32.mult) == 0b0110000) {
+			ubyte ra = cast(ubyte)((instr >> 12) & 0b1111);
+			ubyte _op1 = cast(ubyte)((instr >> 20) & 0b111);
+			ubyte _op2 = cast(ubyte)((instr >>  4) & 0b11);
+			if (_op1 == 0b000) { 
+				if (_op2 == 0b00) {
+					if (ra == 0b1111) {
+						return opcode.mul_32;
+					}
+					if (ra != 0b1111) {
+						return opcode.mla_32;
+					}
+				}
+				if (_op2 == 0b01) {
+					return opcode.mls_32;
+				}
+			}
+		}
+		if ((op2 & op2_32.data_proc_reg) == 0b0100000) {
+			ubyte _rn = cast(ubyte)((instr >>  16) & 0b1111);
+			ubyte _op1 = cast(ubyte)((instr >> 20) & 0b1111);
+			ubyte _op2 = cast(ubyte)((instr >>  4) & 0b1111);
+			if (((_op1 & 0b1110) == 0b0000) && _op2 == 0b0) {
+				return opcode.lsl_reg_32;
+			}
+			if (((_op1 & 0b1110) == 0b0010) && _op2 == 0b0) {
+				return opcode.lsr_reg_32;
+			}
+			if (((_op1 & 0b1110) == 0b0100) && _op2 == 0b0) {
+				return opcode.asr_reg_32;
+			}
+			if (((_op1 & 0b1110) == 0b0110) && _op2 == 0b0) {
+				return opcode.ror_32;
+			}
+			if ((_op1 == 0b0000) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.sxtah_32;
+			}
+			if ((_op1 == 0b0000) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.sxth_32;
+			}
+			if ((_op1 == 0b0001) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.uxtah_32;
+			}
+			if ((_op1 == 0b0001) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.uxth_32;
+			}
+			if ((_op1 == 0b0010) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.sxtab_16_32;
+			}
+			if ((_op1 == 0b0010) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.sxtb16_32;
+			}
+			if ((_op1 == 0b0011) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.uxtab_16_32;
+			}
+			if ((_op1 == 0b0011) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.uxtb16_32;
+			}
+			if ((_op1 == 0b0100) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.sxtab_32;
+			}
+			if ((_op1 == 0b0100) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.sxtb_32;
+			}
+			if ((_op1 == 0b0101) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
+				return opcode.uxtab_32;
+			}
+			if ((_op1 == 0b0101) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
+				return opcode.uxtb_32;
+			}
+			if (((_op1 & 0b1000) == 0b1000) && ((_op2 & 0b1100) == 0b0000)) {
+				return opcode.uadd8_32;
+			}
+			if (((_op1 & 0b1000) == 0b1000) && ((_op2 & 0b1100) == 0b0100)) {
+				return opcode.uadd8_32;
+			}
+			if (((_op1 & 0b1100) == 0b1000) && ((_op2 & 0b1100) == 0b1000)) {
+				ubyte __op1 = cast(ubyte)((instr >> 20) & 0b11);
+				ubyte __op2 = cast(ubyte)((instr >>  4) & 0b11);
+				if ((__op1 == 0b00) && (__op2 == 0b00)) {
+					return opcode.qadd_32;
+				}
+				if ((__op1 == 0b00) && (__op2 == 0b01)) {
+					return opcode.qdadd_32;
+				}
+				if ((__op1 == 0b00) && (__op2 == 0b10)) {
+					return opcode.qsub_32;
+				}
+				if ((__op1 == 0b00) && (__op2 == 0b11)) {
+					return opcode.qdsub_32;
+				}
+				if ((__op1 == 0b01) && (__op2 == 0b00)) {
+					return opcode.rev_32;
+				}
+				if ((__op1 == 0b01) && (__op2 == 0b01)) {
+					return opcode.rev_16_32;
+				}
+				if ((__op1 == 0b01) && (__op2 == 0b10)) {
+					return opcode.rbit_32;
+				}
+				if ((__op1 == 0b01) && (__op2 == 0b11)) {
+					return opcode.revsh_32;
+				}
+				if ((__op1 == 0b10) && (__op2 == 0b00)) {
+					return opcode.sel_32;
+				}
+				if ((__op1 == 0b11) && (__op2 == 0b00)) {
+					return opcode.clz_32;
+				}
+			}
+		}
+		if ((op2 & op2_32.load_word) == 0b0000101) {
+			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
+			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
+			ubyte _rn = cast(ubyte)((instr >>  16) & 0xf);
+			if ((_op1 == 0b01) && (_rn != 0b1111)) {
+				return opcode.ldr_imm_32_t3;
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b100100) == 0b100100) && (_rn != 0b1111)) {
+				return opcode.ldr_imm_32_t4;	
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (_rn != 0b1111)) {
+				return opcode.ldr_imm_32_t4;
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b111000) && (_rn != 0b1111)) {
+				return opcode.ldrt_32;
+			}
+			if ((_op1 == 0b00) && (_op2 == 0b0) && (_rn != 0b1111)) {
+				return opcode.ldr_reg_32;
+			}
+			if (((_op1 & 0b10) == 0b00) && (_rn == 0b1111)) {
+				return opcode.ldr_lit_32;
+			}
+		}
+		if ((op2 & op2_32.store_single_data_item) == 0b0000000) {
+			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
+			ubyte _op1 = cast(ubyte)((instr >> 21) & 0b111);
+			if (_op1 == 0b100) {
+				return opcode.strb_imm_32_t2;
+			}
+			if ((_op1 == 0b000) && ((_op2 & 0b100000) == 0b100000)) {
+				return opcode.strb_imm_32_t3;
+			}
+			if ((_op1 == 0b000) && ((_op2 & 0b100000) == 0b000000)) {
+				return opcode.strb_reg_32;
+			}
+			// half
+			if (_op1 == 0b101) {
+				return opcode.strh_imm_32_t2;
+			}
+			if ((_op1 == 0b001) && ((_op2 & 0b100000) == 0b100000)) {
+				return opcode.strh_imm_32_t3;
+			}
+			if ((_op1 == 0b001) && ((_op2 & 0b100000) == 0b000000)) {
+				return opcode.strh_reg_32;
+			}
+			// reg
+			if (_op1 == 0b110) {
+				return opcode.str_imm_32_t3;
+			}
+			if ((_op1 == 0b010) && ((_op2 & 0b100000) == 0b100000)) {
+				return opcode.str_imm_32_t4;
+			}
+			if ((_op1 == 0b010) && ((_op2 & 0b100000) == 0b000000)) {
+				return opcode.str_reg_32;
+			}
+		}
+		if ((op2 & op2_32.load_byte) == 0b0000001) {
+			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
+			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
+			ubyte rt = cast(ubyte)((instr >> 12) & 0b1111);
+			ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+			if (((_op1 & 0b10) == 0b00) && (rn == 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_32;
+			}
+			if ((_op1 == 0b01) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_imm_32_t2;
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b100100) == 0b100100) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_imm_32_t3;
+			}
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_imm_32_t3;
+			}
+			// ldrbt
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b111000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrbt_32;
+			}
+			// ldrb
+			if ((_op1 == 0b00) && ((_op2 & 0b000000) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrb_reg_32;
+			}
+			// ldrsb
+			if (((_op1 & 0b10) == 0b10) && (rn == 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_32;
+			}
+			// ldrsb_imm
+			if ((_op1 == 0b11) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_imm_32_t1;
+			}
+			if ((_op1 == 0b10) && ((_op2 & 0b100100) == 0b100100) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_imm_32_t2;
+			}
+			if ((_op1 == 0b10) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_imm_32_t2;
+			}
+			// ldrsbt
+			if ((_op1 == 0b10) && ((_op2 & 0b111100) == 0b111000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsbt_32;
+			}
+			// ldrsb
+			if ((_op1 == 0b10) && (_op2 == 0b000000) && (rn != 0b1111) && (rt != 0b1111)) {
+				return opcode.ldrsb_reg_32;
+			}
+			// 
+			if ((_op1 == 0b00) && (_op2 == 0b000000) && (rn != 0b1111) && (rt == 0b1111)) {
+				return opcode.pld_reg_32;
+			}
+			// pld literal
+			if (((_op1 & 0b10) == 0b00) && (rn == 0b1111) && (rt == 0b1111)) {
+				return opcode.pld_32;
+			}
+			// pld immediate
+			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt == 0b1111)) {
+				return opcode.pld_imm_32;
+			}
+			if ((_op1 == 0b01) && (rn != 0b1111) && (rt == 0b1111)) {
+				return opcode.pld_imm_32;
+			}
+		}
+	}
+	return opcode.invalid;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+	struct test_case {
+		uint instr;
+		opcode expected;
+	}
+
+	test_case[] tests = [
+		test_case(0xeb0101a3, opcode.add_reg_32),
+		test_case(0xf7ffffda, opcode.bl_32),
+		test_case(0xf3af8000, opcode.nop_32),
+		test_case(0xe8bd4008, opcode.pop_mult_reg_32),
+		test_case(0xf5a33a80, opcode.sub_imm_32),
+		test_case(0xf008ff15, opcode.bl_32),
+		test_case(0xf009f8a6, opcode.bl_32),
+		test_case(0xf003030c, opcode.and_imm_32),
+		test_case(0xfbb2f3f3, opcode.udiv_32),
+		test_case(0xf3c20208, opcode.ubfx_32),
+		test_case(0xfb02f303, opcode.mul_32),
+		test_case(0xfa22f303, opcode.lsr_reg_32),
+		test_case(0xf4434380, opcode.orr_32),
+		test_case(0xf1070314, opcode.add_32),
+		test_case(0xf0230310, opcode.bic_imm_32),
+		test_case(0xf64f03ff, opcode.mov_16_imm_32),
+		test_case(0xf9973007, opcode.ldrsb_imm_32_t1),
+		test_case(0xf8412023, opcode.str_reg_32),
+		test_case(0xf8dfd034, opcode.ldr_lit_32),
+		test_case(0xf3bf8f4f, opcode.dsb_32),
+		test_case(0xf1c30307, opcode.rsb_32),
+		test_case(0xfba22303, opcode.umull_32),
+		test_case(0xe9c72300, opcode.strd_32),
+		test_case(0xf67fae90, opcode.b_32),
+		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
+		test_case(0xea4161d2, opcode.orr_reg_32),
+		test_case(0xebb2080a, opcode.subs_32),
+		test_case(0xeb63090b, opcode.sbc_reg_32),
+		test_case(0xeb45030b, opcode.adc_reg_32),
+		test_case(0xf06f0240, opcode.bit_not_32),
+		test_case(0xe8533f00, opcode.ld_rex),
+		test_case(0xe8412300, opcode.str_rex),
+		test_case(0xfb0e7711, opcode.mls_32),
+		test_case(0xf9b4500c, opcode.ldh_32),
+		test_case(0xea1c0f0e, opcode.tst_reg_32),
+		test_case(0xea010808, opcode.and_reg_32),
+		test_case(0xea23030c, opcode.bic_reg_32),
+		test_case(0xf7ffbfbb, opcode.b_uncond_32),
+		test_case(0xeba30605, opcode.sub_reg_32),
+		test_case(0xea4f06a6, opcode.mov_reg_32),
+		// 1110 1010 0100 1111 0000 0110 1010 0110
+		test_case(0xf8553b04, opcode.ldr_imm_32_t4), // f8553b04
+		test_case(0xf7ffb8f7, opcode.b_uncond_32),
+		test_case(0xf8441023, opcode.str_reg_32),
+		test_case(0xf8c46188, opcode.str_imm_32_t3),
+		// 1111 1000 1100 0100 0110 0001 1000 1000
+		test_case(0xe8bd4008, opcode.pop_mult_reg_32),
+		// 1110 1000 1011 1101 0100 0000 0000 1000
+		test_case(0xeb0101a3, opcode.add_reg_32),
+		test_case(0xf1b37f80, opcode.cmp_imm_32),
+		test_case(0xf1070318, opcode.add_32),
+		test_case(0xfa02f303, opcode.lsl_reg_32),
+		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
+		test_case(0xea400301, opcode.orr_reg_32),
+		test_case(0xe9d7453a, opcode.ldrd_imm_32),
+		test_case(0xe9d78928, opcode.ldrd_imm_32),
+		test_case(0xf04f31ff, opcode.mov_imm_32_t2),
+		test_case(0xf04f30ff, opcode.mov_imm_32_t2),
+		test_case(0xe8bd4010, opcode.pop_mult_reg_32),
+		test_case(0xf883203c, opcode.strb_imm_32_t2),
+		test_case(0xf9973007, opcode.ldrsb_imm_32_t1),
+		test_case(0xf890f000, opcode.pld_imm_32),
+		test_case(0xf893303d, opcode.ldrb_imm_32_t2),
+		test_case(0xf997300f, opcode.ldrsb_imm_32_t1),
+		test_case(0xf8832300, opcode.strb_imm_32_t2),
+		test_case(0xf8032b01, opcode.strb_imm_32_t3),
+		test_case(0xf8522023, opcode.ldr_reg_32),
+		test_case(0xf8dfd034, opcode.ldr_lit_32),
+		test_case(0xf8d33088, opcode.ldr_imm_32_t3),
+		test_case(0xf8533022, opcode.ldr_reg_32),
+		test_case(0xf3ef8305, opcode.mrs_32),
+	 	test_case(0xf3808808, opcode.msr_32),
+	 	test_case(0xf3bf8f6f, opcode.isb_32),
+	 	test_case(0xf3bf8f4f, opcode.dsb_32),
+	 	test_case(0xf8114b01, opcode.ldrb_imm_32_t3),
+	 	test_case(0xf3c20208, opcode.ubfx_32),
+	 	test_case(0xf8423c20, opcode.str_imm_32_t4),
+	 	test_case(0xf003030f, opcode.and_imm_32),
+	 	test_case(0xf0230301, opcode.bic_imm_32),
+	 	test_case(0xfb035500, opcode.mla_32),
+	 	test_case(0xfab0f080, opcode.clz_32),
+	 	test_case(0xf1100f16, opcode.cmn_32),
+	 	test_case(0xf8973033, opcode.ldrb_imm_32_t2),
+	 	test_case(0xf8a320f8, opcode.strh_imm_32_t2),
+	 	test_case(0xe8b04ff0, opcode.ldmia),
+	    test_case(0xea620205, opcode.orn_reg_32)
+	];
+
+	foreach (t; tests) {
+		auto actual = decode_mnemonic_32(t.instr);
+		assert(
+		    actual == t.expected,
+		    format("Failed for instruction 0x%08X, got %s instead of %s", t.instr, actual.to!string, t.expected.to!string)
 		);
     }
 }
