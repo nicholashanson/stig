@@ -8,23 +8,19 @@ enum opcode : ubyte {
 	add_high_reg_2,
 	add_imm_3,
 	add_imm_8,
-	add_imm_32,
 	add_lo_reg,
 	add_reg,
 	add_sp,	
 	add_sp_t1,
 	add_sp_t2,
 	adr,
-	adr_32,
-	and_reg,
 	and_imm_32,
+	and_reg,
 	asr_imm,
 	b_32,
 	b_cond_32,
 	b_imm_11,
 	b_uncond_32,
-	bfc_32,
-	bfi_32,
 	bic_imm_32,
 	bit_not_32,
 	bit_or_not_32,
@@ -81,14 +77,12 @@ enum opcode : ubyte {
 	lsr_imm,
 	mla_32,
 	mls_32,
-	mov_16_imm_32,
 	mov_high_1,
 	mov_high_2,
 	mov_high_reg,
 	mov_imm,
 	mov_imm_32_t2,
 	mov_lo,
-	movt_32,
 	mul_32,
 	mvn_reg,
 	mrs_32,
@@ -107,7 +101,6 @@ enum opcode : ubyte {
 	push_mult_reg_32,
 	rev,
 	rsb_32,
-	sbfx_32,
 	stmb_32,
 	str_imm,
 	str_imm_32_t3,
@@ -129,12 +122,9 @@ enum opcode : ubyte {
 	strh_reg,
 	sub_imm_3,
 	sub_imm_8,
-	sub_imm_32,
 	sub_reg,
-	subs_32,
 	sub_sp,
-	tst,
-	ubfx_32,	
+	tst,	
 	udiv_32,
 	umull_32,
 	uxtb,
@@ -181,12 +171,23 @@ enum opcode : ubyte {
 	sub_reg_32,
 	tst_reg_32,	// test
 	// -------------------------------------------------------------------------------------- 
+	// -----------------------Data Processing (Plain Binary Immediate)----------------------- 
+	adr_32,			// form PC-relative address
+	add_imm_32,		// add wide, 12-bit
+	bfc_32,			// bit field clear
+	bfi_32,			// bit field insert
+	mov_16_imm_32,	// move wide, 16-bit
+	movt_32,		// move top, 16-bit
+	sbfx_32,		// signed bit field extract
+	sub_imm_32,		// subtract wide, 12-bit 
+	ubfx_32,		// unsigned bit field extract
+	// -------------------------------------------------------------------------------------- 
 	// --------------------------Move Register and Immediate Shifts-------------------------- 
-	asr_imm_32,	
-	lsl_imm_32,
-	lsr_imm_32,
+	asr_imm_32,	// arithmetic shift right
+	lsl_imm_32,	// logical shift left
+	lsr_imm_32,	// logical shift right
 	mov_reg_32,	// move
-	ror_imm_32,
+	ror_imm_32,	// rotate right
 	rrx_32,
 	// -------------------------------------------------------------------------------------- 
 	invalid
@@ -693,6 +694,7 @@ opcode decode_data_proc_bin_imm(uint instr) {
 		case 0b01010: return rn == pc ? opcode.adr_32 : opcode.sub_imm_32;
 		case 0b11100: return opcode.ubfx_32;
 	}
+	return opcode.invalid;
 }
 
 opcode decode_mnemonic_32(uint instr) {
