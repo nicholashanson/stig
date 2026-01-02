@@ -166,7 +166,6 @@ enum opcode : ubyte {
 	svc,
 	uadd8_32,
 	uxth,
-	invalid,
 
 	// --------------------------Data Processing (Shifted Register)-------------------------- 
 	and_reg_32, // bitwise AND
@@ -175,14 +174,22 @@ enum opcode : ubyte {
 	bic_reg_32, // bitwise bit clear
 	cmn_reg_32, // compare negative
 	cmp_reg_32, // compare
-	mov_reg_32,	// move
 	mvn_reg_32, // bitwise NOT
 	orn_reg_32, // bitwise OR NOT
 	orr_reg_32, // bitwise OR
 	sbc_reg_32,	// subtract with carry
 	sub_reg_32,
-	tst_reg_32	// test
+	tst_reg_32,	// test
 	// -------------------------------------------------------------------------------------- 
+	// --------------------------Move Register and Immediate Shifts-------------------------- 
+	asr_imm_32,	
+	lsl_imm_32,
+	lsr_imm_32,
+	mov_reg_32,	// move
+	ror_imm_32,
+	rrx_32,
+	// -------------------------------------------------------------------------------------- 
+	invalid
 }
 
 enum instr_grp : ubyte {
@@ -618,6 +625,26 @@ enum op2_32 : ubyte {
 	load_byte 				= 0b1100111
 }
 
+// ==========================
+//  Decode Mov Reg Imm Shift
+// ==========================
+
+opcode decode_mov_reg_imm_shift(uint instr) {
+	ubyte type  = cast(ubyte)((instr >>  4) & 0x3);
+	ubyte imm_2 = cast(ubyte)((instr >>  6) & 0x3);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+
+	ubyte imm_5 = cast(ubyte)((imm_3 << 2) | imm_2);
+	final switch (type)
+	{
+		case 0b00: return imm_5 == 0 ? opcode.mov_reg_32 : opcode.lsl_imm_32;
+		case 0b01: return opcode.lsr_imm_32;
+		case 0b10: return opcode.asr_imm_32;
+		case 0b11: return imm_5 == 0 ? opcode.rrx_32 : opcode.ror_imm_32;
+	}
+	return opcode.invalid;
+}
+
 // ============================
 //  Decode Data Proc Shift Reg
 // ============================
@@ -638,7 +665,7 @@ opcode decode_data_proc_shift_reg(uint instr) {
 		case 0b1010: return opcode.adc_reg_32;
 		case 0b1000: return rd == pc ? opcode.cmn_reg_32 : opcode.add_reg_32;
 		case 0b0011: return rn == pc ? opcode.mvn_reg_32 : opcode.orn_reg_32; 
-		case 0b0010: return rn == pc ? opcode.mov_reg_32 : opcode.orr_reg_32;
+		case 0b0010: return rn == pc ? decode_mov_reg_imm_shift(instr) : opcode.orr_reg_32;
 		case 0b0001: return opcode.bic_reg_32;
 		case 0b0000:
 			if (rd == pc && s == 1) return opcode.tst_reg_32;
@@ -1127,7 +1154,7 @@ unittest {
 		test_case(0xf67fae90, opcode.b_32),
 		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
 		test_case(0xea4161d2, opcode.orr_reg_32),
-		test_case(0xebb2080a, opcode.subs_32),
+		test_case(0xebb2080a, opcode.sub_reg_32),
 		test_case(0xeb63090b, opcode.sbc_reg_32),
 		test_case(0xeb45030b, opcode.adc_reg_32),
 		test_case(0xf06f0240, opcode.bit_not_32),
@@ -1140,7 +1167,7 @@ unittest {
 		test_case(0xea23030c, opcode.bic_reg_32),
 		test_case(0xf7ffbfbb, opcode.b_uncond_32),
 		test_case(0xeba30605, opcode.sub_reg_32),
-		test_case(0xea4f06a6, opcode.mov_reg_32),
+		test_case(0xea4f06a6, opcode.asr_imm_32),
 		// 1110 1010 0100 1111 0000 0110 1010 0110
 		test_case(0xf8553b04, opcode.ldr_imm_32_t4), // f8553b04
 		test_case(0xf7ffb8f7, opcode.b_uncond_32),
@@ -1186,7 +1213,8 @@ unittest {
 	 	test_case(0xf8973033, opcode.ldrb_imm_32_t2),
 	 	test_case(0xf8a320f8, opcode.strh_imm_32_t2),
 	 	test_case(0xe8b04ff0, opcode.ldmia),
-	    test_case(0xea620205, opcode.orn_reg_32)
+	    test_case(0xea620205, opcode.orn_reg_32),
+	    test_case(0xea4f06a6, opcode.asr_imm_32)
 	];
 
 	foreach (t; tests) {
