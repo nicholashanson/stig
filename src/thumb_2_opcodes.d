@@ -628,7 +628,7 @@ enum op2_32 : ubyte {
 	data_proc_imm           = 0b0100000,	// Data Processing (Modified Immediate)
 	load_store_mult 		= 0b1100100,
 	long_mult               = 0b1111000,
-	mult					= 0b1111000,
+	mult					= 0b1111000,	// Multiply, Multiply Accumulate, and Absolute Difference
 	data_proc_reg           = 0b1110000,
 	ld_bytes_mem_hints      = 0b1100111,
 	str_single              = 0b1110001,
@@ -795,6 +795,23 @@ opcode decode_load_store_dual(uint instr) {
 	return opcode.invalid;
 }
 
+// =============
+//  Decode Mult
+// =============
+
+opcode decode_mult(uint instr) {
+	ubyte ra  = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte op1 = cast(ubyte)((instr >> 20) & 0x7);
+	ubyte op2 = cast(ubyte)((instr >>  4) & 0x3);
+	enum ubyte pc = 0xf;
+	ubyte op12 = cast(ubyte)((op1 << 2) | op2); 
+	final switch (op12) {
+		case 0b00000: return ra == pc ? opcode.mul_32 : opcode.mla_32;
+		case 0b00001: return opcode.mls_32;
+	}
+	return opcode.invalid;
+}
+
 opcode decode_mnemonic_32(uint instr) {
 	ubyte op1 = cast(ubyte)((instr >> 27) & 0b11);
 	ubyte op2 = cast(ubyte)((instr >> 20) & 0b1111111);
@@ -886,22 +903,7 @@ opcode decode_mnemonic_32(uint instr) {
 			}
 		}
 		if ((op2 & op2_32.mult) == 0b0110000) {
-			ubyte ra = cast(ubyte)((instr >> 12) & 0b1111);
-			ubyte _op1 = cast(ubyte)((instr >> 20) & 0b111);
-			ubyte _op2 = cast(ubyte)((instr >>  4) & 0b11);
-			if (_op1 == 0b000) { 
-				if (_op2 == 0b00) {
-					if (ra == 0b1111) {
-						return opcode.mul_32;
-					}
-					if (ra != 0b1111) {
-						return opcode.mla_32;
-					}
-				}
-				if (_op2 == 0b01) {
-					return opcode.mls_32;
-				}
-			}
+			return decode_mult(instr);
 		}
 		if ((op2 & op2_32.data_proc_reg) == 0b0100000) {
 			ubyte _rn = cast(ubyte)((instr >>  16) & 0b1111);
