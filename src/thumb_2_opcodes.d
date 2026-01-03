@@ -157,6 +157,12 @@ enum opcode : ubyte {
 	uxth,
 
 
+	//lsl_reg_32,
+	//lsr_reg_32,
+	//asr_reg_32,
+	ror_reg_32,
+
+
 	// --------------------------Data Processing (Modified Immediate)-------------------------- 
 	adc_imm_32,		// add with carry
 	eor_imm_32,		// bitwise exclusive OR
@@ -812,6 +818,66 @@ opcode decode_mult(uint instr) {
 	return opcode.invalid;
 }
 
+// ==========
+//  Misc Ops
+// ==========
+
+opcode misc_ops(uint instr) {
+	ubyte op1  = cast(ubyte)((instr >> 20) & 0x3);
+	ubyte op2  = cast(ubyte)((instr >>  4) & 0x3);
+	ubyte op12 = cast(ubyte)((op1 << 2) | op2);
+	final switch (op12) {
+		case 0b0000: return opcode.qadd_32;
+		case 0b0001: return opcode.qdadd_32;
+		case 0b0010: return opcode.qsub_32;
+		case 0b0011: return opcode.qdsub_32;
+		case 0b0100: return opcode.rev_32;
+		case 0b0101: return opcode.rev_16_32;
+		case 0b0110: return opcode.rbit_32;
+		case 0b0111: return opcode.revsh_32;
+		case 0b1000: return opcode.sel_32;
+		case 0b1100: return opcode.clz_32;
+	}
+	return opcode.invalid;
+}
+
+opcode decode_data_proc_reg(uint instr) {
+	ubyte rn  = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte op1 = cast(ubyte)((instr >> 20) & 0xf);
+	ubyte op2 = cast(ubyte)((instr >>  4) & 0xf);
+	ubyte op1_masked = cast(ubyte)(op1 & 0b1110);
+	ubyte op2_masked = cast(ubyte)(op2 & 0b1000);
+	ubyte op1m_op2 = cast(ubyte)((op1_masked << 4) | op2);
+	ubyte op1_op2m = cast(ubyte)((op1 << 4) | op2_masked);
+	enum ubyte pc = 0xf;
+	switch (op1m_op2) {
+		case 0b00000000: return opcode.lsl_reg_32;
+		case 0b00100000: return opcode.lsr_reg_32;
+		case 0b01000000: return opcode.asr_reg_32;
+		case 0b01100000: return opcode.ror_reg_32;
+		default: break;
+	}
+	switch (op1_op2m) {
+		case 0b00001000: return rn == pc ? opcode.sxth_32 : opcode.sxtah_32;
+		case 0b00011000: return rn == pc ? opcode.uxth_32 : opcode.uxtah_32;
+		case 0b00101000: return rn == pc ? opcode.sxtb16_32: opcode.sxtab_16_32;
+		case 0b00111000: return rn == pc ? opcode.uxtb16_32 : opcode.uxtab_16_32;
+		case 0b01001000: return rn == pc ? opcode.sxtb_32 : opcode.sxtab_32;
+		case 0b01011000: return rn == pc ? opcode.uxtb_32 : opcode.uxtab_32;
+		default: break;
+	}
+	if (((op1 & 0b1000) == 0b1000) && ((op2 & 0b1100) == 0b0000)) {
+		return opcode.uadd8_32;
+	}
+	if (((op1 & 0b1000) == 0b1000) && ((op2 & 0b1100) == 0b0100)) {
+		return opcode.uadd8_32;
+	}
+	if (((op1 & 0b1100) == 0b1000) && ((op2 & 0b1100) == 0b1000)) {
+		return misc_ops(instr);
+	}
+	return opcode.invalid;
+}
+
 opcode decode_mnemonic_32(uint instr) {
 	ubyte op1 = cast(ubyte)((instr >> 27) & 0b11);
 	ubyte op2 = cast(ubyte)((instr >> 20) & 0b1111111);
@@ -906,97 +972,7 @@ opcode decode_mnemonic_32(uint instr) {
 			return decode_mult(instr);
 		}
 		if ((op2 & op2_32.data_proc_reg) == 0b0100000) {
-			ubyte _rn = cast(ubyte)((instr >>  16) & 0b1111);
-			ubyte _op1 = cast(ubyte)((instr >> 20) & 0b1111);
-			ubyte _op2 = cast(ubyte)((instr >>  4) & 0b1111);
-			if (((_op1 & 0b1110) == 0b0000) && _op2 == 0b0) {
-				return opcode.lsl_reg_32;
-			}
-			if (((_op1 & 0b1110) == 0b0010) && _op2 == 0b0) {
-				return opcode.lsr_reg_32;
-			}
-			if (((_op1 & 0b1110) == 0b0100) && _op2 == 0b0) {
-				return opcode.asr_reg_32;
-			}
-			if (((_op1 & 0b1110) == 0b0110) && _op2 == 0b0) {
-				return opcode.ror_32;
-			}
-			if ((_op1 == 0b0000) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.sxtah_32;
-			}
-			if ((_op1 == 0b0000) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.sxth_32;
-			}
-			if ((_op1 == 0b0001) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.uxtah_32;
-			}
-			if ((_op1 == 0b0001) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.uxth_32;
-			}
-			if ((_op1 == 0b0010) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.sxtab_16_32;
-			}
-			if ((_op1 == 0b0010) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.sxtb16_32;
-			}
-			if ((_op1 == 0b0011) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.uxtab_16_32;
-			}
-			if ((_op1 == 0b0011) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.uxtb16_32;
-			}
-			if ((_op1 == 0b0100) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.sxtab_32;
-			}
-			if ((_op1 == 0b0100) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.sxtb_32;
-			}
-			if ((_op1 == 0b0101) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.uxtab_32;
-			}
-			if ((_op1 == 0b0101) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.uxtb_32;
-			}
-			if (((_op1 & 0b1000) == 0b1000) && ((_op2 & 0b1100) == 0b0000)) {
-				return opcode.uadd8_32;
-			}
-			if (((_op1 & 0b1000) == 0b1000) && ((_op2 & 0b1100) == 0b0100)) {
-				return opcode.uadd8_32;
-			}
-			if (((_op1 & 0b1100) == 0b1000) && ((_op2 & 0b1100) == 0b1000)) {
-				ubyte __op1 = cast(ubyte)((instr >> 20) & 0b11);
-				ubyte __op2 = cast(ubyte)((instr >>  4) & 0b11);
-				if ((__op1 == 0b00) && (__op2 == 0b00)) {
-					return opcode.qadd_32;
-				}
-				if ((__op1 == 0b00) && (__op2 == 0b01)) {
-					return opcode.qdadd_32;
-				}
-				if ((__op1 == 0b00) && (__op2 == 0b10)) {
-					return opcode.qsub_32;
-				}
-				if ((__op1 == 0b00) && (__op2 == 0b11)) {
-					return opcode.qdsub_32;
-				}
-				if ((__op1 == 0b01) && (__op2 == 0b00)) {
-					return opcode.rev_32;
-				}
-				if ((__op1 == 0b01) && (__op2 == 0b01)) {
-					return opcode.rev_16_32;
-				}
-				if ((__op1 == 0b01) && (__op2 == 0b10)) {
-					return opcode.rbit_32;
-				}
-				if ((__op1 == 0b01) && (__op2 == 0b11)) {
-					return opcode.revsh_32;
-				}
-				if ((__op1 == 0b10) && (__op2 == 0b00)) {
-					return opcode.sel_32;
-				}
-				if ((__op1 == 0b11) && (__op2 == 0b00)) {
-					return opcode.clz_32;
-				}
-			}
+			return decode_data_proc_reg(instr);
 		}
 		if ((op2 & op2_32.load_word) == 0b0000101) {
 			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
