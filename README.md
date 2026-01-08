@@ -6,6 +6,11 @@ I am Stig of the Hexadecimal Dump. Feed me objdump files and I will make them ex
 
 # Cortex-M
 The intended goal of this project is to implement a fully-featured soft-core version of a Cortex-M core.
+
+<div align="center">
+  <img src="assets/demo.gif" width="200"><br>
+</div>
+
 ## Thumb-2
 Cortex-M always runs in Thumb-2 mode. 
 ### Opcodes
