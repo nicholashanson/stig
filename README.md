@@ -10,6 +10,7 @@ Cortex-M always runs in Thumb-2 mode.
 ### Opcodes
 
 Opcode without a "32" in the name denote 16-bit instructions:
+
 <!-- Non-_32 opcodes -->
 <table width="100%">
   <tr>
@@ -58,7 +59,9 @@ Opcode without a "32" in the name denote 16-bit instructions:
     <td>sub_sp</td><td>svc</td><td>tst</td><td></td>
   </tr>
 </table>
+
 Opcodes with a "32" in the name denote 32-bit instructions:
+
 <!-- _32 and _32_t* opcodes -->
 <table width="100%">
   <tr>
@@ -165,7 +168,7 @@ Some instructions might have more than one 16-bit version or more than one 32-bi
 In the case of 32-bit instructions, "t*" denotes a specific encoding. For example, **strb_imm_32_t2** uses certain default values for flags that allow it to use more bits to encode the immediate (12 bits in total). **strb_imm_32_t3** encodes the flags explicitly, so it only has 8 bits to store its immediate.
 
 ### Instructions
-Thumb-2 instructions can be either 16 or 32-bit. These are modelled in Strig like this:
+Thumb-2 instructions can be either 16 or 32-bit. These are modelled in Stig like this:
 ```code
 struct instr_16 {
 	uint addr;
