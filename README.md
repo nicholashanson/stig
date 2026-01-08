@@ -42,7 +42,7 @@ struct instr_16 {
 - **enable/affet_pri/affect_fault:** used in the cps insturciton only
 
 ```code
-struct instr_32 {
+**struct** instr_32 {
 	opcode op;
 	reg rd;
 	reg rn;
@@ -69,13 +69,13 @@ struct instr_32 {
 	bool set_flags;
 }
 ```
-- **shift_t:** used in bit-shifts or rotations to denote the type of bit-shift or rotation.
+- **shift_t:** used in bit-shifts or rotations to denote the type of bit-shift or rotation
 - **shift_n:** the number of bit positions to shift or rotate
 - **ls_bit/ms_bit/width:** used in **unsigned bit-field extract** and **bit-field clear**
 - **rd_hi/rd_lo:** used in instructions that need two destination registers (eg multiply)
-- **ra:** used in **multiply accumulate** and **multiply subtract** to store the addend
+- **ra:** used in **multiply-accumulate** and **multiply-subtract** to store the addend
 - **wback:** true if the address of a load or store should be written back to the target register
 - **add:** true if the immediate in a load or store should be added to the base address to derive the offset address, false if it should be subracted
 - **index:** false if the immediate in a load or store is disregarded when calculating the offset address
 - **spec_reg**: used in the **msr** and **mrs** insturctions to denote the special register to be read or written to
-- **set_falgs**: true if the result of the operation should affect CPU flags
+- **set_flags**: true if the result of the operation should affect CPU flags
