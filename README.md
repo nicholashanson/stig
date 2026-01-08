@@ -8,6 +8,7 @@ I am Stig of the Hexadecimal Dump. Feed me objdump files and I will make them ex
 ## Thumb-2
 Cortex-M always runs in Thumb-2 mode. 
 ### Opcodes
+```text
 adc_imm_32     adc_reg_32      add_32          add_imm_32
 add_reg_32     adr_32          and_reg_32      asr_imm_32
 asr_reg_32     b_32            b_cond_32       b_uncond_32
@@ -34,6 +35,7 @@ sxtb16_32      sxtb_32         teq_imm_32      tst_imm_32
 tst_reg_32     uadd8_32        ubfx_32         udiv_32
 umull_32       uxtab_16_32     uxtab_32        uxtah_32
 uxtb16_32      uxtb_32         uxth_32
+```
 
 ### Instructions
 Thumb-2 instructions can be either 16 or 32-bit. These are modelled in Strig like this:
