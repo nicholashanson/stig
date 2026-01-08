@@ -10,6 +10,54 @@ Cortex-M always runs in Thumb-2 mode.
 ### Opcodes
 <table width="100%">
   <tr>
+    <td>adc_reg</td><td>add_high_reg_1</td><td>add_high_reg_2</td><td>add_imm_3</td>
+  </tr>
+  <tr>
+    <td>add_imm_8</td><td>add_lo_reg</td><td>add_reg</td><td>add_sp</td>
+  </tr>
+  <tr>
+    <td>add_sp_t1</td><td>add_sp_t2</td><td>adr</td><td>and_reg</td>
+  </tr>
+  <tr>
+    <td>asr_imm</td><td>b_cond</td><td>blx</td><td>bx</td>
+  </tr>
+  <tr>
+    <td>cmp_br_z</td><td>cmp_br_nz</td><td>cmp_high_1</td><td>cmp_high_2</td>
+  </tr>
+  <tr>
+    <td>cmp_imm</td><td>cmp_reg</td><td>cps</td><td>if_then</td>
+  </tr>
+  <tr>
+    <td>ld_rex</td><td>ldr_imm</td><td>ldr_pool</td><td>ldr_sp</td>
+  </tr>
+  <tr>
+    <td>ldr_reg</td><td>ldrb_imm</td><td>ldrb_reg</td><td>ldrh_imm</td>
+  </tr>
+  <tr>
+    <td>lor_reg</td><td>lsl_imm</td><td>lsl_reg</td><td>lsr_reg</td>
+  </tr>
+  <tr>
+    <td>lsr_imm</td><td>mov_high_1</td><td>mov_high_2</td><td>mov_high_reg</td>
+  </tr>
+  <tr>
+    <td>mov_imm</td><td>mov_lo</td><td>negs</td><td>nop</td>
+  </tr>
+  <tr>
+    <td>rev</td><td>str_imm</td><td>str_sp</td><td>str_reg</td>
+  </tr>
+  <tr>
+    <td>str_rex</td><td>strb_reg</td><td>strb_imm</td><td>strh_imm</td>
+  </tr>
+  <tr>
+    <td>strh_reg</td><td>sub_imm_3</td><td>sub_imm_8</td><td>sub_reg</td>
+  </tr>
+  <tr>
+    <td>sub_sp</td><td>tst</td><td>svc</td><td>ror_reg_32</td>
+  </tr>
+</table>
+
+<table width="100%">
+  <tr>
     <td>adc_imm_32</td><td>adc_reg_32</td><td>add_32</td><td>add_imm_32</td>
   </tr>
   <tr>
