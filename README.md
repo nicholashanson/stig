@@ -14,7 +14,7 @@ struct instr_16 {
 	reg rd;
 	reg rm;
 	reg rn;
-  reg rm;
+    reg rm;
 	reg rt;
 	uint imm;
 	int offset;
@@ -40,3 +40,42 @@ struct instr_16 {
 - **reg_list:** used in push and pop of multiple registers
 - **first_cond/mask:** used in the if-then instruction only
 - **enable/affet_pri/affect_fault:** used in the cps insturciton only
+
+```code
+struct instr_32 {
+	opcode op;
+	reg rd;
+	reg rn;
+	reg rm;
+	reg rt;
+	shift_type shift_t;
+	uint imm;
+	ubyte shift_n;
+	int offset;
+	reg[] reg_list;
+	uint ls_bit;
+	uint width;
+	uint ms_bit;
+	reg rd_hi;
+	reg rd_lo;
+	reg rt_2;
+	reg ra;
+	condition cond;
+	bool wback;
+	bool add;
+	bool index;
+	ubyte mask;
+	special_reg spec_reg;
+	bool set_flags;
+}
+```
+- **shift_t:** used in bit-shifts or rotations to denote the type of bit-shift or rotation.
+- **shift_n:** the number of bit positions to shift or rotate
+- **ls_bit/ms_bit/width:** used in **unsigned bit-field extract** and **bit-field clear**
+- **rd_hi/rd_lo:** used in instructions that need two destination registers (eg multiply)
+- **ra:** used in **multiply accumulate** and **multiply subtract** to store the addend
+- **wback:** true if the address of a load or store should be written back to the target register
+- **add:** true if the immediate in a load or store should be added to the base address to derive the offset address, false if it should be subracted
+- **index:** false if the immediate in a load or store is disregarded when calculating the offset address
+- **spec_reg**: used in the **msr** and **mrs** insturctions to denote the special register to be read or written to
+- **set_falgs**: true if the result of the operation should affect CPU flags
