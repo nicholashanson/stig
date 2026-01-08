@@ -160,7 +160,7 @@ Many instructions have "immediate versions" and "register versions". For example
 
 Some instructions might only have a 16-bit version (eg **svc**), some might only have a 32-bit version (eg **uxtb_32**), some might have both a 16-bit version and a 32-bit version (eg **adc_reg/adc_reg_32**).
 
-Some instructions might have more than one 15-bit version or more than one 32-bit version. For example, **add_imm_3** is a 16-bit add instruction that encodes one of its operands as a 3-bit immediate, where as **add_imm_8** is the same but with the immediate encoded in 8 bits instead of 3. 
+Some instructions might have more than one 16-bit version or more than one 32-bit version. For example, **add_imm_3** is a 16-bit add instruction that encodes one of its operands as a 3-bit immediate, where as **add_imm_8** is the same but with the immediate encoded in 8 bits instead of 3. 
 
 In the case of 32-bit instructions, "t*" denotes a specific encoding. For example, **strb_imm_32_t2** uses certain default values for flags that allow it to use more bits to encode the immediate (12 bits in total). **strb_imm_32_t3** encodes the flags explicitly, so it only has 8 bits to store its immediate.
 
