@@ -555,16 +555,19 @@ unittest {
 		test_case(0x4013, opcode.and_reg),
 		test_case(0x10b6, opcode.asr_imm),
 		test_case(0xd002, opcode.b_cond),
+		test_case(0xd3fb, opcode.b_cond),
 		test_case(0xe7cf, opcode.b_imm_11),
 		test_case(0xe7fe, opcode.b_imm_11),
 		test_case(0x4798, opcode.blx),
 		test_case(0x4718, opcode.bx),
+		test_case(0x4770, opcode.bx),
 		test_case(0xb943, opcode.cmp_br_nz),
 		test_case(0xb103, opcode.cmp_br_z),
 		test_case(0x458c, opcode.cmp_high_1),
 		test_case(0x4572, opcode.cmp_high_2),
 		test_case(0x2b00, opcode.cmp_imm),
 		test_case(0x4283, opcode.cmp_reg),
+		test_case(0x42a2, opcode.cmp_reg),
 		test_case(0xb661, opcode.cps),
 		test_case(0xbf08, opcode.if_then),
 		test_case(0x681b, opcode.ldr_imm),
@@ -587,6 +590,7 @@ unittest {
 		test_case(0x469d, opcode.mov_high_1),
 		test_case(0x4652, opcode.mov_high_2),
 		test_case(0x2300, opcode.mov_imm),
+		test_case(0x2301, opcode.mov_imm),
 		test_case(0x460f, opcode.mov_lo),
 		test_case(0x43db, opcode.mvn_reg),
 		test_case(0x4241, opcode.negs),
@@ -763,7 +767,7 @@ opcode decode_load_store_mult(uint instr) {
 	ubyte L    = cast(ubyte)((instr >> 20) & 0x1);
 	ubyte op_L = cast(ubyte)((op << 1) | L);
 	final switch (op_L) {
-		case 0b011: return Wrn == 0b11101 ? opcode.pop_mult_reg_32 : opcode.ldmia_32;
+		case 0b011: return Wrn == 0b11101 ? opcode.pop_mult_reg_32  : opcode.ldmia_32;
 		case 0b100: return Wrn == 0b11101 ? opcode.push_mult_reg_32 : opcode.stmb_32;
 		case 0b101: return opcode.ldmdb_32;
 		case 0b010: return opcode.stmia_32;
@@ -841,6 +845,10 @@ opcode misc_ops(uint instr) {
 	return opcode.invalid;
 }
 
+// ======================
+//  Decode Data Proc Reg
+// ======================
+
 opcode decode_data_proc_reg(uint instr) {
 	ubyte rn  = cast(ubyte)((instr >> 16) & 0xf);
 	ubyte op1 = cast(ubyte)((instr >> 20) & 0xf);
@@ -858,12 +866,12 @@ opcode decode_data_proc_reg(uint instr) {
 		default: break;
 	}
 	switch (op1_op2m) {
-		case 0b00001000: return rn == pc ? opcode.sxth_32 : opcode.sxtah_32;
-		case 0b00011000: return rn == pc ? opcode.uxth_32 : opcode.uxtah_32;
-		case 0b00101000: return rn == pc ? opcode.sxtb16_32: opcode.sxtab_16_32;
+		case 0b00001000: return rn == pc ? opcode.sxth_32   : opcode.sxtah_32;
+		case 0b00011000: return rn == pc ? opcode.uxth_32   : opcode.uxtah_32;
+		case 0b00101000: return rn == pc ? opcode.sxtb16_32 : opcode.sxtab_16_32;
 		case 0b00111000: return rn == pc ? opcode.uxtb16_32 : opcode.uxtab_16_32;
-		case 0b01001000: return rn == pc ? opcode.sxtb_32 : opcode.sxtab_32;
-		case 0b01011000: return rn == pc ? opcode.uxtb_32 : opcode.uxtab_32;
+		case 0b01001000: return rn == pc ? opcode.sxtb_32   : opcode.sxtab_32;
+		case 0b01011000: return rn == pc ? opcode.uxtb_32   : opcode.uxtab_32;
 		default: break;
 	}
 	if (((op1 & 0b1000) == 0b1000) && ((op2 & 0b1100) == 0b0000)) {
@@ -874,6 +882,33 @@ opcode decode_data_proc_reg(uint instr) {
 	}
 	if (((op1 & 0b1100) == 0b1000) && ((op2 & 0b1100) == 0b1000)) {
 		return misc_ops(instr);
+	}
+	return opcode.invalid;
+}
+
+// ===============================
+//  Decode Store Single Data Item
+// ===============================
+
+opcode decode_store_single_data_item(uint instr) {
+	ubyte op1 = cast(ubyte)((instr >> 21) & 0x7);
+	ubyte op2 = cast(ubyte)((instr >>  6) & 0x3f);
+	ubyte maksed_op2 = cast(ubyte)(op2 & 0x20);
+	ushort op1_masked_op2 = cast(ushort)((op1 << 6) | maksed_op2);
+	final switch (op1_masked_op2) 
+	{
+		case 0b100100000:
+		case 0b100000000: return opcode.strb_imm_32_t2;
+		case 0b000100000: return opcode.strb_imm_32_t3;
+		case 0b000000000: return opcode.strb_reg_32;
+		case 0b101000000:
+		case 0b101100000: return opcode.strh_imm_32_t2;
+		case 0b001100000: return opcode.strh_imm_32_t3;
+		case 0b001000000: return opcode.strh_reg_32;
+		case 0b110000000:
+		case 0b110100000: return opcode.str_imm_32_t3;
+		case 0b010100000: return opcode.str_imm_32_t4;
+		case 0b010000000: return opcode.str_reg_32;
 	}
 	return opcode.invalid;
 }
@@ -998,37 +1033,7 @@ opcode decode_mnemonic_32(uint instr) {
 			}
 		}
 		if ((op2 & op2_32.store_single_data_item) == 0b0000000) {
-			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
-			ubyte _op1 = cast(ubyte)((instr >> 21) & 0b111);
-			if (_op1 == 0b100) {
-				return opcode.strb_imm_32_t2;
-			}
-			if ((_op1 == 0b000) && ((_op2 & 0b100000) == 0b100000)) {
-				return opcode.strb_imm_32_t3;
-			}
-			if ((_op1 == 0b000) && ((_op2 & 0b100000) == 0b000000)) {
-				return opcode.strb_reg_32;
-			}
-			// half
-			if (_op1 == 0b101) {
-				return opcode.strh_imm_32_t2;
-			}
-			if ((_op1 == 0b001) && ((_op2 & 0b100000) == 0b100000)) {
-				return opcode.strh_imm_32_t3;
-			}
-			if ((_op1 == 0b001) && ((_op2 & 0b100000) == 0b000000)) {
-				return opcode.strh_reg_32;
-			}
-			// reg
-			if (_op1 == 0b110) {
-				return opcode.str_imm_32_t3;
-			}
-			if ((_op1 == 0b010) && ((_op2 & 0b100000) == 0b100000)) {
-				return opcode.str_imm_32_t4;
-			}
-			if ((_op1 == 0b010) && ((_op2 & 0b100000) == 0b000000)) {
-				return opcode.str_reg_32;
-			}
+			return decode_store_single_data_item(instr);
 		}
 		if ((op2 & op2_32.load_byte) == 0b0000001) {
 			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
@@ -1145,14 +1150,11 @@ unittest {
 		test_case(0xf7ffbfbb, opcode.b_uncond_32),
 		test_case(0xeba30605, opcode.sub_reg_32),
 		test_case(0xea4f06a6, opcode.asr_imm_32),
-		// 1110 1010 0100 1111 0000 0110 1010 0110
-		test_case(0xf8553b04, opcode.ldr_imm_32_t4), // f8553b04
+		test_case(0xf8553b04, opcode.ldr_imm_32_t4), 
 		test_case(0xf7ffb8f7, opcode.b_uncond_32),
 		test_case(0xf8441023, opcode.str_reg_32),
 		test_case(0xf8c46188, opcode.str_imm_32_t3),
-		// 1111 1000 1100 0100 0110 0001 1000 1000
 		test_case(0xe8bd4008, opcode.pop_mult_reg_32),
-		// 1110 1000 1011 1101 0100 0000 0000 1000
 		test_case(0xeb0101a3, opcode.add_reg_32),
 		test_case(0xf1b37f80, opcode.cmp_imm_32),
 		test_case(0xf1070318, opcode.add_imm_32),
@@ -1188,11 +1190,14 @@ unittest {
 	 	test_case(0xfab0f080, opcode.clz_32),
 	 	test_case(0xf1100f16, opcode.cmn_imm_32),
 	 	test_case(0xf8973033, opcode.ldrb_imm_32_t2),
+	 	test_case(0xf8832042, opcode.strb_imm_32_t2),
 	 	test_case(0xf8a320f8, opcode.strh_imm_32_t2),
 	 	test_case(0xe8b04ff0, opcode.ldmia_32),
 	    test_case(0xea620205, opcode.orn_reg_32),
 	    test_case(0xea4f06a6, opcode.asr_imm_32),
-	    test_case(0xf4434380, opcode.orr_imm_32)
+	    test_case(0xf4434380, opcode.orr_imm_32),
+	    test_case(0xf7feffc5, opcode.bl_32),
+	    test_case(0xf7f6f9b5, opcode.bl_32)
 	];
 
 	foreach (t; tests) {
