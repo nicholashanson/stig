@@ -202,7 +202,7 @@ struct instr_16 {
 - **rn:** first source register
 - **rm:** second source register
 - **imm:** immediate value
-- **offet:** used in jumps/branches
+- **offset:** used in jumps/branches
 - **rt:** target register, used in load and store operations. In the case of store, it holds the value to be stored, in the case of load, it recieves the loaded value
 - **cond:** condition used in branching
 - **reg_list:** used in push and pop of multiple registers
