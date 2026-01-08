@@ -6,7 +6,37 @@ I am Stig of the Hexadecimal Dump. Feed me objdump files and I will make them ex
 
 # Cortex-M
 ## Thumb-2
-Cortex-M always runs in Thumb-2 mode. Thumb-2 instructions can be either 16 or 32-bit. These are modelled in Strig like this:
+Cortex-M always runs in Thumb-2 mode. 
+### Opcodes
+adc_imm_32     adc_reg_32      add_32          add_imm_32
+add_reg_32     adr_32          and_reg_32      asr_imm_32
+asr_reg_32     b_32            b_cond_32       b_uncond_32
+bfc_32         bfi_32          bic_imm_32      bic_reg_32
+bl_32          clz_32          cmn_32          cmn_imm_32
+cmn_reg_32     cmp_imm_32      cmp_reg_32      dmb_32
+dsb_32         eor_imm_32      isb_32          ldh_32
+ldmdb_32       ldmia_32        ldr_imm_32      ldr_lit_32
+ldr_reg_32     ldr_sh_32       ldrbt_32        ldrd_imm_32
+ldrsb_32       ldrsbt_32       ldrt_32         ldrb_32
+lsl_imm_32     lsl_reg_32      lsr_imm_32      lsr_reg_32
+mla_32         mls_32          mov_reg_32      movt_32
+mrs_32         msr_32          mul_32          mvn_imm_32
+mvn_reg_32     nop_32          orn_32          orn_imm_32
+orn_reg_32     orr_32          orr_imm_32      orr_reg_32
+pld_32         pop_mult_reg_32 push_mult_reg_32
+qadd_32        qdadd_32        qdsub_32        qsub_32
+rbit_32        rev_16_32       rev_32          revsh_32
+ror_32         ror_imm_32      rrx_32          sbc_imm_32
+sbc_reg_32     sbfx_32         sel_32          stmb_32
+stmia_32       str_reg_32      strd_32         sub_imm_32
+sub_reg_32     sxtab_16_32     sxtab_32        sxtah_32
+sxtb16_32      sxtb_32         teq_imm_32      tst_imm_32
+tst_reg_32     uadd8_32        ubfx_32         udiv_32
+umull_32       uxtab_16_32     uxtab_32        uxtah_32
+uxtb16_32      uxtb_32         uxth_32
+
+### Instructions
+Thumb-2 instructions can be either 16 or 32-bit. These are modelled in Strig like this:
 ```code
 struct instr_16 {
 	uint addr;
@@ -42,7 +72,7 @@ struct instr_16 {
 - **enable/affet_pri/affect_fault:** used in the cps insturciton only
 
 ```code
-**struct** instr_32 {
+struct instr_32 {
 	opcode op;
 	reg rd;
 	reg rn;
