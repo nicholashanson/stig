@@ -13,6 +13,7 @@ import core.exception;
 import std.container;
 import thumb_2_opcodes;
 import memory_sections;
+import cortex_m_core;
 
 enum special_reg : ubyte {
 	APSR = 			0b00000000,
@@ -47,6 +48,24 @@ File* stack_log() {
         stack_log_ptr = new File("stack_log.txt", "w");
     }
     return stack_log_ptr;
+}
+
+File* pc_log_ptr = null;
+
+File* pc_log() {
+    if (pc_log_ptr is null) {
+        pc_log_ptr = new File("pc_log.txt", "w");
+    }
+    return pc_log_ptr;
+}
+
+File* uart_log_ptr = null;
+
+File* uart_log() {
+    if (uart_log_ptr is null) {
+        uart_log_ptr = new File("uart_log.txt", "w");
+    }
+    return uart_log_ptr;
 }
 
 string[] bare_metal_func_names = [
@@ -84,7 +103,182 @@ string[] bare_metal_func_names = [
     "__aeabi_uldivmod",
     "__udivmoddi4",
     "__aeabi_idiv0",
-    "strlen"
+    "strlen",
+    "HAL_UART_Transmit",
+    "HAL_Delay",
+    "HAL_GetTick",
+    "SysTick_Handler",
+    "HAL_IncTick",
+	"UART_WaitOnFlagUntilTimeout"
+];
+
+string[] freertos_no_task = [
+	"SystemInit",
+    "Reset_Handler",
+    "CopyDataInit",
+    "LoopCopyDataInit",
+    "FillZerobss",
+    "LoopFillZerobss",
+    "__libc_init_array",
+    "_init",
+	"register_fini",
+    "atexit",
+    "__register_exitproc",
+    "frame_dummy",
+    "register_tm_clones",
+    "main",
+    "HAL_Init",
+    "HAL_NVIC_SetPriorityGrouping",
+    "__NVIC_SetPriorityGrouping",
+    "HAL_InitTick",
+    "HAL_SYSTICK_Config",
+    "SysTick_Config",
+    "HAL_MspInit",
+    "SystemClock_Config",
+    "memset",
+    "MX_GPIO_Init",
+    "HAL_RCC_GetClockConfig",
+    "HAL_RCC_GetPCLK1Freq",
+    "HAL_RCC_GetHCLKFreq",
+    "HAL_TIM_Base_Init",
+    "HAL_TIM_Base_MspInit",
+    "TIM_Base_SetConfig",
+    "HAL_TIM_Base_Start_IT",
+    "HAL_NVIC_SetPriority",
+    "__NVIC_GetPriorityGrouping",
+    "NVIC_EncodePriority",
+    "__NVIC_SetPriority",
+    "HAL_NVIC_GetPriorityGrouping",
+    "HAL_RCC_OscConfig",
+    "HAL_RCC_ClockConfig",
+    "HAL_GetTick",
+    "HAL_RCC_GetSysClockFreq",
+    "HAL_GPIO_WritePin",
+    "HAL_GPIO_Init",
+    "osKernelInitialize",
+    "osThreadNew",
+    "xTaskCreate",
+    "pvPortMalloc",
+    "vTaskSuspendAll",
+    "prvHeapInit",
+    "xTaskResumeAll",
+    "vPortEnterCritical",
+    "vPortExitCritical",
+    "HAL_NVIC_EnableIRQ",
+    "__NVIC_EnableIRQ",
+    "prvInsertBlockIntoFreeList",
+    "prvInitialiseNewTask",
+    "vListInitialiseItem",
+    "pxPortInitialiseStack",
+    "prvAddNewTaskToReadyList",
+    "prvInitialiseTaskLists",
+    "vListInitialise",
+    "vListInsertEnd",
+    "osKernelStart",
+    "SVC_Setup",
+    "___NVIC_SetPriority",
+    "vTaskStartScheduler",
+    "vApplicationGetIdleTaskMemory",
+    "xTaskCreateStatic",
+    "xTimerCreateTimerTask",
+    "prvCheckForValidListAndQueue",
+    "xQueueGenericCreateStatic",
+    "prvInitialiseNewQueue",
+    "xQueueGenericReset",
+    "vQueueAddToRegistry",
+    "vApplicationGetTimerTaskMemory",
+    "xPortStartScheduler",
+    "vPortSetupTimerInterrupt",
+    "vPortEnableVFP",
+    "prvPortStartFirstTask",
+    "vTaskSwitchContext",
+    "prvTaskExitError",
+    "HAL_GPIO_TogglePin",
+    "osDelay",
+    "vTaskDelay",
+    "prvAddCurrentTaskToDelayedList",
+    "uxListRemove",
+    "vListInsert",
+
+    "SVC_Handler",
+    "SysTick_Handler",
+    "xTaskGetSchedulerState",
+    "xPortSysTickHandler",
+    "xTaskIncrementTick",
+    "StartDefaultTask"
+];
+
+string[] dsp_func_names = [
+	"SystemInit",
+    "Reset_Handler",
+    "CopyDataInit",
+    "LoopCopyDataInit",
+    "FillZerobss",
+    "LoopFillZerobss",
+    "__libc_init_array",
+    "_init",
+    //"register_fini",
+    //"atexit",
+    //"__register_exitproc",
+    "frame_dummy",
+    //"register_tm_clones",
+    "main",
+    "HAL_Init",
+	"SystemClock_Config",
+	"MX_GPIO_Init",
+	"MX_DMA_Init",
+	"MX_ADC1_Init",
+	"MX_TIM2_Init",
+	"MX_DAC_Init",
+	"HAL_NVIC_SetPriorityGrouping",
+    "__NVIC_SetPriorityGrouping",
+    "HAL_InitTick",
+    "HAL_SYSTICK_Config",
+    "SysTick_Config",
+    "HAL_MspInit",
+    "SystemClock_Config",
+    "memset",
+    "__NVIC_GetPriorityGrouping",
+    //"HAL_RCC_GetClockConfig",
+    //"HAL_RCC_GetPCLK1Freq",
+    //"HAL_RCC_GetHCLKFreq",
+    //"HAL_TIM_Base_Init",
+    "HAL_TIM_Base_MspInit",
+	"TIM_Base_SetConfig",
+	"HAL_TIM_ConfigClockSource",
+    //"HAL_TIM_Base_Start_IT",
+    //"HAL_NVIC_SetPriority",
+    //"__NVIC_GetPriorityGrouping",
+    "NVIC_EncodePriority",
+    "Error_Handler",
+    "__NVIC_SetPriority",
+    //"HAL_NVIC_GetPriorityGrouping",
+    "HAL_RCC_OscConfig",
+    //"HAL_RCC_ClockConfig",
+    "HAL_GetTick",
+    "SysTick_Handler",
+    "HAL_IncTick",
+    "HAL_NVIC_EnableIRQ",
+    "__NVIC_EnableIRQ",
+    "HAL_ADC_Init",
+    //"HAL_RCC_GetSysClockFreq",
+    //"HAL_GPIO_WritePin",
+    "HAL_GPIO_Init",
+    "HAL_RCC_ClockConfig",
+    "HAL_RCC_GetSysClockFreq",
+    "HAL_NVIC_SetPriority",
+    "__aeabi_uldivmod",
+    "__aeabi_idiv0",
+    "HAL_ADC_MspInit",
+    "HAL_DMA_Init",
+    "DMA_CalcBaseAndBitshift",
+    "ADC_Init",
+    "HAL_ADC_ConfigChannel",
+    "HAL_TIM_Base_Init",
+    "HAL_TIMEx_MasterConfigSynchronization",
+    "HAL_DAC_Init",
+    "HAL_DAC_MspInit",
+    "HAL_DAC_ConfigChannel"
 ];
 
 string[] freertos_func_names = [
@@ -167,7 +361,19 @@ string[] freertos_func_names = [
     "vPortEnableVFP",
     "prvPortStartFirstTask",
     "SVC_Handler",
-    "vTaskSwitchContext"
+    "vTaskSwitchContext",
+    "prvTaskExitError",
+    "LedTask2",
+    "HAL_GPIO_TogglePin",
+    "osDelay",
+    "vTaskDelay",
+    "prvAddCurrentTaskToDelayedList",
+    "uxListRemove",
+    "vListInsert",
+    "SysTick_Handler",
+    "xTaskGetSchedulerState",
+    "xPortSysTickHandler",
+    "xTaskIncrementTick"
 ];
 
 string[] zephyr_func_names = [
@@ -218,28 +424,9 @@ string[] zephyr_func_names = [
 	"boot_banner",
 	"printk",
 	"vprintk",
-	"__l_vfprintf"
+	"__l_vfprintf",
+	"region_init"
 ];
- 
-enum reg : ubyte {
-	r0,
-	r1,
-	r2,
-	r3,
-	r4,
-	r5,
-	r6,
-	r7,
-	r8,
-	r9,
-	r10,
-	r11,
-	r12,
-	sp,   	// stack pointer
-	lr,		// link register
-	pc,		// program counter
-	none
-}
 
 struct imm {
 	int value;
@@ -357,9 +544,9 @@ struct stm32f4_swtrigr {
 
 enum all_field_tuples = 
 	  field_tuples_adc_reg
-	~ field_tuples_adc_32
-	~ field_tuples_add_32
-	~ field_tuples_add_32_reg
+	~ field_tuples_adc_reg_32
+	~ field_tuples_add_imm_32
+	~ field_tuples_add_reg_32
 	~ field_tuples_add_high_reg_1
 	~ field_tuples_add_high_reg_2
 	~ field_tuples_add_imm_3
@@ -378,7 +565,7 @@ enum all_field_tuples =
 	~ field_tuples_b_uncond_32
 	~ field_tuples_bic_reg_32
 	~ field_tuples_bic_imm_32
-	~ field_tuples_bit_not_32
+	~ field_tuples_mvn_imm_32
 	~ field_tuples_bl_32
 	~ field_tuples_blx
 	~ field_tuples_bx
@@ -418,7 +605,7 @@ enum all_field_tuples =
 	~ field_tuples_lsr_reg
 	~ field_tuples_mls_32
 	~ field_tuples_mov_16_imm_32
-	~ field_tuples_mov_32
+	~ field_tuples_asr_imm_32
 	~ field_tuples_mov_imm_32_t2
 	~ field_tuples_mov_high_1
 	~ field_tuples_mov_high_2
@@ -426,21 +613,22 @@ enum all_field_tuples =
 	~ field_tuples_mov_lo
 	~ field_tuples_mrs_32
 	~ field_tuples_msr_32
-	~ field_tuples_subs_32
+	~ field_tuples_sub_reg_32
 	~ field_tuples_mla_32
 	~ field_tuples_mul_32
 	~ field_tuples_mvn_reg
 	~ field_tuples_negs
 	~ field_tuples_nop
 	~ field_tuples_nop_32
-	~ field_tuples_orr_32
+	~ field_tuples_orr_imm_32
 	~ field_tuples_orr_reg_32
 	~ field_tuples_pop_mult_reg
 	~ field_tuples_pop_mult_reg_32
 	~ field_tuples_push_mult_reg
 	~ field_tuples_push_mult_reg_32
-	~ field_tuples_rsb_32
-	~ field_tuples_sbc_32
+	~ field_tuples_rsb_imm_32
+	~ field_tuples_sbc_reg_32
+	~ field_tuples_sel_32
 	~ field_tuples_str_imm
 	~ field_tuples_str_imm_32_t3
 	~ field_tuples_str_imm_32_t4
@@ -459,15 +647,17 @@ enum all_field_tuples =
 	~ field_tuples_sub_imm_32
 	~ field_tuples_sub_sp
 	~ field_tuples_sub_reg
-	~ field_tuples_subs_32
+	~ field_tuples_sub_reg_32
 	~ field_tuples_svc
 	~ field_tuples_tst
+	~ field_tuples_uadd8_32
 	//~ field_tuples_tst
 	~ field_tuples_udiv_32
 	~ field_tuples_umull_32
 	~ field_tuples_ubfx_32
 	~ field_tuples_uxtb
-	~ field_tuples_uxth;
+	~ field_tuples_uxth
+	~ field_tuples_rev;
 
 immutable string[][opcode] field_map = (() {
     string[][opcode] m;
@@ -475,641 +665,6 @@ immutable string[][opcode] field_map = (() {
         m[t[0]] = t[1];
     return m;
 })();
-
-enum op1_32 : ubyte {
-	grp1				 	= 0b01,
-	grp2					= 0b10,
-	grp3					= 0b11
-}
-
-enum op2_32 : ubyte {
-	data_proc_shift_reg 	= 0b0100000,
-	data_proc_bin_imm 		= 0b0100000,
-	load_store_mult 		= 0b1100100,
-	data_proc_imm           = 0b0100000,
-	long_mult               = 0b1111000,
-	mult					= 0b1111000,
-	data_proc_reg           = 0b1110000,
-	ld_bytes_mem_hints      = 0b1100111,
-	str_single              = 0b1110001,
-	ld_str_dual             = 0b1100100,
-	ldh  					= 0b1100111,
-	load_word 				= 0b1100111,
-	store_single_data_item  = 0b1110001,
-	load_byte 				= 0b1100111
-}
-
-opcode decode_mnemonic_32(uint instr) {
-	ubyte op1 = cast(ubyte)((instr >> 27) & 0b11);
-	ubyte op2 = cast(ubyte)((instr >> 20) & 0b1111111);
-	if (op1 == op1_32.grp1) { 
-		if ((op2 & op2_32.data_proc_shift_reg) == op2_32.data_proc_shift_reg) {
-			ubyte op = cast(ubyte)((instr >> 21) & 0b1111);
-			auto rn = cast(ubyte)((instr >> 16) & 0b1111);
-			auto rd = cast(ubyte)((instr >>  8) & 0b1111);
-			if (op == 0b1000) {
-				if (rd != 0b1111) {
-					return opcode.add_32_reg;
-				}
-			}
-			if (op == 0b0010) {
-				if (rn != 0b1111) {
-					return opcode.orr_reg_32;
-				}
-				if (rn == 0b1111) {
-					return opcode.mov_32;
-				}
-			}
-			if (op == 0b1101) {
-				if (rd != 0b1111) {
-					return opcode.subs_32;
-				}
-			}
-			if (op == 0b1011) {
-				return opcode.sbc_32;
-			}
-			if (op == 0b1010) {
-				return opcode.adc_32;
-			}
-			if (op == 0b0011) {
-				if (rn == 0b1111) {
-					return opcode.or_not_32;
-				}
-				if (rn != 0b1111) {
-					return opcode.mvn_reg_32;
-				}
-			}
-			ubyte s = cast(ubyte)((instr >> 20) & 0b1);
-			if (op == 0b0000) {
-				if ((rd == 0b1111) && (s == 0b1)) {
-					return opcode.tst_32;
-				}
-				if (rd != 0b1111) {
-					return opcode.and_reg_32;
-				}
-			}
-			if (op == 0b0001) {
-				return opcode.bic_reg_32;
-			}
-
-		}
-		if ((op2 & op2_32.load_store_mult) == 0b0000000)  {
-			ubyte op = cast(ubyte)((instr >> 23) & 0b11);
-			ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
-			ubyte W = cast(ubyte)((instr >> 21) & 0b1);
-			ubyte Wrn = cast(ubyte)((W << 4) | rn);
-			ubyte L = cast(ubyte)((instr >> 20) & 0b1);
-			if (op == 0b01) {
-				if (L == 0b1) {
-					if (Wrn == 0b11101) {
-						return opcode.pop_mult_reg_32;
-					} else {
-						return opcode.ldmia;
-					}
-				}
-			}
-			if (op == 0b10) {
-				if (L == 0b0) {
-					if (rn == 0b1101) {
-						return opcode.push_mult_reg_32;
-					}
-				}
-			}
-		}
-		if ((op2 & op2_32.ld_str_dual) == 0b0000100) {
-			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
-			ubyte _op2 = cast(ubyte)((instr >> 20) & 0b11);
-			if (((_op1 & 0b10) == 0b00) && (_op2 == 0b10)) {
-				return opcode.strd_32;
-			}
-			if (((_op1 & 0b10) == 0b10) && ((_op2 & 0b01) == 0b00)) {
-				return opcode.strd_32;
-			}
-			if (((_op1 & 0b10) == 0b00) && (_op2 == 0b11)) {
-				return opcode.ldrd_imm_32;
-			}
-			if (((_op1 & 0b10) == 0b10) && ((_op2 & 0b01) == 0b01)) {
-				return opcode.ldrd_imm_32;
-			}
-			if ((_op1 == 0b00) && (_op2 == 0b01)) {
-				return opcode.ld_rex;
-			}
-			if ((_op2 == 0b00) && (_op1 == 0b00)) {
-				return opcode.str_rex;
-			}
-		}
-	}
-	if (op1 == op1_32.grp2) {
-		ubyte op = cast(ubyte)((instr >> 15) & 0b1); 
-		ubyte rd = cast(ubyte)((instr >> 20) & 0b1111); 
-		if (op) {
-			ubyte _op1 = cast(ubyte)((instr >> 12) & 0b111);
-			ubyte _op = cast(ubyte)((instr >> 20) & 0b1111111);
-			if (((_op1 & 0b101) == 0b000) & (_op == 0b0111011)) {
-				ubyte option = cast(ubyte)(instr & 0xf);
-				ubyte _opc_ = cast(ubyte)((instr >> 4) & 0xf);
-				if ((_opc_ == 0b100) & ((option & 1011) != 0b0000)) {
-					return opcode.dsb_32;
-				}
-				if (_opc_ == 0b110) {
-					return opcode.isb_32;
-				}
-				if (_opc_ == 0b0101) {
-					return opcode.dmb_32;
-				}
-			}
-			if ((_op1 & 0b101) == 0b101) {
-				return opcode.bl_32;
-			}
-			if (((_op1 & 0b101) == 0b000) & ((_op & 0b1111110) == 0b0111110)) {
-				return opcode.mrs_32;
-			}
-			if (((_op1 & 0b101) == 0b000) & ((_op & 0b1111110) == 0b0111000)) {
-				return opcode.msr_32;
-			}
-			if (_op == 0b0111010) {
-				ubyte __op1 = cast(ubyte)((instr >> 8) & 0b111);
-				ubyte __op2 = cast(ubyte)(instr & 0b11111111);
-				if (__op1 == 0b000) {
-					if (__op2 == 0b00000000) {
-						return opcode.nop_32;
-					}
-				}
-			}
-			/*
-			if (_op == 0b0111011) {
-				ubyte __op = cast(ubyte)((instr >> 4) & 0b1111);
-				return opcode.dsb; 
-			}
-			*/
-			if (((_op1 & 0b101) == 0b000) && ((_op & 0b0111000) != 0b0111000)) {
-				if (cast(ubyte)((instr >> 12) & 0b1) == 0b1) {
-					return opcode.b_uncond_32;
-				}
-				return opcode.b_32;
-			}
-			if ((_op1 & 0b101) == 0b001) {
-				if (cast(ubyte)((instr >> 12) & 0b1) == 0b1) {
-					return opcode.b_uncond_32;
-				}
-				return opcode.b_32;
-			}
-		}
-		if (((op2 & op2_32.data_proc_imm) == 0b0000000) && !op) {
-			ubyte _op = cast(ubyte)((instr >> 20) & 0b11111);
-			ubyte rd_ = cast(ubyte)((instr >> 8) & 0xf);
-			ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-			if (((_op & 0b11110) == 0b00100) & (rn == 0b1111)) {
-				return opcode.mov_imm_32_t2;
-			}      
-			if (((_op & 0b11110) == 0b11010)) {
-				// 0xF1B37F80
-				// 1111 0001 1011 0011 0111 1111 1000 0000
-				if (rd_ != 0b1111) {
-					return opcode.sub_imm_32;
-				}
-				if (rd_ == 0b1111) {
-					return opcode.cmp_imm_32;
-				}
-			} 
-			if ((_op & 0b11110) == 0b00000) {
-				if (rd_ != 0b1111) {
-					return opcode.and_imm_32;
-				}
-				if (rd_ == 0b1111) {
-					return opcode.tst_32;
-				}
-			}
-			if (((_op & 0b11110) == 0b00100) && (rn != 0b1111)) {
-				return opcode.orr_32;
-			}
-			if (((_op & 0b11110) == 0b00100) && (rn == 0b1111)) {	
-				return opcode.mov_32;
-			}
-			if ((_op & 0b11110) == 0b00110) {
-				if (rn != 0b1111) {
-					return opcode.bit_or_not_32;
-				}
-				if (rn == 0b1111) {
-					return opcode.bit_not_32;
-				}
-			}
-			// 0xf1100f16
-			if (((_op & 0b11110) == 0b10000) && (rd_ == 0b1111)) {	
-				return opcode.cmn_32;
-				// 1111 0001 0001 0000 0000 1111 0001 0110
-			}
-			if (((_op & 0b11110) == 0b10000) && (rd_ != 0b1111)) {	
-				return opcode.add_32;
-			}
-			if ((_op & 0b11110) == 0b00010) {
-				return opcode.bic_imm_32;
-			}
-			if ((_op & 0b11110) == 0b11100) {
-				return opcode.rsb_32;
-			}
-		}
-		if (((op2 & op2_32.data_proc_bin_imm) == op2_32.data_proc_bin_imm) && !op) {
-			ubyte _op = cast(ubyte)((instr >> 20) & 0b11111);
-			ubyte _rn = cast(ubyte)((instr >> 16) & 0b11111);
-			if (_op == 0b11100) {
-				return opcode.ubfx_32;
-			}
-			if (_op == 0b00100) {
-				return opcode.mov_16_imm_32;
-			}
-			if (_op == 0b01100) {
-				return opcode.movt_32;
-			}
-			if (_op == 0b10100) {
-				return opcode.sbfx_32;
-			}
-			if ((_op == 0b10110) && (_rn != 0b1111)) {
-				return opcode.bfi_32;
-			}
-			if ((_op == 0b10110) && (_rn != 0b1111)) {
-				return opcode.bfc_32;
-			}
-			if ((_op == 0b01010) && (_rn != 0b1111)) {
-				return opcode.sub_imm_32;
-			}
-			if ((_op == 0b01010) && (_rn == 0b1111)) {
-				return opcode.adr_32;
-			}
-			if ((_op == 0b00000) && (_rn == 0b1111)) {
-				return opcode.adr_32;
-			}
-			if ((_op == 0b00000) && (_rn == 0b1111)) {
-				return opcode.add_imm_32;
-			}
-		}
-	}
-	if (op1 == op1_32.grp3) {
-		ubyte _op = cast(ubyte)((instr >> 20) & 0b111);
-		if ((op2 & op2_32.ldh) == 0b0000011) {
-			return opcode.ldh_32;
-		}
-		if ((op2 & op2_32.long_mult) == 0b0111000) {
-			if (_op == 0b011) { 
-				return opcode.udiv_32;
-			}
-			if (_op == 0b010) {
-				return opcode.umull_32;
-			}
-		}
-		if ((op2 & op2_32.mult) == 0b0110000) {
-			ubyte ra = cast(ubyte)((instr >> 12) & 0b1111);
-			ubyte _op1 = cast(ubyte)((instr >> 20) & 0b111);
-			ubyte _op2 = cast(ubyte)((instr >>  4) & 0b11);
-			if (_op1 == 0b000) { 
-				if (_op2 == 0b00) {
-					if (ra == 0b1111) {
-						return opcode.mul_32;
-					}
-					if (ra != 0b1111) {
-						return opcode.mla_32;
-					}
-				}
-				if (_op2 == 0b01) {
-					return opcode.mls_32;
-				}
-			}
-		}
-		if ((op2 & op2_32.data_proc_reg) == 0b0100000) {
-			ubyte _rn = cast(ubyte)((instr >>  16) & 0b1111);
-			ubyte _op1 = cast(ubyte)((instr >> 20) & 0b1111);
-			ubyte _op2 = cast(ubyte)((instr >>  4) & 0b1111);
-			if (((_op1 & 0b1110) == 0b0000) && _op2 == 0b0) {
-				return opcode.lsl_reg_32;
-			}
-			if (((_op1 & 0b1110) == 0b0010) && _op2 == 0b0) {
-				return opcode.lsr_reg_32;
-			}
-			if (((_op1 & 0b1110) == 0b0100) && _op2 == 0b0) {
-				return opcode.asr_reg_32;
-			}
-			if (((_op1 & 0b1110) == 0b0110) && _op2 == 0b0) {
-				return opcode.ror_32;
-			}
-			if ((_op1 == 0b0000) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.sxtah_32;
-			}
-			if ((_op1 == 0b0000) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.sxth_32;
-			}
-			if ((_op1 == 0b0001) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.uxtah_32;
-			}
-			if ((_op1 == 0b0001) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.uxth_32;
-			}
-			if ((_op1 == 0b0010) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.sxtab_16_32;
-			}
-			if ((_op1 == 0b0010) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.sxtb16_32;
-			}
-			if ((_op1 == 0b0011) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.uxtab_16_32;
-			}
-			if ((_op1 == 0b0011) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.uxtb16_32;
-			}
-			if ((_op1 == 0b0100) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.sxtab_32;
-			}
-			if ((_op1 == 0b0100) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.sxtb_32;
-			}
-			if ((_op1 == 0b0101) && ((_op2 & 0b1000) == 0b1000) && (_rn != 0b1111)) {
-				return opcode.uxtab_32;
-			}
-			if ((_op1 == 0b0101) && ((_op2 & 0b1000) == 0b1000) && (_rn == 0b1111)) {
-				return opcode.uxtb_32;
-			}
-			if (((_op1 & 0b1000) == 0b1000) && ((_op2 & 0b1100) == 0b0000)) {
-				return opcode.uadd8_32;
-			}
-			if (((_op1 & 0b1000) == 0b1000) && ((_op2 & 0b1100) == 0b0100)) {
-				return opcode.uadd8_32;
-			}
-			if (((_op1 & 0b1100) == 0b1000) && ((_op2 & 0b1100) == 0b1000)) {
-				ubyte __op1 = cast(ubyte)((instr >> 20) & 0b11);
-				ubyte __op2 = cast(ubyte)((instr >>  4) & 0b11);
-				if ((__op1 == 0b00) && (__op2 == 0b00)) {
-					return opcode.qadd_32;
-				}
-				if ((__op1 == 0b00) && (__op2 == 0b01)) {
-					return opcode.qdadd_32;
-				}
-				if ((__op1 == 0b00) && (__op2 == 0b10)) {
-					return opcode.qsub_32;
-				}
-				if ((__op1 == 0b00) && (__op2 == 0b11)) {
-					return opcode.qdsub_32;
-				}
-				if ((__op1 == 0b01) && (__op2 == 0b00)) {
-					return opcode.rev_32;
-				}
-				if ((__op1 == 0b01) && (__op2 == 0b01)) {
-					return opcode.rev_16_32;
-				}
-				if ((__op1 == 0b01) && (__op2 == 0b10)) {
-					return opcode.rbit_32;
-				}
-				if ((__op1 == 0b01) && (__op2 == 0b11)) {
-					return opcode.revsh_32;
-				}
-				if ((__op1 == 0b10) && (__op2 == 0b00)) {
-					return opcode.sel_32;
-				}
-				if ((__op1 == 0b11) && (__op2 == 0b00)) {
-					return opcode.clz_32;
-				}
-			}
-		}
-		if ((op2 & op2_32.load_word) == 0b0000101) {
-			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
-			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
-			ubyte _rn = cast(ubyte)((instr >>  16) & 0xf);
-			if ((_op1 == 0b01) && (_rn != 0b1111)) {
-				return opcode.ldr_imm_32_t3;
-			}
-			if ((_op1 == 0b00) && ((_op2 & 0b100100) == 0b100100) && (_rn != 0b1111)) {
-				return opcode.ldr_imm_32_t4;	
-			}
-			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (_rn != 0b1111)) {
-				return opcode.ldr_imm_32_t4;
-			}
-			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b111000) && (_rn != 0b1111)) {
-				return opcode.ldrt_32;
-			}
-			if ((_op1 == 0b00) && (_op2 == 0b0) && (_rn != 0b1111)) {
-				return opcode.ldr_reg_32;
-			}
-			if (((_op1 & 0b10) == 0b00) && (_rn == 0b1111)) {
-				return opcode.ldr_lit_32;
-			}
-		}
-		if ((op2 & op2_32.store_single_data_item) == 0b0000000) {
-			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
-			ubyte _op1 = cast(ubyte)((instr >> 21) & 0b111);
-			if (_op1 == 0b100) {
-				return opcode.strb_imm_32_t2;
-			}
-			if ((_op1 == 0b000) && ((_op2 & 0b100000) == 0b100000)) {
-				return opcode.strb_imm_32_t3;
-			}
-			if ((_op1 == 0b000) && ((_op2 & 0b100000) == 0b000000)) {
-				return opcode.strb_reg_32;
-			}
-			// half
-			if (_op1 == 0b101) {
-				return opcode.strh_imm_32_t2;
-			}
-			if ((_op1 == 0b001) && ((_op2 & 0b100000) == 0b100000)) {
-				return opcode.strh_imm_32_t3;
-			}
-			if ((_op1 == 0b001) && ((_op2 & 0b100000) == 0b000000)) {
-				return opcode.strh_reg_32;
-			}
-			// reg
-			if (_op1 == 0b110) {
-				return opcode.str_imm_32_t3;
-			}
-			if ((_op1 == 0b010) && ((_op2 & 0b100000) == 0b100000)) {
-				return opcode.str_imm_32_t4;
-			}
-			if ((_op1 == 0b010) && ((_op2 & 0b100000) == 0b000000)) {
-				return opcode.str_reg_32;
-			}
-		}
-		if ((op2 & op2_32.load_byte) == 0b0000001) {
-			ubyte _op2 = cast(ubyte)((instr >>  6) & 0b111111);
-			ubyte _op1 = cast(ubyte)((instr >> 23) & 0b11);
-			ubyte rt = cast(ubyte)((instr >> 12) & 0b1111);
-			ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
-			if (((_op1 & 0b10) == 0b00) && (rn == 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrb_32;
-			}
-			if ((_op1 == 0b01) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrb_imm_32_t2;
-			}
-			if ((_op1 == 0b00) && ((_op2 & 0b100100) == 0b100100) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrb_imm_32_t3;
-			}
-			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrb_imm_32_t3;
-			}
-			// ldrbt
-			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b111000) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrbt_32;
-			}
-			// ldrb
-			if ((_op1 == 0b00) && ((_op2 & 0b000000) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrb_reg_32;
-			}
-			// ldrsb
-			if (((_op1 & 0b10) == 0b10) && (rn == 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrsb_32;
-			}
-			// ldrsb_imm
-			if ((_op1 == 0b11) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrsb_imm_32_t1;
-			}
-			if ((_op1 == 0b10) && ((_op2 & 0b100100) == 0b100100) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrsb_imm_32_t2;
-			}
-			if ((_op1 == 0b10) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrsb_imm_32_t2;
-			}
-			// ldrsbt
-			if ((_op1 == 0b10) && ((_op2 & 0b111100) == 0b111000) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrsbt_32;
-			}
-			// ldrsb
-			if ((_op1 == 0b10) && (_op2 == 0b000000) && (rn != 0b1111) && (rt != 0b1111)) {
-				return opcode.ldrsb_reg_32;
-			}
-			// 
-			if ((_op1 == 0b00) && (_op2 == 0b000000) && (rn != 0b1111) && (rt == 0b1111)) {
-				return opcode.pld_reg_32;
-			}
-			// pld literal
-			if (((_op1 & 0b10) == 0b00) && (rn == 0b1111) && (rt == 0b1111)) {
-				return opcode.pld_32;
-			}
-			// pld immediate
-			if ((_op1 == 0b00) && ((_op2 & 0b111100) == 0b110000) && (rn != 0b1111) && (rt == 0b1111)) {
-				return opcode.pld_imm_32;
-			}
-			if ((_op1 == 0b01) && (rn != 0b1111) && (rt == 0b1111)) {
-				return opcode.pld_imm_32;
-			}
-		}
-	}
-	return opcode.invalid;
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
-	struct test_case {
-		uint instr;
-		opcode expected;
-	}
-
-	test_case[] tests = [
-		test_case(0xeb0101a3, opcode.add_32_reg),
-		test_case(0xf7ffffda, opcode.bl_32),
-		test_case(0xf3af8000, opcode.nop_32),
-		test_case(0xe8bd4008, opcode.pop_mult_reg_32),
-		test_case(0xf5a33a80, opcode.sub_imm_32),
-		test_case(0xf008ff15, opcode.bl_32),
-		test_case(0xf009f8a6, opcode.bl_32),
-		test_case(0xf003030c, opcode.and_imm_32),
-		test_case(0xfbb2f3f3, opcode.udiv_32),
-		test_case(0xf3c20208, opcode.ubfx_32),
-		test_case(0xfb02f303, opcode.mul_32),
-		test_case(0xfa22f303, opcode.lsr_reg_32),
-		test_case(0xf4434380, opcode.orr_32),
-		test_case(0xf1070314, opcode.add_32),
-		test_case(0xf0230310, opcode.bic_imm_32),
-		test_case(0xf64f03ff, opcode.mov_16_imm_32),
-		test_case(0xf9973007, opcode.ldrsb_imm_32_t1),
-		test_case(0xf8412023, opcode.str_reg_32),
-		test_case(0xf8dfd034, opcode.ldr_lit_32),
-		test_case(0xf3bf8f4f, opcode.dsb_32),
-		test_case(0xf1c30307, opcode.rsb_32),
-		test_case(0xfba22303, opcode.umull_32),
-		test_case(0xe9c72300, opcode.strd_32),
-		test_case(0xf67fae90, opcode.b_32),
-		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
-		test_case(0xea4161d2, opcode.orr_reg_32),
-		test_case(0xebb2080a, opcode.subs_32),
-		test_case(0xeb63090b, opcode.sbc_32),
-		test_case(0xeb45030b, opcode.adc_32),
-		test_case(0xf06f0240, opcode.bit_not_32),
-		test_case(0xe8533f00, opcode.ld_rex),
-		test_case(0xe8412300, opcode.str_rex),
-		test_case(0xfb0e7711, opcode.mls_32),
-		test_case(0xf9b4500c, opcode.ldh_32),
-		test_case(0xea1c0f0e, opcode.tst_32),
-		test_case(0xea010808, opcode.and_reg_32),
-		test_case(0xea23030c, opcode.bic_reg_32),
-		test_case(0xf7ffbfbb, opcode.b_uncond_32),
-		test_case(0xeba30605, opcode.subs_32),
-		test_case(0xea4f06a6, opcode.mov_32),
-		// 1110 1010 0100 1111 0000 0110 1010 0110
-		test_case(0xf8553b04, opcode.ldr_imm_32_t4), // f8553b04
-		test_case(0xf7ffb8f7, opcode.b_uncond_32),
-		test_case(0xf8441023, opcode.str_reg_32),
-		test_case(0xf8c46188, opcode.str_imm_32_t3),
-		// 1111 1000 1100 0100 0110 0001 1000 1000
-		test_case(0xe8bd4008, opcode.pop_mult_reg_32),
-		// 1110 1000 1011 1101 0100 0000 0000 1000
-		test_case(0xeb0101a3, opcode.add_32_reg),
-		test_case(0xf1b37f80, opcode.cmp_imm_32),
-		test_case(0xf1070318, opcode.add_32),
-		test_case(0xfa02f303, opcode.lsl_reg_32),
-		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
-		test_case(0xea400301, opcode.orr_reg_32),
-		test_case(0xe9d7453a, opcode.ldrd_imm_32),
-		test_case(0xe9d78928, opcode.ldrd_imm_32),
-		test_case(0xf04f31ff, opcode.mov_imm_32_t2),
-		test_case(0xf04f30ff, opcode.mov_imm_32_t2),
-		test_case(0xe8bd4010, opcode.pop_mult_reg_32),
-		test_case(0xf883203c, opcode.strb_imm_32_t2),
-		test_case(0xf9973007, opcode.ldrsb_imm_32_t1),
-		test_case(0xf890f000, opcode.pld_imm_32),
-		test_case(0xf893303d, opcode.ldrb_imm_32_t2),
-		test_case(0xf997300f, opcode.ldrsb_imm_32_t1),
-		test_case(0xf8832300, opcode.strb_imm_32_t2),
-		test_case(0xf8032b01, opcode.strb_imm_32_t3),
-		test_case(0xf8522023, opcode.ldr_reg_32),
-		test_case(0xf8dfd034, opcode.ldr_lit_32),
-		test_case(0xf8d33088, opcode.ldr_imm_32_t3),
-		test_case(0xf8533022, opcode.ldr_reg_32),
-		test_case(0xf3ef8305, opcode.mrs_32),
-	 	test_case(0xf3808808, opcode.msr_32),
-	 	test_case(0xf3bf8f6f, opcode.isb_32),
-	 	test_case(0xf3bf8f4f, opcode.dsb_32),
-	 	test_case(0xf8114b01, opcode.ldrb_imm_32_t3),
-	 	test_case(0xf3c20208, opcode.ubfx_32),
-	 	test_case(0xf8423c20, opcode.str_imm_32_t4),
-	 	test_case(0xf003030f, opcode.and_imm_32),
-	 	test_case(0xf0230301, opcode.bic_imm_32),
-	 	test_case(0xfb035500, opcode.mla_32),
-	 	test_case(0xfab0f080, opcode.clz_32),
-	 	test_case(0xf1100f16, opcode.cmn_32),
-	 	test_case(0xf8973033, opcode.ldrb_imm_32_t2),
-	 	test_case(0xf8a320f8, opcode.strh_imm_32_t2),
-	 	test_case(0xe8b04ff0, opcode.ldmia)
-	];
-
-	foreach (t; tests) {
-		auto actual = decode_mnemonic_32(t.instr);
-		assert(
-		    actual == t.expected,
-		    format("Failed for instruction 0x%08X, got %s instead of %s", t.instr, actual.to!string, t.expected.to!string)
-		);
-    }
-}
-
-enum condition : ubyte {
-	cs = 0b0010,
-	eq = 0b0000,
-	ge = 0b1010,
-	le = 0b1101,
-	mi = 0b0100,
-	ne = 0b0001,
-	pl = 0b0101,
-	hi = 0b1000,
-	ls = 0b1001,
-	vs = 0b0110,
-	vc = 0b0111,
-	cc = 0b0011, 	// carry clear
-	invalid = 0xff
-}
 
 struct instr_16 {
 	uint addr;
@@ -2321,7 +1876,6 @@ instr_16 parse_str_reg(short instr) {
 	return res;
 }
 
-
 // ======================
 //  Parse SUB(Immediate)
 // ======================
@@ -2494,6 +2048,17 @@ instr_16 parse_adc_reg(short instr) {
 	return res;
 }
 
+enum field_tuples_rev = [Tuple!(opcode, string[])(opcode.rev, ["rd","rm"])];
+instr_16 parse_rev(short instr) {
+	instr_16 res;
+	res.op = opcode.rev;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
 // ==========
 //  Parse IT
 // ==========
@@ -2525,6 +2090,8 @@ instr_16 decode_instr(ushort instr) {
     auto op = decode_mnemonic(instr);
 
     switch (op) {
+    	case opcode.rev:
+    		return parse_rev(instr);
     	case opcode.ldr_sp:
     		return parse_ldr_sp(instr);
         case opcode.cmp_imm:
@@ -2995,7 +2562,7 @@ struct memory {
 	    0xE000E3FC: 0,
 	    0xE000ED00: 0,
 	    0x40007000: 0x0000C000, // PWR_CR
-	    0x40023800: 0x00000083, // CR
+	    0x40023800: 0x03333083, // RCC_CR, reset val: 0x00000083
 	    0xe000ed04: 0,
 	    0xe000ed14: 0,
 	    0xe000ed20: 0,
@@ -3027,15 +2594,29 @@ struct memory {
 	    0xE000E3F8: 0,
 	    0xE000EF34: 0,
 	    0xE000ED08: 0x08000000, 
-	    0xE000ED0C: 0xFA050000
+	    0xE000ED0C: 0xFA050000,
+	    0xE000E010: 0,
+	    0x40026410: 0,
+	    0x40026424: 0,
+	    0x40012300: 0,
+	    0x40012304: 0,
+	    0x40012004: 0,
+	    0x40012008: 0,
+	    0x4001202C: 0,
+	    0x40012010: 0,
+	    0x40012034: 0,
+	    0x40000000: 0,
+	    0x40000004: 0,
+	    0x40000008: 0,
+	    0x40026088: 0,
+	    0x4002609C: 0,
+	    0x40007400: 0,
+	    0x40011000: 0xc0
 	];
 
 	uint read_word(size_t addr) {
 		if (addr == 0x08000000) {
 			return 0x20020000;
-		}
-		if (addr == 0x0800002C) {
-			return 0x08014210;
 		}
 		if (addr > ram_origin + ram_length) {
         	return peripherals[addr];
@@ -3044,6 +2625,14 @@ struct memory {
 			return ram.read_word(addr);
 		} else {
 			return flash.read_word(addr);
+		}
+	}
+
+	void flip_bit(size_t addr, int bit_pos) {
+		if (addr > ram_origin + ram_length) {
+        	uint val = peripherals[addr];
+        	val ^= (1u << bit_pos);
+        	peripherals[addr] = val;
 		}
 	}
 
@@ -3082,7 +2671,20 @@ struct memory {
 
 	void write_word(size_t addr, uint val) {
 		if (addr > ram_origin + ram_length) {
-        	peripherals[addr] = val;
+			if (addr == 0x40023808) {
+				uint cfgr = peripherals[addr];
+    			cfgr = val;
+    			uint sw = val & 0x3;
+    			cfgr &= ~(0x3 << 2);
+	    		cfgr |= (sw << 2);
+    			peripherals[addr] = cfgr;
+    		} else if (addr == 0x40011004) {
+    			auto f = uart_log();
+    			f.write(cast(char)(val & 0xff));
+    			f.flush();
+			} else {
+        		peripherals[addr] = val;
+        	}
         	return;
 		}
 		if (addr >= ram_origin) {
@@ -3106,7 +2708,7 @@ struct memory {
 		if (addr >= ram_origin) {
 			return ram.write_byte(addr, b);
 		} else {
-			//return flash.write_byte(addr, val);
+			return flash.write_byte(addr, b);
 		}
 	}
 
@@ -3143,24 +2745,6 @@ unittest {
     int val = vm.mem.pop(vm.cpu);
     assert(val == 32);
     assert(vm.cpu.get_sp() == memory.stack_base);
-}
-
-enum xyz {
-	none,
-	t,
-	e,
-	tt,
-	et,
-	te,
-	ee,
-	ttt,
-	ett,
-	tet,
-	eet,
-	tte,
-	ete,
-	tee,
-	eee
 }
 
 // 0xBF1C
@@ -3216,183 +2800,6 @@ xyz get_xyz(ubyte first_cond_mask) {
 		return xyz.eee;
 	}
 	return xyz.none;
-}
-
-condition get_negation(condition cond) {
-	if (cond == condition.eq) {
-		return condition.ne;
-	}
-	return condition.invalid;
-}
-
-enum exception {
-	thread_mode,
-	SVC_IRQn = 11
-}
-
-struct cortex_m_cpu {
-	uint r0;
-	uint r1;
-	uint r2;
-	uint r3;
-	uint r4;
-	uint r5;
-	uint r6;
-	uint r7;
-	uint r8;
-	uint r9;
-	uint r10;
-	uint r11;
-	uint r12;
-	uint sp;
-	uint lr;
-	uint pc;
-
-	uint get_sp() {
-	    return sp_sel ? psp : msp;
-	}
-
-	void set_sp(uint val) {
-	    if (sp_sel)
-	        psp = val;
-	    else
-	        msp = val;
-	}
-
-	bool npriv;
-	bool sp_sel;
-	uint xspr;
-	ubyte basepri;
-	uint msp;
-	uint psp;
-	bool fault_mask;
-	bool pri_mask;	
-	exception current_exception;
-
-	bool n;
-	bool z;
-	bool c;
-	bool v;
-
-	xyz it_block;
-	Array!condition it_block_stack;
-
-	bool in_it_block() {
-		return !it_block_stack.empty;
-	}
-
-	void init_it_block_stack(condition cond) {
-		if (it_block == xyz.none) {
-			return;
-		}
-		string s = it_block.to!string;
-		it_block_stack.insertBack(cond); 
-		foreach (c; s) {
-	        if (c == 't') {
-	            it_block_stack.insertBack(cond);       
-	        } else if (c == 'e') {
-	            it_block_stack.insertBack(get_negation(cond)); 
-	        }
-	    }
-	}
-
-	uint get(reg r) {
-		switch (r) {
-			case reg.r0:
-				return r0;
-			case reg.r1:
-				return r1;
-			case reg.r2:
-				return r2;
-			case reg.r3:
-				return r3;
-			case reg.r4:
-				return r4;
-			case reg.r5: 
-				return r5;
-			case reg.r6:
-				return r6;
-			case reg.r7:
-				return r7;
-			case reg.r8: 
-				return r8;
-			case reg.r9:
-				return r9;
-			case reg.r10:
-				return r10;
-			case reg.r11:
-				return r11;
-			case reg.r12:
-				return r12;
-			case reg.pc:
-				return pc;
-			case reg.lr:
-				return lr;
-			case reg.sp:
-				return get_sp();
-			default:
-				return r3;
-		}
-	}
-
-	void set(reg r, int val) {
-		switch (r) {
-			case reg.r0:
-				r0 = cast(uint)(val);
-				return;
-			case reg.r1:
-				r1 = cast(uint)(val);
-				return;
-			case reg.r2:
-				r2 = cast(uint)(val);
-				return;
-			case reg.r3:
-				r3 = cast(uint)(val);
-				return;
-			case reg.r4:
-				r4 = cast(uint)(val);
-				return;
-			case reg.r5: 
-				r5 = cast(uint)(val);
-				return;
-			case reg.r6:
-				r6 = cast(uint)(val);
-				return;
-			case reg.r7:
-				r7 = cast(uint)(val);
-				return;
-			case reg.r8:
-				r8 = cast(uint)(val);
-				return;
-			case reg.r9:
-				r9 = cast(uint)(val);
-				return;
-			case reg.r10:
-				r10 = cast(uint)(val);
-				return;
-			case reg.r11:
-				r11 = cast(uint)(val);
-				return;
-			case reg.r12:
-				r12 = cast(uint)(val);
-				return;
-			case reg.pc:
-				pc = cast(uint)(val);
-				return;
-			case reg.lr:
-				lr = cast(uint)(val);
-				return;
-			case reg.sp:
-				set_sp(cast(uint)(val));
-				return;
-			default:
-				return;
-		}
-	}
-
-	void increment_pc(int val) {
-		pc += val;
-	}
 }
 
 // =================
@@ -3488,8 +2895,12 @@ void execute_and_reg(instr_16 and_reg_instr, ref cortex_m_cpu cpu) {
 //  Execute MOV
 // =============
 
-void execute_mov_imm(instr_16  mov_imm_instr, ref cortex_m_cpu cpu) {
-	cpu.set(mov_imm_instr.rd, mov_imm_instr.imm);
+void execute_mov_imm(instr_16 instr, ref cortex_m_cpu cpu) {
+	cpu.set(instr.rd, instr.imm);
+	if (!cpu.in_it_block()) {
+		cpu.z = (instr.imm == 0);
+		cpu.n = (instr.imm & 0x80) != 0;
+	}
 	cpu.increment_pc(2);
 }
 
@@ -3709,7 +3120,7 @@ void execute_cmp_reg(instr_16 cmp_reg_instr, ref cortex_m_cpu cpu) {
 	int res = rn - rm;
 	cpu.z = (res == 0);
 	cpu.n = (res < 0);
-	cpu.c = (rn >= rm);
+	cpu.c = cast(uint)rn >= cast(uint)rm;
 	cpu.v = (rn < 0 && res > 0);
 	cpu.increment_pc(2);
 }
@@ -3731,14 +3142,48 @@ void execute_ldr_pool(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.increment_pc(2);
 }
 
+void exception_return(ref cortex_m_cpu cpu, ref memory mem, uint exc_return) {
+    bool return_to_thread = (exc_return & (1 << 3)) != 0;
+    bool use_psp = (exc_return & (1 << 2)) != 0;
+
+    cpu.sp_sel = use_psp;
+
+    auto f = stack_log();
+	instr_16 pop_instr = instr_16(op: opcode.pop_mult_reg, 
+	                              reg_list: [reg.r0, 
+	                                         reg.r1, 
+	                                         reg.r2, 
+	                                         reg.r3, 
+	                                         reg.r12, 
+	                                         reg.lr, 
+	                                         reg.pc]);
+	execute_pop_mult_reg(pop_instr, cpu, mem);
+	uint addr_xpsr = cpu.get_sp();
+	cpu.set_xpsr(mem.pop(cpu));
+    f.writeln(format("xpsr: [%08X] popped from [%08X]", cpu.get_xpsr(), addr_xpsr));
+	f.flush();
+    cpu.pc &= ~1;
+
+    if (return_to_thread)
+        cpu.current_exception = exception.thread_mode;
+
+    if (return_to_thread)
+        cpu.npriv = false;
+}
+
 // ============
 //  Execute BX
 // ============
 
-void execute_bx(instr_16 bx_instr, ref cortex_m_cpu cpu) {
-	int rm = cpu.get(bx_instr.rm);
-	int val = (rm & ~1);
-	cpu.set(reg.pc, val);
+void execute_bx(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	int rm = cpu.get(instr.rm);
+	if ((rm & 0xff000000) == 0xff000000) {
+        exception_return(cpu, mem, rm);
+        return;
+    }
+    int val_ = cpu.get(instr.rm);
+	val_ = (val_ & ~1);
+	cpu.set(reg.pc, val_);
 }
 
 // ==============
@@ -3761,19 +3206,54 @@ void execute_uxth(instr_16 instr, ref cortex_m_cpu cpu) {
 
 void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	if (cpu.current_exception == exception.thread_mode) {
-		mem.push(cpu, cpu.r0);
-		mem.push(cpu, cpu.r1);
-		mem.push(cpu, cpu.r2);
-		mem.push(cpu, cpu.r3);
-		mem.push(cpu, cpu.r12);
-		mem.push(cpu, cpu.lr);
-		mem.push(cpu, cpu.pc);
-		//mem.push(cpu, cpu.get_xpsr());
+		auto f = stack_log();
+    	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
+		uint addr_xpsr = cpu.get_sp();
+	    f.writeln(format("xpsr: [%08X] pushed to [%08X]", cpu.get_xpsr(), addr_xpsr));
+		f.flush();
+		mem.push(cpu, cpu.get_xpsr());
+		instr_16 push_instr = instr_16(op: opcode.push_mult_reg, 
+			                           reg_list: [reg.r0, 
+			                                      reg.r1, 
+			                                      reg.r2, 
+			                                      reg.r3, 
+			                                      reg.r12, 
+			                                      reg.lr, 
+			                                      reg.pc]);
+		execute_push_mult_reg(push_instr, cpu, mem);
 	}
+
 	cpu.current_exception = exception.SVC_IRQn;
-	cpu.sp_sel = false;
-	cpu.npriv = true;
+	cpu.npriv = false;
+	cpu.lr = 0xfffffffd;
 	uint pc = mem.read_word(mem.flash_origin + 4 * exception.SVC_IRQn);
+	cpu.set(reg.pc, pc);
+}
+
+void execute_syc_tick(ref cortex_m_cpu cpu, ref memory mem) {
+	if (cpu.current_exception == exception.thread_mode) {
+		auto f = stack_log();
+    	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
+		uint addr_xpsr = cpu.get_sp();
+	    f.writeln(format("xpsr: [%08X] pushed to [%08X]", cpu.get_xpsr(), addr_xpsr));
+		f.flush();
+		mem.push(cpu, cpu.get_xpsr());
+		instr_16 push_instr = instr_16(op: opcode.push_mult_reg, 
+			                           reg_list: [reg.r0, 
+			                                      reg.r1, 
+			                                      reg.r2, 
+			                                      reg.r3, 
+			                                      reg.r12, 
+			                                      reg.lr, 
+			                                      reg.pc]);
+		execute_push_mult_reg(push_instr, cpu, mem);
+	}
+
+	cpu.current_exception = exception.SysTick_IRQn;
+	cpu.npriv = false;
+	cpu.lr = cpu.sp_sel ? 0xfffffffd : 0xfffffff9; 
+	cpu.sp_sel = false;
+	uint pc = mem.read_word(mem.flash_origin + 4 * exception.SysTick_IRQn);
 	cpu.set(reg.pc, pc);
 }
 
@@ -3886,6 +3366,10 @@ void execute_pop_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) 
 		f.flush();
 	}
 	if (regs.back == reg.pc) {
+		if ((cpu.pc & 0xff000000) == 0xff000000) {
+	        exception_return(cpu, mem, cpu.pc);
+	        return;
+	    }
 		uint pc = cpu.get(reg.pc);
 		pc &= ~0b1;
 		cpu.set(reg.pc, pc);
@@ -4101,6 +3585,20 @@ void execute_tst(instr_16 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(2);
 }
 
+// =============
+//  Execute REV
+// =============
+
+void execute_rev(instr_16 instr, ref cortex_m_cpu cpu) {
+	uint rm = cpu.get(instr.rm);
+	int res = ((rm << 24) & 0xff000000) |
+		      ((rm <<  8) & 0xff0000) |
+			  ((rm >>  8) & 0xff00) |
+			  ((rm >> 24) & 0xff);
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(2);
+}
+
 // ==============
 //  Execute NEGS
 // ==============
@@ -4175,6 +3673,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.rev:
+			return execute_rev(instr, cpu);
 		case opcode.cmp_imm:
 			return execute_cmp_imm(instr, cpu);
 		case opcode.asr_imm:
@@ -4205,8 +3705,6 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 			return execute_b_imm_11(instr, cpu);
 		case opcode.cmp_br_z:
 			return execute_cmp_br_z(instr, cpu);
-		case opcode.bx:
-			return execute_bx(instr, cpu);
 		case opcode.sub_reg:
 			return execute_sub_reg(instr, cpu);
 		case opcode.cmp_br_nz:
@@ -4294,6 +3792,8 @@ void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_str_reg(instr, cpu, mem);
 		case opcode.svc:
 			return execute_svc(instr, cpu, mem);
+		case opcode.bx:
+			return execute_bx(instr, cpu, mem);
 		default:
 			return;
 	}
@@ -4449,10 +3949,6 @@ unittest {
 			      instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset: 0),
 			      cortex_m_cpu(r3: 0, pc: 10),
 				  cortex_m_cpu(r3: 0, pc: 14)),
-		test_case(0x4718, 
-			      instr_16(op: opcode.bx,            rm: reg.r3),
-			      cortex_m_cpu(r3: 0, pc: 10),
-				  cortex_m_cpu(r3: 0, pc:  0)),
 		test_case(0x1a1b, 
 				  instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0),
 				  cortex_m_cpu(r3: 10, r0: 3),
@@ -4570,6 +4066,12 @@ unittest {
     }
 
 	test_case_mem[] tests_mem = [
+		test_case_mem(0x4718, 
+			      	  instr_16(op: opcode.bx,            rm: reg.r3),
+			      	  cortex_m_cpu(r3: 0, pc: 10),
+				  	  cortex_m_cpu(r3: 0, pc:  0),
+				  	  memory(),
+				      memory()),
 		test_case_mem(0x608b, 
 			          instr_16(op: opcode.str_imm,       rt: reg.r3,  rn: reg.r1, imm: 8),
 			          cortex_m_cpu(r3: 0b0101, r1: memory.ram_origin + 12),
@@ -4785,7 +4287,7 @@ instr_32 parse_mov_imm_32_t2(uint instr) {
 //  Parse ADD
 // ===========
 
-enum field_tuples_add_32_reg = [Tuple!(opcode, string[])(opcode.add_32_reg, ["rd","rn","rm"])];
+enum field_tuples_add_reg_32 = [Tuple!(opcode, string[])(opcode.add_reg_32, ["rd","rn","rm"])];
 /*
 	Data Processing (Shifted Register)
 	First Half-Word:
@@ -4800,9 +4302,9 @@ enum field_tuples_add_32_reg = [Tuple!(opcode, string[])(opcode.add_32_reg, ["rd
 	[5:4] type
 	[3:0] Rm
 */
-instr_32 parse_add_32_reg(uint instr) {
+instr_32 parse_add_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.add_32_reg;
+	res.op = opcode.add_reg_32;
 	ubyte rm = cast(ubyte)(instr & 0b1111);
 	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
 	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
@@ -4906,6 +4408,31 @@ instr_32 parse_pop_mult_reg_32(uint instr) {
 	if (reg_list & 0x2000) res.reg_list ~= reg.sp;
 	if (reg_list & 0x4000) res.reg_list ~= reg.lr;
 	if (reg_list & 0x8000) res.reg_list ~= reg.pc;
+	return res;
+}
+
+instr_32 parse_ldmia_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.ldmia_32;
+	ushort reg_list = cast(ushort)(instr & 0xffff);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+	if (reg_list & 0x0001) res.reg_list ~= reg.r0;
+	if (reg_list & 0x0002) res.reg_list ~= reg.r1;
+	if (reg_list & 0x0004) res.reg_list ~= reg.r2;
+	if (reg_list & 0x0008) res.reg_list ~= reg.r3;
+	if (reg_list & 0x0010) res.reg_list ~= reg.r4;
+	if (reg_list & 0x0020) res.reg_list ~= reg.r5;
+	if (reg_list & 0x0040) res.reg_list ~= reg.r6;
+	if (reg_list & 0x0080) res.reg_list ~= reg.r7;
+	if (reg_list & 0x0100) res.reg_list ~= reg.r8;
+	if (reg_list & 0x0200) res.reg_list ~= reg.r9;
+	if (reg_list & 0x0400) res.reg_list ~= reg.r10;
+	if (reg_list & 0x0800) res.reg_list ~= reg.r11;
+	if (reg_list & 0x1000) res.reg_list ~= reg.r12;
+	if (reg_list & 0x2000) res.reg_list ~= reg.sp;
+	if (reg_list & 0x4000) res.reg_list ~= reg.lr;
+	if (reg_list & 0x8000) res.reg_list ~= reg.pc;
+	res.rn = cast(reg)(rn);
 	return res;
 }
 
@@ -5194,7 +4721,7 @@ uint thumb_expand_imm(ushort imm_12) {
 //  Parse ORR
 // ===========
 
-enum field_tuples_orr_32 = [Tuple!(opcode, string[])(opcode.orr_32, ["rd","rn","imm"])];
+enum field_tuples_orr_imm_32 = [Tuple!(opcode, string[])(opcode.orr_imm_32, ["rd","rn","imm"])];
 /*
 	Multiply, Multiply Accumulate, and Absolute Difference
 	First Half-Word:
@@ -5209,9 +4736,9 @@ enum field_tuples_orr_32 = [Tuple!(opcode, string[])(opcode.orr_32, ["rd","rn","
 	[11:8] Rd
 	[7:0] imm8
 */
-instr_32 parse_orr_32(uint instr) {
+instr_32 parse_orr_imm_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.orr_32;
+	res.op = opcode.orr_imm_32;
 	ubyte imm_8 = cast(ubyte)(instr & 0xff);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
@@ -5229,7 +4756,7 @@ instr_32 parse_orr_32(uint instr) {
 //  Parse ADD
 // ===========
 
-enum field_tuples_add_32 = [Tuple!(opcode, string[])(opcode.add_32, ["rd","rn","imm"])];
+enum field_tuples_add_imm_32 = [Tuple!(opcode, string[])(opcode.add_imm_32, ["rd","rn","imm"])];
 /*
 	Multiply, Multiply Accumulate, and Absolute Difference
 	First Half-Word:
@@ -5244,9 +4771,9 @@ enum field_tuples_add_32 = [Tuple!(opcode, string[])(opcode.add_32, ["rd","rn","
 	[11:8] Rd
 	[7:0] imm8
 */
-instr_32 parse_add_32(uint instr) {
+instr_32 parse_add_imm_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.add_32;
+	res.op = opcode.add_imm_32;
 	ubyte imm_8 = cast(ubyte)(instr & 0xff);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
@@ -5257,6 +4784,40 @@ instr_32 parse_add_32(uint instr) {
 	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_32;
+	return res;
+}
+
+// =============
+//  Parse UADD8
+// =============
+
+enum field_tuples_uadd8_32 = [Tuple!(opcode, string[])(opcode.uadd8_32, ["rd","rn","rm"])];
+instr_32 parse_uadd8_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.uadd8_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// ===========
+//  Parse SEL
+// ===========
+
+enum field_tuples_sel_32 = [Tuple!(opcode, string[])(opcode.sel_32, ["rd","rn","rm"])];
+instr_32 parse_sel_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.sel_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
 	return res;
 }
 
@@ -5622,7 +5183,7 @@ instr_32 parse_dsb_32(uint instr) {
 //  Parse RSB
 // ===========
 
-enum field_tuples_rsb_32 = [Tuple!(opcode, string[])(opcode.rsb_32, ["rd","rn","imm"])];
+enum field_tuples_rsb_imm_32 = [Tuple!(opcode, string[])(opcode.rsb_imm_32, ["rd","rn","imm"])];
 /*
 	Multiply, Multiply Accumulate, and Absolute Difference
 	First Half-Word:
@@ -5637,9 +5198,9 @@ enum field_tuples_rsb_32 = [Tuple!(opcode, string[])(opcode.rsb_32, ["rd","rn","
 	[11:8] Rd
 	[7:0] imm8
 */
-instr_32 parse_rsb_32(uint instr) {
+instr_32 parse_rsb_imm_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.rsb_32;
+	res.op = opcode.rsb_imm_32;
 	ubyte imm_8 = cast(ubyte)(instr & 0xff);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
@@ -5884,7 +5445,7 @@ instr_32 parse_orr_reg_32(uint instr) {
 //  Parse SUB
 // ===========
 
-enum field_tuples_subs_32 = [Tuple!(opcode, string[])(opcode.subs_32, ["rd","rn","rm"])];
+enum field_tuples_sub_reg_32 = [Tuple!(opcode, string[])(opcode.sub_reg_32, ["rd","rn","rm"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -5899,9 +5460,9 @@ enum field_tuples_subs_32 = [Tuple!(opcode, string[])(opcode.subs_32, ["rd","rn"
 	[5:4] type
 	[3:0] Rm
 */
-instr_32 parse_subs_32(uint instr) {
+instr_32 parse_sub_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.subs_32;
+	res.op = opcode.sub_reg_32;
 	ubyte rm = cast(ubyte)(instr & 0xf);
 	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
 	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
@@ -5925,7 +5486,7 @@ instr_32 parse_subs_32(uint instr) {
 //  Parse SBC
 // ===========
 
-enum field_tuples_sbc_32 = [Tuple!(opcode, string[])(opcode.sbc_32, ["rd","rn","rm"])];
+enum field_tuples_sbc_reg_32 = [Tuple!(opcode, string[])(opcode.sbc_reg_32, ["rd","rn","rm"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -5940,9 +5501,9 @@ enum field_tuples_sbc_32 = [Tuple!(opcode, string[])(opcode.sbc_32, ["rd","rn","
 	[5:4] type
 	[3:0] Rm
 */
-instr_32 parse_sbc_32(uint instr) {
+instr_32 parse_sbc_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.sbc_32;
+	res.op = opcode.sbc_reg_32;
 	ubyte rm = cast(ubyte)(instr & 0xf);
 	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
 	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
@@ -5966,7 +5527,7 @@ instr_32 parse_sbc_32(uint instr) {
 //  Parse ADC
 // ===========
 
-enum field_tuples_adc_32 = [Tuple!(opcode, string[])(opcode.adc_32, ["rd","rn","rm"])];
+enum field_tuples_adc_reg_32 = [Tuple!(opcode, string[])(opcode.adc_reg_32, ["rd","rn","rm"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -5981,9 +5542,9 @@ enum field_tuples_adc_32 = [Tuple!(opcode, string[])(opcode.adc_32, ["rd","rn","
 	[5:4] type
 	[3:0] Rm
 */
-instr_32 parse_adc_32(uint instr) {
+instr_32 parse_adc_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.adc_32;
+	res.op = opcode.adc_reg_32;
 	ubyte rm = cast(ubyte)(instr & 0xf);
 	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
 	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
@@ -6021,9 +5582,9 @@ instr_32 parse_adc_32(uint instr) {
 	[5:4] type
 	[3:0] Rm
 */
-instr_32 parse_bit_or_not_32(uint instr) {
+instr_32 parse_orn_imm_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.bit_or_not_32;
+	res.op = opcode.orn_imm_32;
 	ubyte imm_8 = cast(ubyte)(instr & 0xff);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
@@ -6038,11 +5599,35 @@ instr_32 parse_bit_or_not_32(uint instr) {
 	return res;
 }
 
+instr_32 parse_orn_reg_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.orn_reg_32;
+	ubyte rm = cast(ubyte)(instr & 0xf);
+	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte S = cast(ubyte)((instr >> 20) & 0b1);
+	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = get_shift_type(type, imm);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	if (res.shift_t == shift_type.rrx) {
+		res.shift_n = 1;
+	} else {
+		res.shift_n = imm;
+	}
+	res.set_flags = S == 1 ? true : false;
+	res.rd = cast(reg)(rd);
+	return res;
+}
+
 // ===============
 //  Parse BIT NOT
 // ===============
 
-enum field_tuples_bit_not_32 = [Tuple!(opcode, string[])(opcode.bit_not_32, ["rd","imm"])];
+enum field_tuples_mvn_imm_32 = [Tuple!(opcode, string[])(opcode.mvn_imm_32, ["rd","imm"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -6057,9 +5642,9 @@ enum field_tuples_bit_not_32 = [Tuple!(opcode, string[])(opcode.bit_not_32, ["rd
 	[5:4] type
 	[3:0] Rm
 */
-instr_32 parse_bit_not_32(uint instr) {
-	instr_32 res = parse_bit_or_not_32(instr);
-	res.op = opcode.bit_not_32;
+instr_32 parse_mvn_imm_32(uint instr) {
+	instr_32 res = parse_orn_imm_32(instr);
+	res.op = opcode.mvn_imm_32;
 	return res;
 }
 
@@ -6222,23 +5807,37 @@ instr_32 parse_ldh_32(uint instr) {
 	[5:4] type
 	[3:0] Rm
 */
-instr_32 parse_tst_32(uint instr) {
+instr_32 parse_tst_reg_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.tst_32;
-	ubyte rm = cast(ubyte)(instr & 0xf);
-	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
-	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	res.op = opcode.tst_reg_32;
+	ubyte rm    = cast(ubyte)(instr & 0xf);
+	ubyte type  = cast(ubyte)((instr >>  4) & 0b11);
+	ubyte imm_2 = cast(ubyte)((instr >>  6) & 0b11);
+	ubyte rn    = cast(ubyte)((instr >> 16) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
-	res.shift_t = get_shift_type(type, imm);
-	res.rn = cast(reg)(rn);
-	res.rm = cast(reg)(rm);
+	ubyte imm_5 = cast(ubyte)((imm_3 <<  2) | imm_2);
+	res.shift_t = get_shift_type(type, imm_5);
 	if (res.shift_t == shift_type.rrx) {
 		res.shift_n = 1;
 	} else {
-		res.shift_n = imm;
+		res.shift_n = imm_5;
 	}
+	res.rm  = cast(reg)(rm);
+	res.rn  = cast(reg)(rn);
+	return res;
+}
+
+instr_32 parse_tst_imm_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.tst_imm_32;
+	ubyte imm_8   = cast(ubyte)(instr & 0xff);
+	ubyte rn      = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte imm_3   = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte i 	  = cast(ubyte)((instr << 26) & 0b1);
+	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 <<  8) | imm_8);
+	int imm_32    = thumb_expand_imm(imm_12);
+	res.imm = imm_32;
+	res.rn = cast(reg)(rn);
 	return res;
 }
 
@@ -6397,9 +5996,9 @@ enum field_tuples_ldrd_imm_32 = [Tuple!(opcode, string[])(opcode.ldrd_imm_32, ["
 instr_32 parse_ldrd_imm_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.ldrd_imm_32;
-	ubyte P = cast(ubyte)((instr >> 21) & 0b1);
+	ubyte W = cast(ubyte)((instr >> 21) & 0b1);
 	ubyte U = cast(ubyte)((instr >> 23) & 0b1);
-	ubyte W = cast(ubyte)((instr >> 24) & 0b1);
+	ubyte P = cast(ubyte)((instr >> 24) & 0b1);
 	ushort imm_8 = cast(ushort)(instr & 0xff);
 	ubyte rt2 = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
@@ -6479,6 +6078,7 @@ instr_32 parse_ldrb_imm_32_t2(uint instr) {
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.add = true;
+	res.index = true;
 	res.imm = imm_12;
 	return res;
 }
@@ -6526,7 +6126,7 @@ instr_32 parse_ldrb_imm_32_t3(uint instr) {
 //  Parse MOV(Register)
 // =====================
 
-enum field_tuples_mov_32 = [Tuple!(opcode, string[])(opcode.mov_32, ["rd","rm","imm"])];
+enum field_tuples_asr_imm_32 = [Tuple!(opcode, string[])(opcode.asr_imm_32, ["rd","rm","imm"])];
 /*
 	Data Processing
 	Mov Register and Immeidate Shifts
@@ -6543,9 +6143,9 @@ enum field_tuples_mov_32 = [Tuple!(opcode, string[])(opcode.mov_32, ["rd","rm","
 	[3:0] Rm
 */
 // ea4f 06a6: 1110 1010 0100 1111 0000 0110 1010 0110
-instr_32 parse_mov_32(uint instr) {
+instr_32 parse_asr_imm_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.mov_32;
+	res.op = opcode.asr_imm_32;
 	ubyte rm = cast(ushort)(instr & 0xf);
 	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
@@ -6556,6 +6156,55 @@ instr_32 parse_mov_32(uint instr) {
 	res.imm = res.shift_n;
 	res.rm = cast(reg)(rm);
 	res.rd = cast(reg)(rd);
+	return res;
+}
+
+instr_32 parse_lsl_imm_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.lsl_imm_32;
+	ubyte rm    = cast(ushort)(instr & 0xf);
+	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
+	ubyte rd    = cast(ubyte)((instr >> 8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte imm_5 = cast(ubyte)((imm_3 << 2) | imm_2);
+	res.shift_t = shift_type.lsl;
+	res.shift_n = imm_5;
+	res.imm = res.shift_n;
+	res.rm = cast(reg)(rm);
+	res.rd = cast(reg)(rd);
+	return res;
+}
+
+//enum field_tuples_asr_imm_32 = [Tuple!(opcode, string[])(opcode.asr_imm_32, ["rd","rm","imm"])];
+/*
+	Data Processing
+	Mov Register and Immeidate Shifts
+	First Half-Word:
+	[15:0] 11101010010
+	[4] S 
+	[3:0] 1111 
+	Second Half-Word:
+	[15] 0 
+	[14:12] imm3
+	[11:8] Rd
+	[7:6] imm2
+	[5:4] 10	
+	[3:0] Rm
+*/
+// ea4f 06a6: 1110 1010 0100 1111 0000 0110 1010 0110
+instr_32 parse_lsr_imm_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.lsr_imm_32;
+	ubyte rm    = cast(ubyte)(instr & 0xf);
+	ubyte imm_2 = cast(ubyte)((instr >>  6) & 0b11);
+	ubyte rd    = cast(ubyte)((instr >>  8) & 0xf);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
+	ubyte imm_5 = cast(ubyte)((imm_3 <<  2) | imm_2);
+	res.shift_t = shift_type.lsr;
+	res.shift_n = imm_5;
+	res.imm = res.shift_n;
+	res.rm  = cast(reg)(rm);
+	res.rd  = cast(reg)(rd);
 	return res;
 }
 
@@ -6570,16 +6219,17 @@ instr_32 parse_clz_32(uint instr) {
 	return res;
 }
 
-enum field_tuples_cmn_32 = [Tuple!(opcode, string[])(opcode.cmn_32, ["rd","rm"])];
-instr_32 parse_cmn_32(uint instr) {
+enum field_tuples_cmn_imm_32 = [Tuple!(opcode, string[])(opcode.cmn_imm_32, ["rn","imm"])];
+instr_32 parse_cmn_imm_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.cmn_32;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
-	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
-	int imm_32 = thumb_expand_imm(imm_12);
+	res.op = opcode.cmn_imm_32;
+	ubyte imm_8   = cast(ubyte)(instr & 0xff);
+	ubyte imm_3   = cast(ubyte)((instr >> 12) & 0x7);
+	ubyte rn      = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte i       = cast(ubyte)((instr >> 26) & 0x1);
+	ushort imm_12 = cast(ubyte)((i << 11) | (imm_3 << 8) | imm_8);
+	int imm_32    = thumb_expand_imm(imm_12);
+	res.rn = cast(reg)(rn);
 	res.imm = imm_32;
 	return res;
 }
@@ -6636,13 +6286,13 @@ instr_32 parse_strb_imm_32_t3(uint instr) {
 	instr_32 res;
 	res.op = opcode.strb_imm_32_t3;
 	ubyte imm_8 = cast(ushort)(instr & 0xff);
-	ubyte W = cast(ubyte)((instr >>  8) & 0b1);
-	ubyte U = cast(ubyte)((instr >>  9) & 0b1);
-	ubyte P = cast(ubyte)((instr >> 10) & 0b1);
+	ubyte W  = cast(ubyte)((instr >>  8) & 0b1);
+	ubyte U  = cast(ubyte)((instr >>  9) & 0b1);
+	ubyte P  = cast(ubyte)((instr >> 10) & 0b1);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	bool wback = W == 0b1 ? true : false;
-	bool add = U == 0b1 ? true : false;
+	bool add   = U == 0b1 ? true : false;
 	bool index = P == 0b1 ? true : false;
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
@@ -6662,14 +6312,20 @@ instr_32 decode_instr(uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
-		case opcode.add_32_reg:
-			return parse_add_32_reg(instr);
+		case opcode.add_reg_32:
+			return parse_add_reg_32(instr);
+		case opcode.uadd8_32:
+			return parse_uadd8_32(instr);
+		case opcode.sel_32:
+			return parse_sel_32(instr);
 		case opcode.bl_32:
 			return parse_bl_32(instr);
 		case opcode.nop_32:
 			return parse_nop_32(instr);
 		case opcode.pop_mult_reg_32:
 			return parse_pop_mult_reg_32(instr);
+		case opcode.ldmia_32:
+			return parse_ldmia_32(instr);
 		case opcode.sub_imm_32:
 			return parse_sub_imm_32(instr);
 		case opcode.and_imm_32:
@@ -6684,10 +6340,10 @@ instr_32 decode_instr(uint instr) {
 			return parse_mla_32(instr);
 		case opcode.lsr_reg_32:
 			return parse_lsr_reg_32(instr);
-		case opcode.orr_32:
-			return parse_orr_32(instr);
-		case opcode.add_32:
-			return parse_add_32(instr);
+		case opcode.orr_imm_32:
+			return parse_orr_imm_32(instr);
+		case opcode.add_imm_32:
+			return parse_add_imm_32(instr);
 		case opcode.bic_reg_32:
 			return parse_bic_reg_32(instr);
 		case opcode.bic_imm_32:
@@ -6710,8 +6366,8 @@ instr_32 decode_instr(uint instr) {
 			return parse_str_imm_32_t4(instr);
 		case opcode.dsb_32:
 			return parse_dsb_32(instr);
-		case opcode.rsb_32:
-			return parse_rsb_32(instr);
+		case opcode.rsb_imm_32:
+			return parse_rsb_imm_32(instr);
 		case opcode.umull_32:
 			return parse_umull(instr);
 		case opcode.strd_32:
@@ -6722,16 +6378,16 @@ instr_32 decode_instr(uint instr) {
 			return parse_push_mult_reg_32(instr);
 		case opcode.orr_reg_32:
 			return parse_orr_reg_32(instr);
-		case opcode.subs_32:
-			return parse_subs_32(instr);
-		case opcode.sbc_32:
-			return parse_sbc_32(instr);
-		case opcode.adc_32:
-			return parse_adc_32(instr);
-		case opcode.bit_or_not_32:
-			return parse_bit_or_not_32(instr);
-		case opcode.bit_not_32:
-			return parse_bit_not_32(instr);
+		case opcode.sub_reg_32:
+			return parse_sub_reg_32(instr);
+		case opcode.sbc_reg_32:
+			return parse_sbc_reg_32(instr);
+		case opcode.adc_reg_32:
+			return parse_adc_reg_32(instr);
+		case opcode.orn_imm_32:
+			return parse_orn_imm_32(instr);
+		case opcode.mvn_imm_32:
+			return parse_mvn_imm_32(instr);
 		case opcode.ld_rex:
 			return parse_ldrex_32(instr);
 		case opcode.str_rex:
@@ -6740,14 +6396,20 @@ instr_32 decode_instr(uint instr) {
 			return parse_mls_32(instr);
 		case opcode.ldh_32: 
 			return parse_ldh_32(instr);
-		case opcode.tst_32:
-			return parse_tst_32(instr);
 		case opcode.and_reg_32:
 			return parse_and_reg_32(instr);
 		case opcode.ldr_imm_32_t3:
 			return parse_ldr_imm_32_t3(instr);
-		case opcode.mov_32:
-			return parse_mov_32(instr);
+		case opcode.asr_imm_32:
+			return parse_asr_imm_32(instr);
+		case opcode.lsr_imm_32:
+			return parse_lsr_imm_32(instr);
+		case opcode.lsl_imm_32:
+			return parse_lsl_imm_32(instr);
+		case opcode.tst_reg_32:
+			return parse_tst_reg_32(instr);
+		case opcode.tst_imm_32:
+			return parse_tst_imm_32(instr);
 		case opcode.ldr_imm_32_t4:
 			return parse_ldr_imm_32_t4(instr);
 		case opcode.cmp_imm_32:
@@ -6764,6 +6426,8 @@ instr_32 decode_instr(uint instr) {
 			return parse_strb_imm_32_t3(instr);
 		case opcode.ldrb_imm_32_t2:
        		return parse_ldrb_imm_32_t2(instr);
+       	case opcode.cmn_imm_32:
+       		return parse_cmn_imm_32(instr);
        	case opcode.ldrb_imm_32_t3:
        		return parse_ldrb_imm_32_t3(instr);
        	case opcode.ldr_lit_32:
@@ -6776,6 +6440,8 @@ instr_32 decode_instr(uint instr) {
         	return parse_msr_32(instr);
         case opcode.clz_32:
         	return parse_clz_32(instr);
+        case opcode.orn_reg_32:
+        	return parse_orn_reg_32(instr);
 		default:
 			res.op = op;
 			return res;
@@ -6791,7 +6457,7 @@ unittest {
 
 	test_case[] tests = [
 		test_case(0xeb0101a3, 
-				  instr_32(op: opcode.add_32_reg, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2)),				// add.w	r1, r1, r3, asr #2
+				  instr_32(op: opcode.add_reg_32, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2)),				// add.w	r1, r1, r3, asr #2
 		test_case(0xf7ffffda,
 				  instr_32(op: opcode.bl_32, offset: -76)),
 		test_case(0xf3af8000, 
@@ -6815,10 +6481,10 @@ unittest {
 		test_case(0xfa22f303, // lsr.w	r3, r2, r3
 				  instr_32(op: opcode.lsr_reg_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xf4434380, // orr.w	r3, r3, #16384	@ 0x4000
-				  instr_32(op: opcode.orr_32, rd: reg.r3, rn: reg.r3, imm: 16384)),
+				  instr_32(op: opcode.orr_imm_32, rd: reg.r3, rn: reg.r3, imm: 16384)),
 		// 1111 0100 0100 0011 0100 0011 1000 0000
 		test_case(0xf1070314, // add.w	r3, r7, #20
-				  instr_32(op: opcode.add_32, rd: reg.r3, rn: reg.r7, imm: 20)),
+				  instr_32(op: opcode.add_imm_32, rd: reg.r3, rn: reg.r7, imm: 20)),
 		test_case(0xf0230310, // bic.w	r3, r3, #16
 				  // 1111 0000 0010 0011 0000 0011 0001 0000
 				  instr_32(op: opcode.bic_imm_32, rd: reg.r3, rn: reg.r3, imm: 16)),
@@ -6835,7 +6501,7 @@ unittest {
 				  instr_32(op: opcode.dsb_32)),
 		// 1111 0011 1011 1111 1000 1111 0100 1111
 		test_case(0xf1c30307, // rsb	r3, r3, #7
-				  instr_32(op: opcode.rsb_32, rd: reg.r3, rn: reg.r3, imm: 7)),
+				  instr_32(op: opcode.rsb_imm_32, rd: reg.r3, rn: reg.r3, imm: 7)),
 		test_case(0xfba22303, // umull	r2, r3, r2, r3
 				  instr_32(op: opcode.umull_32, rd_lo: reg.r2, rd_hi: reg.r3, rn: reg.r2, rm: reg.r3)),
 		// 1111 1011 1010 0010 0010 0011 0000 0011
@@ -6852,14 +6518,14 @@ unittest {
 		test_case(0xea4161d2, // orr.w	r1, r1, r2, lsr #27
 				  instr_32(op: opcode.orr_reg_32, rd: reg.r1, rn: reg.r1, rm: reg.r2, shift_t: shift_type.lsr, shift_n: 27)),
 		test_case(0xebb2080a, // subs.w	r8, r2, sl
-				  instr_32(op: opcode.subs_32, rd: reg.r8, rn: reg.r2, rm: reg.r10, shift_t: shift_type.lsl, shift_n: 0)),
+				  instr_32(op: opcode.sub_reg_32, rd: reg.r8, rn: reg.r2, rm: reg.r10, shift_t: shift_type.lsl, shift_n: 0)),
 		// 1110 1011 1011 0010 0000 1000 0000 1010
 		test_case(0xeb63090b, // sbc.w	r9, r3, fp
-			      instr_32(op: opcode.sbc_32, rd: reg.r9, rn: reg.r3, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
+			      instr_32(op: opcode.sbc_reg_32, rd: reg.r9, rn: reg.r3, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
 		test_case(0xeb45030b, // adc.w	r3, r5, fp
-				  instr_32(op: opcode.adc_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
+				  instr_32(op: opcode.adc_reg_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
 		test_case(0xf06f0240, // mvn.w	r2, #64	@ 0x40 
-				  instr_32(op: opcode.bit_not_32, rd: reg.r2, imm: 64)),
+				  instr_32(op: opcode.mvn_imm_32, rd: reg.r2, imm: 64)),
 		// 1111 0000 0110 1111 0000 0010 0100 0000
 		test_case(0xe8533f00, // ldrex	r3, [r3]
 				  instr_32(op: opcode.ld_rex, rt: reg.r3, rn: reg.r3)),
@@ -6872,7 +6538,7 @@ unittest {
 				  instr_32(op: opcode.ldh_32, rt: reg.r5, rn: reg.r4, imm: 12)),
 		// 1111 1001 1011 0100 0101 0000 0000 1100
 		test_case(0xea1c0f0e, // tst.w	ip, lr
-				  instr_32(op: opcode.tst_32, rn: reg.r12, rm: reg.lr, shift_t: shift_type.lsl)),
+				  instr_32(op: opcode.tst_reg_32, rn: reg.r12, rm: reg.lr, shift_t: shift_type.lsl)),
 		// 1110 1010 0001 1100 0000 1111 0000 1110
 		test_case(0xea010808, // and.w	r8, r1, r8 
 				  instr_32(op: opcode.and_reg_32, rd: reg.r8, rn: reg.r1, rm: reg.r8)),
@@ -6897,7 +6563,7 @@ unittest {
 //  Executre ADD
 // ==============
 
-void execute_add_32_reg(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_add_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	// instr_32(op: opcode.add_32_reg, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2),
 	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
 	int rn = cpu.get(instr.rn);
@@ -6978,7 +6644,20 @@ void execute_pop_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory me
 	}
 }
 
-void execute_ldmia(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldmia_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	import std.algorithm : sort;
+	auto regs = instr.reg_list.dup; 
+	auto f = load_store_log();
+	regs.sort!((a,b) => cast(int)a < cast(int)b);
+	uint rn = cpu.get(instr.rn);
+	foreach (r; regs) {
+		f.writeln(format("Attempting to access [%08X]", rn));
+		uint data = mem.read_word(rn);
+		f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, rn));
+		cpu.set(r, data);
+		rn += 4;
+	}
+	cpu.set(instr.rn, rn);
 	cpu.increment_pc(4);
 }
 
@@ -7049,9 +6728,9 @@ void execute_mul_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(4);
 }
 
-// ==============
-//  Executre MUL
-// ==============
+// =============
+//  Execute MUL
+// =============
 
 void execute_mla_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int op1 = cpu.get(instr.rn);
@@ -7095,7 +6774,7 @@ void execute_lsr_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute ORR
 // =============
 
-void execute_orr_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_orr_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(instr.rn);
 	int res = rn | instr.imm;
 	cpu.set(instr.rd, res);
@@ -7106,7 +6785,7 @@ void execute_orr_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre ADD
 // ==============
 
-void execute_add_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_add_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(instr.rn);
 	int res = rn + instr.imm;
 	cpu.set(instr.rd, res);
@@ -7185,7 +6864,7 @@ void execute_str_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute RSB(Immediate)
 // ========================
 
-void execute_rsb_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_rsb_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int res = instr.imm - cpu.get(instr.rn);
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(4);
@@ -7211,14 +6890,23 @@ void execute_umull_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // =========================
 
 void execute_strd_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	uint offset;
 	if (instr.add) {
 		offset = cpu.get(instr.rn) + instr.imm;
 	} else {
 		offset = cpu.get(instr.rn) - instr.imm;
 	}
-	mem.write_word(offset, cpu.get(instr.rt));
-	mem.write_word(offset + 4, cpu.get(instr.rt_2));
+	uint data1 = cpu.get(instr.rt);
+	uint data2 = cpu.get(instr.rt_2);
+	f.writeln(format("Attempting to access [%08X]", offset));
+	mem.write_word(offset, data1);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data1, offset));
+	f.flush();
+	f.writeln(format("Attempting to access [%08X]", offset + 4));
+	mem.write_word(offset + 4, data2);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data2, offset + 4));
+	f.flush();
 	if (instr.wback) {
 		cpu.set(instr.rn, offset);
 	}
@@ -7259,7 +6947,7 @@ void execute_orr_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre SUB
 // ==============
 
-void execute_subs_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_sub_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
 	int res = cpu.get(instr.rn) - shifted;
 	cpu.set(instr.rd, res);
@@ -7270,7 +6958,7 @@ void execute_subs_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre SBC
 // ==============
 
-void execute_sbc_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_sbc_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
 	int res = cpu.get(instr.rn) - shifted - cast(uint)(cpu.c);
 	cpu.set(instr.rd, res);
@@ -7281,7 +6969,7 @@ void execute_sbc_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre ADC
 // ==============
 
-void execute_adc_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_adc_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
 	int res = cpu.get(instr.rn) + shifted + cast(uint)(cpu.c);
 	cpu.set(instr.rd, res);
@@ -7292,7 +6980,7 @@ void execute_adc_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre BIT OR NOT
 // =====================
 
-void execute_bit_or_not_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_orn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(instr.rn);
 	int res = rn | (~instr.imm);
 	cpu.set(instr.rd, res);
@@ -7303,7 +6991,7 @@ void execute_bit_or_not_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(4);
 }
 
-void execute_bit_not_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_mvn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int res = ~instr.imm;
 	cpu.set(instr.rd, res);
 	if (instr.set_flags) {
@@ -7421,6 +7109,45 @@ void execute_mls_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(4);
 }
 
+// ===============
+//  Execute UADD8
+// ===============
+
+void execute_uadd8_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(instr.rn);
+	int rm = cpu.get(instr.rm);
+	int sum4 = ((rn >> 24) & 0xff) + ((rm >> 24) & 0xff); 
+	int sum3 = ((rn >> 16) & 0xff) + ((rm >> 16) & 0xff);
+	int sum2 = ((rn >>  8) & 0xff) + ((rm >>  8) & 0xff);
+	int sum1 = ((rn      ) & 0xff) + ((rm      ) & 0xff);
+	int res = ((sum4 & 0xff) << 24) |
+      		  ((sum3 & 0xff) << 16) |
+      		  ((sum2 & 0xff) << 8)  |
+      		  ( sum1 & 0xff);
+	cpu.ge0 = sum1 >= 0x100 ? true : false;
+	cpu.ge1 = sum2 >= 0x100 ? true : false;
+	cpu.ge2 = sum3 >= 0x100 ? true : false;
+	cpu.ge3 = sum4 >= 0x100 ? true : false;
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(4);
+}
+
+// =============
+//  Execute SEL
+// =============
+
+void execute_sel_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(instr.rn);
+	int rm = cpu.get(instr.rm);
+	int rd0 = cpu.ge3 ? ((rn >> 24) & 0xff) : ((rm >> 24) & 0xff); 
+	int rd1 = cpu.ge2 ? ((rn >> 16) & 0xff) : ((rm >> 16) & 0xff); 
+	int rd2 = cpu.ge1 ? ((rn >>  8) & 0xff) : ((rm >>  8) & 0xff); 
+	int rd3 = cpu.ge0 ? ((rn      ) & 0xff) : ((rm      ) & 0xff); 
+	int res = (rd0 << 24) | (rd1 << 16) | (rd2 << 8) | rd3;
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(4);
+}
+
 // ==============
 //  Execute LDRH
 // ==============
@@ -7439,9 +7166,16 @@ void execute_ldrh_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute TST
 // =============
 
-void execute_tst_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_tst_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
 	int res = cpu.get(instr.rn) & shifted;
+	cpu.n = (res < 0);
+	cpu.z = (res == 0);
+	cpu.increment_pc(4);
+}
+
+void execute_tst_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	int res = cpu.get(instr.rn) & instr.imm;
 	cpu.n = (res < 0);
 	cpu.z = (res == 0);
 	cpu.increment_pc(4);
@@ -7476,7 +7210,7 @@ void execute_ldr_lit_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.set(instr.rt, data);
 	int pc_val = cpu.get(reg.pc);
 	cpu.set(reg.pc, pc_val + 4);
-	f.writeln(format("%08X loaded from [%08X]", data, addr));
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
 	f.flush();
 }
 
@@ -7497,7 +7231,7 @@ void execute_ldrd_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	f.writeln(format("Attempting to access [%08X]", addr));
 	uint data1 = mem.read_word(addr);
 	uint data2 = mem.read_word(addr+4);
-	f.writeln(format("%08X and %08X loaded from [%08X] and [%08X]", data1, data2, addr, addr + 4));
+	f.writeln(format("%08X: %08X and %08X loaded from [%08X] and [%08X]", cpu.pc, data1, data2, addr, addr + 4));
 	f.flush();
 	cpu.set(instr.rt, data1);
 	cpu.set(instr.rt_2, data2);
@@ -7519,7 +7253,7 @@ void execute_ldr_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	size_t addr = rn + shifted;
 	f.writeln(format("Attempting to access [%08X]", addr));
 	uint data = mem.read_word(addr);
-	f.writeln(format("%08X loaded from [%08X]", data, addr));
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
 	f.flush();
 	cpu.set(instr.rt, data);
 	cpu.increment_pc(4);
@@ -7537,7 +7271,7 @@ void execute_ldrb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	size_t addr = instr.index ? offset_addr : rn;
 	f.writeln(format("Attempting to access [%08X]", addr));
 	ubyte data = mem.read_byte(addr);
-	f.writeln(format("%08X loaded from [%08X]", data, addr));
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
 	f.flush();
 	cpu.set(instr.rt, cast(uint)data);
 	if (instr.wback) {
@@ -7550,13 +7284,26 @@ void execute_ldrb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute MOV(Immediate)
 // ========================
 
-void execute_mov_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_asr_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(shift_type.asr, instr.shift_n, cpu.get(instr.rm));
 	cpu.set(instr.rd, shifted);
 	cpu.increment_pc(4);
 }
 
-void execute_cmn_32(instr_32 instr, ref cortex_m_cpu cpu) {
+void execute_lsr_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	int shifted = shift(shift_type.lsr, instr.shift_n, cpu.get(instr.rm));
+	cpu.set(instr.rd, shifted);
+	cpu.increment_pc(4);
+}
+
+void execute_lsl_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	int shifted = shift(shift_type.lsl, instr.shift_n, cpu.get(instr.rm));
+	cpu.set(instr.rd, shifted);
+	cpu.increment_pc(4);
+}
+
+
+void execute_cmn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	uint rn = cpu.get(instr.rn);
 	uint op2 = instr.imm;
 	uint res = rn + op2; 
@@ -7641,7 +7388,7 @@ void execute_ldr_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	size_t addr = instr.index ? offset_addr : rn;
 	f.writeln(format("Attempting to access [%08X]", addr));
 	int data = mem.read_word(addr);
-	f.writeln(format("%08X loaded from [%08X]", data, addr));
+	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
 	f.flush();
 	if (instr.wback) {
 		cpu.set(instr.rn, cast(uint)offset_addr);
@@ -7681,6 +7428,17 @@ void execute_clz_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(4);
 }
 
+void execute_orn_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
+	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
+	int res = cpu.get(instr.rn) | ~shifted;
+	cpu.set(instr.rd, res);
+	if (instr.set_flags) {
+		cpu.n = (res < 0);
+		cpu.z = (res == 0);
+	}
+	cpu.increment_pc(4);
+}
+
 // ================
 //  Executre Instr
 // ================
@@ -7696,8 +7454,12 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
-		case opcode.add_32_reg:
-			return execute_add_32_reg(instr, cpu);
+		case opcode.add_reg_32:
+			return execute_add_reg_32(instr, cpu);
+		case opcode.uadd8_32:
+			return execute_uadd8_32(instr, cpu);
+		case opcode.sel_32:
+			return execute_sel_32(instr, cpu);
 		case opcode.b_32:
 			return execute_b_32(instr, cpu);
 		case opcode.b_uncond_32:
@@ -7730,40 +7492,46 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 			return execute_lsl_reg_32(instr, cpu);
 		case opcode.lsr_reg_32:
 			return execute_lsr_reg_32(instr, cpu);
-		case opcode.orr_32:
-			return execute_orr_32(instr, cpu);
-		case opcode.add_32:
-			return execute_add_32(instr, cpu);
+		case opcode.orr_imm_32:
+			return execute_orr_imm_32(instr, cpu);
+		case opcode.add_imm_32:
+			return execute_add_imm_32(instr, cpu);
 		case opcode.bic_imm_32:
 			return execute_bic_imm_32(instr, cpu);
 		case opcode.bic_reg_32:
 			return execute_bic_reg_32(instr, cpu);
 		case opcode.mov_16_imm_32:
 			return execute_mov_16_imm_32(instr, cpu);
-		case opcode.rsb_32:
-			return execute_rsb_32(instr, cpu);
+		case opcode.rsb_imm_32:
+			return execute_rsb_imm_32(instr, cpu);
 		case opcode.umull_32:
 			return execute_umull_32(instr, cpu);
 		case opcode.orr_reg_32:
 			return execute_orr_reg_32(instr, cpu);
-		case opcode.subs_32:
-			return execute_subs_32(instr, cpu);
-		case opcode.sbc_32:
-			return execute_sbc_32(instr, cpu);
-		case opcode.adc_32:
-			return execute_adc_32(instr, cpu);
-		case opcode.bit_or_not_32:
-			return execute_bit_or_not_32(instr, cpu);
-		case opcode.bit_not_32:
-			return execute_bit_not_32(instr, cpu);
+		case opcode.sub_reg_32:
+			return execute_sub_reg_32(instr, cpu);
+		case opcode.sbc_reg_32:
+			return execute_sbc_reg_32(instr, cpu);
+		case opcode.adc_reg_32:
+			return execute_adc_reg_32(instr, cpu);
+		case opcode.orn_imm_32:
+			return execute_orn_imm_32(instr, cpu);
+		case opcode.mvn_imm_32:
+			return execute_mvn_imm_32(instr, cpu);
 		case opcode.mls_32:
 			return execute_mls_32(instr, cpu);
-		case opcode.tst_32:
-			return execute_tst_32(instr, cpu);
+		case opcode.tst_reg_32:
+			return execute_tst_reg_32(instr, cpu);
+		case opcode.tst_imm_32:
+			return execute_tst_imm_32(instr, cpu);
 		case opcode.and_reg_32:
 			return execute_and_reg_32(instr, cpu);
-		case opcode.mov_32:
-			return execute_mov_32(instr, cpu);
+		case opcode.asr_imm_32:
+			return execute_asr_imm_32(instr, cpu);
+		case opcode.lsr_imm_32:
+			return execute_lsr_imm_32(instr, cpu);
+		case opcode.lsl_imm_32:
+			return execute_lsl_imm_32(instr, cpu);
 		case opcode.cmp_imm_32:
 			return execute_cmp_imm_32(instr, cpu);
 		case opcode.mov_imm_32_t2:
@@ -7772,8 +7540,10 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 			return execute_mrs_32(instr, cpu);
 		case opcode.msr_32:
 			return execute_msr_32(instr, cpu);
-		case opcode.cmn_32:
-			return execute_cmn_32(instr, cpu);
+		case opcode.cmn_imm_32:
+			return execute_cmn_imm_32(instr, cpu);
+		case opcode.orn_reg_32:
+			return execute_orn_reg_32(instr, cpu);
 		default:
 			return;
 	}
@@ -7821,8 +7591,8 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_ldrsb_imm_32(instr, cpu, mem);
 		case opcode.ldr_reg_32:
 			return execute_ldr_reg_32(instr, cpu, mem);
-		case opcode.ldmia:
-			return execute_ldmia(instr, cpu, mem);
+		case opcode.ldmia_32:
+			return execute_ldmia_32(instr, cpu, mem);
 		default:
 			return;
 	}
@@ -7848,7 +7618,7 @@ unittest {
 
 	test_case[] tests = [
 		test_case(0xeb0101a3, // add.w	r1, r1, r3, asr #2
-				  instr_32(op: opcode.add_32_reg, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2),
+				  instr_32(op: opcode.add_reg_32, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2),
 				  cortex_m_cpu(r1:  0b11, r3: 0b1100), 
 				  cortex_m_cpu(pc: 4, r1: 0b110, r3: 0b1100)),
 		test_case(0xf7ffffda,
@@ -7892,11 +7662,11 @@ unittest {
 				  cortex_m_cpu(r2: 0b1100, r3: 1),
 				  cortex_m_cpu(pc: 4, r2: 0b1100, r3: 0b0110)),
 		test_case(0xf4434380, // orr.w	r3, r3, #16384	@ 0x4000
-				  instr_32(op: opcode.orr_32, rd: reg.r3, rn: reg.r3, imm: 16384),
+				  instr_32(op: opcode.orr_imm_32, rd: reg.r3, rn: reg.r3, imm: 16384),
 				  cortex_m_cpu(r3: 0x0001),
 				  cortex_m_cpu(pc: 4, r3: 0x4001)),
 		test_case(0xf1070314, // add.w	r3, r7, #20
-				  instr_32(op: opcode.add_32, rd: reg.r3, rn: reg.r7, imm: 20),
+				  instr_32(op: opcode.add_imm_32, rd: reg.r3, rn: reg.r7, imm: 20),
 				  cortex_m_cpu(r7: 10),
 				  cortex_m_cpu(pc: 4, r3: 30, r7: 10)),
 		test_case(0xf0230310, // bic.w	r3, r3, #16
@@ -7912,7 +7682,7 @@ unittest {
 		//test_case(0xf3bf8f4f, 
 		//		  instr_32(op: opcode.dsb)),
 		test_case(0xf1c30307, // rsb	r3, r3, #7
-				  instr_32(op: opcode.rsb_32, rd: reg.r3, rn: reg.r3, imm: 7),
+				  instr_32(op: opcode.rsb_imm_32, rd: reg.r3, rn: reg.r3, imm: 7),
 				  cortex_m_cpu(r3: 2),
 				  cortex_m_cpu(pc: 4, r3: 5)),
 		test_case(0xfba22303, // umull	r2, r3, r2, r3
@@ -7928,19 +7698,19 @@ unittest {
 				  cortex_m_cpu(r2: 0x40000000, r1: 2), // 0100
 				  cortex_m_cpu(pc: 4, r2: 0x40000000, r1: 10)),
 		test_case(0xebb2080a, // subs.w	r8, r2, sl
-				  instr_32(op: opcode.subs_32, rd: reg.r8, rn: reg.r2, rm: reg.r10, shift_t: shift_type.lsl, shift_n: 0),
+				  instr_32(op: opcode.sub_reg_32, rd: reg.r8, rn: reg.r2, rm: reg.r10, shift_t: shift_type.lsl, shift_n: 0),
 				  cortex_m_cpu(r2: 10, r10: 5),
 				  cortex_m_cpu(pc: 4, r8:  5, r2: 10, r10: 5)),
 		test_case(0xeb63090b, // sbc.w	r9, r3, fpr10
-			      instr_32(op: opcode.sbc_32, rd: reg.r9, rn: reg.r3, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0),
+			      instr_32(op: opcode.sbc_reg_32, rd: reg.r9, rn: reg.r3, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0),
 			      cortex_m_cpu(r3: 10, r11: 5, c: true),
 				  cortex_m_cpu(pc: 4, r9:  4, r3: 10, r11: 5, c: true)),
 		test_case(0xeb45030b, // adc.w	r3, r5, fp
-				  instr_32(op: opcode.adc_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0),
+				  instr_32(op: opcode.adc_reg_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0),
 				  cortex_m_cpu(r5:  5, r11: 5, c: true),
 				  cortex_m_cpu(pc: 4, r3: 11,  r5: 5, r11: 5, c: true)),
 		test_case(0xf06f0240, // mvn.w	r2, #64	@ 0x40 
-				  instr_32(op: opcode.bit_or_not_32, rd: reg.r2, imm: 64), 
+				  instr_32(op: opcode.orn_imm_32, rd: reg.r2, imm: 64), 
 				  cortex_m_cpu(),
 				  cortex_m_cpu(pc: 4, r2: -65)),
 		test_case(0xfb0e7711, // mls	r7, lr, r1, r7
@@ -7948,7 +7718,7 @@ unittest {
 				  cortex_m_cpu(r7: 20, r1: 2, lr: 3),
 				  cortex_m_cpu(pc: 4, r7: 14, r1: 2, lr: 3)),
 		test_case(0xea1c0f0e, // tst.w	ip, lr
-				  instr_32(op: opcode.tst_32, rn: reg.r12, rm: reg.lr, shift_t: shift_type.lsl),
+				  instr_32(op: opcode.tst_reg_32, rn: reg.r12, rm: reg.lr, shift_t: shift_type.lsl),
 				  cortex_m_cpu(r12: 0b1111, lr: 0b1111),
 				  cortex_m_cpu(pc: 4, r12: 0b1111, lr: 0b1111, z: false, n: false)),
 		test_case(0xea010808, // and.w	r8, r1, r8 
@@ -8049,9 +7819,9 @@ unittest {
 
 string[opcode] opcode_strings = [
 	opcode.adc_reg: "adcs",
-	opcode.adc_32: "adc.w",
-	opcode.add_32: "add.w",
-	opcode.add_32_reg: "add.w",
+	opcode.adc_reg_32: "adc.w",
+	opcode.add_imm_32: "add.w",
+	opcode.add_reg_32: "add.w",
 	opcode.add_imm_3: "adds",
 	opcode.add_imm_8: "adds",
 	opcode.add_high_reg_1: "add",
@@ -8070,13 +7840,13 @@ string[opcode] opcode_strings = [
 	opcode.b_imm_11: "b",
 	opcode.bic_reg_32: "bic.w",
 	opcode.bic_imm_32: "bic.w",
-	opcode.bit_not_32: "mvn.w", 
+	opcode.mvn_imm_32: "mvn.w", 
 	opcode.bl_32: "bl",
 	opcode.blx: "blx",
 	opcode.bx: "bx",
 	opcode.cmp_br_nz: "cbnz",
 	opcode.cmp_br_z: "cbz",
-	opcode.cmn_32: "cmn.w",
+	opcode.cmn_imm_32: "cmn.w",
 	opcode.cmp_high_1: "cmp",
 	opcode.cmp_high_2: "cmp",
 	opcode.cmp_imm: "cmp",
@@ -8112,7 +7882,7 @@ string[opcode] opcode_strings = [
 	opcode.lsr_reg_32: "lsr.w",
 	opcode.mla_32: "mla",
 	opcode.mls_32: "mls",
-	opcode.mov_32: "mov.w",
+	opcode.asr_imm_32: "mov.w",
 	opcode.mov_16_imm_32: "movw",
 	opcode.mov_high_1: "mov",
 	opcode.mov_high_2: "mov",
@@ -8126,14 +7896,15 @@ string[opcode] opcode_strings = [
 	opcode.negs: "negs",
 	opcode.nop: "nop",
 	opcode.nop_32: "nop.w",
-	opcode.orr_32: "orr.w",
+	opcode.orr_imm_32: "orr.w",
 	opcode.orr_reg_32: "orr.w",
 	opcode.pop_mult_reg: "pop",
 	opcode.pop_mult_reg_32: "ldmia.w sp!,",
 	opcode.push_mult_reg: "push",
 	opcode.push_mult_reg_32: "push",
-	opcode.rsb_32: "rsb",
-	opcode.sbc_32: "sbc.w",
+	opcode.rev: "rev",
+	opcode.rsb_imm_32: "rsb",
+	opcode.sbc_reg_32: "sbc.w",
 	opcode.str_imm: "str",
 	opcode.strb_imm_32_t2: "strb.w",
 	opcode.strb_imm_32_t3: "strb.w",
@@ -8146,13 +7917,15 @@ string[opcode] opcode_strings = [
 	opcode.str_sp: "str",
 	opcode.str_reg: "str",
 	opcode.str_reg_32: "str.w",
+	opcode.sel_32: "sel",
 	opcode.sub_imm_3: "subs",
 	opcode.sub_imm_8: "subs",
 	opcode.sub_imm_32: "sub.w",
 	opcode.sub_reg: "subs",
-	opcode.subs_32: "sub.w",
+	opcode.sub_reg_32: "sub.w",
 	opcode.tst: "tst",
 	opcode.sub_sp: "sub",
+	opcode.uadd8_32: "uadd8",
 	opcode.udiv_32: "udiv",
 	opcode.umull_32: "umull",
 	opcode.ubfx_32: "ubfx",
@@ -8211,7 +7984,8 @@ bool is_store(opcode op) {
 		case opcode.ldrb_imm_32_t3:
 		case opcode.strh_imm_32_t2:
 		case opcode.svc:
-		case opcode.ldmia:
+		case opcode.ldmia_32:
+		case opcode.bx:
 			return true;
 		default:
 			return false;
@@ -8263,7 +8037,7 @@ string convert_to_string(ushort instr) {
 		if (field == "rm") {
 			string rm_s;
 			rm_s ~= get_register_name(parsed_instr.rm);
-			if (is_store(parsed_instr.op)) {
+			if (is_store(parsed_instr.op) && !(parsed_instr.op == opcode.bx)) {
 				rm_s ~= "]";
 			}
 			ops ~= rm_s;
@@ -8515,6 +8289,7 @@ func get_function(string file_name, string function_name) {
     foreach(line; lines[1..$]) {
         line = line.strip();
         if (line.length == 0) continue;
+        if (line.canFind(".word")) continue;
         auto parts = split(line, ":");
         if (parts.length < 2) continue;
         auto addr_str = parts[0].strip();
@@ -8558,13 +8333,12 @@ unittest {
 // ======================
 
 uint get_entry_point_addr(string filename) {
-	if (filename == "../test/zephyr_led_asm.txt") {
-		auto reset_handler = get_function(filename, "__start");
-		return reset_handler.instrs[0]._addr;
-	} else {
+	if (filename != "../test/zephyr_led_asm.txt") {
 		auto reset_handler = get_function(filename, "Reset_Handler");
 		return reset_handler.instrs[0]._addr;
 	}
+	auto __start = get_function(filename, "__start");
+	return __start.instrs[0]._addr;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -8585,24 +8359,26 @@ void load_init_array_start(ref memory mem, string filename) {
     uint val;
     size_t addr;
 
-    foreach(line; file.byLine()) {
-        line = line.strip();
-        if (!foundStart && line.canFind("__init_array_start")) {
-            auto parts = line.split(" ");
-            addr = parse!uint(parts[0], 16);
-            foundStart = true;
-        } else if (foundStart) {
-            auto parts = line.split(":");
-            if (parts.length >= 2) {
-                auto hexWords = parts[1].strip().split();
-                if (hexWords.length >= 1) {
-                    val = parse!uint(hexWords[0], 16);
-                    break;
-                }
-            }
-        }
-    }
-    mem.write_word(addr, val);
+    if (filename != "../test/dsp_asm.txt") {
+	    foreach(line; file.byLine()) {
+	        line = line.strip();
+	        if (!foundStart && line.canFind("__init_array_start")) {
+	            auto parts = line.split(" ");
+	            addr = parse!uint(parts[0], 16);
+	            foundStart = true;
+	        } else if (foundStart) {
+	            auto parts = line.split(":");
+	            if (parts.length >= 2) {
+	                auto hexWords = parts[1].strip().split();
+	                if (hexWords.length >= 1) {
+	                    val = parse!uint(hexWords[0], 16);
+	                    break;
+	                }
+	            }
+	        }
+	    }
+	    mem.write_word(addr, val);
+	}
     foundStart = false;
     size_t addr_2;
     foreach(line; file.byLine()) {
@@ -8705,7 +8481,7 @@ string convert_to_string(uint instr) {
 			if (parsed_instr.op == opcode.str_sp || is_store(parsed_instr.op)) {
 				imm ~= "]";
 			}
-			if (parsed_instr.op == opcode.mov_32) {
+			if (parsed_instr.op == opcode.asr_imm_32) {
 				string final_ = "asr ";
 				final_ ~= imm;
 				ops ~= final_;
@@ -8827,12 +8603,27 @@ unittest {
     }
 }
 
+void load_uart_string_into_flash(ref memory mem)
+{
+    size_t addr = 0x0800a280; 
+    string msg = "UART test: Hello from STM32!\r\n";
+
+    foreach (c; msg)
+    {
+        mem.write_byte(addr, cast(ubyte)c);
+        addr += 1;
+    }
+
+    mem.write_byte(addr, 0);
+}
+
 struct cortex_m_vm {
 	cortex_m_cpu cpu;
 	memory mem;
 	addr_instr[] current_program;
 
 	void load_program(string filename) {
+		load_uart_string_into_flash(mem);
 		if (filename == "../test/cortex_m_asm.txt") {
 			foreach (s; bare_metal_func_names) {
 				func f = get_function(filename, s);
@@ -8840,6 +8631,16 @@ struct cortex_m_vm {
 			}
 		} else if (filename == "../test/zephyr_led_asm.txt") {
 			foreach (s; zephyr_func_names) {
+				func f = get_function(filename, s);
+				current_program ~= f.instrs;
+			}
+		} else if (filename == "../test/freertos_no_task_asm.txt") {
+			foreach (s; freertos_no_task) {
+				func f = get_function(filename, s);
+				current_program ~= f.instrs;
+			}
+		} else if (filename == "../test/dsp_asm.txt") {
+			foreach (s; dsp_func_names) {
 				func f = get_function(filename, s);
 				current_program ~= f.instrs;
 			}
@@ -8855,11 +8656,32 @@ struct cortex_m_vm {
 
     	load_literals(mem, filename);
     	if (filename != "../test/zephyr_led_asm.txt") {
+    		auto f = load_store_log();
     		load_init_array_start(mem, filename);
+    		func svc_handler = get_function(filename, "SVC_Handler");
+    		auto svc_addr = svc_handler.instrs[0]._addr;
+    		mem.write_word(0x0800002C, svc_addr);
+    		f.writeln(format("%08X stored to [%08X]", svc_addr, 0x0800002C));
+    		f.flush();
+			func systick_handler = get_function(filename, "SysTick_Handler");
+			auto systick_addr = systick_handler.instrs[0]._addr;
+			mem.write_word(0x0800003C, systick_addr);
+			f.writeln(format("%08X stored to [%08X]", systick_addr, 0x0800003C));
+			f.flush();
     	}
 	}
 
 	void execute_next_instr() {
+		auto file = pc_log();
+		file.writeln("PC = 0x", format("%08X", cpu.pc));
+		//file.writeln("GSTATE = 0x", format("%08X", mem.read_word(0x20000588)));
+        file.flush();
+		++cpu.tick;
+		if (cpu.tick == 400) {
+			execute_syc_tick(cpu, mem);
+			cpu.tick = 0;
+			return;
+		}
 	    auto inOpt = current_program.find!(ins => ins._addr == cpu.pc);
 
 	    if (inOpt is null) {
@@ -8886,7 +8708,6 @@ struct cortex_m_vm {
 		        execute_instr(i16, cpu);
 		    return;
 		}
-
 
 		auto i32 = ins.get!instr_32;
 		if (is_store(i32.op) || i32.op == opcode.ldr_imm_32_t4)
