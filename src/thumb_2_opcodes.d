@@ -309,6 +309,23 @@ opcode decode_shift_add_sub_mov_cmp(ushort instr) {
 	return opcode.invalid;
 }
 
+// =====================
+//  Decode Single Str 2
+// =====================
+
+opcode decode_single_str_2(ushort instr) {
+	ubyte first_bit  = cast(ubyte)((instr >> 12) & 0b1);
+	ubyte second_bit = cast(ubyte)((instr >> 11) & 0b1);
+	ubyte op = cast(ubyte)((first_bit << 1) | second_bit);
+    final switch (op) {
+    	case 0b00: return opcode.str_imm;
+    	case 0b01: return opcode.ldr_imm;
+    	case 0b10: return opcode.strb_imm;
+    	case 0b11: return opcode.ldrb_imm;
+    }
+    return opcode.invalid;
+}
+
 // =================
 //  Decode Mnemonic
 // =================
@@ -342,26 +359,7 @@ opcode decode_mnemonic(ushort instr) {
     	}
     }
     if (((instr >> 13) & 0b111)  == instr_grp.single_str_2) {
-    	if (((instr >> 12) & 0b1) == 0) {
-    		if (((instr >> 11) & 0b1) == 0) {
-    			return opcode.str_imm;
-    		}
-    	}
-    	if (((instr >> 12) & 0b1) == 0) {
-    		if (((instr >> 11) & 0b1) == 1) {
-    			return opcode.ldr_imm;
-    		}
-    	}
-    	if (((instr >> 12) & 0b1) == 1) {
-    		if (((instr >> 11) & 0b1) == 0) {
-    			return opcode.strb_imm;
-    		}
-    	}
-    	if (cast(ubyte)((instr >> 12) & 0b1) == 1) {
-    		if (((instr >> 11) & 0b1) == 1) {
-    			return opcode.ldrb_imm;
-    		}
-    	}
+    	return decode_single_str_2(instr);
     }
     if (cast(ubyte)((instr >> 13) & 0b111)  == instr_grp.single_str_3) {
     	if (cast(ubyte)((instr >> 12) & 0b1) == 0) {
