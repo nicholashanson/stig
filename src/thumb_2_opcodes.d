@@ -226,16 +226,6 @@ enum instr_grp : ubyte {
 	adr             = 0b10100
 }
 
-enum alu_imm : ubyte {
-	add_8           = 0b110,
-	asr             = 0b010,
-	cmp				= 0b101,
-	lsl             = 0b000,
-	lsr 			= 0b001,
-	movs            = 0b100,
-	subs_8			= 0b111
-}
-
 enum single_str : ubyte {
 	str 			= 0b000,
 	str_sp      	= 0b1001,
@@ -293,47 +283,39 @@ opcode decode_data_proc(ushort instr) {
     return opcode.invalid;
 }
 
+// ==============================
+//  Decode Shift Add Sub Mov Cmp
+// ==============================
+
+opcode decode_shift_add_sub_mov_cmp(ushort instr) {
+	ubyte op = cast(ubyte)((instr >> 9) & 0b11111);
+	ubyte op_short = cast(ubyte)((op >> 2) & 0b111);
+	switch (op) {
+		case 0b01110: return opcode.add_imm_3;
+		case 0b01101: return opcode.sub_reg;
+		case 0b01100: return opcode.add_reg;
+		case 0b01111: return opcode.sub_imm_3;
+		default: break;
+	}
+	final switch (op_short) {
+		case 0b101: return opcode.cmp_imm;
+		case 0b100: return opcode.mov_imm;
+		case 0b111: return opcode.sub_imm_8;
+		case 0b110: return opcode.add_imm_8;
+		case 0b010: return opcode.asr_imm;
+		case 0b000: return opcode.lsl_imm;
+		case 0b001: return opcode.lsr_imm;
+	}
+	return opcode.invalid;
+}
+
 // =================
 //  Decode Mnemonic
 // =================
 
 opcode decode_mnemonic(ushort instr) { 
     if (((instr >> 14) & 0b11) == instr_grp.alu_imm) {
-    	ubyte opcode_ = cast(ubyte)((instr >> 9) & 0b11111);
-    	ubyte opcode_short = cast(ubyte)((opcode_ >> 2) & 0b111);
-    	if (opcode_short == alu_imm.cmp) {
-    		return opcode.cmp_imm;
-    	}
-    	if (opcode_short == alu_imm.movs) {
-    		return opcode.mov_imm;
-    	}
-    	if (opcode_short == alu_imm.subs_8) {
-    		return opcode.sub_imm_8;
-    	}
-    	if (opcode_ == 0b01110) {
-    		return opcode.add_imm_3;
-    	}
-    	if (opcode_short == alu_imm.add_8) {
-    		return opcode.add_imm_8;
-    	}
-    	if (opcode_short == alu_imm.asr) {
-    		return opcode.asr_imm;
-    	}
-    	if (opcode_short == alu_imm.lsl) {
-    		return opcode.lsl_imm;
-    	}
-    	if (opcode_short == alu_imm.lsr) {
-    		return opcode.lsr_imm;
-    	}
-    	if (opcode_ == 0b01101) {
-    		return opcode.sub_reg;
-    	}
-    	if (opcode_ == 0b01100) {
-    		return opcode.add_reg;
-    	}
-    	if (opcode_ == 0b01111) {
-    		return opcode.sub_imm_3;
-    	}
+    	return decode_shift_add_sub_mov_cmp(instr);
     }
     if (cast(ubyte)((instr >> 10) & 0b111111) == instr_grp.data_proc) {
     	return decode_data_proc(instr);
