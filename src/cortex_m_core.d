@@ -8,8 +8,10 @@ enum exception {
 }
 
 enum condition : ubyte {
-	cs = 0b0010,
+	cs = 0b0010,	// carry set
 	eq = 0b0000,
+	lt = 0b1011,
+	gt = 0b1100,
 	ge = 0b1010,
 	le = 0b1101,
 	mi = 0b0100,
@@ -24,10 +26,10 @@ enum condition : ubyte {
 }
 
 condition get_negation(condition cond) {
-	if (cond == condition.eq) {
-		return condition.ne;
+	if (cond == condition.invalid) {
+		return condition.invalid;
 	}
-	return condition.invalid;
+	return cast(condition)(cond ^ 1);
 }
 
 enum reg : ubyte {
@@ -197,14 +199,15 @@ struct cortex_m_cpu {
 			return;
 		}
 		string s = it_block.to!string;
-		it_block_stack.insertBack(cond); 
-		foreach (c; s) {
-	        if (c == 't') {
-	            it_block_stack.insertBack(cond);       
-	        } else if (c == 'e') {
-	            it_block_stack.insertBack(get_negation(cond)); 
-	        }
-	    }
+		size_t len = s.length;
+		if (len > 0) {
+			for (size_t i = s.length; i-- > 0; ) {
+			    char c = s[i];
+			    if (c == 't') it_block_stack.insertBack(cond);
+			    else if (c == 'e') it_block_stack.insertBack(get_negation(cond));
+			}
+		}
+	    it_block_stack.insertBack(cond); 
 	}
 	// --------------------------------------------------------------------------------------
 

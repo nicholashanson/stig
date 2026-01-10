@@ -14,6 +14,10 @@ import std.container;
 import thumb_2_opcodes;
 import memory_sections;
 import cortex_m_core;
+import std.algorithm : sort;
+
+import thumb_2_instrs;
+import thumb_2_data_proc_16;
 
 enum special_reg : ubyte {
 	APSR = 			0b00000000,
@@ -425,7 +429,9 @@ string[] zephyr_func_names = [
 	"printk",
 	"vprintk",
 	"__l_vfprintf",
-	"region_init"
+	"region_init",
+	"sys_clock_isr",
+	"elapsed"
 ];
 
 struct imm {
@@ -665,26 +671,6 @@ immutable string[][opcode] field_map = (() {
         m[t[0]] = t[1];
     return m;
 })();
-
-struct instr_16 {
-	uint addr;
-	opcode op;
-	reg rd;
-	reg rm;
-	reg rn;
-	reg rt;
-	uint imm;
-	int offset;
-	int imm_long;
-	condition cond;
-	reg[] reg_list = null;
-	bool set_flags;
-	ubyte first_cond;
-	ubyte mask;
-	bool enable;
-	bool affect_pri;
-	bool affect_fault;
-}
 
 // =====================
 //  Parse ADD(Register)
@@ -1995,7 +1981,7 @@ instr_16 parse_uxtb(short instr) {
 //  Parse UXTH
 // ============
 
-enum field_tuples_uxth = [Tuple!(opcode, string[])(opcode.uxtb, ["rd","rm"])];
+enum field_tuples_uxth = [Tuple!(opcode, string[])(opcode.uxth, ["rd","rm"])];
 /*
 	Miscellaneous 16-Bit Instructions
 	UXTB <Rd>,<Rm>
@@ -2177,6 +2163,8 @@ instr_16 decode_instr(ushort instr) {
        		return parse_str_sp(instr);
        	case opcode.add_reg:
        		return parse_add_reg(instr);
+       	case opcode.mul:
+       		return parse_mul(instr);
        	case opcode.cmp_high_1:
        		return parse_cmp_high_1(instr);
         case opcode.add_high_reg_1:
@@ -2611,7 +2599,8 @@ struct memory {
 	    0x40026088: 0,
 	    0x4002609C: 0,
 	    0x40007400: 0,
-	    0x40011000: 0xc0
+	    0x40011000: 0xc0,
+	    0xE000E018: 0
 	];
 
 	uint read_word(size_t addr) {
@@ -2866,7 +2855,6 @@ void execute_add_imm_8(instr_16 add_imm_8_instr, ref cortex_m_cpu cpu) {
 	int res = rn + add_imm_8_instr.imm;
 	if (true /*!cpu.in_it_block()*/) {
 		cpu.z = (res == 0);
-		//cpu.n = ((res >> 31) == 1);
 		cpu.n = (res < 0);
 		cpu.c = (res >= add_imm_8_instr.imm);
 		cpu.v = (rn < 0 && res > 0);
@@ -3334,7 +3322,6 @@ void execute_sub_reg(instr_16 sub_reg_instr, ref cortex_m_cpu cpu) {
 
 void execute_push_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	auto f = stack_log();
-	import std.algorithm : sort;
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a > cast(int)b);
 	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
@@ -3352,7 +3339,6 @@ void execute_push_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem)
 // ======================
 
 void execute_pop_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	import std.algorithm : sort;
 	auto f = stack_log();
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a < cast(int)b);
@@ -3753,6 +3739,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 			return execute_tst(instr, cpu);
 		case opcode.cps:
 			return execute_cps(instr, cpu);
+		case opcode.mul:
+			return execute_mul(instr, cpu);
 		default:
 			return;
 	}
@@ -8664,6 +8652,13 @@ struct cortex_m_vm {
     		f.writeln(format("%08X stored to [%08X]", svc_addr, 0x0800002C));
     		f.flush();
 			func systick_handler = get_function(filename, "SysTick_Handler");
+			auto systick_addr = systick_handler.instrs[0]._addr;
+			mem.write_word(0x0800003C, systick_addr);
+			f.writeln(format("%08X stored to [%08X]", systick_addr, 0x0800003C));
+			f.flush();
+    	} else {
+    		auto f = load_store_log();
+    		func systick_handler = get_function(filename, "sys_clock_isr");
 			auto systick_addr = systick_handler.instrs[0]._addr;
 			mem.write_word(0x0800003C, systick_addr);
 			f.writeln(format("%08X stored to [%08X]", systick_addr, 0x0800003C));

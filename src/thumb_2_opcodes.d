@@ -1176,7 +1176,8 @@ unittest {
 		test_case(0xf24412a0, opcode.mov_16_imm_32),
 		test_case(0xf04f23e0, opcode.mov_imm_32_t2),
 		test_case(0xf244129f, opcode.mov_16_imm_32),
-		test_case(0xf0420207, opcode.orr_imm_32)
+		test_case(0xf0420207, opcode.orr_imm_32),
+		test_case(0xf1420200, opcode.adc_imm_32)
 	];
 
 	foreach (t; tests) {

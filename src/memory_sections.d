@@ -65,6 +65,11 @@ struct flash_mem_section {
     	return res;
     }
 
+    void write_byte(size_t index, ubyte val) {
+        index -= flash_origin;
+        g_flash[index] = val;
+    }
+
     const(uint) read_word(size_t index) const {
     	index -= flash_origin;
     	uint res = (g_flash[index + 3] << 24) | 

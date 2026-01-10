@@ -7,9 +7,12 @@
     },
     "targetType": "executable",
     "sourceFiles": [
+        "thumb_2_instrs.d",
         "cortex_m.d",
         "cortex_m_ui.d",
         "thumb_2_opcodes.d",
-        "memory_sections.d"
+        "memory_sections.d",
+        "cortex_m_core.d",
+        "thumb_2_data_proc_16.d"
     ]
 }

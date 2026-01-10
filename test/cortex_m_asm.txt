@@ -1,7 +1,6 @@
 
 firmware.elf:     file format elf32-littlearm
 
-
 Disassembly of section .text:
 
 080001c0 <deregister_tm_clones>:
