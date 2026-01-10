@@ -156,6 +156,8 @@ enum opcode : ubyte {
 	uadd8_32,
 	uxth,
 
+	mul,
+
 
 	//lsl_reg_32,
 	//lsr_reg_32,
@@ -279,6 +281,7 @@ opcode decode_data_proc(ushort instr) {
 		case 0b0101: return opcode.adc_reg;
 		case 0b1001: return opcode.negs;
 		case 0b1000: return opcode.tst;
+		case 0b1101: return opcode.mul;
 	}
     return opcode.invalid;
 }
@@ -533,8 +536,12 @@ unittest {
 		test_case(0x681b, opcode.ldr_imm),
 		test_case(0x682b, opcode.ldr_imm),
 		test_case(0x68fb, opcode.ldr_imm),
+		test_case(0x691a, opcode.ldr_imm),
 		test_case(0x4803, opcode.ldr_pool),
 		test_case(0x4a0a, opcode.ldr_pool),
+		test_case(0x4b08, opcode.ldr_pool),
+		test_case(0x4b09, opcode.ldr_pool),
+		test_case(0x4b0a, opcode.ldr_pool),
 		test_case(0x58d4, opcode.ldr_reg),
 		test_case(0x58fb, opcode.ldr_reg),
 		test_case(0x9d08, opcode.ldr_sp),
@@ -549,6 +556,8 @@ unittest {
 		test_case(0x4680, opcode.mov_high_1),
 		test_case(0x469d, opcode.mov_high_1),
 		test_case(0x4652, opcode.mov_high_2),
+		test_case(0x2000, opcode.mov_imm),
+		test_case(0x2210, opcode.mov_imm),
 		test_case(0x2300, opcode.mov_imm),
 		test_case(0x2301, opcode.mov_imm),
 		test_case(0x460f, opcode.mov_lo),
@@ -561,7 +570,12 @@ unittest {
 		test_case(0xb580, opcode.push_mult_reg),
 		test_case(0x3902, opcode.sub_imm_8),	
 		test_case(0x6013, opcode.str_imm),
+		test_case(0x601a, opcode.str_imm),
+		test_case(0x6018, opcode.str_imm),
 		test_case(0x608b, opcode.str_imm),
+		test_case(0x611a, opcode.str_imm),
+		test_case(0x615a, opcode.str_imm),
+		test_case(0x6198, opcode.str_imm),
 		test_case(0x50c4, opcode.str_reg),
 		test_case(0x9300, opcode.str_sp),
 		test_case(0x9301, opcode.str_sp),
@@ -1157,7 +1171,12 @@ unittest {
 	    test_case(0xea4f06a6, opcode.asr_imm_32),
 	    test_case(0xf4434380, opcode.orr_imm_32),
 	    test_case(0xf7feffc5, opcode.bl_32),
-	    test_case(0xf7f6f9b5, opcode.bl_32)
+	    test_case(0xf7f6f9b5, opcode.bl_32),
+	    test_case(0xf8832023, opcode.strb_imm_32_t2),
+		test_case(0xf24412a0, opcode.mov_16_imm_32),
+		test_case(0xf04f23e0, opcode.mov_imm_32_t2),
+		test_case(0xf244129f, opcode.mov_16_imm_32),
+		test_case(0xf0420207, opcode.orr_imm_32)
 	];
 
 	foreach (t; tests) {
