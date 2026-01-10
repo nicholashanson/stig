@@ -1397,29 +1397,6 @@ instr_16 parse_lsr_imm(short instr) {
 }
 
 // =====================
-//  Parse LSR(Register)
-// =====================
-
-enum field_tuples_lsr_reg = [Tuple!(opcode, string[])(opcode.lsr_reg, ["rd","rm"])];
-/*                
-    Data Processing
-	LSR <Rdn>,<Rm>
-	[15:6] 0100000011
-	[5:3] Rm
-	[2:0] Rdn  
-*/
-instr_16 parse_lsr_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.lsr_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// =====================
 //  Parse MOV(Register)
 // =====================
 
@@ -3412,18 +3389,6 @@ void execute_lsl_reg(instr_16 lsl_reg_instr, ref cortex_m_cpu cpu) {
 	int val = cpu.get(lsl_reg_instr.rn);
 	val = val << shift;
 	cpu.set(lsl_reg_instr.rd, val);
-	cpu.increment_pc(2);
-}
-
-// =================
-//  Execute LSR REG
-// =================
-
-void execute_lsr_reg(instr_16 lsr_reg_instr, ref cortex_m_cpu cpu) {
-	int shift = cpu.get(lsr_reg_instr.rm);
-	int val = cpu.get(lsr_reg_instr.rn);
-	val = val >> shift;
-	cpu.set(lsr_reg_instr.rd, val);
 	cpu.increment_pc(2);
 }
 
