@@ -548,6 +548,13 @@ struct stm32f4_swtrigr {
 	enum swtrig2	= 1;
 }
 
+immutable string[][opcode] field_map = (() {
+    string[][opcode] m;
+    foreach(t; all_field_tuples)
+        m[t[0]] = t[1];
+    return m;
+})();
+
 enum all_field_tuples = 
 	  field_tuples_adc_reg
 	~ field_tuples_adc_reg_32
@@ -621,6 +628,7 @@ enum all_field_tuples =
 	~ field_tuples_msr_32
 	~ field_tuples_sub_reg_32
 	~ field_tuples_mla_32
+	~ field_tuples_mul
 	~ field_tuples_mul_32
 	~ field_tuples_mvn_reg
 	~ field_tuples_negs
@@ -664,13 +672,6 @@ enum all_field_tuples =
 	~ field_tuples_uxtb
 	~ field_tuples_uxth
 	~ field_tuples_rev;
-
-immutable string[][opcode] field_map = (() {
-    string[][opcode] m;
-    foreach(t; all_field_tuples)
-        m[t[0]] = t[1];
-    return m;
-})();
 
 // =====================
 //  Parse ADD(Register)
@@ -7880,6 +7881,7 @@ string[opcode] opcode_strings = [
 	opcode.msr_32: "msr",
 	opcode.mrs_32: "mrs",
 	opcode.mvn_reg: "mvns",
+	opcode.mul: "mul",
 	opcode.mul_32: "mul.w",
 	opcode.negs: "negs",
 	opcode.nop: "nop",

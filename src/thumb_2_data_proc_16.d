@@ -1,7 +1,19 @@
+import std.typecons : Tuple;
+
 import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
 
+// ===========
+//  Parse MUL
+// ===========
+
+enum field_tuples_mul = [Tuple!(opcode, string[])(opcode.mul, ["rd","rn"])];
+/*
+	Data Processing
+	MUL <Rdm>,<Rn>,<Rdm>
+	[15:6] 0100001101, [5:3] Rn, [2:0] Rdm
+*/
 instr_16 parse_mul(ushort instr) {
 	instr_16 res;
 	res.op = opcode.mul;
@@ -12,6 +24,10 @@ instr_16 parse_mul(ushort instr) {
 	res.rn = cast(reg)(rn);
 	return res;
 }
+
+// =============
+//  Execute MUL
+// =============
 
 void execute_mul(instr_16 instr, ref cortex_m_cpu cpu) {
 	uint rm = cpu.get(instr.rm);
