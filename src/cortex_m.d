@@ -879,29 +879,6 @@ instr_16 parse_adr(short instr) {
 	return res;
 }
 
-// =====================
-//  Parse AND(Register)
-// =====================
-
-enum field_tuples_and_reg = [Tuple!(opcode, string[])(opcode.and_reg, ["rd","rm"])];
-/*
-	Data Processing
-	AND <Rdn>,<Rm>
-	[15:6] 0100000000
-	[5:3] Rm
-	[2:0] Rdn
-*/
-instr_16 parse_and_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.and_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rn = cast(reg)(rdn);
-	res.rd = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
 // ======================
 //  Parse ASR(Immediate)
 // ======================
@@ -2865,22 +2842,6 @@ void execute_add_imm_8(instr_16 add_imm_8_instr, ref cortex_m_cpu cpu) {
 }
 
 // =============
-//  Execute AND
-// =============
-
-void execute_and_reg(instr_16 and_reg_instr, ref cortex_m_cpu cpu) {
-	int rn = cast(int)(cpu.get(and_reg_instr.rn));
-	int rm = cast(int)(cpu.get(and_reg_instr.rm));
-	int res = rn & rm;
-	if (and_reg_instr.set_flags) {
-		cpu.z = (res == 0);
-		cpu.n = (res < 0);
-	}
-	cpu.set(and_reg_instr.rd, res);
-	cpu.increment_pc(2);
-}
-
-// =============
 //  Execute MOV
 // =============
 
@@ -3902,7 +3863,7 @@ unittest {
 		test_case(0x2300, 
 			      instr_16(op: opcode.mov_imm,       rd: reg.r3,              imm: 0),
 			      cortex_m_cpu(r3: 0b111),
-			      cortex_m_cpu(pc: 2, r3: 0b000)),
+			      cortex_m_cpu(pc: 2, r3: 0b000, z: true)),
 		test_case(0x3902, 
 			      instr_16(op: opcode.sub_imm_8,     rd: reg.r1,  rn: reg.r1, imm: 2),
 			      cortex_m_cpu(r1: 0b0100),
