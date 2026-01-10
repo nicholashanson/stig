@@ -4,6 +4,47 @@ import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
 
+// ----------------------------------------- ADC -----------------------------------------
+
+// =====================
+//  Parse ADC(Register)
+// =====================
+
+enum field_tuples_adc_reg = [Tuple!(opcode, string[])(opcode.adc_reg, ["rd","rm"])];
+/*
+	Data Processing
+	ADC <Rdn>,<Rm>
+	[15:6] 0100000101, [5:3] Rm, [2:0] Rd  
+*/
+instr_16 parse_adc_reg(short instr) {
+	instr_16 res;
+	res.op    = opcode.adc_reg;
+	ubyte rdn = cast(ubyte)( instr       & 0x7);
+	ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
+	res.rd    = cast(reg)(rdn);
+	res.rn    = cast(reg)(rdn);
+	res.rm    = cast(reg)(rm);
+	return res;
+}
+
+// =======================
+//  Execute ADC(Register)
+// =======================
+
+void execute_adc_reg(instr_16 instr, ref cortex_m_cpu cpu) {
+	uint rn = cpu.get(instr.rn);
+	uint rm = cpu.get(instr.rm);
+	uint c  = cast(uint)(cpu.c);
+	uint res = rn + rm + c;
+	if (!cpu.in_it_block()) {
+		cpu.z = (res == 0);
+		cpu.n = (res & 0x80000000) != 0;
+	}
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
+
 // ----------------------------------------- AND -----------------------------------------
 
 // =====================
@@ -27,13 +68,13 @@ instr_16 parse_and_reg(short instr) {
 	return res;
 }
 
-// =============
-//  Execute AND
-// =============
+// =======================
+//  Execute AND(Register)
+// =======================
 
 void execute_and_reg(instr_16 instr, ref cortex_m_cpu cpu) {
-	uint rn = cast(int)(cpu.get(instr.rn));
-	uint rm = cast(int)(cpu.get(instr.rm));
+	uint rn  = cast(int)(cpu.get(instr.rn));
+	uint rm  = cast(int)(cpu.get(instr.rm));
 	uint res = rn & rm;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);

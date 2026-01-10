@@ -1989,29 +1989,6 @@ instr_16 parse_nop(short instr) {
 	return res;
 }
 
-// =====================
-//  Parse ADC(Register)
-// =====================
-
-enum field_tuples_adc_reg = [Tuple!(opcode, string[])(opcode.adc_reg, ["rd","rm"])];
-/*
-	Data Processing
-	ADC <Rdn>,<Rm>
-	[15:6] 0100000101
-	[5:3] Rm
-	[2:0] Rd  
-*/
-instr_16 parse_adc_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.adc_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
 enum field_tuples_rev = [Tuple!(opcode, string[])(opcode.rev, ["rd","rm"])];
 instr_16 parse_rev(short instr) {
 	instr_16 res;
@@ -3476,15 +3453,6 @@ void execute_mov_high_2(instr_16 mov_high_2_instr, ref cortex_m_cpu cpu) {
 
 void execute_add_reg(instr_16 add_reg_instr, ref cortex_m_cpu cpu) {
 	cpu.set(add_reg_instr.rd, cpu.get(add_reg_instr.rn) + cpu.get(add_reg_instr.rm));
-	cpu.increment_pc(2);
-}
-
-// =============
-//  Execute ADC
-// =============
-
-void execute_adc_reg(instr_16 instr, ref cortex_m_cpu cpu) {
-	cpu.set(instr.rd, cpu.get(instr.rn) + cpu.get(instr.rm) + cast(uint)(cpu.c));
 	cpu.increment_pc(2);
 }
 
