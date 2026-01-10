@@ -1348,29 +1348,6 @@ instr_16 parse_lsl_imm(short instr) {
 	return res;
 }
 
-// =====================
-//  Parse LSL(Register)
-// =====================
-
-enum field_tuples_lsl_reg = [Tuple!(opcode, string[])(opcode.lsl_reg, ["rd","rm"])];
-/*
-	Data Processing
-	LSL <Rdn>,<Rm>
-	[15:6] 0100000010
-	[5:3] Rm
-	[2:0] Rdn  
-*/
-instr_16 parse_lsl_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.lsl_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
 // ======================
 //  Parse LSR(Immediate)
 // ======================
@@ -3377,18 +3354,6 @@ void execute_add_lo_reg(instr_16 add_lo_reg_instr, ref cortex_m_cpu cpu) {
 	int rm = cpu.get(add_lo_reg_instr.rm);
 	int res = rn + rm;
 	cpu.set(add_lo_reg_instr.rd, res);
-	cpu.increment_pc(2);
-}
-
-// =================
-//  Execute LSL REG
-// =================
-
-void execute_lsl_reg(instr_16 lsl_reg_instr, ref cortex_m_cpu cpu) {
-	int shift = cpu.get(lsl_reg_instr.rm);
-	int val = cpu.get(lsl_reg_instr.rn);
-	val = val << shift;
-	cpu.set(lsl_reg_instr.rd, val);
 	cpu.increment_pc(2);
 }
 
