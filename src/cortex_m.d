@@ -18,23 +18,7 @@ import std.algorithm : sort;
 
 import thumb_2_instrs;
 import thumb_2_data_proc_16;
-
-enum special_reg : ubyte {
-	APSR = 			0b00000000,
-	IAPSR =         0b00000001,
-	EAPSR =			0b00000010,
-	XPSR = 			0b00000011,
-	IPSR = 			0b00000101,
-	EPSR = 			0b00000110,
-	IEPSR =			0b00000111,
-	MSP =			0b00001000,
-	PSP =   		0b00001001,
-	PRIMASK = 	    0b00010000,
-	BASEPRI = 		0b00010001,
-	BASEPRI_MAX =	0b00010010,
-	FAULTMASK =	    0b00010011,
-	CONTROL =		0b00010100
-}
+import thumb_2_data_poc_mod_imm_32;
 
 File* load_store_log_ptr = null;
 
@@ -4027,43 +4011,6 @@ unittest {
     }
 } 
 
-struct instr_32 {
-	opcode op;
-	reg rd;
-	reg rn;
-	reg rm;
-	reg rt;
-	shift_type shift_t;
-	uint imm;
-	ubyte shift_n;
-	int offset;
-	reg[] reg_list;
-	uint ls_bit;
-	uint width;
-	uint ms_bit;
-	reg rd_hi;
-	reg rd_lo;
-	reg rt_2;
-	reg ra;
-	condition cond;
-	bool wback;
-	bool add;
-	bool index;
-	ubyte mask;
-	special_reg spec_reg;
-	bool set_flags;
-}
-
-enum shift_type : ubyte {
-	lsl,
-	lsr,
-	asr,
-	rrx,
-	ror,
-	none,
-	invalid
-}
-
 shift_type get_shift_type(ubyte type, ubyte imm) {
 	switch (type) {
 		case 0b00:
@@ -4282,11 +4229,6 @@ instr_32 parse_ldmia_32(uint instr) {
 	if (reg_list & 0x8000) res.reg_list ~= reg.pc;
 	res.rn = cast(reg)(rn);
 	return res;
-}
-
-uint rotr(uint value, uint n) {
-    n %= 32;
-    return (value >> n) | (value << (32 - n));
 }
 
 // ==================
@@ -4541,28 +4483,6 @@ instr_32 parse_lsr_reg_32(uint instr) {
 	res.rn = cast(reg)(rn);
 	res.set_flags = S == 1 ? true : false;
 	return res;
-}
-
-uint thumb_expand_imm(ushort imm_12) {
-	if ((cast(ubyte)(imm_12 >> 10) & 0b11) == 0b00) {
-		ubyte imm_8 = cast(ubyte)(imm_12 & 0xff);
-		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b10) {
-			return (imm_8 << 24) | (imm_8 << 8);
-		}
-		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b0) {
-			return imm_8;
-		}
-		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b11) {
-			return (imm_8 << 24) | (imm_8 << 16) | (imm_8 << 8) | imm_8;
-		}
-		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b01) {
-			return (imm_8 << 24) | (imm_8 << 8);
-		}
-	} 
-	int rotate_by = ((imm_12) >> 7) & 0x1f;
-	uint unrotated = (1 << 7) | (imm_12 & 0x7f);
-	uint rotated = rotr(unrotated, rotate_by);
-	return rotated;
 }
 
 // ===========
@@ -6232,6 +6152,8 @@ instr_32 decode_instr(uint instr) {
 			return parse_sbc_reg_32(instr);
 		case opcode.adc_reg_32:
 			return parse_adc_reg_32(instr);
+		case opcode.adc_imm_32:
+			return parse_adc_imm_32(instr);
 		case opcode.orn_imm_32:
 			return parse_orn_imm_32(instr);
 		case opcode.mvn_imm_32:
@@ -7362,6 +7284,8 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 			return execute_sbc_reg_32(instr, cpu);
 		case opcode.adc_reg_32:
 			return execute_adc_reg_32(instr, cpu);
+		case opcode.adc_imm_32:
+			return execute_adc_imm_32(instr, cpu);
 		case opcode.orn_imm_32:
 			return execute_orn_imm_32(instr, cpu);
 		case opcode.mvn_imm_32:
@@ -7667,6 +7591,7 @@ unittest {
 
 string[opcode] opcode_strings = [
 	opcode.adc_reg: "adcs",
+	opcode.adc_imm_32: "adc.w",
 	opcode.adc_reg_32: "adc.w",
 	opcode.add_imm_32: "add.w",
 	opcode.add_reg_32: "add.w",

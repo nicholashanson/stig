@@ -1,6 +1,23 @@
 import std.container;
 import std.conv;
 
+enum special_reg : ubyte {
+	APSR = 			0b00000000,
+	IAPSR =         0b00000001,
+	EAPSR =			0b00000010,
+	XPSR = 			0b00000011,
+	IPSR = 			0b00000101,
+	EPSR = 			0b00000110,
+	IEPSR =			0b00000111,
+	MSP =			0b00001000,
+	PSP =   		0b00001001,
+	PRIMASK = 	    0b00010000,
+	BASEPRI = 		0b00010001,
+	BASEPRI_MAX =	0b00010010,
+	FAULTMASK =	    0b00010011,
+	CONTROL =		0b00010100
+}
+
 enum exception {
 	thread_mode,
 	SVC_IRQn = 11,
