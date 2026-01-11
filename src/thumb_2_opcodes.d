@@ -136,6 +136,7 @@ enum opcode : ubyte {
 	uxtah_32,
 	uxth_32,
 	sxtab_16_32,
+	sxtb,
 	sxtb16_32,
 	uxtab_16_32,
 	uxtb16_32,
@@ -410,6 +411,9 @@ opcode decode_mnemonic(ushort instr) {
     	if (cast(ubyte)((instr >> 6) & 0b111111) == misc.uxtb) {
     		return opcode.uxtb;
     	}
+    	if (cast(ubyte)((instr >> 6) & 0b111111) == 0b001001) {
+    		return opcode.sxtb;
+    	}
     	if (cast(ubyte)((instr >> 9) & 0b111) == misc.push_mult_reg) {
     		return opcode.push_mult_reg;
     	}
@@ -586,6 +590,7 @@ unittest {
 		test_case(0x1a1b, opcode.sub_reg),
 		test_case(0xb092, opcode.sub_sp),
 		test_case(0xdf00, opcode.svc),
+		test_case(0xb240, opcode.sxtb),
 		test_case(0x4208, opcode.tst),
 		test_case(0xb2db, opcode.uxtb),
 		test_case(0xb29a, opcode.uxth)

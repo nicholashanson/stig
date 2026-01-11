@@ -18,7 +18,8 @@ import std.algorithm : sort;
 
 import thumb_2_instrs;
 import thumb_2_data_proc_16;
-import thumb_2_data_poc_mod_imm_32;
+import thumb_2_data_proc_mod_imm_32;
+import thumb_2_misc_16;
 
 File* load_store_log_ptr = null;
 
@@ -415,7 +416,25 @@ string[] zephyr_func_names = [
 	"__l_vfprintf",
 	"region_init",
 	"sys_clock_isr",
-	"elapsed"
+	"elapsed",
+	"sys_clock_announce",
+	"next_timeout",
+	"sys_clock_set_timeout",
+	"z_time_slice",
+	"k_sched_lock",
+	"z_add_timeout",
+	"_elapsed",
+	"sys_clock_elapsed",
+	"do_device_init",
+	"st_stm32_common_config",
+	"gpio_stm32_init",
+	"z_impl_device_is_ready",
+	"stm32_clock_control_on",
+	"stm32_exti_gpio_intc_init",
+	"stm32_fill_irq_table",
+	"arm_irq_priority_set",
+	"malloc_prepare",
+	"sys_heap_init"
 ];
 
 struct imm {
@@ -541,6 +560,7 @@ immutable string[][opcode] field_map = (() {
 
 enum all_field_tuples = 
 	  field_tuples_adc_reg
+	~ field_tuples_adc_imm_32 
 	~ field_tuples_adc_reg_32
 	~ field_tuples_add_imm_32
 	~ field_tuples_add_reg_32
@@ -647,6 +667,7 @@ enum all_field_tuples =
 	~ field_tuples_sub_reg
 	~ field_tuples_sub_reg_32
 	~ field_tuples_svc
+	~ field_tuples_sxtb
 	~ field_tuples_tst
 	~ field_tuples_uadd8_32
 	//~ field_tuples_tst
@@ -1024,13 +1045,13 @@ instr_16 parse_cmp_br_nz(short instr) {
 
 instr_16 parse_cps(short instr) {
 	instr_16 res;
-	res.op = opcode.cps;
-	ubyte F = cast(ubyte)(instr & 0b1);
-	ubyte I = cast(ubyte)((instr >> 1) & 0b1);
-	ubyte imm = cast(ubyte)((instr >> 4) & 0b1);
-	res.enable = (imm == 0);
-	res.affect_pri = (I == 1);
-	res.affect_fault = (F == 1);
+	res.op    = opcode.cps;
+	ubyte F   = cast(ubyte)( instr       & 0x1);
+	ubyte I   = cast(ubyte)((instr >> 1) & 0x1);
+	ubyte imm = cast(ubyte)((instr >> 4) & 0x1);
+	res.enable       = (imm == 0);
+	res.affect_pri   = (I   == 1);
+	res.affect_fault = (F   == 1);
 	return res;
 }
 
@@ -1969,6 +1990,8 @@ instr_16 decode_instr(ushort instr) {
     auto op = decode_mnemonic(instr);
 
     switch (op) {
+    	case opcode.sxtb:
+    		return parse_sxtb(instr);
     	case opcode.rev:
     		return parse_rev(instr);
     	case opcode.ldr_sp:
@@ -2493,7 +2516,8 @@ struct memory {
 	    0x4002609C: 0,
 	    0x40007400: 0,
 	    0x40011000: 0xc0,
-	    0xE000E018: 0
+	    0xE000E018: 0,
+	    0xE0042004: 0
 	];
 
 	uint read_word(size_t addr) {
@@ -2746,7 +2770,7 @@ void execute_asr_imm(instr_16 asr_imm_instr, ref cortex_m_cpu cpu) {
 void execute_add_imm_8(instr_16 add_imm_8_instr, ref cortex_m_cpu cpu) {
 	int rn = cast(int)(cpu.get(add_imm_8_instr.rn));
 	int res = rn + add_imm_8_instr.imm;
-	if (true /*!cpu.in_it_block()*/) {
+	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
 		cpu.n = (res < 0);
 		cpu.c = (res >= add_imm_8_instr.imm);
@@ -2776,7 +2800,7 @@ void execute_mov_imm(instr_16 instr, ref cortex_m_cpu cpu) {
 void execute_sub_imm_8(instr_16 instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(instr.rn);
 	int res = rn - instr.imm;
-	if (/*sub_imm_8_instr.set_flags*/ true) {
+	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
 		cpu.n = (res < 0);
 		cpu.c = cast(uint)rn >= cast(uint)instr.imm;
@@ -2957,21 +2981,29 @@ void execute_ldrb_imm(instr_16 ldrb_imm_instr, ref cortex_m_cpu cpu, ref memory 
 // ==============
 
 void execute_strb_imm(instr_16 strb_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+	auto f = load_store_log();
 	int rt = cpu.get(strb_imm_instr.rt);
 	int rn = cpu.get(strb_imm_instr.rn);
 	size_t addr = rn + strb_imm_instr.imm;
+	f.writeln(format("Attempting to access [%08X]", addr));
 	int data = rt & 0xff;
 	mem.write_byte(addr, data);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(2);
 }
 
 void execute_strb_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	int rt = cpu.get(instr.rt);
-	int rn = cpu.get(instr.rn);
-	int rm = cpu.get(instr.rm);
+	auto f = load_store_log();
+	uint rt = cpu.get(instr.rt);
+	uint rn = cpu.get(instr.rn);
+	uint rm = cpu.get(instr.rm);
 	size_t addr = rn + rm;
+	f.writeln(format("Attempting to access [%08X]", addr));
 	int data = rt & 0xff;
 	mem.write_byte(addr, data);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
+	f.flush();
 	cpu.increment_pc(2);
 }
 
@@ -3146,6 +3178,14 @@ bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
 			return cpu.v == 1;
         case condition.vc: 
         	return cpu.v == 0;
+        case condition.lt:
+    		return cpu.n != cpu.v;
+		case condition.gt:
+    		return (cpu.z == 0 && cpu.n == cpu.v);
+		case condition.le:
+    		return (cpu.z == 1 || cpu.n != cpu.v);
+		case condition.al:
+    		return true;
 		default:
 			return false;
 	}
@@ -3437,6 +3477,7 @@ void execute_negs(instr_16 negs_instr, ref cortex_m_cpu cpu) {
 	int rn = cpu.get(negs_instr.rn);
 	rn = -rn;
 	cpu.set(negs_instr.rd, rn);
+	cpu.increment_pc(2);
 }
 
 // =============
@@ -3494,6 +3535,7 @@ void execute_if_then(instr_16 instr, ref cortex_m_cpu cpu) {
 
 void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 	if (!cpu.it_block_stack.empty) {
+		auto f = load_store_log();
 		condition active_cond = cpu.it_block_stack.back;
 		cpu.it_block_stack.removeBack();
 		if (!condition_is_met(active_cond, cpu)) {
@@ -3505,6 +3547,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 	switch (instr.op) {
 		case opcode.rev:
 			return execute_rev(instr, cpu);
+		case opcode.sxtb:
+			return execute_sxtb(instr, cpu);
 		case opcode.cmp_imm:
 			return execute_cmp_imm(instr, cpu);
 		case opcode.asr_imm:
@@ -3591,6 +3635,20 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 }
 
 void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	if (!cpu.it_block_stack.empty) {
+		auto f = load_store_log();
+		condition active_cond = cpu.it_block_stack.back;
+		cpu.it_block_stack.removeBack();
+		if (!condition_is_met(active_cond, cpu)) {
+			f.writeln(format("%08X: %s is not met: z(%d), n(%d), v(%d), c(%d))", cpu.pc, active_cond.to!string, cpu.z, cpu.n, cpu.v, cpu.c));
+			f.flush();
+			cpu.increment_pc(2);
+			return;
+		} else {
+			f.writeln(format("%08X: %s is met: z(%d), n(%d), v(%d), c(%d))", cpu.pc, active_cond.to!string, cpu.z, cpu.n, cpu.v, cpu.c));
+			f.flush();
+		}
+	}
 	switch (instr.op) {
 		case opcode.ldr_sp:
 			return execute_ldr_sp(instr, cpu, mem);
@@ -5777,7 +5835,7 @@ instr_32 parse_ldrd_imm_32(uint instr) {
  	res.rt = cast(reg)(rt);
 	res.rt_2 = cast(reg)(rt2);
 	res.rn = cast(reg)(rn);
-	res.imm = imm_8;
+	res.imm = imm_8 << 2;
 	return res;
 }
 
@@ -7326,6 +7384,14 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 // ====================
 
 void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	if (!cpu.it_block_stack.empty) {
+		condition active_cond = cpu.it_block_stack.back;
+		cpu.it_block_stack.removeBack();
+		if (!condition_is_met(active_cond, cpu)) {
+			cpu.increment_pc(2);
+			return;
+		}
+	}
 	switch (instr.op) {
 		case opcode.pop_mult_reg_32:
 			return execute_pop_mult_reg_32(instr, cpu, mem);
@@ -7697,6 +7763,7 @@ string[opcode] opcode_strings = [
 	opcode.sub_imm_32: "sub.w",
 	opcode.sub_reg: "subs",
 	opcode.sub_reg_32: "sub.w",
+	opcode.sxtb: "sxtb",
 	opcode.tst: "tst",
 	opcode.sub_sp: "sub",
 	opcode.uadd8_32: "uadd8",
@@ -8078,6 +8145,44 @@ func get_function(string file_name, string function_name) {
     return f;
 }
 
+struct table {
+	string name;
+	data[] data_arr;
+}
+
+struct data {
+	uint addr_;
+	uint data_;
+}
+
+table get_data(string file_name, string table_name) {
+	string f_s = get_function_str(file_name, table_name);
+	auto lines = f_s.splitLines();
+    table t;
+    t.name = extract_angle_brackets(lines[0]);
+
+    foreach(line; lines[1..$]) {
+        data d;
+        line = line.strip();
+        if (line.length == 0) continue;
+        if (line.canFind(".word")) continue;
+        auto parts = split(line, ":");
+        if (parts.length < 2) continue;
+        auto addr_str = parts[0].strip();
+
+        string addr_str_clean = addr_str.startsWith("0x") ? addr_str[2..$] : addr_str;
+		uint addr = parse!uint(addr_str_clean, 16);
+
+        auto rest = parts[1].strip();
+        auto bytes_part = rest.split("\t")[0].replace(" ", "");
+        uint data = parse!uint(bytes_part, 16);
+        d.addr_ = addr;
+        d.data_ = data;
+        t.data_arr ~= d;
+    }
+    return t;
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
 	func actual = get_function("../test/cortex_m_asm.txt", "Reset_Handler");
@@ -8391,6 +8496,21 @@ void load_uart_string_into_flash(ref memory mem)
     mem.write_byte(addr, 0);
 }
 
+void load_thread_data(const ref string filename, ref memory mem) {
+	table t_1 = get_data(filename, "_k_thread_data_led1_id");
+	table t_2 = get_data(filename, "_k_thread_data_led2_id");
+	table init = get_data(filename, "initlevel");
+	foreach (item; t_1.data_arr) {
+		mem.write_word(item.addr_, item.data_);
+	}
+	foreach (item; t_2.data_arr) {
+		mem.write_word(item.addr_, item.data_);
+	}
+	foreach (item; init.data_arr) {
+		mem.write_word(item.addr_, item.data_);
+	}
+} 
+
 struct cortex_m_vm {
 	cortex_m_cpu cpu;
 	memory mem;
@@ -8449,6 +8569,7 @@ struct cortex_m_vm {
 			mem.write_word(0x0800003C, systick_addr);
 			f.writeln(format("%08X stored to [%08X]", systick_addr, 0x0800003C));
 			f.flush();
+			load_thread_data(filename, mem);
     	}
 	}
 
@@ -8458,7 +8579,7 @@ struct cortex_m_vm {
 		//file.writeln("GSTATE = 0x", format("%08X", mem.read_word(0x20000588)));
         file.flush();
 		++cpu.tick;
-		if (cpu.tick == 400) {
+		if (cpu.tick == 10000) {
 			execute_syc_tick(cpu, mem);
 			cpu.tick = 0;
 			return;

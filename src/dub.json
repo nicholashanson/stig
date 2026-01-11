@@ -14,6 +14,7 @@
         "memory_sections.d",
         "cortex_m_core.d",
         "thumb_2_data_proc_16.d",
-        "thumb_2_data_poc_mod_imm_32.d"
+        "thumb_2_data_proc_mod_imm_32.d",
+        "thumb_2_misc_16.d"
     ]
 }

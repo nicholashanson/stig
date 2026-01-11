@@ -39,6 +39,7 @@ enum condition : ubyte {
 	vs = 0b0110,
 	vc = 0b0111,
 	cc = 0b0011, 	// carry clear
+	al = 0b1110,
 	invalid = 0xff
 }
 
@@ -213,6 +214,7 @@ struct cortex_m_cpu {
 
 	void init_it_block_stack(condition cond) {
 		if (it_block == xyz.none) {
+			it_block_stack.insertBack(cond); 
 			return;
 		}
 		string s = it_block.to!string;

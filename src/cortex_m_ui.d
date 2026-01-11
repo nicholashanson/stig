@@ -142,7 +142,7 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         flagY++;
         mvwprintw(flagPad, flagY++, regX, toStringz(format("Tick: %d", vm.cpu.tick)));
         
-        //regY++;
+        regY++;
         mvwprintw(stackPad, stackY++, stackX, "Stack:");
         if (vm.cpu.get_sp() != 0) {
             uint ptr = vm.cpu.get_sp();
@@ -151,6 +151,11 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
                 mvwprintw(stackPad, stackY++, stackX, toStringz(format("%08x: %08x", ptr, val)));
                 ptr += 4;
             }
+        }
+        flagY++;
+        mvwprintw(flagPad, flagY++, regX, "IT Stack:");
+        foreach (item; vm.cpu.it_block_stack) {
+            mvwprintw(flagPad, flagY++, regX, toStringz(format("%s", item.to!string)));
         }
     }
 
@@ -251,7 +256,7 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
 
     int flagScreenRow = regHeight + 1;   
     int flagScreenCol = 0;   
-    int flagHeight = 17;     
+    int flagHeight = 20;     
     int flagWidth = 25;
 
     int stackScreenRow = regHeight + 1;   
@@ -328,7 +333,7 @@ void main(string[] args) {
     timeout(100);
 
     regPad = newpad(32, 50);
-    flagPad = newpad(32, 25);
+    flagPad = newpad(42, 25);
     stackPad = newpad(32, 25);
     instrPad = newpad(10000, 200);
 

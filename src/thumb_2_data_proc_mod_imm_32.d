@@ -10,6 +10,8 @@ import cortex_m_core;
 //  Parse ADC(Immediate)
 // ======================
 
+enum field_tuples_adc_imm_32 = [Tuple!(opcode, string[])(opcode.adc_imm_32, ["rd","rn","imm"])];
+
 instr_32 parse_adc_imm_32(const uint instr) {
 	instr_32 res;
 	res.op      = opcode.adc_imm_32;
