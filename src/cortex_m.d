@@ -22,6 +22,7 @@ import thumb_2_data_proc_mod_imm_32;
 import thumb_2_misc_16;
 import thumb_2_store_single_data_item;
 import thumb_2_load_store_single_data_item_16;
+import thumb_2_misc_ops_32;
 
 File* stack_log_ptr = null;
 
@@ -427,7 +428,11 @@ string[] zephyr_func_names = [
 	"z_reschedule_irqlock",
 	"main",
 	"gpio_stm32_config",
-	"gpio_stm32_configure_raw.isra.0"
+	"gpio_stm32_configure_raw.isra.0",
+	"z_impl_k_thread_abort",
+	"z_thread_abort",
+	"arch_coprocessors_disable",
+	"z_swap_irqlock"
 ];
 
 struct imm {
@@ -637,6 +642,7 @@ enum all_field_tuples =
 	~ field_tuples_pop_mult_reg_32
 	~ field_tuples_push_mult_reg
 	~ field_tuples_push_mult_reg_32
+	~ field_tuples_rbit_32
 	~ field_tuples_rsb_imm_32
 	~ field_tuples_sbc_reg_32
 	~ field_tuples_sel_32
@@ -5852,6 +5858,8 @@ instr_32 decode_instr(uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.rbit_32:
+    		return parse_rbit_32(instr);
 		case opcode.sbc_imm_32:
 			return parse_sbc_imm_32(instr);
 		case opcode.add_reg_32:
@@ -7000,6 +7008,8 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.rbit_32:
+			return execute_rbit_32(instr, cpu);
 		case opcode.sbc_imm_32:
 			return execute_sbc_imm_32(instr, cpu);
 		case opcode.add_reg_32:
