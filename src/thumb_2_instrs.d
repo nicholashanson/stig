@@ -1,7 +1,7 @@
 import thumb_2_opcodes;
 import cortex_m_core;
 
-// -------------------------------------- Shift Type -------------------------------------
+// ---------------------------------------- Shift ----------------------------------------
 enum shift_type : ubyte {
 	lsl,
 	lsr,
@@ -10,6 +10,19 @@ enum shift_type : ubyte {
 	ror,
 	none,
 	invalid
+}
+
+uint shift(shift_type t, uint n, uint val) {
+	switch (t) {
+		case shift_type.lsl:
+			return (val << n);
+		case shift_type.lsr:
+			return (val >>> n);
+		case shift_type.asr:
+			return (val >> n);
+		default:
+			return 0;
+	}
 }
 // ---------------------------------------------------------------------------------------
 

@@ -20,6 +20,7 @@ import thumb_2_instrs;
 import thumb_2_data_proc_16;
 import thumb_2_data_proc_mod_imm_32;
 import thumb_2_misc_16;
+import thumb_2_store_single_data_item;
 
 File* load_store_log_ptr = null;
 
@@ -660,6 +661,7 @@ enum all_field_tuples =
 	~ field_tuples_strd_32
 	~ field_tuples_strh_imm
 	~ field_tuples_strh_imm_32_t2
+	~ field_tuples_strh_reg_32
 	~ field_tuples_sub_imm_3
 	~ field_tuples_sub_imm_8
 	~ field_tuples_sub_imm_32
@@ -2368,281 +2370,6 @@ string get_operands(string line) {
 	return result;
 }
 
-struct memory {
-	ram_mem_section ram;
-	flash_mem_section flash;
-	enum flash_origin = 0x8000000;
-	enum ram_origin = 0x20000000;
-	enum flash_length = 1024 * 1024;
-	enum ram_length = 128 * 1024;
-	static uint stack_base = ram_origin + ram_length;
-	uint[size_t] peripherals = [
-		0x40023c00: 0,	
-		0xe000ed0c: 0,
-		0x40023844: 0, 	// RCC_APB2ENR
-		0x40023840: 0, 	// RCC_APB1ENR
-		0x40023830: 0,  // RCC_AHB1ENR
-		0x4001100c: 0,  // CR1
-		0x40011010: 0,  // CR2
-		0x40011014: 0,  // CR3
-		0x40011024: 0,  // GPTR
-		0x40020000: 0,  // GPIOA_MODER
-		0x40020004: 0,  // GPIOA_OTYPER
-		0x40020008: 0,  // GPIOA_OSPEEDR
-		0x4002000C: 0,  // GPIOA_PUPDR
-		0x40020010: 0,  // GPIOA_IDR
-		0x40020014: 0,  // GPIOA_ODR
-		0x40020020: 0,  // GPIOA_AFRL
-		0x40020024: 0,  // GPIOA_AFRH
-		0x40020400: 0,  // GPIOB_MODER
-		0x40020404: 0,  // GPIOB_OTYPER
-		0x40020408: 0,  // GPIOB_OSPEEDR
-		0x4002040C: 0,  // GPIOB_PUPDR
-		0x40020410: 0,  // GPIOB_IDR
-		0x40020414: 0,  // GPIOB_ODR
-		0x40020420: 0,  // GPIOB_AFRL
-		0x40020424: 0,  // GPIOB_AFRH
-		0x40020800: 0,  // GPIOC_MODER
-		0x40020804: 0,  // GPIOC_OTYPER
-		0x40020808: 0,  // GPIOC_OSPEEDR
-		0x4002080C: 0,  // GPIOC_PUPDR
-		0x40020810: 0,  // GPIOC_IDR
-		0x40020814: 0,  // GPIOC_ODR
-		0x40020820: 0,  // GPIOC_AFRL
-		0x40020824: 0,  // GPIOC_AFRH
-		0x40020C00: 0,  // GPIOD_MODER
-		0x40020C04: 0,  // GPIOD_OTYPER
-		0x40020C08: 0,  // GPIOD_OSPEEDR
-		0x40020C0C: 0,  // GPIOD_PUPDR
-		0x40020C10: 0,  // GPIOD_IDR
-		0x40020C14: 0,  // GPIOD_ODR
-		0x40020C20: 0,  // GPIOD_AFRL
-		0x40020C24: 0,  // GPIOD_AFRH
-		0x40021000: 0,  // GPIOE_MODER
-		0x40021004: 0,  // GPIOE_OTYPER
-		0x40021008: 0,  // GPIOE_OSPEEDR
-		0x4002100C: 0,  // GPIOE_PUPDR
-		0x40021010: 0,  // GPIOE_IDR
-		0x40021014: 0,  // GPIOE_ODR
-		0x40021020: 0,  // GPIOE_AFRL
-		0x40021024: 0,  // GPIOE_AFRH
-		0x40021400: 0,  // GPIOF_MODER
-		0x40021404: 0,  // GPIOF_OTYPER
-		0x40021408: 0,  // GPIOF_OSPEEDR
-		0x4002140C: 0,  // GPIOF_PUPDR
-		0x40021410: 0,  // GPIOF_IDR
-		0x40021414: 0,  // GPIOF_ODR
-		0x40021420: 0,  // GPIOF_AFRL
-		0x40021424: 0,  // GPIOF_AFRH
-		0x40021800: 0,  // GPIOG_MODER
-		0x40021804: 0,  // GPIOG_OTYPER
-		0x40021808: 0,  // GPIOG_OSPEEDR
-		0x4002180C: 0,  // GPIOG_PUPDR
-		0x40021810: 0,  // GPIOG_IDR
-		0x40021814: 0,  // GPIOG_ODR
-		0x40021820: 0,  // GPIOG_AFRL
-		0x40021824: 0,  // GPIOG_AFRH
-		0x40021C00: 0,  // GPIOH_MODER
-		0x40021C04: 0,  // GPIOH_OTYPER
-		0x40021C08: 0,  // GPIOH_OSPEEDR
-		0x40021C0C: 0,  // GPIOH_PUPDR
-		0x40021C10: 0,  // GPIOH_IDR
-		0x40021C14: 0,  // GPIOH_ODR
-		0x40021C20: 0,  // GPIOH_AFRL
-		0x40021C24: 0,  // GPIOH_AFRH
-		0x40013C08: 0,  // SYSCFG_EXTICR1
-		0x40013C0C: 0,  // SYSCFG_EXTICR2
-		0x40013C10: 0,  // SYSCFG_EXTICR3
-		0x40013C14: 0,  // SYSCFG_EXTICR4
-		0x40023808: 0, 	// RCC_CFGR
-		0xE000ED88: 0,  // SCB_CPACR
-		// TIM6
-		0x40001000: 0, 0x40001004: 0, 0x40001008: 0, 0x4000100C: 0,
-	    0x40001010: 0, 0x40001014: 0, 0x40001018: 0, 0x4000101C: 0,
-	    0x40001020: 0, 0x40001024: 0, 0x40001028: 0, 0x4000102C: 0,
-	    0x40001030: 0, 0x40001034: 0, 0x40001038: 0, 0x4000103C: 0,
-	    0x40001040: 0, 0x40001044: 0,
-	    // NVIC
-	    0xE000E3FC: 0,
-	    0xE000ED00: 0,
-	    0x40007000: 0x0000C000, // PWR_CR
-	    0x40023800: 0x03333083, // RCC_CR, reset val: 0x00000083
-	    0xe000ed04: 0,
-	    0xe000ed14: 0,
-	    0xe000ed20: 0,
-	    0xe000ed18: 0,
-	    0xe000ed1c: 0,
-	    0xe000ed24: 0,
-	    0xE000ED90: 0,
-	    0xE000E400: 0,
-	    0xE000E404: 0,
-	    0xE000E408: 0,
-	    0xE000E40C: 0,
-	    0xE000E410: 0,
-	    0xE000E414: 0,
-	    0xE000E418: 0,
-	    0xE000E41C: 0,
-	    0xE000E420: 0,
-	    0xE000E424: 0,
-	    0xE000E428: 0,
-	    0xE000E42C: 0,
-	    0xE000E430: 0,
-	    0xE000E434: 0,
-	    0xE000E438: 0,
-	    0xE000E43C: 0,
-	    0xE000E440: 0,
-	    0xE000E444: 0,
-	    0xE000E448: 0,
-	    0xE000E44C: 0,
-	    0xE000E450: 0,
-	    0xE000E3F8: 0,
-	    0xE000EF34: 0,
-	    0xE000ED08: 0x08000000, 
-	    0xE000ED0C: 0xFA050000,
-	    0xE000E010: 0,
-	    0x40026410: 0,
-	    0x40026424: 0,
-	    0x40012300: 0,
-	    0x40012304: 0,
-	    0x40012004: 0,
-	    0x40012008: 0,
-	    0x4001202C: 0,
-	    0x40012010: 0,
-	    0x40012034: 0,
-	    0x40000000: 0,
-	    0x40000004: 0,
-	    0x40000008: 0,
-	    0x40026088: 0,
-	    0x4002609C: 0,
-	    0x40007400: 0,
-	    0x40011000: 0xc0,
-	    0xE000E018: 0,
-	    0xE0042004: 0
-	];
-
-	uint read_word(size_t addr) {
-		if (addr == 0x08000000) {
-			return 0x20020000;
-		}
-		if (addr > ram_origin + ram_length) {
-        	return peripherals[addr];
-		}
-		if (addr >= ram_origin) {
-			return ram.read_word(addr);
-		} else {
-			return flash.read_word(addr);
-		}
-	}
-
-	void flip_bit(size_t addr, int bit_pos) {
-		if (addr > ram_origin + ram_length) {
-        	uint val = peripherals[addr];
-        	val ^= (1u << bit_pos);
-        	peripherals[addr] = val;
-		}
-	}
-
-	const(ushort) read_half_word(size_t addr) {
-		if (addr >= ram_origin) {
-			return ram.read_half_word(addr);
-		} else {
-			return flash.read_half_word(addr);
-		}
-	}
-
-	void write_half_word(size_t addr, ushort val) {
-		if (addr >= ram_origin) {
-			return ram.write_half_word(addr, val);
-		} else {
-			//return flash.write_half_word(addr);
-		}
-	}
-
-	const(ubyte) read_byte(size_t addr) {
-		if (addr > ram_origin + ram_length) {
-			if (addr == 0xE000E400) {
-				return 0xf0;
-			}
-        	size_t word_addr = addr & ~3;
-    		uint shift = (addr & 3) * 8;
-    		uint val = peripherals[word_addr];
-    		return cast(ubyte)((val >> shift) & 0xff);
-		} 
-		if (addr >= ram_origin) {
-			return ram.read_byte(addr);
-		} else {
-			return flash.read_byte(addr);
-		}
-	}
-
-	void write_word(size_t addr, uint val) {
-		if (addr > ram_origin + ram_length) {
-			if (addr == 0x40023808) {
-				uint cfgr = peripherals[addr];
-    			cfgr = val;
-    			uint sw = val & 0x3;
-    			cfgr &= ~(0x3 << 2);
-	    		cfgr |= (sw << 2);
-    			peripherals[addr] = cfgr;
-    		} else if (addr == 0x40011004) {
-    			auto f = uart_log();
-    			f.write(cast(char)(val & 0xff));
-    			f.flush();
-			} else {
-        		peripherals[addr] = val;
-        	}
-        	return;
-		}
-		if (addr >= ram_origin) {
-			return ram.write_word(addr, val);
-		} else {
-			return flash.write_word(addr, val);
-		}
-	}
-
-	void write_byte(size_t addr, uint val) {
-		ubyte b = cast(ubyte)(val & 0xff);
-		if (addr > ram_origin + ram_length) {
-		   	size_t word_addr = addr & ~3;
-		   	uint shift = (addr & 3) * 8;
-
-		   	uint old = peripherals[word_addr];
-		   	uint masked = (old & ~(0xff << shift)) | (b << shift);
-		   	peripherals[word_addr] = masked;
-		   	return;
-		} 
-		if (addr >= ram_origin) {
-			return ram.write_byte(addr, b);
-		} else {
-			return flash.write_byte(addr, b);
-		}
-	}
-
-	void inc_sp_word_width(ref cortex_m_cpu cpu) {
-		uint current_sp = cpu.get_sp();
-		current_sp += 4;
-		cpu.set_sp(current_sp);
-	}
-
-	void dec_sp_word_width(ref cortex_m_cpu cpu) {
-		uint current_sp = cpu.get_sp();
-		current_sp -= 4;
-		cpu.set_sp(current_sp);
-	}
-
-	void push(ref cortex_m_cpu cpu, uint val) {
-		dec_sp_word_width(cpu);
-		ram.write_word(cpu.get_sp(), val);
-	}
-
-	uint pop(ref cortex_m_cpu cpu) {
-		uint res = ram.read_word(cpu.get_sp());
-		//ram.write_word(cpu.get_sp(), 0);
-		inc_sp_word_width(cpu);
-		return res;
-	}
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
     cortex_m_vm vm;
@@ -4085,19 +3812,6 @@ shift_type get_shift_type(ubyte type, ubyte imm) {
 			}
 		default:
 			return shift_type.invalid;
-	}
-}
-
-uint shift(shift_type t, uint n, uint val) {
-	switch (t) {
-		case shift_type.lsl:
-			return (val << n);
-		case shift_type.lsr:
-			return (val >>> n);
-		case shift_type.asr:
-			return (val >> n);
-		default:
-			return 0;
 	}
 }
 
@@ -6270,6 +5984,8 @@ instr_32 decode_instr(uint instr) {
         	return parse_clz_32(instr);
         case opcode.orn_reg_32:
         	return parse_orn_reg_32(instr);
+        case opcode.strh_reg_32:
+        	return parse_strh_reg_32(instr);
 		default:
 			res.op = op;
 			return res;
@@ -7431,6 +7147,8 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_ldr_reg_32(instr, cpu, mem);
 		case opcode.ldmia_32:
 			return execute_ldmia_32(instr, cpu, mem);
+		case opcode.strh_reg_32:
+			return execute_strh_reg_32(instr, cpu, mem);
 		default:
 			return;
 	}
@@ -7752,6 +7470,7 @@ string[opcode] opcode_strings = [
 	opcode.str_imm_32_t4: "str.w",
 	opcode.strb_imm: "strb",
 	opcode.strh_imm: "strh",
+	opcode.strh_reg_32: "strh",
 	opcode.strd_32: "strd",
 	opcode.strh_imm_32_t2: "strh",
 	opcode.str_sp: "str",
@@ -7827,6 +7546,7 @@ bool is_store(opcode op) {
 		case opcode.svc:
 		case opcode.ldmia_32:
 		case opcode.bx:
+		case opcode.strh_reg_32:
 			return true;
 		default:
 			return false;

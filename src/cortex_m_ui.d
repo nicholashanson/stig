@@ -10,6 +10,7 @@ import core.runtime : Runtime;
 import core.time : MonoTime, dur;
 import thumb_2_opcodes;
 import thumb_2_instrs;
+import memory_sections;
 
 // Global pad and scroll offset:
 WINDOW* instrPad;
