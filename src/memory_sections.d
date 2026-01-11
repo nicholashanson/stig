@@ -11,6 +11,15 @@ File* uart_log() {
     return uart_log_ptr;
 }
 
+File* load_store_log_ptr = null;
+
+File* load_store_log() {
+    if (load_store_log_ptr is null) {
+        load_store_log_ptr = new File("load_store_log.txt", "w");
+    }
+    return load_store_log_ptr;
+}
+
 // =================
 //  RAM Mem Section
 // =================
@@ -81,6 +90,12 @@ struct flash_mem_section {
     void write_byte(size_t index, ubyte val) {
         index -= flash_origin;
         g_flash[index] = val;
+    }
+
+    void write_half_word(size_t index, ushort val) {
+        index -= flash_origin;
+        g_flash[index + 1] = (val >> 8) & 0xff;
+        g_flash[index] =      val       & 0xff;
     }
 
     const(uint) read_word(size_t index) const {
@@ -297,7 +312,7 @@ struct memory {
         if (addr >= ram_origin) {
             return ram.write_half_word(addr, val);
         } else {
-            //return flash.write_half_word(addr);
+            return flash.write_half_word(addr, val);
         }
     }
 

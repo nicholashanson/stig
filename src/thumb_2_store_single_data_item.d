@@ -1,4 +1,5 @@
 import std.typecons : Tuple;
+import std.format : format;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
@@ -16,7 +17,7 @@ enum field_tuples_strh_reg_32 = [Tuple!(opcode, string[])(opcode.strh_reg_32, ["
 instr_32 parse_strh_reg_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.strh_reg_32;
-	ubyte rm    = cast(ubyte)( instr        & 0xff);
+	ubyte rm    = cast(ubyte)( instr        & 0x0f);
 	ubyte imm_2 = cast(ubyte)((instr >>  4) & 0x03);
 	ubyte rt    = cast(ubyte)((instr >> 12) & 0x0f);
 	ubyte rn    = cast(ubyte)((instr >> 16) & 0x0f);
@@ -36,8 +37,15 @@ void execute_strh_reg_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref mem
 	const uint rt = cpu.get(instr.rt);
 	const size_t offset = shift(instr.shift_t, instr.shift_n, rm);	
 	const size_t addr = rn + offset;
+	auto f = load_store_log();
+	f.writeln(format("Attempting to access [%08X]", addr));
 	uint target = (rt & 0xffff);
-	mem.write_word(addr, target);
+	mem.write_half_word(addr, cast(ushort)target);
+	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, target, addr));
+	f.flush();
 	cpu.increment_pc(4);
 }
 // ---------------------------------------------------------------------------------------
+
+
+ //8002e02:	f824 5035 	strh.w	r5, [r4, r5, lsl #3]

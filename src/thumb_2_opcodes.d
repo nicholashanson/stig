@@ -586,6 +586,7 @@ unittest {
 		test_case(0x701a, opcode.strb_imm),
 		test_case(0x559a, opcode.strb_reg),
 		test_case(0x80fb, opcode.strh_imm),
+		test_case(0x53a3, opcode.strh_reg),
 		test_case(0x1e54, opcode.sub_imm_3),
 		test_case(0x1a1b, opcode.sub_reg),
 		test_case(0xb092, opcode.sub_sp),
@@ -1183,7 +1184,10 @@ unittest {
 		test_case(0xf244129f, opcode.mov_16_imm_32),
 		test_case(0xf0420207, opcode.orr_imm_32),
 		test_case(0xf1420200, opcode.adc_imm_32),
-		test_case(0xf8245035, opcode.strh_reg_32)
+		test_case(0xf8245035, opcode.strh_reg_32),
+		test_case(0xf8a28002, opcode.strh_imm_32_t2),
+		test_case(0xf1720100, opcode.sbc_imm_32),
+		test_case(0xfa90f7a0, opcode.rbit_32)
 	];
 
 	foreach (t; tests) {

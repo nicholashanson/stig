@@ -21,15 +21,7 @@ import thumb_2_data_proc_16;
 import thumb_2_data_proc_mod_imm_32;
 import thumb_2_misc_16;
 import thumb_2_store_single_data_item;
-
-File* load_store_log_ptr = null;
-
-File* load_store_log() {
-    if (load_store_log_ptr is null) {
-        load_store_log_ptr = new File("load_store_log.txt", "w");
-    }
-    return load_store_log_ptr;
-}
+import thumb_2_load_store_single_data_item_16;
 
 File* stack_log_ptr = null;
 
@@ -47,15 +39,6 @@ File* pc_log() {
         pc_log_ptr = new File("pc_log.txt", "w");
     }
     return pc_log_ptr;
-}
-
-File* uart_log_ptr = null;
-
-File* uart_log() {
-    if (uart_log_ptr is null) {
-        uart_log_ptr = new File("uart_log.txt", "w");
-    }
-    return uart_log_ptr;
 }
 
 string[] bare_metal_func_names = [
@@ -435,7 +418,16 @@ string[] zephyr_func_names = [
 	"stm32_fill_irq_table",
 	"arm_irq_priority_set",
 	"malloc_prepare",
-	"sys_heap_init"
+	"sys_heap_init",
+	"free_list_add",
+	"chunk_size",
+	"char_out",
+	"arch_printk_char_out",
+	"k_sched_unlock",
+	"z_reschedule_irqlock",
+	"main",
+	"gpio_stm32_config",
+	"gpio_stm32_configure_raw.isra.0"
 ];
 
 struct imm {
@@ -661,6 +653,7 @@ enum all_field_tuples =
 	~ field_tuples_strd_32
 	~ field_tuples_strh_imm
 	~ field_tuples_strh_imm_32_t2
+	~ field_tuples_strh_reg
 	~ field_tuples_strh_reg_32
 	~ field_tuples_sub_imm_3
 	~ field_tuples_sub_imm_8
@@ -1992,6 +1985,8 @@ instr_16 decode_instr(ushort instr) {
     auto op = decode_mnemonic(instr);
 
     switch (op) {
+    	case opcode.strh_reg:
+    		return parse_strh_reg(instr);
     	case opcode.sxtb:
     		return parse_sxtb(instr);
     	case opcode.rev:
@@ -3411,6 +3406,8 @@ void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_svc(instr, cpu, mem);
 		case opcode.bx:
 			return execute_bx(instr, cpu, mem);
+		case opcode.strh_reg:
+			return execute_strh_reg(instr, cpu, mem);
 		default:
 			return;
 	}
@@ -4634,14 +4631,18 @@ enum field_tuples_str_imm_32_t3 = [Tuple!(opcode, string[])(opcode.str_imm_32_t3
 instr_32 parse_str_imm_32_t3(uint instr) {
 	instr_32 res;
 	res.op = opcode.str_imm_32_t3;
-	ushort imm_12 = cast(ushort)(instr & 0xfff);
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte W = cast(ubyte)(( instr >>  8) & 0x1);
+	ubyte U = cast(ubyte)(( instr >>  9) & 0x1);
+	ubyte P = cast(ubyte)(( instr >> 10) & 0x1);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	res.rn = cast(reg)(rn);
 	res.rt = cast(reg)(rt);
-	res.index = true; 
-	res.add = true; 
-	res.imm = imm_12;
+	res.index = P == 1 ? true : false; 
+	res.add = U == 1 ? true : false; 
+	res.wback = W == 1 ? true : false;
+	res.imm = imm_8;
 	return res;
 }
 
@@ -4748,9 +4749,8 @@ instr_32 parse_rsb_imm_32(uint instr) {
 	ubyte i = cast(ubyte)((instr >> 20) & 0b1);
 	res.rn = cast(reg)(rn);
 	res.rd = cast(reg)(rd);
-	uint rotate_by = (i << 3) | imm_3;
-	uint imm = rotr(imm_8, rotate_by * 2);
-	res.imm = imm;
+	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
+	res.imm = thumb_expand_imm(imm_12);
 	return res;
 }
 
@@ -5852,6 +5852,8 @@ instr_32 decode_instr(uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.sbc_imm_32:
+			return parse_sbc_imm_32(instr);
 		case opcode.add_reg_32:
 			return parse_add_reg_32(instr);
 		case opcode.uadd8_32:
@@ -6998,6 +7000,8 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.sbc_imm_32:
+			return execute_sbc_imm_32(instr, cpu);
 		case opcode.add_reg_32:
 			return execute_add_reg_32(instr, cpu);
 		case opcode.uadd8_32:
@@ -7547,6 +7551,7 @@ bool is_store(opcode op) {
 		case opcode.ldmia_32:
 		case opcode.bx:
 		case opcode.strh_reg_32:
+		case opcode.strh_reg:
 			return true;
 		default:
 			return false;
