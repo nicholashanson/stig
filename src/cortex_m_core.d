@@ -94,7 +94,7 @@ enum xyz {
 
 struct cortex_m_cpu {
 
-	// ------------------------------ General-Purpose Registers ------------------------------ 
+	// ------------------------------ General-Purpose Registers ----------------------------- 
 	uint r0;
 	uint r1;
 	uint r2;
@@ -231,11 +231,14 @@ struct cortex_m_cpu {
 	// --------------------------------------------------------------------------------------
 
 	// -------------------------------------- Control ---------------------------------------
+	// software must use an ISB barrier instruction to ensure a write to the CONTROL register
+	// takes effect before the next insturction is executed
 
 	// =================
 	//  GET CONTROL REG
 	// =================
 
+	// reset clears the control register to zero
 	uint get_control_reg() {
 		uint control;
 
@@ -246,15 +249,43 @@ struct cortex_m_cpu {
 	    return control;
 	}
 
-	bool npriv;
-	bool fpca;
+	bool npriv;		// defines the execution privilege in Thread mode
+	bool fpca;		// defines whether the FP extension is active in the current context
+	// --------------------------------------------------------------------------------------
+
+	// --------------------------- Special-Purpose Mask Registers ---------------------------
+	
+	// ================
+	//  GET FAULT MASK
+	// ================
+
+	uint get_fault_mask() {
+		return pri_mask ? 1 : 0;
+	}
+
+	// ==============
+	//  GET PRI MASK
+	// ==============
+
+	uint get_pri_mask() {
+		return fault_mask ? 1 : 0;
+	}
+
+	// ==============
+	//  GET BASE PRI
+	// ==============
+
+	uint get_base_pri() {
+		return basepri;
+	}
+
+	bool fault_mask;
+	bool pri_mask;
+	ubyte basepri;
 	// --------------------------------------------------------------------------------------
 
 	int tick;
-	ubyte basepri;
-	bool fault_mask;
-	bool pri_mask;	
-
+	
 	uint get(reg r) {
 		switch (r) {
 			case reg.r0:
