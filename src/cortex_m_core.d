@@ -230,8 +230,27 @@ struct cortex_m_cpu {
 	}
 	// --------------------------------------------------------------------------------------
 
-	int tick;
+	// -------------------------------------- Control ---------------------------------------
+
+	// =================
+	//  GET CONTROL REG
+	// =================
+
+	uint get_control_reg() {
+		uint control;
+
+		if (npriv ) control |= (1u     );
+	    if (sp_sel) control |= (1u << 1);
+	    if (fpca  ) control |= (1u << 2);
+
+	    return control;
+	}
+
 	bool npriv;
+	bool fpca;
+	// --------------------------------------------------------------------------------------
+
+	int tick;
 	ubyte basepri;
 	bool fault_mask;
 	bool pri_mask;	

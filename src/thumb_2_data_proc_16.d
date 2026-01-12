@@ -18,12 +18,12 @@ enum field_tuples_adc_reg = [Tuple!(opcode, string[])(opcode.adc_reg, ["rd","rm"
 */
 instr_16 parse_adc_reg(short instr) {
 	instr_16 res;
-	res.op    = opcode.adc_reg;
+	res.op = opcode.adc_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x7);
 	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
-	res.rd    = cast(reg)(rdn);
-	res.rn    = cast(reg)(rdn);
-	res.rm    = cast(reg)(rm);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
 	return res;
 }
 
@@ -59,12 +59,12 @@ enum field_tuples_and_reg = [Tuple!(opcode, string[])(opcode.and_reg, ["rd","rm"
 */
 instr_16 parse_and_reg(short instr) {
 	instr_16 res;
-	res.op    = opcode.and_reg;
+	res.op = opcode.and_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x7);
 	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
-	res.rn    = cast(reg)(rdn);
-	res.rd    = cast(reg)(rdn);
-	res.rm    = cast(reg)(rm);
+	res.rn = cast(reg)(rdn);
+	res.rd = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
 	return res;
 }
 
@@ -142,12 +142,12 @@ enum field_tuples_lsr_reg = [Tuple!(opcode, string[])(opcode.lsr_reg, ["rd","rm"
 */
 instr_16 parse_lsr_reg(short instr) {
 	instr_16 res;
-	res.op    = opcode.lsr_reg;
+	res.op = opcode.lsr_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x7);
 	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
-	res.rd    = cast(reg)(rdn);
-	res.rn    = cast(reg)(rdn);
-	res.rm    = cast(reg)(rm);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
 	return res;
 }
 
@@ -185,12 +185,12 @@ enum field_tuples_mul = [Tuple!(opcode, string[])(opcode.mul, ["rd","rn"])];
 */
 instr_16 parse_mul(ushort instr) {
 	instr_16 res;
-	res.op    = opcode.mul;
+	res.op = opcode.mul;
 	const ubyte rdm = cast(ubyte)( instr       & 0x7);
 	const ubyte rn  = cast(ubyte)((instr >> 3) & 0x7);
-	res.rd    = cast(reg)(rdm);
-	res.rm    = cast(reg)(rdm);
-	res.rn    = cast(reg)(rn);
+	res.rd = cast(reg)(rdm);
+	res.rm = cast(reg)(rdm);
+	res.rn = cast(reg)(rn);
 	return res;
 }
 

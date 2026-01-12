@@ -124,6 +124,7 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         printReg("sp: ", vm.cpu.get_sp());
         printReg("lr: ", vm.cpu.lr);
         printReg("pc: ", vm.cpu.pc);
+        printReg("CONTROL:", vm.cpu.get_control_reg());
         mvwprintw(flagPad, flagY++, regX, "Flags:");
         printFlag("z:", vm.cpu.z);
         printFlag("n:", vm.cpu.n);
@@ -252,7 +253,7 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
 
     int regScreenRow = 0;   // top row to display registers
     int regScreenCol = 0;   // left column
-    int regHeight = 17;     // number of rows visible
+    int regHeight = 18;     // number of rows visible
     int regWidth = 50;      // width of the pad
 
     int flagScreenRow = regHeight + 1;   
