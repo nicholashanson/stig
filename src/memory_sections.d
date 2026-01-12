@@ -231,7 +231,16 @@ struct memory {
         0xe000ed18: 0,
         0xe000ed1c: 0,
         0xe000ed24: 0,
-        0xE000ED90: 0,
+
+        0xE000ED90: 0x00000800, // MPU_TYPE(RO): reset value for Cortex M-4
+        0xE000ED94: 0,          // MPU_CTRL(RW)
+                                // enables the MPU
+                                // [2] PRIVDEFENA, [1] HFNMIENA, [0] ENABLE
+                                // PRIVDEFENA: 0 disables the default memory map. Any instruction
+                                //             or data access that does not access a defined region
+                                //             faults
+                                //             1 enables the default memory map as a background region
+                                //             for privileged access
         0xE000E400: 0,
         0xE000E404: 0,
         0xE000E408: 0,

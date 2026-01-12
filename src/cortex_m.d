@@ -4637,18 +4637,14 @@ enum field_tuples_str_imm_32_t3 = [Tuple!(opcode, string[])(opcode.str_imm_32_t3
 instr_32 parse_str_imm_32_t3(uint instr) {
 	instr_32 res;
 	res.op = opcode.str_imm_32_t3;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte W = cast(ubyte)(( instr >>  8) & 0x1);
-	ubyte U = cast(ubyte)(( instr >>  9) & 0x1);
-	ubyte P = cast(ubyte)(( instr >> 10) & 0x1);
+	ushort imm_12 = cast(ushort)(instr & 0xfff);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	res.rn = cast(reg)(rn);
 	res.rt = cast(reg)(rt);
-	res.index = P == 1 ? true : false; 
-	res.add = U == 1 ? true : false; 
-	res.wback = W == 1 ? true : false;
-	res.imm = imm_8;
+	res.index = true;
+	res.add = true;
+	res.imm = imm_12;
 	return res;
 }
 
