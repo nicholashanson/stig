@@ -3996,6 +3996,7 @@ instr_32 parse_ldmia_32(uint instr) {
 	res.op = opcode.ldmia_32;
 	ushort reg_list = cast(ushort)(instr & 0xffff);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+	ubyte W = cast(ubyte)((instr >> 21) & 0b1);
 	if (reg_list & 0x0001) res.reg_list ~= reg.r0;
 	if (reg_list & 0x0002) res.reg_list ~= reg.r1;
 	if (reg_list & 0x0004) res.reg_list ~= reg.r2;
@@ -4013,6 +4014,34 @@ instr_32 parse_ldmia_32(uint instr) {
 	if (reg_list & 0x4000) res.reg_list ~= reg.lr;
 	if (reg_list & 0x8000) res.reg_list ~= reg.pc;
 	res.rn = cast(reg)(rn);
+	res.wback = W == 1 ? true : false;
+	return res;
+}
+
+instr_32 parse_stmia_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.stmia_32;
+	ushort reg_list = cast(ushort)(instr & 0xffff);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
+	ubyte W = cast(ubyte)((instr >> 21) & 0b1);
+	if (reg_list & 0x0001) res.reg_list ~= reg.r0;
+	if (reg_list & 0x0002) res.reg_list ~= reg.r1;
+	if (reg_list & 0x0004) res.reg_list ~= reg.r2;
+	if (reg_list & 0x0008) res.reg_list ~= reg.r3;
+	if (reg_list & 0x0010) res.reg_list ~= reg.r4;
+	if (reg_list & 0x0020) res.reg_list ~= reg.r5;
+	if (reg_list & 0x0040) res.reg_list ~= reg.r6;
+	if (reg_list & 0x0080) res.reg_list ~= reg.r7;
+	if (reg_list & 0x0100) res.reg_list ~= reg.r8;
+	if (reg_list & 0x0200) res.reg_list ~= reg.r9;
+	if (reg_list & 0x0400) res.reg_list ~= reg.r10;
+	if (reg_list & 0x0800) res.reg_list ~= reg.r11;
+	if (reg_list & 0x1000) res.reg_list ~= reg.r12;
+	if (reg_list & 0x2000) res.reg_list ~= reg.sp;
+	if (reg_list & 0x4000) res.reg_list ~= reg.lr;
+	if (reg_list & 0x8000) res.reg_list ~= reg.pc;
+	res.rn = cast(reg)(rn);
+	res.wback = W == 1 ? true : false;
 	return res;
 }
 
@@ -5864,6 +5893,8 @@ instr_32 decode_instr(uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.stmia_32:
+			return parse_stmia_32(instr);
 		case opcode.rbit_32:
     		return parse_rbit_32(instr);
 		case opcode.sbc_imm_32:
@@ -6206,6 +6237,10 @@ void execute_pop_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory me
 	}
 }
 
+// ===============
+//  Execute LMDIA
+// ===============
+
 void execute_ldmia_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	import std.algorithm : sort;
 	auto regs = instr.reg_list.dup; 
@@ -6215,11 +6250,36 @@ void execute_ldmia_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	foreach (r; regs) {
 		f.writeln(format("Attempting to access [%08X]", rn));
 		uint data = mem.read_word(rn);
-		f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, rn));
+		f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, rn));
 		cpu.set(r, data);
 		rn += 4;
 	}
-	cpu.set(instr.rn, rn);
+	if (instr.wback) {
+		cpu.set(instr.rn, rn);
+	}
+	cpu.increment_pc(4);
+}
+
+// ================
+//  Executre STMIA
+// ================
+
+void execute_stmia_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	import std.algorithm : sort;
+	auto regs = instr.reg_list.dup; 
+	auto f = load_store_log();
+	regs.sort!((a,b) => cast(int)a > cast(int)b);
+	uint rn = cpu.get(instr.rn);
+	foreach (r; regs) {
+		f.writeln(format("Attempting to access [%08X]", rn));
+		uint data = cpu.get(r);
+		mem.write_word(rn, data);
+		f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, rn));
+		rn += 4;
+	}
+	if (instr.wback) {
+		cpu.set(instr.rn, rn);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -7133,6 +7193,8 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 		}
 	}
 	switch (instr.op) {
+		case opcode.stmia_32:
+			return execute_stmia_32(instr, cpu, mem);
 		case opcode.pop_mult_reg_32:
 			return execute_pop_mult_reg_32(instr, cpu, mem);
 		case opcode.str_reg_32:

@@ -137,6 +137,7 @@ bool is_store(opcode op) {
 		case opcode.pop_mult_reg_32:
 		case opcode.push_mult_reg:
 		case opcode.push_mult_reg_32:
+		case opcode.stmia_32:
 		case opcode.str_imm:
 		case opcode.str_imm_32_t3:
 		case opcode.str_imm_32_t4:
