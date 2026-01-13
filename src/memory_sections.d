@@ -135,7 +135,12 @@ struct memory {
     enum ram_length = 128 * 1024;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t] peripherals = [
-        0x40023c00: 0,  
+        // -------------------------------------- TIM2 ------------------------------------------
+        0x40000000: 0,          // TIM2_CR1 TIM2 Control Register 1
+        0x40000004: 0,          // TIM2_CR2 TIM2 Control Register 2
+        0x40000008: 0,          // TIM2_SMCR TIM2 Slave Mode Control Register
+        // --------------------------------------------------------------------------------------
+        0x40023c00: 0x000083,  
         0xe000ed0c: 0,
         0x40023844: 0,  // RCC_APB2ENR
         0x40023840: 0,  // RCC_APB1ENR
@@ -303,15 +308,12 @@ struct memory {
         0x4001202C: 0,
         0x40012010: 0,
         0x40012034: 0,
-        0x40000000: 0,
-        0x40000004: 0,
-        0x40000008: 0,
         0x40026088: 0,
         0x4002609C: 0,
         0x40007400: 0,
         0x40011000: 0xc0,
         0xE000E018: 0,
-        0xE0042004: 0
+        0xE0042004: 0           // DBGMCU_CR Debug MCU Configuration Register
     ];
 
     uint read_word(size_t addr) {
