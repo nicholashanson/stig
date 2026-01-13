@@ -440,7 +440,9 @@ string[] zephyr_func_names = [
 	"HAL_RCC_GetSysClockFreq",
 	"z_arm_exc_exit",
 	"config_pll_sysclock",
-	"config_plli2s"
+	"config_plli2s",
+	"LL_SetFlashLatency",
+	"stm32_exti_init"
 ];
 
 struct imm {

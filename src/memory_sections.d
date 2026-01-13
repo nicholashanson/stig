@@ -266,6 +266,7 @@ struct memory {
         0x40007000: 0x0000C000, // PWR_CR
         0x40023800: 0x03333083, // RCC_CR, reset val: 0x00000083
         0x40023804: 0x24003010, // RCC_PLLCFGR
+        0x40023884: 0x20003000, // RCC_PLLI2SCFGR
         0xe000ed04: 0,
         0xe000ed14: 0,
         0xe000ed20: 0,

@@ -417,6 +417,9 @@ void main(string[] args) {
             if (ch == 'p') {
                 vm.mem.flip_bit(0x40023800, 25);
             }  
+            if (ch == 'y') {
+                vm.mem.flip_bit(0x40023800, 27);
+            }  
         }
 
         auto now = MonoTime.currTime;
