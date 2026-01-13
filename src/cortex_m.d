@@ -23,6 +23,7 @@ import thumb_2_misc_16;
 import thumb_2_store_single_data_item;
 import thumb_2_load_store_single_data_item_16;
 import thumb_2_misc_ops_32;
+import thumb_2_data_proc_reg_32;
 
 File* stack_log_ptr = null;
 
@@ -437,7 +438,9 @@ string[] zephyr_func_names = [
 	"config_enable_default_clocks",
 	"config_regulator_voltage",
 	"HAL_RCC_GetSysClockFreq",
-	"z_arm_exc_exit"
+	"z_arm_exc_exit",
+	"config_pll_sysclock",
+	"config_plli2s"
 ];
 
 struct imm {
@@ -5955,6 +5958,8 @@ instr_32 decode_instr(uint instr) {
 			return parse_ldr_imm_32_t3(instr);
 		case opcode.asr_imm_32:
 			return parse_asr_imm_32(instr);
+		case opcode.asr_reg_32:
+			return parse_asr_reg_32(instr);
 		case opcode.lsr_imm_32:
 			return parse_lsr_imm_32(instr);
 		case opcode.lsl_imm_32:
@@ -7089,6 +7094,8 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 			return execute_and_reg_32(instr, cpu);
 		case opcode.asr_imm_32:
 			return execute_asr_imm_32(instr, cpu);
+		case opcode.asr_reg_32:
+			return execute_asr_reg_32(instr, cpu);
 		case opcode.lsr_imm_32:
 			return execute_lsr_imm_32(instr, cpu);
 		case opcode.lsl_imm_32:
@@ -7406,6 +7413,7 @@ string[opcode] opcode_strings = [
 	opcode.and_imm_32: "and.w",
 	opcode.asr_imm: "asrs",
 	opcode.and_reg: "ands",
+	opcode.asr_reg_32: "asr",
 	opcode.b_32: "b.w",
 	opcode.b_cond: "b",
 	opcode.b_uncond_32: "b.w",
@@ -7518,54 +7526,6 @@ string get_register_name(reg r) {
 			return "ip";
 		default: 
 			return r.to!string;
-	}
-}
-
-bool is_store(opcode op) {
-	switch (op) {
-		case opcode.ldr_imm:
-		case opcode.ldr_imm_32:
-		case opcode.ldr_pool:
-		//case opcode.ldr_post_inc:
-		case opcode.ldr_reg:
-		case opcode.ldr_sp:
-		case opcode.ldrb_imm:
-		case opcode.ldrb_reg:
-		case opcode.ldrb_imm_32_t2:
-		case opcode.ldr_imm_32_t3:
-		case opcode.ldr_imm_32_t4:
-		case opcode.ldrd_imm_32:
-		case opcode.ldrh_imm:
-		case opcode.ldrsb_imm_32_t1:
-		case opcode.ldrsb_imm_32_t2:
-		case opcode.pop_mult_reg:
-		case opcode.pop_mult_reg_32:
-		case opcode.push_mult_reg:
-		case opcode.push_mult_reg_32:
-		case opcode.str_imm:
-		case opcode.str_imm_32_t3:
-		case opcode.str_imm_32_t4:
-		case opcode.str_sp:
-		case opcode.str_reg:
-		case opcode.str_reg_32:
-		case opcode.strb_imm:
-		case opcode.strb_imm_32_t2:
-		case opcode.strb_imm_32_t3:
-		case opcode.strb_reg:
-		case opcode.strd_32:
-		case opcode.strh_imm:
-		case opcode.ldr_lit_32:
-		case opcode.ldr_reg_32:
-		case opcode.ldrb_imm_32_t3:
-		case opcode.strh_imm_32_t2:
-		case opcode.svc:
-		case opcode.ldmia_32:
-		case opcode.bx:
-		case opcode.strh_reg_32:
-		case opcode.strh_reg:
-			return true;
-		default:
-			return false;
 	}
 }
 

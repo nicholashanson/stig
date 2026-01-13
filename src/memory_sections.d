@@ -259,11 +259,13 @@ struct memory {
         0x4000103C: 0,
         0x40001040: 0, 
         0x40001044: 0,
+        0x40023874: 0,
         // NVIC
         0xE000E3FC: 0,
         0xE000ED00: 0,
         0x40007000: 0x0000C000, // PWR_CR
         0x40023800: 0x03333083, // RCC_CR, reset val: 0x00000083
+        0x40023804: 0x24003010, // RCC_PLLCFGR
         0xe000ed04: 0,
         0xe000ed14: 0,
         0xe000ed20: 0,
@@ -414,6 +416,8 @@ struct memory {
                 cfgr &= ~(0x3 << 2);
                 cfgr |= (sw << 2);
                 peripherals[addr] = cfgr;
+            } else if (addr == 0x40023874 && val == 0x1) {
+                peripherals[addr] = 0x3;
             } else if (addr == 0x40011004) {
                 auto f = uart_log();
                 f.write(cast(char)(val & 0xff));

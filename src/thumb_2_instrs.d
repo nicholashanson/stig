@@ -115,3 +115,51 @@ struct instr_32 {
 	bool set_flags;
 }
 // ---------------------------------------------------------------------------------------
+
+bool is_store(opcode op) {
+	switch (op) {
+		case opcode.ldr_imm:
+		case opcode.ldr_imm_32:
+		case opcode.ldr_pool:
+		//case opcode.ldr_post_inc:
+		case opcode.ldr_reg:
+		case opcode.ldr_sp:
+		case opcode.ldrb_imm:
+		case opcode.ldrb_reg:
+		case opcode.ldrb_imm_32_t2:
+		case opcode.ldr_imm_32_t3:
+		case opcode.ldr_imm_32_t4:
+		case opcode.ldrd_imm_32:
+		case opcode.ldrh_imm:
+		case opcode.ldrsb_imm_32_t1:
+		case opcode.ldrsb_imm_32_t2:
+		case opcode.pop_mult_reg:
+		case opcode.pop_mult_reg_32:
+		case opcode.push_mult_reg:
+		case opcode.push_mult_reg_32:
+		case opcode.str_imm:
+		case opcode.str_imm_32_t3:
+		case opcode.str_imm_32_t4:
+		case opcode.str_sp:
+		case opcode.str_reg:
+		case opcode.str_reg_32:
+		case opcode.strb_imm:
+		case opcode.strb_imm_32_t2:
+		case opcode.strb_imm_32_t3:
+		case opcode.strb_reg:
+		case opcode.strd_32:
+		case opcode.strh_imm:
+		case opcode.ldr_lit_32:
+		case opcode.ldr_reg_32:
+		case opcode.ldrb_imm_32_t3:
+		case opcode.strh_imm_32_t2:
+		case opcode.svc:
+		case opcode.ldmia_32:
+		case opcode.bx:
+		case opcode.strh_reg_32:
+		case opcode.strh_reg:
+			return true;
+		default:
+			return false;
+	}
+}
