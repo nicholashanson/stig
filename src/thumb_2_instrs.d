@@ -12,6 +12,10 @@ enum shift_type : ubyte {
 	invalid
 }
 
+// =======
+//  Shift
+// =======
+
 uint shift(shift_type t, uint n, uint val) {
 	switch (t) {
 		case shift_type.lsl:
@@ -27,6 +31,11 @@ uint shift(shift_type t, uint n, uint val) {
 // ---------------------------------------------------------------------------------------
 
 // ----------------------------------------- ROTR ----------------------------------------
+
+// ======
+//  ROTR
+// ======
+
 uint rotr(uint value, uint n) {
     n %= 32;
     return (value >> n) | (value << (32 - n));
@@ -34,6 +43,11 @@ uint rotr(uint value, uint n) {
 // ---------------------------------------------------------------------------------------
 
 // ------------------------------------- Thumb Expand ------------------------------------
+
+// ==================
+//  THUMB EXPAND IMM
+// ==================
+
 uint thumb_expand_imm(ushort imm_12) {
 	ubyte first_four_bits = cast(ubyte)((imm_12 >> 8) & 0xf);
 	ubyte imm_8 = cast(ubyte)(imm_12 & 0xff);

@@ -6,7 +6,6 @@ import cortex_m_core;
 
 // ---------------------------------------- SXTB -----------------------------------------
 
-
 enum field_tuples_sxtb = [Tuple!(opcode, string[])(opcode.sxtb, ["rd","rm"])];
 /*
 	Miscellaneous 16-bit Instructions

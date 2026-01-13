@@ -432,7 +432,12 @@ string[] zephyr_func_names = [
 	"z_impl_k_thread_abort",
 	"z_thread_abort",
 	"arch_coprocessors_disable",
-	"z_swap_irqlock"
+	"z_swap_irqlock",
+	"stm32_clock_control_init",
+	"config_enable_default_clocks",
+	"config_regulator_voltage",
+	"HAL_RCC_GetSysClockFreq",
+	"z_arm_exc_exit"
 ];
 
 struct imm {
@@ -7567,10 +7572,14 @@ bool is_store(opcode op) {
 string convert_to_string(ushort instr) {
 	instr_16 parsed_instr = decode_instr(instr);
 	string res = opcode_strings.get(parsed_instr.op, "unimplemented");
+	if (parsed_instr.op == opcode.b_imm_11) {
+		res ~= ".n";
+		return res;	
+	}
 	if (parsed_instr.op == opcode.b_cond) {
-		if (parsed_instr.cond == condition.cc) {
-			res ~= "cc";
-		}
+		res ~= parsed_instr.cond.to!string;
+		res ~= ".n";
+		return res;
 	}
 	string[] ops;
 	auto fields = field_map.get(parsed_instr.op, null);
@@ -8030,6 +8039,9 @@ string convert_to_string(uint instr) {
 	if (fields is null) {
 	    return "unimplemented tuple";
 	}
+	if (parsed_instr.op == opcode.bl_32) {
+		return res;
+	}
 	res ~= " ";
 	foreach (field; fields) {
 		if (field == "rt") {
@@ -8230,6 +8242,7 @@ void load_uart_string_into_flash(ref memory mem)
 void load_thread_data(const ref string filename, ref memory mem) {
 	table t_1 = get_data(filename, "_k_thread_data_led1_id");
 	table t_2 = get_data(filename, "_k_thread_data_led2_id");
+	table d_t = get_data(filename, "device_area");
 	table init = get_data(filename, "initlevel");
 	foreach (item; t_1.data_arr) {
 		mem.write_word(item.addr_, item.data_);
@@ -8238,6 +8251,9 @@ void load_thread_data(const ref string filename, ref memory mem) {
 		mem.write_word(item.addr_, item.data_);
 	}
 	foreach (item; init.data_arr) {
+		mem.write_word(item.addr_, item.data_);
+	}
+	foreach (item; d_t.data_arr) {
 		mem.write_word(item.addr_, item.data_);
 	}
 } 

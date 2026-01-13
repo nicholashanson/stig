@@ -8,6 +8,10 @@ import memory_sections;
 
 // ---------------------------------------- STRH -----------------------------------------
 
+// ======================
+//  Parse STRH(Register)
+// ======================
+
 enum field_tuples_strh_reg = [Tuple!(opcode, string[])(opcode.strh_reg, ["rt","rn","rm"])];
 /*
 	Load/Store Single Data Item
@@ -25,6 +29,10 @@ instr_16 parse_strh_reg(uint instr) {
 	res.rm   = cast(reg)(rm);
 	return res;
 }
+
+// ========================
+//  Execute STRH(Register)
+// ========================
 
 void execute_strh_reg(const ref instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	const uint rm = cpu.get(instr.rm); 
