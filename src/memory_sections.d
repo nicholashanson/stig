@@ -232,6 +232,7 @@ struct memory {
         0xe000ed1c: 0,
         0xe000ed24: 0,
 
+        // --------------------------------------- MPU ------------------------------------------
         0xE000ED90: 0x00000800, // MPU_TYPE(RO): reset value for Cortex M-4
         0xE000ED94: 0,          // MPU_CTRL(RW)
                                 // enables the MPU
@@ -241,6 +242,24 @@ struct memory {
                                 //             faults
                                 //             1 enables the default memory map as a background region
                                 //             for privileged access
+                                // HFNMIENA: when the ENABLE bit is set to 1, controls whether handlers 
+                                //           executing with priority less than 0 access memory with the 
+                                //           MPU enabled or with the MPU disabled
+        0xE000ED98: 0,          // MPU_RNR(RW) MPU Region Number Register
+                                // selects the region currently accessed by MPU_RBAR and MPU_RASR
+                                // [7:0] REGION
+        0xE000ED9C: 0,          // MPU_RBAR(RW) MPU Region Base Address Register
+                                // [31:5] ADDR, [4] VALID, [3:0] REGION
+                                // ADDR:   Base address of the region
+                                // VALID:  On writes, indicates whether the region to update is specified by 
+                                //         MPU_RNR.REGION, or by the REGION value specified in this write. 
+                                //         When using the REGION value specified by this write, MPU_RNR.REGION 
+                                //         is updated to this value
+                                // REGION: on writes, can specify the number of the region to update
+        0xE000EDA0: 0,          // MPU_RASR(RW) MPU Region Attribute and Size Register
+
+        // --------------------------------------------------------------------------------------  
+        // ------------------------------------- NVIC IPR ---------------------------------------                        
         0xE000E400: 0,
         0xE000E404: 0,
         0xE000E408: 0,
@@ -262,11 +281,19 @@ struct memory {
         0xE000E448: 0,
         0xE000E44C: 0,
         0xE000E450: 0,
+        // --------------------------------------------------------------------------------------
         0xE000E3F8: 0,
         0xE000EF34: 0,
-        0xE000ED08: 0x08000000, 
-        0xE000ED0C: 0xFA050000,
-        0xE000E010: 0,
+        // --------------------------------------- SCB ------------------------------------------
+        0xE000ED08: 0x08000000, // VTOR(RW) Vector Table Offset Register
+        0xE000ED0C: 0xFA050000, // AIRCR(RW) Application Interrupt and Reset Control Register 
+        // --------------------------------------------------------------------------------------
+        // ------------------------------------- SysTick ----------------------------------------
+        0xE000E010: 0,          // SYST_CSR(RW) SysTick Control and Status Register
+        0xE000E014: 0,          // SYST_RVR(RW) SysTick Reload Value Register
+        0xE000E018: 0,          // SYST_CVR(RW) SysTick Current Value Register
+        0xE000E01C: 0,          // SYST_CALIB(RW) SysTick Calibration Value Register
+        // --------------------------------------------------------------------------------------
         0x40026410: 0,
         0x40026424: 0,
         0x40012300: 0,

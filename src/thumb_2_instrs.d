@@ -35,21 +35,15 @@ uint rotr(uint value, uint n) {
 
 // ------------------------------------- Thumb Expand ------------------------------------
 uint thumb_expand_imm(ushort imm_12) {
-	if ((cast(ubyte)(imm_12 >> 10) & 0b11) == 0b00) {
-		ubyte imm_8 = cast(ubyte)(imm_12 & 0xff);
-		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b10) {
-			return (imm_8 << 24) | (imm_8 << 8);
-		}
-		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b0) {
-			return imm_8;
-		}
-		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b11) {
-			return (imm_8 << 24) | (imm_8 << 16) | (imm_8 << 8) | imm_8;
-		}
-		if ((cast(ubyte)(imm_12 >> 8) & 0b11) == 0b01) {
-			return (imm_8 << 24) | (imm_8 << 8);
-		}
-	} 
+	ubyte first_four_bits = cast(ubyte)((imm_12 >> 8) & 0xf);
+	ubyte imm_8 = cast(ubyte)(imm_12 & 0xff);
+	switch (first_four_bits) {
+		case 0b0010: return (imm_8 << 24) | (imm_8 << 8);
+		case 0b0000: return imm_8;
+		case 0b0011: return (imm_8 << 24) | (imm_8 << 16) | (imm_8 << 8) | imm_8;
+		case 0b0001: return (imm_8 << 24) | (imm_8 << 8);
+		default: break;
+	}  
 	uint rotate_by = ((imm_12) >> 7) & 0x1f;
 	uint unrotated = (1 << 7) | (imm_12 & 0x7f);
 	uint rotated = rotr(unrotated, rotate_by);
