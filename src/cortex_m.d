@@ -442,7 +442,9 @@ string[] zephyr_func_names = [
 	"config_pll_sysclock",
 	"config_plli2s",
 	"LL_SetFlashLatency",
-	"stm32_exti_init"
+	"stm32_exti_init",
+	"_ConfigAbsSyms", // t
+	"z_arm_svc"
 ];
 
 struct imm {
@@ -2125,6 +2127,8 @@ instr_16 decode_instr(ushort instr) {
         	return parse_tst(instr);
         case opcode.cps:
         	return parse_cps(instr);
+        case opcode.svc: 
+        	return parse_svc(instr);
         default:
         	res.op = op;
             return res;
@@ -7572,6 +7576,7 @@ string[opcode] opcode_strings = [
 	opcode.sub_reg: "subs",
 	opcode.sub_reg_32: "sub.w",
 	opcode.sxtb: "sxtb",
+	opcode.svc: "svc",
 	opcode.tst: "tst",
 	opcode.tst_imm_32: "tst.w",
 	opcode.sub_sp: "sub",
@@ -7652,6 +7657,10 @@ string convert_to_string(ushort instr) {
 		}
 		if (field == "imm") {
 			if (parsed_instr.imm == 0 && parsed_instr.op == opcode.add_lo_reg) {
+				continue;
+			}
+			if (parsed_instr.op == opcode.svc) {
+				ops ~= parsed_instr.imm.to!string;
 				continue;
 			}
 			string imm = "#";
@@ -8275,7 +8284,8 @@ string[] table_names = [
 	"uart_driver_api_area",
 	"clock_control_driver_api_area",
 	"reset_driver_api_area",
-	"sw_isr_table"
+	"sw_isr_table",
+	"datas"
 ];
 
 void load_data(const ref string filename, ref memory mem) {
@@ -8340,6 +8350,11 @@ struct cortex_m_vm {
 			f.flush();
     	} else {
     		auto f = load_store_log();
+    		func svc_handler = get_function(filename, "z_arm_svc");
+    		auto svc_addr = svc_handler.instrs[0]._addr;
+    		mem.write_word(0x0800002C, svc_addr);
+    		f.writeln(format("%08X stored to [%08X]", svc_addr, 0x0800002C));
+    		f.flush();
     		func systick_handler = get_function(filename, "sys_clock_isr");
 			auto systick_addr = systick_handler.instrs[0]._addr;
 			mem.write_word(0x0800003C, systick_addr);
