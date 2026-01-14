@@ -377,7 +377,7 @@ string[] zephyr_func_names = [
 	"soc_early_init_hook",
 	"z_sched_init",
 	"z_setup_new_thread",
-	"arch_tls_stack_setup",
+	//"arch_tls_stack_setup",
 	"arch_new_thread",
 	"z_ready_thread",
 	"ready_thread",
@@ -394,7 +394,7 @@ string[] zephyr_func_names = [
 	"arch_irq_unlock_outlined",
 	"z_thread_entry",
 	"z_impl_k_sched_current_thread_query",
-	"__aeabi_read_tp",
+	//"__aeabi_read_tp",
 	"bg_thread_main",
 	"boot_banner",
 	"printk",
@@ -428,7 +428,7 @@ string[] zephyr_func_names = [
 	"k_sched_unlock",
 	"z_reschedule_irqlock",
 	"main",
-	"gpio_stm32_config",
+	//"gpio_stm32_config",
 	"gpio_stm32_configure_raw.isra.0",
 	"z_impl_k_thread_abort",
 	"z_thread_abort",
@@ -680,6 +680,7 @@ enum all_field_tuples =
 	~ field_tuples_svc
 	~ field_tuples_sxtb
 	~ field_tuples_tst
+	~ field_tuples_tst_imm_32
 	~ field_tuples_uadd8_32
 	//~ field_tuples_tst
 	~ field_tuples_udiv_32
@@ -5408,15 +5409,16 @@ instr_32 parse_tst_reg_32(uint instr) {
 	return res;
 }
 
+enum field_tuples_tst_imm_32 = [Tuple!(opcode, string[])(opcode.tst_imm_32, ["rn","imm"])];
 instr_32 parse_tst_imm_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.tst_imm_32;
-	ubyte imm_8   = cast(ubyte)(instr & 0xff);
+	ubyte imm_8   = cast(ubyte)( instr & 0xff);
 	ubyte rn      = cast(ubyte)((instr >> 16) & 0xf);
 	ubyte imm_3   = cast(ubyte)((instr >> 12) & 0b111);
-	ubyte i 	  = cast(ubyte)((instr << 26) & 0b1);
+	ubyte i 	  = cast(ubyte)((instr >> 26) & 0b1);
 	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 <<  8) | imm_8);
-	int imm_32    = thumb_expand_imm(imm_12);
+	uint imm_32   = thumb_expand_imm(imm_12);
 	res.imm = imm_32;
 	res.rn = cast(reg)(rn);
 	return res;
@@ -7571,6 +7573,7 @@ string[opcode] opcode_strings = [
 	opcode.sub_reg_32: "sub.w",
 	opcode.sxtb: "sxtb",
 	opcode.tst: "tst",
+	opcode.tst_imm_32: "tst.w",
 	opcode.sub_sp: "sub",
 	opcode.uadd8_32: "uadd8",
 	opcode.udiv_32: "udiv",
@@ -7976,7 +7979,7 @@ unittest {
 // ======================
 
 uint get_entry_point_addr(string filename) {
-	if (filename != "../test/zephyr_led_asm.txt") {
+	if (filename != "../test/zephyr_thread_asm.txt") {
 		auto reset_handler = get_function(filename, "Reset_Handler");
 		return reset_handler.instrs[0]._addr;
 	}
@@ -8263,22 +8266,24 @@ void load_uart_string_into_flash(ref memory mem)
     mem.write_byte(addr, 0);
 }
 
-void load_thread_data(const ref string filename, ref memory mem) {
-	table t_1 = get_data(filename, "_k_thread_data_led1_id");
-	table t_2 = get_data(filename, "_k_thread_data_led2_id");
-	table d_t = get_data(filename, "device_area");
-	table init = get_data(filename, "initlevel");
-	foreach (item; t_1.data_arr) {
-		mem.write_word(item.addr_, item.data_);
-	}
-	foreach (item; t_2.data_arr) {
-		mem.write_word(item.addr_, item.data_);
-	}
-	foreach (item; init.data_arr) {
-		mem.write_word(item.addr_, item.data_);
-	}
-	foreach (item; d_t.data_arr) {
-		mem.write_word(item.addr_, item.data_);
+string[] table_names = [
+	//"_k_thread_data_led1_id",
+	//"_k_thread_data_led2_id",
+	"_static_thread_data_area",
+	"device_area",
+	"initlevel",
+	"uart_driver_api_area",
+	"clock_control_driver_api_area",
+	"reset_driver_api_area",
+	"sw_isr_table"
+];
+
+void load_data(const ref string filename, ref memory mem) {
+	foreach (t_n; table_names) {
+		table t = get_data(filename, t_n);
+		foreach (item; t.data_arr) {
+			mem.write_word(item.addr_, item.data_);
+		}
 	}
 } 
 
@@ -8294,7 +8299,7 @@ struct cortex_m_vm {
 				func f = get_function(filename, s);
 				current_program ~= f.instrs;
 			}
-		} else if (filename == "../test/zephyr_led_asm.txt") {
+		} else if (filename == "../test/zephyr_thread_asm.txt") {
 			foreach (s; zephyr_func_names) {
 				func f = get_function(filename, s);
 				current_program ~= f.instrs;
@@ -8320,7 +8325,7 @@ struct cortex_m_vm {
     	cpu.set(reg.pc, entry_point);
 
     	load_literals(mem, filename);
-    	if (filename != "../test/zephyr_led_asm.txt") {
+    	if (filename != "../test/zephyr_thread_asm.txt") {
     		auto f = load_store_log();
     		load_init_array_start(mem, filename);
     		func svc_handler = get_function(filename, "SVC_Handler");
@@ -8340,7 +8345,7 @@ struct cortex_m_vm {
 			mem.write_word(0x0800003C, systick_addr);
 			f.writeln(format("%08X stored to [%08X]", systick_addr, 0x0800003C));
 			f.flush();
-			load_thread_data(filename, mem);
+			load_data(filename, mem);
     	}
 	}
 

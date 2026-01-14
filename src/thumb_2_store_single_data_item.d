@@ -46,6 +46,3 @@ void execute_strh_reg_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref mem
 	cpu.increment_pc(4);
 }
 // ---------------------------------------------------------------------------------------
-
-
- //8002e02:	f824 5035 	strh.w	r5, [r4, r5, lsl #3]

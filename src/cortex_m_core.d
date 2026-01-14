@@ -124,7 +124,6 @@ struct cortex_m_cpu {
 
 	// ------------------------------------ Stack Pointer ----------------------------------- 
 	bool sp_sel;	// stack pointer select
-	bool saved_sp_sel;
 	uint msp;		// main stack pointer
 	uint psp;		// process stack pointer
 

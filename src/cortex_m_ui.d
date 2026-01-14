@@ -357,7 +357,7 @@ void main(string[] args) {
             func f = get_function(objdump_file_name, name);
             f_s ~= f;
         }
-    } else if (objdump_file_name == "../test/zephyr_led_asm.txt") {
+    } else if (objdump_file_name == "../test/zephyr_thread_asm.txt") {
         foreach (name; zephyr_func_names) {
             func f = get_function(objdump_file_name, name);
             f_s ~= f;
