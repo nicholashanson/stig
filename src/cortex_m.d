@@ -428,7 +428,7 @@ string[] zephyr_func_names = [
 	"k_sched_unlock",
 	"z_reschedule_irqlock",
 	"main",
-	//"gpio_stm32_config",
+	"gpio_stm32_config",
 	"gpio_stm32_configure_raw.isra.0",
 	"z_impl_k_thread_abort",
 	"z_thread_abort",
@@ -444,7 +444,12 @@ string[] zephyr_func_names = [
 	"LL_SetFlashLatency",
 	"stm32_exti_init",
 	"_ConfigAbsSyms", // t
-	"z_arm_svc"
+	"z_arm_svc",
+	"z_do_kernel_oops",
+	"z_arm_fatal_error",
+	"z_fatal_error",
+	"k_sys_fatal_error_handler",
+	"arch_system_halt"
 ];
 
 struct imm {
@@ -2845,6 +2850,7 @@ void execute_uxth(instr_16 instr, ref cortex_m_cpu cpu) {
 }
 
 void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	cpu.increment_pc(2);
 	if (cpu.current_exception == exception.thread_mode) {
 		auto f = stack_log();
     	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
@@ -6950,6 +6956,12 @@ void execute_mrs_32(instr_32 instr, ref cortex_m_cpu cpu) {
 		case special_reg.IPSR:
 			cpu.set(instr.rd, cast(uint)cpu.current_exception & 0x1ff);
 			break;
+		case special_reg.MSP:
+			cpu.set(instr.rd, cpu.msp);
+			break;
+		case special_reg.PSP:
+			cpu.set(instr.rd, cpu.psp);
+			break;
 		case special_reg.CONTROL:
 			uint val = 0;
 			if (cpu.sp_sel) {
@@ -7907,6 +7919,7 @@ func get_function(string file_name, string function_name) {
         line = line.strip();
         if (line.length == 0) continue;
         if (line.canFind(".word")) continue;
+        if (line.canFind(".byte")) continue;
         auto parts = split(line, ":");
         if (parts.length < 2) continue;
         auto addr_str = parts[0].strip();
@@ -7942,6 +7955,7 @@ table get_data(string file_name, string table_name) {
         line = line.strip();
         if (line.length == 0) continue;
         if (line.canFind(".word")) continue;
+        if (line.canFind(".byte")) continue;
         auto parts = split(line, ":");
         if (parts.length < 2) continue;
         auto addr_str = parts[0].strip();
@@ -8297,6 +8311,23 @@ void load_data(const ref string filename, ref memory mem) {
 	}
 } 
 
+void load_instructions(ref memory mem, addr_instr[] instrs) {
+	auto f = load_store_log();
+    foreach (instr; instrs) {
+        if (instr._instr_bytes.length == 8) {
+            mem.write_word(instr._addr, instr._in_32);
+            f.writeln(format("Instruction %s stored to [%08X]", instr._instr_bytes, instr._addr));
+            f.flush();
+        } else if (instr._instr_bytes.length == 4) {
+            mem.write_half_word(instr._addr, instr._in_16);
+            f.writeln(format("Instruction %s stored to [%08X]", instr._instr_bytes, instr._addr));
+            f.flush();
+        } else {
+            assert(false, "Invalid instruction length at address " ~ format("%08X", instr._addr));
+        }
+    }
+} 
+
 struct cortex_m_vm {
 	cortex_m_cpu cpu;
 	memory mem;
@@ -8304,30 +8335,33 @@ struct cortex_m_vm {
 
 	void load_program(string filename) {
 		load_uart_string_into_flash(mem);
-		if (filename == "../test/cortex_m_asm.txt") {
-			foreach (s; bare_metal_func_names) {
-				func f = get_function(filename, s);
-				current_program ~= f.instrs;
-			}
-		} else if (filename == "../test/zephyr_thread_asm.txt") {
-			foreach (s; zephyr_func_names) {
-				func f = get_function(filename, s);
-				current_program ~= f.instrs;
-			}
-		} else if (filename == "../test/freertos_no_task_asm.txt") {
-			foreach (s; freertos_no_task) {
-				func f = get_function(filename, s);
-				current_program ~= f.instrs;
-			}
-		} else if (filename == "../test/dsp_asm.txt") {
-			foreach (s; dsp_func_names) {
-				func f = get_function(filename, s);
-				current_program ~= f.instrs;
-			}
-		} else {
-			foreach (s; freertos_func_names) {
-				func f = get_function(filename, s);
-				current_program ~= f.instrs;
+		{
+			if (filename == "../test/cortex_m_asm.txt") {
+				foreach (s; bare_metal_func_names) {
+					func f = get_function(filename, s);
+					current_program ~= f.instrs;
+				}
+			} else if (filename == "../test/zephyr_thread_asm.txt") {
+				foreach (s; zephyr_func_names) {
+				    func f = get_function(filename, s);
+				    load_instructions(mem, f.instrs);
+				    current_program ~= f.instrs;
+				}
+			} else if (filename == "../test/freertos_no_task_asm.txt") {
+				foreach (s; freertos_no_task) {
+					func f = get_function(filename, s);
+					current_program ~= f.instrs;
+				}
+			} else if (filename == "../test/dsp_asm.txt") {
+				foreach (s; dsp_func_names) {
+					func f = get_function(filename, s);
+					current_program ~= f.instrs;
+				}
+			} else {
+				foreach (s; freertos_func_names) {
+					func f = get_function(filename, s);
+					current_program ~= f.instrs;
+				}
 			}
 		}
 		

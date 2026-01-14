@@ -271,18 +271,19 @@ enum special : ubyte {
 
 opcode decode_data_proc(ushort instr) {
 	ubyte op = cast(ubyte)((instr >> 6) & 0xf);
-	final switch (op) 
+	switch (op) 
 	{
 		case 0b0000: return opcode.and_reg;
 		case 0b1010: return opcode.cmp_reg;
 		case 0b1100: return opcode.lor_reg;
-		case 0b1111: return opcode.mvn_reg;
 		case 0b0010: return opcode.lsl_reg;
 		case 0b0011: return opcode.lsr_reg;
 		case 0b0101: return opcode.adc_reg;
 		case 0b1001: return opcode.negs;
 		case 0b1000: return opcode.tst;
 		case 0b1101: return opcode.mul;
+		case 0b1111: return opcode.mvn_reg;
+		default: assert(false, "Invalid 16-bit Data Processing Instruction: " ~ format("%04X", instr));
 	}
     return opcode.invalid;
 }
