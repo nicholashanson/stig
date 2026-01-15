@@ -21,6 +21,7 @@ enum opcode : ubyte {
 	b_cond_32,
 	b_imm_11,
 	b_uncond_32,
+	bic_reg,
 	bic_imm_32,
 	bl_32,
 	blx,
@@ -282,6 +283,7 @@ opcode decode_data_proc(ushort instr) {
 		case 0b1001: return opcode.negs;
 		case 0b1000: return opcode.tst;
 		case 0b1101: return opcode.mul;
+		case 0b1110: return opcode.bic_reg;
 		case 0b1111: return opcode.mvn_reg;
 		default: assert(false, "Invalid 16-bit Data Processing Instruction: " ~ format("%04X", instr));
 	}

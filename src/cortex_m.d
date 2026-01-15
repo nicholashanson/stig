@@ -449,7 +449,14 @@ string[] zephyr_func_names = [
 	"z_arm_fatal_error",
 	"z_fatal_error",
 	"k_sys_fatal_error_handler",
-	"arch_system_halt"
+	"arch_system_halt",
+	"uart_stm32_init",
+	"pinctrl_lookup_state",
+	"pinctrl_configure_pins",
+	"gpio_stm32_configure",
+	"reset_stm32_line_toggle",
+	"reset_stm32_line_assert",
+	"reset_stm32_line_deassert"
 ];
 
 struct imm {
@@ -739,8 +746,8 @@ instr_16 parse_add_high_reg_1(short instr) {
 	instr_16 res;
 	res.op = opcode.add_high_reg_1;
 	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	ubyte dn = cast(ubyte)((instr >> 7) & 0b1);
+	ubyte rm  = cast(ubyte)((instr >> 3) & 0b1111);
+	ubyte dn  = cast(ubyte)((instr >> 7) & 0b1);
 	if (dn) {
 		rdn |= 0b1000;
 	}
@@ -2009,6 +2016,8 @@ instr_16 decode_instr(ushort instr) {
     auto op = decode_mnemonic(instr);
 
     switch (op) {
+    	case opcode.bic_reg:
+    		return parse_bic_reg(instr);
     	case opcode.strh_reg:
     		return parse_strh_reg(instr);
     	case opcode.sxtb:
@@ -3294,6 +3303,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.bic_reg:
+			return execute_bic_reg(instr, cpu);
 		case opcode.rev:
 			return execute_rev(instr, cpu);
 		case opcode.sxtb:
@@ -5246,13 +5257,8 @@ instr_32 parse_mvn_imm_32(uint instr) {
 
 /*
 	Branches and Miscellaneous Control
-	First Half-Word:
-	[15:4] 111010000101
-	[3:0] Rn
-	Second Half-Word:
-	[15:12] Rt
-	[11:8] 1111
-	[7:0] imm8
+	First Half-Word: [15:4] 111010000101, [3:0] Rn
+	Second Half-Word: [15:12] Rt, [11:8] 1111, [7:0] imm8
 */
 instr_32 parse_ldrex_32(uint instr) {
 	instr_32 res;
@@ -8292,6 +8298,7 @@ void load_uart_string_into_flash(ref memory mem)
 string[] table_names = [
 	//"_k_thread_data_led1_id",
 	//"_k_thread_data_led2_id",
+	"rodata",
 	"_static_thread_data_area",
 	"device_area",
 	"initlevel",

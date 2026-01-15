@@ -85,6 +85,46 @@ void execute_and_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ----------------------------------------- BIC -----------------------------------------
+
+// =====================
+//  Parse BIC(Register)
+// =====================
+
+enum field_tuples_bic_reg = [Tuple!(opcode, string[])(opcode.bic_reg, ["rd","rn"])];
+/*
+	Data Processing
+	MUL <Rdm>,<Rn>,<Rdm>
+	[15:6] 0100001110, [5:3] Rm, [2:0] Rdn
+*/
+instr_16 parse_bic_reg(ushort instr) {
+	instr_16 res;
+	res.op = opcode.bic_reg;
+	const ubyte rdn = cast(ubyte)( instr       & 0x7);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =======================
+//  Execute BIC(Register)
+// =======================
+
+void execute_bic_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
+	const uint rm  = cpu.get(instr.rm);
+	const uint rn  = cpu.get(instr.rn);
+	const uint res = rm & ~rn;
+	if (!cpu.in_it_block()) {
+		cpu.z = (res == 0);
+		cpu.n = (res & 0x80000000) != 0;
+	}
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
+
 // ----------------------------------------- LSL -----------------------------------------
 
 // =====================
