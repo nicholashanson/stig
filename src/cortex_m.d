@@ -461,7 +461,15 @@ string[] zephyr_func_names = [
 	"uart_stm32_set_baudrate",
 	"stm32_clock_control_get_subsys_rate",
 	"__aeabi_uldivmod",
-	"__udivmoddi4"
+	"__udivmoddi4",
+	"uart_console_init",
+	"__stdout_hook_install",
+	"__printk_hook_install",
+	"sys_clock_driver_init",
+	"console_out",
+	"uart_stm32_poll_out",
+	"k_msleep.isra.0",
+	"z_impl_k_sleep"
 ];
 
 struct imm {
@@ -706,6 +714,7 @@ enum all_field_tuples =
 	~ field_tuples_umull_32
 	~ field_tuples_ubfx_32
 	~ field_tuples_uxtb
+	~ field_tuples_uxth_32
 	~ field_tuples_uxth
 	~ field_tuples_rev;
 
@@ -5916,6 +5925,8 @@ instr_32 decode_instr(uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.uxth_32:
+			return parse_uxth_32(instr);
 		case opcode.stmia_32:
 			return parse_stmia_32(instr);
 		case opcode.rbit_32:
@@ -7106,6 +7117,8 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.uxth_32:
+			return execute_uxth_32(instr, cpu);
 		case opcode.rbit_32:
 			return execute_rbit_32(instr, cpu);
 		case opcode.sbc_imm_32:
@@ -8312,7 +8325,8 @@ string[] table_names = [
 	"clock_control_driver_api_area",
 	"reset_driver_api_area",
 	"sw_isr_table",
-	"datas"
+	"datas",
+	"gpio_driver_api_area"
 ];
 
 void load_data(const ref string filename, ref memory mem) {
