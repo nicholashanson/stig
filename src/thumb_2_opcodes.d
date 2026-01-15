@@ -41,7 +41,7 @@ enum opcode : ubyte {
 	dsb_32,
 	isb_32,
 	if_then,
-	ld_rex,
+	ldr_ex,
 	ldh_32,
 	ldmdb_32,
 	ldmia_32,
@@ -780,7 +780,7 @@ opcode decode_load_store_dual(uint instr) {
 		return opcode.ldrd_imm_32;
 	}
 	if (op1 == 0b00 && op2 == 0b01) {
-		return opcode.ld_rex;
+		return opcode.ldr_ex;
 	}
 	if (op2 == 0b00 && op1 == 0b00) {
 		return opcode.str_rex;
@@ -1123,7 +1123,8 @@ unittest {
 		test_case(0xeb63090b, opcode.sbc_reg_32),
 		test_case(0xeb45030b, opcode.adc_reg_32),
 		test_case(0xf06f0240, opcode.mvn_imm_32),
-		test_case(0xe8533f00, opcode.ld_rex),
+		test_case(0xe8533f00, opcode.ldr_ex),
+		test_case(0xe8533f00, opcode.ldr_ex),
 		test_case(0xe8412300, opcode.str_rex),
 		test_case(0xfb0e7711, opcode.mls_32),
 		test_case(0xf9b4500c, opcode.ldh_32),
@@ -1190,7 +1191,8 @@ unittest {
 		test_case(0xf8245035, opcode.strh_reg_32),
 		test_case(0xf8a28002, opcode.strh_imm_32_t2),
 		test_case(0xf1720100, opcode.sbc_imm_32),
-		test_case(0xfa90f7a0, opcode.rbit_32)
+		test_case(0xfa90f7a0, opcode.rbit_32),
+		test_case(0xf837c012, opcode.ldh_32)
 	];
 
 	foreach (t; tests) {

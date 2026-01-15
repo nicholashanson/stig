@@ -456,7 +456,8 @@ string[] zephyr_func_names = [
 	"gpio_stm32_configure",
 	"reset_stm32_line_toggle",
 	"reset_stm32_line_assert",
-	"reset_stm32_line_deassert"
+	"reset_stm32_line_deassert",
+	"uart_stm32_parameters_set"
 ];
 
 struct imm {
@@ -5262,7 +5263,7 @@ instr_32 parse_mvn_imm_32(uint instr) {
 */
 instr_32 parse_ldrex_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.ld_rex;
+	res.op = opcode.ldr_ex;
 	ubyte imm_8 = cast(ubyte)(instr & 0xff);
 	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
@@ -5995,7 +5996,7 @@ instr_32 decode_instr(uint instr) {
 			return parse_orn_imm_32(instr);
 		case opcode.mvn_imm_32:
 			return parse_mvn_imm_32(instr);
-		case opcode.ld_rex:
+		case opcode.ldr_ex:
 			return parse_ldrex_32(instr);
 		case opcode.str_rex:
 			return parse_strex_32(instr);
@@ -6139,7 +6140,7 @@ unittest {
 				  instr_32(op: opcode.mvn_imm_32, rd: reg.r2, imm: 64)),
 		// 1111 0000 0110 1111 0000 0010 0100 0000
 		test_case(0xe8533f00, // ldrex	r3, [r3]
-				  instr_32(op: opcode.ld_rex, rt: reg.r3, rn: reg.r3)),
+				  instr_32(op: opcode.ldr_ex, rt: reg.r3, rn: reg.r3)),
 		// 1110 1000 0101 0011 0011 1111 0000 0000
 		test_case(0xe8412300, // strex	r3, r2, [r1]
 				  instr_32(op: opcode.str_rex, rd: reg.r3, rt: reg.r2, rn: reg.r1)),
@@ -6650,6 +6651,7 @@ void execute_ldrex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	addr += instr.imm;
 	int val = mem.read_word(addr);
 	cpu.set(instr.rt, val);
+	cpu.increment_pc(4);
 }
 
 // ===============
@@ -6660,7 +6662,7 @@ void execute_strex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	size_t addr = cpu.get(instr.rn);
 	addr += instr.imm;
 	mem.write_word(addr, cpu.get(instr.rt));
-	cpu.set(instr.rd, 0xffffffff);
+	cpu.set(instr.rd, 0);
 	cpu.increment_pc(4);
 }
 
@@ -7227,7 +7229,7 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 		 	return execute_strd_32(instr, cpu, mem);
 		case opcode.push_mult_reg_32:
 			return execute_push_mult_reg_32(instr, cpu, mem);
-		case opcode.ld_rex:
+		case opcode.ldr_ex:
 			return execute_ldrex(instr, cpu, mem);
 		case opcode.str_rex:
 			return execute_strex(instr, cpu, mem);
@@ -7440,7 +7442,7 @@ unittest {
 				      						     memory.stack_base-4,memory.stack_base-5,memory.stack_base-6,memory.stack_base-7],
 				      						    [1,2,3,4,5,6,7,8]))),
 		test_case_mem(0xe8533f00, // ldrex	r3, [r3]
-				      instr_32(op: opcode.ld_rex, rt: reg.r3, rn: reg.r3),
+				      instr_32(op: opcode.ldr_ex, rt: reg.r3, rn: reg.r3),
 				      cortex_m_cpu(r3: 2),
 				      cortex_m_cpu(r3: 0xffffffee),
 				      memory(ram: make_ram_with(2, 0xffffffee)),
