@@ -457,7 +457,11 @@ string[] zephyr_func_names = [
 	"reset_stm32_line_toggle",
 	"reset_stm32_line_assert",
 	"reset_stm32_line_deassert",
-	"uart_stm32_parameters_set"
+	"uart_stm32_parameters_set",
+	"uart_stm32_set_baudrate",
+	"stm32_clock_control_get_subsys_rate",
+	"__aeabi_uldivmod",
+	"__udivmoddi4"
 ];
 
 struct imm {

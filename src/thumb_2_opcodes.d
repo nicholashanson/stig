@@ -758,6 +758,18 @@ opcode decode_load_store_mult(uint instr) {
 	return opcode.invalid;
 }
 
+// ======================
+//  Decode Load Halfword
+// ======================
+
+opcode decode_load_half_word(uint instr) {
+	ubyte op1 = cast(ubyte)((instr >> 23) & 0x1);
+	if ((op1 & 0b10) == 0b00) {
+		return opcode.ldh_32;
+	}
+	return opcode.invalid;
+}
+
 // ========================
 //  Decode Load Store Dual
 // ========================
@@ -976,7 +988,7 @@ opcode decode_mnemonic_32(uint instr) {
 	if (op1 == op1_32.grp3) {
 		ubyte _op = cast(ubyte)((instr >> 20) & 0b111);
 		if ((op2 & op2_32.ldh) == 0b0000011) {
-			return opcode.ldh_32;
+			return decode_load_half_word(instr);
 		}
 		if ((op2 & op2_32.long_mult) == 0b0111000) {
 			if (_op == 0b011) { 

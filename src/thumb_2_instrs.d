@@ -161,6 +161,7 @@ bool is_store(opcode op) {
 		case opcode.strh_reg:
 		case opcode.ldr_ex:
 		case opcode.str_rex:
+		case opcode.ldh_32:
 			return true;
 		default:
 			return false;
