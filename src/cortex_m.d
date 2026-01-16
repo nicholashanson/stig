@@ -24,6 +24,7 @@ import thumb_2_store_single_data_item;
 import thumb_2_load_store_single_data_item_16;
 import thumb_2_misc_ops_32;
 import thumb_2_data_proc_reg_32;
+import thumb_2_long_mult_acc_div_32;
 
 File* stack_log_ptr = null;
 
@@ -469,7 +470,10 @@ string[] zephyr_func_names = [
 	"console_out",
 	"uart_stm32_poll_out",
 	"k_msleep.isra.0",
-	"z_impl_k_sleep"
+	"z_impl_k_sleep",
+	"z_tick_sleep",
+	"unready_thread",
+	"sys_dlist_remove"
 ];
 
 struct imm {
@@ -683,6 +687,7 @@ enum all_field_tuples =
 	~ field_tuples_rsb_imm_32
 	~ field_tuples_sbc_reg_32
 	~ field_tuples_sel_32
+	~ field_tuples_smull_32
 	~ field_tuples_str_imm
 	~ field_tuples_str_imm_32_t3
 	~ field_tuples_str_imm_32_t4
@@ -5925,6 +5930,8 @@ instr_32 decode_instr(uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.smull_32:
+			return parse_smull_32(instr);
 		case opcode.uxth_32:
 			return parse_uxth_32(instr);
 		case opcode.stmia_32:
@@ -7117,6 +7124,8 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.smull_32:
+			return execute_smull_32(instr, cpu);
 		case opcode.uxth_32:
 			return execute_uxth_32(instr, cpu);
 		case opcode.rbit_32:
@@ -7593,6 +7602,7 @@ string[opcode] opcode_strings = [
 	opcode.rev: "rev",
 	opcode.rsb_imm_32: "rsb",
 	opcode.sbc_reg_32: "sbc.w",
+	opcode.smull_32: "smull",
 	opcode.str_imm: "str",
 	opcode.strb_imm_32_t2: "strb.w",
 	opcode.strb_imm_32_t3: "strb.w",

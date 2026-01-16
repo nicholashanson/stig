@@ -16,7 +16,7 @@ enum field_tuples_adc_reg = [Tuple!(opcode, string[])(opcode.adc_reg, ["rd","rm"
 	ADC <Rdn>,<Rm>
 	[15:6] 0100000101, [5:3] Rm, [2:0] Rd  
 */
-instr_16 parse_adc_reg(short instr) {
+instr_16 parse_adc_reg(ushort instr) {
 	instr_16 res;
 	res.op = opcode.adc_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x7);
@@ -57,7 +57,7 @@ enum field_tuples_and_reg = [Tuple!(opcode, string[])(opcode.and_reg, ["rd","rm"
 	AND <Rdn>,<Rm>
 	[15:6] 0100000000, [5:3] Rm, [2:0] Rdn
 */
-instr_16 parse_and_reg(short instr) {
+instr_16 parse_and_reg(ushort instr) {
 	instr_16 res;
 	res.op = opcode.and_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x7);
@@ -137,7 +137,7 @@ enum field_tuples_lsl_reg = [Tuple!(opcode, string[])(opcode.lsl_reg, ["rd","rm"
 	LSL <Rdn>,<Rm>
 	[15:6] 0100000010, [5:3] Rm, [2:0] Rdn  
 */
-instr_16 parse_lsl_reg(short instr) {
+instr_16 parse_lsl_reg(ushort instr) {
 	instr_16 res;
 	res.op = opcode.lsl_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x7);

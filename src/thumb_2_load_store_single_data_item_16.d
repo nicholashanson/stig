@@ -18,7 +18,7 @@ enum field_tuples_strh_reg = [Tuple!(opcode, string[])(opcode.strh_reg, ["rt","r
 	STRH <Rt>,[<Rn>,<Rm>]
 	[15:9] 0101001, [8:6] Rm, [5:3] Rn, [2:0] Rt
 */
-instr_16 parse_strh_reg(uint instr) {
+instr_16 parse_strh_reg(ushort instr) {
 	instr_16 res;
 	res.op   = opcode.strh_reg;
 	ubyte rt = cast(ubyte)( instr       & 0x7);

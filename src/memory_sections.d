@@ -424,7 +424,7 @@ struct memory {
                 peripherals[addr] = cfgr;
             } else if (addr == 0x40023874 && val == 0x1) {
                 peripherals[addr] = 0x3;
-            } else if (addr == 0x40011004) {
+            } else if (addr == 0x40011004 || addr == 0x40004404) {
                 auto f = uart_log();
                 f.write(cast(char)(val & 0xff));
                 f.flush();

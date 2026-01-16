@@ -165,6 +165,7 @@ enum opcode : ubyte {
 	//lsr_reg_32,
 	//asr_reg_32,
 	ror_reg_32,
+	smull_32,
 
 
 	// --------------------------Data Processing (Modified Immediate)-------------------------- 
@@ -997,6 +998,9 @@ opcode decode_mnemonic_32(uint instr) {
 			if (_op == 0b010) {
 				return opcode.umull_32;
 			}
+		}
+		if ((op2 & 0b1111000) == 0b0111000) {
+			return opcode.smull_32;
 		}
 		if ((op2 & op2_32.mult) == 0b0110000) {
 			return decode_mult(instr);
