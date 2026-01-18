@@ -669,6 +669,7 @@ enum all_field_tuples =
 	~ field_tuples_lsl_imm
 	~ field_tuples_lsl_reg
 	~ field_tuples_lsr_imm
+	~ field_tuples_lsr_imm_32
 	~ field_tuples_lsr_reg_32
 	~ field_tuples_lsr_reg
 	~ field_tuples_mls_32
@@ -4993,7 +4994,7 @@ instr_32 parse_push_mult_reg_32(uint instr) {
 //  Parse ORR REG
 // ===============
 
-enum field_tuples_orr_reg_32 = [Tuple!(opcode, string[])(opcode.orr_reg_32, ["rd","rn","rm"])];
+enum field_tuples_orr_reg_32 = [Tuple!(opcode, string[])(opcode.orr_reg_32, ["rd","rn","rm","shift","imm"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -5738,7 +5739,7 @@ instr_32 parse_lsl_imm_32(uint instr) {
 	return res;
 }
 
-//enum field_tuples_asr_imm_32 = [Tuple!(opcode, string[])(opcode.asr_imm_32, ["rd","rm","imm"])];
+enum field_tuples_lsr_imm_32 = [Tuple!(opcode, string[])(opcode.lsr_imm_32, ["rd","rm","imm"])];
 /*
 	Data Processing
 	Mov Register and Immeidate Shifts
@@ -6913,23 +6914,40 @@ void execute_ldrb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 // ========================
 
 void execute_asr_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int shifted = shift(shift_type.asr, instr.shift_n, cpu.get(instr.rm));
+	const uint rm = cpu.get(instr.rm);
+	const uint shifted = shift(shift_type.asr, instr.shift_n, rm);
+	if (instr.set_flags) {
+		cpu.c = get_shifter_carry(rm, shift_type.asr, instr.shift_n, cpu.c);
+		cpu.z = (shifted == 0);
+		cpu.n = (shifted & 0x8000_0000) != 0;
+	}
 	cpu.set(instr.rd, shifted);
 	cpu.increment_pc(4);
 }
 
 void execute_lsr_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int shifted = shift(shift_type.lsr, instr.shift_n, cpu.get(instr.rm));
+	const uint rm = cpu.get(instr.rm);
+	const uint shifted = shift(shift_type.lsr, instr.shift_n, rm);
+	if (instr.set_flags) {
+		cpu.c = get_shifter_carry(rm, shift_type.lsr, instr.shift_n, cpu.c);
+		cpu.z = (shifted == 0);
+		cpu.n = (shifted & 0x8000_0000) != 0;
+	}
 	cpu.set(instr.rd, shifted);
 	cpu.increment_pc(4);
 }
 
 void execute_lsl_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int shifted = shift(shift_type.lsl, instr.shift_n, cpu.get(instr.rm));
+	const uint rm = cpu.get(instr.rm);
+	const uint shifted = shift(shift_type.lsl, instr.shift_n, rm);
+	if (instr.set_flags) {
+		cpu.c = get_shifter_carry(rm, shift_type.lsl, instr.shift_n, cpu.c);
+		cpu.z = (shifted == 0);
+		cpu.n = (shifted & 0x8000_0000) != 0;
+	}
 	cpu.set(instr.rd, shifted);
 	cpu.increment_pc(4);
 }
-
 
 void execute_cmn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	uint rn = cpu.get(instr.rn);
@@ -7578,6 +7596,7 @@ string[opcode] opcode_strings = [
 	opcode.str_imm: "str",
 	opcode.strb_imm_32_t2: "strb.w",
 	opcode.strb_imm_32_t3: "strb.w",
+	opcode.strb_reg_32: "strb.w",
 	opcode.str_imm_32_t3: "str.w",
 	opcode.str_imm_32_t4: "str.w",
 	opcode.strb_imm: "strb",
@@ -8196,6 +8215,9 @@ string convert_to_string(uint instr) {
 		}
 		if (field == "ra") {
 			ops ~= get_register_name(parsed_instr.ra);
+		}
+		if (field == "shift") {
+			ops ~= parsed_instr.cond.to!string;
 		}
 		if (field == "rm") {
 			string rm_s;
