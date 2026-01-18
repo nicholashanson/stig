@@ -39,6 +39,8 @@ enum opcode : ubyte {
 	cps,
 	dmb_32,
 	dsb_32,
+	eor_reg,
+	eor_reg_32,
 	isb_32,
 	if_then,
 	ldr_ex,
@@ -276,16 +278,21 @@ opcode decode_data_proc(ushort instr) {
 	switch (op) 
 	{
 		case 0b0000: return opcode.and_reg;
-		case 0b1010: return opcode.cmp_reg;
-		case 0b1100: return opcode.lor_reg;
+		case 0b0001: return opcode.eor_reg;
+		
+		
 		case 0b0010: return opcode.lsl_reg;
 		case 0b0011: return opcode.lsr_reg;
 		case 0b0101: return opcode.adc_reg;
-		case 0b1001: return opcode.negs;
+		
 		case 0b1000: return opcode.tst;
+		case 0b1001: return opcode.negs;
+		case 0b1010: return opcode.cmp_reg;
+		case 0b1100: return opcode.lor_reg;
 		case 0b1101: return opcode.mul;
 		case 0b1110: return opcode.bic_reg;
 		case 0b1111: return opcode.mvn_reg;
+		
 		default: assert(false, "Invalid 16-bit Data Processing Instruction: " ~ format("%04X", instr));
 	}
     return opcode.invalid;
@@ -1000,7 +1007,13 @@ opcode decode_mnemonic_32(uint instr) {
 			}
 		}
 		if ((op2 & 0b1111000) == 0b0111000) {
-			return opcode.smull_32;
+			ubyte _op1 = cast(ubyte)((instr >> 20) & 0x7);
+			ubyte _op2 = cast(ubyte)((instr >>  4) & 0xf);
+			if ((_op1 == 0) && (_op2 == 0)) {
+				return opcode.smull_32;
+			} else {
+				return opcode.invalid;
+			}
 		}
 		if ((op2 & op2_32.mult) == 0b0110000) {
 			return decode_mult(instr);

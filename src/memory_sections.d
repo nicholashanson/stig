@@ -11,6 +11,15 @@ File* uart_log() {
     return uart_log_ptr;
 }
 
+File* gpio_log_ptr = null;
+
+File* gpio_log() {
+    if (gpio_log_ptr is null) {
+        gpio_log_ptr = new File("gpio_log.txt", "w");
+    }
+    return gpio_log_ptr;
+}
+
 File* load_store_log_ptr = null;
 
 File* load_store_log() {
@@ -358,6 +367,88 @@ struct memory {
         0xE0042004: 0           // DBGMCU_CR Debug MCU Configuration Register
     ];
 
+    string[size_t] peripheral_names = [
+        0x40000000: "TIM2_CR1",
+        0x40000004: "TIM2_CR2",
+        0x40000008: "TIM2_SMCR",
+        0xE000E010: "SYST_CSR",
+        0xE000E014: "SYST_RVR",       
+        0xE000E018: "SYST_CVR",       
+        0xE000E01C: "SYST_CALIB",
+        0x40020000: "GPIOA_MODER",
+        0x40020004: "GPIOA_OTYPER",
+        0x40020008: "GPIOA_OSPEEDR",
+        0x4002000C: "GPIOA_PUPDR",
+        0x40020010: "GPIOA_IDR",
+        0x40020014: "GPIOA_ODR",
+        0x40020020: "GPIOA_AFRL",
+        0x40020024: "GPIOA_AFRH",
+        0x40020400: "GPIOB_MODER",
+        0x40020404: "GPIOB_OTYPER",
+        0x40020408: "GPIOB_OSPEEDR",
+        0x4002040C: "GPIOB_PUPDR",
+        0x40020410: "GPIOB_IDR",
+        0x40020414: "GPIOB_ODR",
+        0x40020420: "GPIOB_AFRL",
+        0x40020424: "GPIOB_AFRH",
+        0x40020800: "GPIOC_MODER",
+        0x40020804: "GPIOC_OTYPER",
+        0x40020808: "GPIOC_OSPEEDR",
+        0x4002080C: "GPIOC_PUPDR",
+        0x40020810: "GPIOC_IDR",
+        0x40020814: "GPIOC_ODR",
+        0x40020820: "GPIOC_AFRL",
+        0x40020824: "GPIOC_AFRH",
+        0x40020C00: "GPIOD_MODER",
+        0x40020C04: "GPIOD_OTYPER",
+        0x40020C08: "GPIOD_OSPEEDR",
+        0x40020C0C: "GPIOD_PUPDR",
+        0x40020C10: "GPIOD_IDR",
+        0x40020C14: "GPIOD_ODR",
+        0x40020C20: "GPIOD_AFRL",
+        0x40020C24: "GPIOD_AFRH",
+        0x40021000: "GPIOE_MODER",
+        0x40021004: "GPIOE_OTYPER",
+        0x40021008: "GPIOE_OSPEEDR",
+        0x4002100C: "GPIOE_PUPDR",
+        0x40021010: "GPIOE_IDR",
+        0x40021014: "GPIOE_ODR",
+        0x40021020: "GPIOE_AFRL",
+        0x40021024: "GPIOE_AFRH",
+        0x40021400: "GPIOF_MODER",
+        0x40021404: "GPIOF_OTYPER",
+        0x40021408: "GPIOF_OSPEEDR",
+        0x4002140C: "GPIOF_PUPDR",
+        0x40021410: "GPIOF_IDR",
+        0x40021414: "GPIOF_ODR",
+        0x40021420: "GPIOF_AFRL",
+        0x40021424: "GPIOF_AFRH",
+        0x40021800: "GPIOG_MODER",
+        0x40021804: "GPIOG_OTYPER",
+        0x40021808: "GPIOG_OSPEEDR",
+        0x4002180C: "GPIOG_PUPDR",
+        0x40021810: "GPIOG_IDR",
+        0x40021814: "GPIOG_ODR",
+        0x40021820: "GPIOG_AFRL",
+        0x40021824: "GPIOG_AFRH",
+        0x40021C00: "GPIOH_MODER",
+        0x40021C04: "GPIOH_OTYPER",
+        0x40021C08: "GPIOH_OSPEEDR",
+        0x40021C0C: "GPIOH_PUPDR",
+        0x40021C10: "GPIOH_IDR",
+        0x40021C14: "GPIOH_ODR",
+        0x40021C20: "GPIOH_AFRL",
+        0x40021C24: "GPIOH_AFRH",
+        0x40023830: "RCC_AHB1ENR",
+        0x40023840: "RCC_APB1ENR",
+        0x40023844: "RCC_APB2ENR",
+        0xE000ED90: "MPU_TYPE",
+        0xE000ED94: "MPU_CTRL", 
+        0xE000ED98: "MPU_RNR",
+        0xE000ED9C: "MPU_RBAR",
+        0xE000EDA0: "MPU_RASR"
+    ]; 
+
     uint read_word(size_t addr) {
         if (addr == 0x08000000) {
             return 0x20020000;
@@ -427,6 +518,15 @@ struct memory {
             } else if (addr == 0x40011004 || addr == 0x40004404) {
                 auto f = uart_log();
                 f.write(cast(char)(val & 0xff));
+                f.flush();
+            } else if (addr == 0x40020018) { 
+                auto f = gpio_log();
+                if (val & (1 << 5)) {
+                    f.write("GPIOA5 toggled on\n");
+                }
+                if (val & (1 << (5 + 16))) {
+                    f.write("GPIOA5 toggled off\n");
+                }
                 f.flush();
             } else {
                 peripherals[addr] = val;

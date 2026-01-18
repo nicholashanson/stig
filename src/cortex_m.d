@@ -14,7 +14,12 @@ import std.container;
 import thumb_2_opcodes;
 import memory_sections;
 import cortex_m_core;
+import std.algorithm;
 import std.algorithm : sort;
+
+import std.file : readText;
+import std.string : strip, splitLines;
+import std.exception : enforce;;
 
 import thumb_2_instrs;
 import thumb_2_data_proc_16;
@@ -25,6 +30,7 @@ import thumb_2_load_store_single_data_item_16;
 import thumb_2_misc_ops_32;
 import thumb_2_data_proc_reg_32;
 import thumb_2_long_mult_acc_div_32;
+import file_parsing;
 
 File* stack_log_ptr = null;
 
@@ -254,7 +260,8 @@ string[] dsp_func_names = [
     "HAL_TIMEx_MasterConfigSynchronization",
     "HAL_DAC_Init",
     "HAL_DAC_MspInit",
-    "HAL_DAC_ConfigChannel"
+    "HAL_DAC_ConfigChannel",
+    "__udivmoddi4"
 ];
 
 string[] freertos_func_names = [
@@ -634,6 +641,7 @@ enum all_field_tuples =
 	~ field_tuples_cmp_imm_32
 	~ field_tuples_cmp_reg
 	~ field_tuples_dsb_32
+	~ field_tuples_eor_reg
 	~ field_tuples_if_then
 	~ field_tuples_isb_32
 	~ field_tuples_ldr_imm
@@ -2035,6 +2043,8 @@ instr_16 decode_instr(ushort instr) {
     auto op = decode_mnemonic(instr);
 
     switch (op) {
+    	case opcode.eor_reg:
+    		return parse_eor_reg(instr);
     	case opcode.bic_reg:
     		return parse_bic_reg(instr);
     	case opcode.strh_reg:
@@ -3322,6 +3332,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.eor_reg:
+			return execute_eor_reg(instr, cpu);
 		case opcode.bic_reg:
 			return execute_bic_reg(instr, cpu);
 		case opcode.rev:
@@ -7574,6 +7586,7 @@ string[opcode] opcode_strings = [
 	opcode.lsl_imm: "lsls",
 	opcode.lsl_reg: "lsls",
 	opcode.lsr_imm: "lsrs",
+	opcode.lsr_imm_32: "mov.w",
 	opcode.lsr_reg: "lsrs",
 	opcode.lsr_reg_32: "lsr.w",
 	opcode.mla_32: "mla",
@@ -7859,18 +7872,55 @@ unittest {
     }
 }
 
+alias instruction = Algebraic!(instr_16, instr_32);
+
+struct addr_instr {
+    instruction i;
+    uint _in_32;
+    ushort _in_16;
+    uint _addr;
+    string _instr_bytes;
+
+    this(uint addr, string bytes_string) {
+        _instr_bytes = bytes_string;
+        _addr = addr;
+        if (bytes_string.length == 8) {
+            _in_32 = parse!uint(bytes_string, 16);
+            i = decode_instr(_in_32);
+        }
+        if (bytes_string.length == 4) {
+            _in_16 = cast(ushort) parse!uint(bytes_string, 16);
+            i = decode_instr(_in_16);
+        }
+    }
+}
+
+struct func {
+    string name;
+    addr_instr[] instrs;
+}
+
+string extract_angle_brackets(string s) {
+    auto start = s.indexOf('<');
+    auto end = s.indexOf('>');
+    if (start != -1 && end != -1 && end > start) {
+        return s[start + 1 .. end];
+    }
+    return "";
+}
+
 string get_function_str(string file_name, string function_name) {
-	File file;
-	try {
-		file = File(file_name, "r");
-	} catch (Exception e) {
-		writeln("Error opening file: ", e.msg);
-		return "";
-	}
+    File file;
+    try {
+        file = File(file_name, "r");
+    } catch (Exception e) {
+        writeln("Error opening file: ", e.msg);
+        return "";
+    }
     auto lines = file.byLineCopy.array;
     ptrdiff_t start = -1;
     foreach (i, line; lines) {
-    	string to_find = format("<%s>", function_name);
+        string to_find = format("<%s>", function_name);
         if (line.canFind(to_find) && line.front == '0') {
             start = i;
             break;
@@ -7884,6 +7934,92 @@ string get_function_str(string file_name, string function_name) {
         ++end;
     }
     return lines[start .. end].join("\n");
+}
+
+func get_function(string file_name, string function_name) {
+    string f_s = get_function_str(file_name, function_name);
+    auto lines = f_s.splitLines();
+    func f;
+    f.name = extract_angle_brackets(lines[0]);
+
+    foreach(line; lines[1..$]) {
+        line = line.strip();
+        if (line.length == 0) continue;
+        if (line.canFind(".word")) continue;
+        if (line.canFind(".byte")) continue;
+        auto parts = split(line, ":");
+        if (parts.length < 2) continue;
+        auto addr_str = parts[0].strip();
+
+        string addr_str_clean = addr_str.startsWith("0x") ? addr_str[2..$] : addr_str;
+        uint addr = parse!uint(addr_str_clean, 16);
+
+        auto rest = parts[1].strip();
+        auto bytes_part = rest.split("\t")[0].replace(" ", "");
+        f.instrs ~= addr_instr(addr, bytes_part);        
+    }
+    return f;
+}
+
+struct FunctionWithLine {
+    func f;
+    size_t line_number;
+}
+
+FunctionWithLine get_next_function(string file_name, size_t line_number) {
+    import std.file : readText;
+    import std.string : strip, splitLines;
+    import std.exception : enforce;
+
+    auto lines = readText(file_name).splitLines();
+
+    foreach (i, line; lines[line_number .. $]) {
+        line = line.strip();
+        if (line.canFind("device_area") ||
+        	line.canFind("rodata") ||
+        	line.canFind("datas") ||
+        	line.canFind("initlevel") ||
+        	line.canFind("sw_isr_table") ||
+        	line.canFind("gpio_driver_api_area") ||
+        	line.canFind("reset_driver_api_area") ||
+        	line.canFind("clock_control_driver_api_area") ||
+        	line.canFind("uart_driver_api_area")) {
+        	continue;
+        }
+
+        if (line.length > 0 && line[0] == '0' && line.canFind("<") && line.canFind(">") && line.endsWith(":")) {
+            auto start = line.indexOf("<") + 1;
+            auto end = line.indexOf(">");
+            if (start >= 0 && end > start) {
+                string func_name = line[start .. end];
+                auto f = get_function(file_name, func_name);
+                return FunctionWithLine(f, line_number + i); 
+            }
+        }
+    }
+
+    enforce(false, "No next function found after line "~to!string(line_number));
+    assert(0);
+}
+
+func[] get_all_functions(string file_name) {
+    func[] all_funcs;
+    size_t line_number = 0;
+
+    while (true) {
+        bool done = false;
+        try {
+            auto fwl = get_next_function(file_name, line_number);
+            all_funcs ~= fwl.f;
+            line_number = fwl.line_number + 1;
+        } catch (Exception e) {
+            done = true;
+        }
+
+        if (done) break;
+    }
+
+    return all_funcs;
 }
 
 immutable reset_handler =
@@ -7905,68 +8041,6 @@ unittest {
 	writeln(bytesGot);
 	assert(actual == reset_handler,
 		   format("Failed, got '%s'", actual));
-}
-
-alias instruction = Algebraic!(instr_16, instr_32);
-
-struct addr_instr {
-	instruction i;
-	uint _in_32;
-	ushort _in_16;
-	uint _addr;
-	string _instr_bytes;
-
-	this(uint addr, string bytes_string) {
-		_instr_bytes = bytes_string;
-		_addr = addr;
-		if (bytes_string.length == 8) {
-			_in_32 = parse!uint(bytes_string, 16);
-			i = decode_instr(_in_32);
-		}
-		if (bytes_string.length == 4) {
-			_in_16 = cast(ushort) parse!uint(bytes_string, 16);
-			i = decode_instr(_in_16);
-		}
-	}
-}
-
-struct func {
-	string name;
-	addr_instr[] instrs;
-}
-
-string extract_angle_brackets(string s) {
-    auto start = s.indexOf('<');
-    auto end = s.indexOf('>');
-    if (start != -1 && end != -1 && end > start) {
-        return s[start + 1 .. end];
-    }
-    return "";
-}
-
-func get_function(string file_name, string function_name) {
-	string f_s = get_function_str(file_name, function_name);
-	auto lines = f_s.splitLines();
-    func f;
-    f.name = extract_angle_brackets(lines[0]);
-
-    foreach(line; lines[1..$]) {
-        line = line.strip();
-        if (line.length == 0) continue;
-        if (line.canFind(".word")) continue;
-        if (line.canFind(".byte")) continue;
-        auto parts = split(line, ":");
-        if (parts.length < 2) continue;
-        auto addr_str = parts[0].strip();
-
-        string addr_str_clean = addr_str.startsWith("0x") ? addr_str[2..$] : addr_str;
-		uint addr = parse!uint(addr_str_clean, 16);
-
-        auto rest = parts[1].strip();
-        auto bytes_part = rest.split("\t")[0].replace(" ", "");
-        f.instrs ~= addr_instr(addr, bytes_part);        
-    }
-    return f;
 }
 
 struct table {
@@ -8037,7 +8111,7 @@ unittest {
 // ======================
 
 uint get_entry_point_addr(string filename) {
-	if (filename != "../test/zephyr_thread_asm.txt") {
+	if (!filename.canFind("zephyr")) {
 		auto reset_handler = get_function(filename, "Reset_Handler");
 		return reset_handler.instrs[0]._addr;
 	}
@@ -8328,7 +8402,7 @@ string[] table_names = [
 	//"_k_thread_data_led1_id",
 	//"_k_thread_data_led2_id",
 	"rodata",
-	"_static_thread_data_area",
+	//"_static_thread_data_area",
 	"device_area",
 	"initlevel",
 	"uart_driver_api_area",
@@ -8369,6 +8443,7 @@ struct cortex_m_vm {
 	cortex_m_cpu cpu;
 	memory mem;
 	addr_instr[] current_program;
+	string[] func_names;
 
 	void load_program(string filename) {
 		load_uart_string_into_flash(mem);
@@ -8395,8 +8470,9 @@ struct cortex_m_vm {
 					current_program ~= f.instrs;
 				}
 			} else {
-				foreach (s; freertos_func_names) {
-					func f = get_function(filename, s);
+				auto f_s = get_all_functions(filename);
+				foreach (f; f_s) {
+					func_names ~= f.name;
 					current_program ~= f.instrs;
 				}
 			}
@@ -8406,7 +8482,7 @@ struct cortex_m_vm {
     	cpu.set(reg.pc, entry_point);
 
     	load_literals(mem, filename);
-    	if (filename != "../test/zephyr_thread_asm.txt") {
+    	if (!filename.canFind("zephyr")) {
     		auto f = load_store_log();
     		load_init_array_start(mem, filename);
     		func svc_handler = get_function(filename, "SVC_Handler");

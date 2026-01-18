@@ -11,6 +11,7 @@ import core.time : MonoTime, dur;
 import thumb_2_opcodes;
 import thumb_2_instrs;
 import memory_sections;
+import file_parsing;
 
 // Global pad and scroll offset:
 WINDOW* instrPad;
@@ -100,31 +101,32 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         int stackY = 0;
         int stackX = 0;
 
-        auto printReg = (string name, uint val) {
-            mvwprintw(regPad, regY++, regX, toStringz(format("%s %08x", name, val)));
+        auto printReg = (string name, uint val, ref cortex_m_vm vm) {
+            string reg_name = vm.mem.peripheral_names.get(val, "              ");
+            mvwprintw(regPad, regY++, regX, toStringz(format("%s %08x %s", name, val, reg_name)));
         };
         auto printFlag = (string name, bool val) {
             mvwprintw(flagPad, flagY++, regX, toStringz(format("%s %d", name, val)));
         };
 
         mvwprintw(regPad, regY++, regX, "Core Registers:");
-        printReg("r0: ", vm.cpu.r0);
-        printReg("r1: ", vm.cpu.r1);
-        printReg("r2: ", vm.cpu.r2);
-        printReg("r3: ", vm.cpu.r3);
-        printReg("r4: ", vm.cpu.r4);
-        printReg("r5: ", vm.cpu.r5);
-        printReg("r6: ", vm.cpu.r6);
-        printReg("r7: ", vm.cpu.r7);
-        printReg("r8: ", vm.cpu.r8);
-        printReg("r9: ", vm.cpu.r9);
-        printReg("r10:", vm.cpu.r10);
-        printReg("r11:", vm.cpu.r11);
-        printReg("r12:", vm.cpu.r12);
-        printReg("sp: ", vm.cpu.get_sp());
-        printReg("lr: ", vm.cpu.lr);
-        printReg("pc: ", vm.cpu.pc);
-        printReg("CONTROL:", vm.cpu.get_control_reg());
+        printReg("r0: ", vm.cpu.r0, vm);
+        printReg("r1: ", vm.cpu.r1, vm);
+        printReg("r2: ", vm.cpu.r2, vm);
+        printReg("r3: ", vm.cpu.r3, vm);
+        printReg("r4: ", vm.cpu.r4, vm);
+        printReg("r5: ", vm.cpu.r5, vm);
+        printReg("r6: ", vm.cpu.r6, vm);
+        printReg("r7: ", vm.cpu.r7, vm);
+        printReg("r8: ", vm.cpu.r8, vm);
+        printReg("r9: ", vm.cpu.r9, vm);
+        printReg("r10:", vm.cpu.r10, vm);
+        printReg("r11:", vm.cpu.r11, vm);
+        printReg("r12:", vm.cpu.r12, vm);
+        printReg("sp: ", vm.cpu.get_sp(), vm);
+        printReg("lr: ", vm.cpu.lr, vm);
+        printReg("pc: ", vm.cpu.pc, vm);
+        printReg("CONTROL:", vm.cpu.get_control_reg(), vm);
         mvwprintw(flagPad, flagY++, regX, "Flags:");
         printFlag("z:", vm.cpu.z);
         printFlag("n:", vm.cpu.n);
@@ -373,7 +375,7 @@ void main(string[] args) {
             f_s ~= f;
         }
     } else {
-        foreach (name; freertos_func_names) {
+        foreach (name; vm.func_names) {
             func f = get_function(objdump_file_name, name);
             f_s ~= f;
         }
