@@ -4361,6 +4361,13 @@ instr_32 parse_add_imm_32(uint instr) {
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
 	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
+	ubyte S = cast(ubyte)((instr >> 20) & 0b1);
+	ubyte b = cast(ubyte)((instr >> 25) & 0b1);
+	if (b == 1)	{
+		res.set_flags = true;
+	} else {
+		res.set_flags = S == 1 ? true : false;
+	}
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
 	uint imm_32 = thumb_expand_imm(imm_12);
@@ -6393,9 +6400,20 @@ void execute_orr_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // ==============
 
 void execute_add_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int rn = cpu.get(instr.rn);
-	int res = rn + instr.imm;
+	uint rn = cpu.get(instr.rn);
+	uint imm = instr.imm;
+	ulong wide = cast(ulong)rn + cast(ulong)imm;
+    uint res = cast(uint)wide;
 	cpu.set(instr.rd, res);
+	if (instr.set_flags) {
+		cpu.n = (res & 0x8000_0000) != 0;
+		cpu.z = (res == 0);
+        cpu.c = (wide >> 32) != 0;
+        bool rn_sign  = (rn  & 0x8000_0000) != 0;
+        bool imm_sign = (imm & 0x8000_0000) != 0;
+        bool res_sign = (res & 0x8000_0000) != 0;
+        cpu.v = (rn_sign == imm_sign) && (rn_sign != res_sign);
+	}
 	cpu.increment_pc(4);
 }
 
@@ -6544,8 +6562,14 @@ void execute_push_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory m
 // ========================
 
 void execute_orr_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
-	int res = cpu.get(instr.rn) | shifted;
+	const uint rm = cpu.get(instr.rm);
+	const uint shifted = shift(instr.shift_t, instr.shift_n, rm);
+	const uint res = cpu.get(instr.rn) | shifted;
+	if (instr.set_flags) {
+		cpu.n = (res & 0x8000_0000) != 0;
+		cpu.z = (res == 0);
+		cpu.c = get_shifter_carry(rm, instr.shift_t, instr.shift_n, cpu.c);
+	}
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(4);
 }
@@ -8337,7 +8361,7 @@ string[] table_names = [
 	//"_k_thread_data_led1_id",
 	//"_k_thread_data_led2_id",
 	"rodata",
-	"_static_thread_data_area",
+	//"_static_thread_data_area",
 	"device_area",
 	"initlevel",
 	"uart_driver_api_area",
