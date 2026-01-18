@@ -30,6 +30,7 @@ import thumb_2_load_store_single_data_item_16;
 import thumb_2_misc_ops_32;
 import thumb_2_data_proc_reg_32;
 import thumb_2_long_mult_acc_div_32;
+import thumb_2_data_proc_shift_reg_32;
 import file_parsing;
 
 File* stack_log_ptr = null;
@@ -642,6 +643,7 @@ enum all_field_tuples =
 	~ field_tuples_cmp_reg
 	~ field_tuples_dsb_32
 	~ field_tuples_eor_reg
+	~ field_tuples_eor_imm_32
 	~ field_tuples_if_then
 	~ field_tuples_isb_32
 	~ field_tuples_ldr_imm
@@ -3862,25 +3864,6 @@ unittest {
     }
 } 
 
-shift_type get_shift_type(ubyte type, ubyte imm) {
-	switch (type) {
-		case 0b00:
-			return shift_type.lsl;
-		case 0b01:
-			return shift_type.lsr;
-		case 0b10:
-			return shift_type.asr;
-		case 0b11:
-			if (imm == 0b0000) {
-				return shift_type.rrx;
-			} else {
-				return shift_type.ror;
-			}
-		default:
-			return shift_type.invalid;
-	}
-}
-
 // ======================
 //  Parse MOV(Immediate)
 // ======================
@@ -5942,6 +5925,10 @@ instr_32 decode_instr(uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.eor_imm_32:
+			return parse_eor_imm_32(instr);
+		case opcode.eor_reg_32:
+			return parse_eor_reg_32(instr);
 		case opcode.smull_32:
 			return parse_smull_32(instr);
 		case opcode.uxth_32:
@@ -6862,7 +6849,15 @@ void execute_tst_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // =======================
 
 void execute_and_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int res = cpu.get(instr.rn) & cpu.get(instr.rm);
+	const uint rm = cpu.get(instr.rm);
+	const uint rn = cpu.get(instr.rn);
+	const uint shifted = shift(instr.shift_t, instr.shift_n, rm); 
+	const uint res = rn & shifted;
+	if (instr.set_flags) {
+		cpu.n = (res & 0x8000_0000) != 0;
+    	cpu.z = (res == 0);
+    	cpu.c = get_shifter_carry(rm, instr.shift_t, instr.shift_n, cpu.c);
+	}
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(4);
 }
@@ -7136,6 +7131,10 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.eor_imm_32:
+			return execute_eor_imm_32(instr, cpu);
+		case opcode.eor_reg_32:
+			return execute_eor_reg_32(instr, cpu);
 		case opcode.smull_32:
 			return execute_smull_32(instr, cpu);
 		case opcode.uxth_32:
@@ -7563,6 +7562,7 @@ string[opcode] opcode_strings = [
 	opcode.clz_32: "clz",
 	opcode.dmb_32: "dmb",
 	opcode.dsb_32: "dsb",
+	opcode.eor_imm_32: "eor",
 	opcode.if_then: "it",
 	opcode.isb_32: "isb",
 	opcode.ldr_imm: "ldr",

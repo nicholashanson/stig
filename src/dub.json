@@ -21,6 +21,7 @@
         "thumb_2_misc_ops_32.d",
         "thumb_2_data_proc_reg_32.d",
         "thumb_2_long_mult_acc_div_32.d",
-        "file_parsing.d"
+        "file_parsing.d",
+        "thumb_2_data_proc_shift_reg_32.d"
     ]
 }

@@ -52,6 +52,48 @@ void execute_adc_imm_32(const ref instr_32 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ----------------------------------------- EOR -----------------------------------------
+
+// ======================
+//  Parse EOR(Immediate)
+// ======================
+
+enum field_tuples_eor_imm_32 = [Tuple!(opcode, string[])(opcode.eor_imm_32, ["rd","rn","imm"])];
+
+instr_32 parse_eor_imm_32(const uint instr) {
+	instr_32 res;
+	res.op      = opcode.eor_imm_32;
+	ubyte imm_8 = cast(ubyte)( instr        & 0xff);
+	ubyte rd    = cast(ubyte)((instr >>  8) & 0x0f);
+	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x07);
+	ubyte rn    = cast(ubyte)((instr >> 16) & 0x0f);
+	ubyte S     = cast(ubyte)((instr >> 20) & 0x01);
+	ubyte i     = cast(ubyte)((instr >> 26) & 0x01);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.set_flags = S == 1 ? true : false;
+	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
+	res.imm = thumb_expand_imm(imm_12);
+	return res;
+}
+
+// ========================
+//  Execute EOR(Immediate)
+// ========================
+
+void execute_eor_imm_32(const ref instr_32 instr, ref cortex_m_cpu cpu) {
+	const uint imm  = cpu.get(instr.rm);
+	const uint rn   = cpu.get(instr.rn);
+    const uint res = rn ^ imm;
+	if (!cpu.in_it_block()) {
+		cpu.z = (res == 0);
+		cpu.n = (res & 0x80000000) != 0;
+	}
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(4);
+}
+// ---------------------------------------------------------------------------------------
+
 // ----------------------------------------- SBC -----------------------------------------
 
 // ======================

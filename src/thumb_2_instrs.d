@@ -12,6 +12,29 @@ enum shift_type : ubyte {
 	invalid
 }
 
+// ================
+//  GET SHIFT TYPE
+// ================
+
+shift_type get_shift_type(ubyte type, ubyte imm) {
+	switch (type) {
+		case 0b00:
+			return shift_type.lsl;
+		case 0b01:
+			return shift_type.lsr;
+		case 0b10:
+			return shift_type.asr;
+		case 0b11:
+			if (imm == 0b0000) {
+				return shift_type.rrx;
+			} else {
+				return shift_type.ror;
+			}
+		default:
+			return shift_type.invalid;
+	}
+}
+
 // =======
 //  Shift
 // =======
@@ -36,6 +59,44 @@ uint shift(shift_type t, uint n, uint val) {
 		default:
 			assert(false, "Invalid shift type");
 	}
+}
+// ---------------------------------------------------------------------------------------
+
+// ===================
+//  GET SHIFTER CARRY
+// ===================
+
+bool get_shifter_carry(uint val, shift_type t, uint n, bool c) {
+	if (n == 0) {
+		return c;
+	}
+    final switch (t) {
+        case shift_type.lsl:
+        	return (n < 32)
+            	? ((val >> (32 - n)) & 1) != 0
+            	: (n == 32)
+                	? (val & 1) != 0
+                	: false;
+        case shift_type.lsr:
+            return (n <= 32)
+                ? ((val >> (n - 1)) & 1) != 0
+                : false;
+        case shift_type.asr:
+            return (n <= 32)
+                ? ((val >> (n - 1)) & 1) != 0
+                : ((val & 0x8000_0000) != 0);
+        case shift_type.ror:
+            const uint rot = n & 31;
+            return rot != 0
+                ? ((val >> (rot - 1)) & 1) != 0
+                : c;
+        case shift_type.rrx:
+        	return (val & 1) != 0;
+        case shift_type.none:
+            return c;
+        case shift_type.invalid:
+            assert(false, "Invalid shift type");
+    }
 }
 // ---------------------------------------------------------------------------------------
 

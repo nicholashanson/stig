@@ -40,7 +40,6 @@ enum opcode : ubyte {
 	dmb_32,
 	dsb_32,
 	eor_reg,
-	eor_reg_32,
 	isb_32,
 	if_then,
 	ldr_ex,
@@ -190,11 +189,13 @@ enum opcode : ubyte {
 	bic_reg_32, 	// bitwise bit clear
 	cmn_reg_32, 	// compare negative
 	cmp_reg_32, 	// compare
+	eor_reg_32,		// exclusive or
 	mvn_reg_32, 	// bitwise NOT
 	orn_reg_32, 	// bitwise OR NOT
 	orr_reg_32, 	// bitwise OR
 	sbc_reg_32,		// subtract with carry
 	sub_reg_32,
+	teq_reg_32, 	// test equivalence
 	tst_reg_32,		// test
 	// -------------------------------------------------------------------------------------- 
 	// -----------------------Data Processing (Plain Binary Immediate)----------------------- 
@@ -279,12 +280,9 @@ opcode decode_data_proc(ushort instr) {
 	{
 		case 0b0000: return opcode.and_reg;
 		case 0b0001: return opcode.eor_reg;
-		
-		
 		case 0b0010: return opcode.lsl_reg;
 		case 0b0011: return opcode.lsr_reg;
 		case 0b0101: return opcode.adc_reg;
-		
 		case 0b1000: return opcode.tst;
 		case 0b1001: return opcode.negs;
 		case 0b1010: return opcode.cmp_reg;
@@ -676,6 +674,7 @@ opcode decode_data_proc_shift_reg(uint instr) {
 			if (rd == pc && s == 1) return opcode.cmp_reg_32; 
 			if (rd != pc) return opcode.sub_reg_32;
 			return opcode.invalid;
+		case 0b0100: return rd == pc ? opcode.teq_reg_32 : opcode.eor_reg_32;
 		case 0b1011: return opcode.sbc_reg_32;
 		case 0b1010: return opcode.adc_reg_32;
 		case 0b1000: return rd == pc ? opcode.cmn_reg_32 : opcode.add_reg_32;
