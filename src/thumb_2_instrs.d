@@ -19,13 +19,22 @@ enum shift_type : ubyte {
 uint shift(shift_type t, uint n, uint val) {
 	switch (t) {
 		case shift_type.lsl:
-			return (val << n);
+			return (n >= 32) ? 0 : (val << n);
 		case shift_type.lsr:
-			return (val >>> n);
+			return (n >= 32) ? 0 : (val >>> n);
 		case shift_type.asr:
-			return (val >> n);
+			return (n >= 32)
+				? (val & 0x80000000) != 0 ? 0xFFFF_FFFF : 0
+				: (val >> n);
+		case shift_type.ror:
+			n &= 31; 
+			if (n == 0) return val;
+			return (val >>> n) | (val << (32 - n));
+		case shift_type.none:
+			return val;
+		case shift_type.invalid:
 		default:
-			return 0;
+			assert(false, "Invalid shift type");
 	}
 }
 // ---------------------------------------------------------------------------------------
