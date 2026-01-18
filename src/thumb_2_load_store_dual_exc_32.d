@@ -55,3 +55,42 @@ void execute_tbb_tbh_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memo
 	cpu.increment_pc(2 * half_words);
 }
 // ---------------------------------------------------------------------------------------
+
+// ---------------------------------------- LDREX ----------------------------------------
+
+// =============
+//  Parse LDREX
+// =============
+
+enum field_tuples_ldrex_32 = [Tuple!(opcode, string[])(opcode.ldr_ex, ["rt","rn","imm"])];
+
+/*
+	Load/Store Dual or Exclusive, Table Branch
+	LDREX <Rt>,[<Rn>{,#<imm8>}]
+	First Half-Word: [15:4] 111010000101, [3:0] Rn
+	Second Half-Word: [15:12] Rt, [11:8] 1111, [7:0] imm8
+*/
+instr_32 parse_ldrex_32(uint instr) {
+	instr_32 res;
+	res.op = opcode.ldr_ex;
+	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	res.imm = imm_8 << 2;
+	res.rt = cast(reg)(rt);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
+// ===============
+//  Execute LDREX
+// ===============
+
+void execute_ldrex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	uint addr = cpu.get(instr.rn);
+	addr += instr.imm;
+	int val = mem.read_word(addr);
+	cpu.set(instr.rt, val);
+	cpu.increment_pc(4);
+}
+// ---------------------------------------------------------------------------------------

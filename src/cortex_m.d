@@ -647,6 +647,7 @@ enum all_field_tuples =
 	~ field_tuples_eor_imm_32
 	~ field_tuples_if_then
 	~ field_tuples_isb_32
+	~ field_tuples_ldrex_32
 	~ field_tuples_ldr_imm
 	~ field_tuples_ldr_imm_32_t3
 	~ field_tuples_ldr_lit_32
@@ -2944,43 +2945,6 @@ void execute_syc_tick(ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.set(reg.pc, pc);
 }
 
-bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
-	switch (cond) {
-		case condition.eq:
-			return (cpu.z == 1);
-		case condition.ne:
-			return (cpu.z == 0);
-		case condition.cc:
-			return (cpu.c == 0);
-		case condition.cs: 
-			return cpu.c == 1;
-		case condition.ge:
-			return (cpu.n == cpu.v);
-		case condition.mi: 
-			return cpu.n == 1;
-		case condition.pl: 
-			return cpu.n == 0;
-		case condition.hi:
-			return (cpu.c == 1 && cpu.z == 0);
-		case condition.ls:
-			return ((cpu.c == 0) || (cpu.z == 1));
-		case condition.vs: 
-			return cpu.v == 1;
-        case condition.vc: 
-        	return cpu.v == 0;
-        case condition.lt:
-    		return cpu.n != cpu.v;
-		case condition.gt:
-    		return (cpu.z == 0 && cpu.n == cpu.v);
-		case condition.le:
-    		return (cpu.z == 1 || cpu.n != cpu.v);
-		case condition.al:
-    		return true;
-		default:
-			return false;
-	}
-}
-
 // ============
 //  Execute BR
 // ============
@@ -5267,28 +5231,6 @@ instr_32 parse_mvn_imm_32(uint instr) {
 }
 
 // =============
-//  Parse LDREX
-// =============
-
-/*
-	Branches and Miscellaneous Control
-	First Half-Word: [15:4] 111010000101, [3:0] Rn
-	Second Half-Word: [15:12] Rt, [11:8] 1111, [7:0] imm8
-*/
-instr_32 parse_ldrex_32(uint instr) {
-	instr_32 res;
-	res.op = opcode.ldr_ex;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	uint imm = cast(ubyte)((imm_8 << 2) | 0b00);
-	res.imm = imm;
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	return res;
-}
-
-// =============
 //  Parse STREX
 // =============
 
@@ -6663,18 +6605,6 @@ void execute_mvn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 		cpu.n = (res == 0);
 		cpu.z = (res < 0);
 	}
-	cpu.increment_pc(4);
-}
-
-// ===============
-//  Execute LDREX
-// ===============
-
-void execute_ldrex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	uint addr = cpu.get(instr.rn);
-	addr += instr.imm;
-	int val = mem.read_word(addr);
-	cpu.set(instr.rt, val);
 	cpu.increment_pc(4);
 }
 

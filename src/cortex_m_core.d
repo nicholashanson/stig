@@ -43,6 +43,43 @@ enum condition : ubyte {
 	invalid = 0xff
 }
 
+bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
+	switch (cond) {
+		case condition.eq:
+			return (cpu.z == 1);
+		case condition.ne:
+			return (cpu.z == 0);
+		case condition.cc:
+			return (cpu.c == 0);
+		case condition.cs: 
+			return cpu.c == 1;
+		case condition.ge:
+			return (cpu.n == cpu.v);
+		case condition.mi: 
+			return cpu.n == 1;
+		case condition.pl: 
+			return cpu.n == 0;
+		case condition.hi:
+			return (cpu.c == 1 && cpu.z == 0);
+		case condition.ls:
+			return ((cpu.c == 0) || (cpu.z == 1));
+		case condition.vs: 
+			return cpu.v == 1;
+        case condition.vc: 
+        	return cpu.v == 0;
+        case condition.lt:
+    		return cpu.n != cpu.v;
+		case condition.gt:
+    		return (cpu.z == 0 && cpu.n == cpu.v);
+		case condition.le:
+    		return (cpu.z == 1 || cpu.n != cpu.v);
+		case condition.al:
+    		return true;
+		default:
+			return false;
+	}
+}
+
 condition get_negation(condition cond) {
 	if (cond == condition.invalid) {
 		return condition.invalid;
