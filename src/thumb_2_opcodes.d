@@ -167,6 +167,7 @@ enum opcode : ubyte {
 	//asr_reg_32,
 	ror_reg_32,
 	smull_32,
+	tbb_tbh_32,
 
 
 	// --------------------------Data Processing (Modified Immediate)-------------------------- 
@@ -784,6 +785,7 @@ opcode decode_load_half_word(uint instr) {
 opcode decode_load_store_dual(uint instr) {
 	ubyte op1 = cast(ubyte)((instr >> 23) & 0x3);
 	ubyte op2 = cast(ubyte)((instr >> 20) & 0x3);
+	ubyte op3 = cast(ubyte)((instr >>  4) & 0xf);
 	ubyte op1_masked = cast(ubyte)(op1 & 0b10);
 	ubyte op2_masked = cast(ubyte)(op2 & 0b01);
 	if (op1_masked == 0b00 && op2 == 0b10) {
@@ -803,6 +805,9 @@ opcode decode_load_store_dual(uint instr) {
 	}
 	if (op2 == 0b00 && op1 == 0b00) {
 		return opcode.str_rex;
+	}
+	if (op1 == 0b01 && op2 == 0b01 && ((op3 == 0b0001) | (op3 == 0b0000))) {
+		return opcode.tbb_tbh_32;
 	}
 	return opcode.invalid;
 }
@@ -1220,7 +1225,8 @@ unittest {
 		test_case(0xf8a28002, opcode.strh_imm_32_t2),
 		test_case(0xf1720100, opcode.sbc_imm_32),
 		test_case(0xfa90f7a0, opcode.rbit_32),
-		test_case(0xf837c012, opcode.ldh_32)
+		test_case(0xf837c012, opcode.ldh_32),
+		test_case(0xe8dff012, opcode.tbb_tbh_32)
 	];
 
 	foreach (t; tests) {

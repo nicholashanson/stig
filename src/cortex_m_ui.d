@@ -300,7 +300,7 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
 void main(string[] args) {
     bool isPlaying = false;
     auto lastTime = MonoTime.currTime;       // last execution time
-    auto interval = dur!"msecs"(100);
+    auto interval = dur!"msecs"(20);
     auto lastDraw = MonoTime.currTime;
     auto frameInterval = dur!"msecs"(33); // ~30 FPS
 
@@ -334,7 +334,7 @@ void main(string[] args) {
     noecho();
     keypad(stdscr, true);
 
-    timeout(100);
+    timeout(20);
 
     regPad = newpad(32, 50);
     flagPad = newpad(42, 25);
@@ -371,6 +371,11 @@ void main(string[] args) {
         }
     } else if (objdump_file_name == "../test/dsp_asm.txt") {
         foreach (name; dsp_func_names) {
+            func f = get_function(objdump_file_name, name);
+            f_s ~= f;
+        }
+    } else if (objdump_file_name == "../test/freertos_blink_asm.txt") {
+        foreach (name; freertos_func_names) {
             func f = get_function(objdump_file_name, name);
             f_s ~= f;
         }

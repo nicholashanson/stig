@@ -181,6 +181,7 @@ struct instr_32 {
 	bool add;
 	bool index;
 	ubyte mask;
+	bool is_tbh;
 	special_reg spec_reg;
 	bool set_flags;
 }
@@ -232,6 +233,7 @@ bool is_store(opcode op) {
 		case opcode.ldr_ex:
 		case opcode.str_rex:
 		case opcode.ldh_32:
+		case opcode.tbb_tbh_32:
 			return true;
 		default:
 			return false;

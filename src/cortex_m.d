@@ -31,6 +31,7 @@ import thumb_2_misc_ops_32;
 import thumb_2_data_proc_reg_32;
 import thumb_2_long_mult_acc_div_32;
 import thumb_2_data_proc_shift_reg_32;
+import thumb_2_load_store_dual_exc_32;
 import file_parsing;
 
 File* stack_log_ptr = null;
@@ -2625,7 +2626,7 @@ void execute_lsr_imm(instr_16 lsr_imm_instr, ref cortex_m_cpu cpu) {
 	int res = rm >>> (lsr_imm_instr.imm - 1);
 	bool carry = (res & 1);
 	res = res >>> 1;
-	if (lsr_imm_instr.set_flags) {
+	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
 		cpu.n = (res < 0);
 		cpu.c = carry;
@@ -5925,6 +5926,8 @@ instr_32 decode_instr(uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.tbb_tbh_32:
+			return parse_tbb_tbh_32(instr);
 		case opcode.eor_imm_32:
 			return parse_eor_imm_32(instr);
 		case opcode.eor_reg_32:
@@ -7256,6 +7259,8 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 		}
 	}
 	switch (instr.op) {
+		case opcode.tbb_tbh_32:
+			return execute_tbb_tbh_32(instr, cpu, mem);
 		case opcode.stmia_32:
 			return execute_stmia_32(instr, cpu, mem);
 		case opcode.pop_mult_reg_32:
@@ -8402,7 +8407,7 @@ string[] table_names = [
 	//"_k_thread_data_led1_id",
 	//"_k_thread_data_led2_id",
 	"rodata",
-	//"_static_thread_data_area",
+	"_static_thread_data_area",
 	"device_area",
 	"initlevel",
 	"uart_driver_api_area",
@@ -8461,6 +8466,11 @@ struct cortex_m_vm {
 				}
 			} else if (filename == "../test/freertos_no_task_asm.txt") {
 				foreach (s; freertos_no_task) {
+					func f = get_function(filename, s);
+					current_program ~= f.instrs;
+				}
+			} else if (filename == "../test/freertos_blink_asm.txt") {
+				foreach (s; freertos_func_names) {
 					func f = get_function(filename, s);
 					current_program ~= f.instrs;
 				}
