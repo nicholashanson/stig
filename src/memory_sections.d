@@ -2,6 +2,15 @@ import std.stdio;
 
 import cortex_m_core;
 
+File* stack_log_ptr = null;
+
+File* stack_log() {
+    if (stack_log_ptr is null) {
+        stack_log_ptr = new File("stack_log.txt", "w");
+    }
+    return stack_log_ptr;
+}
+
 File* uart_log_ptr = null;
 
 File* uart_log() {

@@ -15,8 +15,8 @@ enum field_tuples_asr_reg_32 = [Tuple!(opcode, string[])(opcode.asr_reg_32, ["rd
 /*
 	Data Processing (Register)
 	ASR <Rd>, <Rn>, <Rm>
-	[15:5] 11111010010, [4] S, [3:0] Rn
-	[15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
+	First Half-Word: [15:5] 11111010010, [4] S, [3:0] Rn
+	Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
 */
 instr_32 parse_asr_reg_32(const uint instr) {
 	instr_32 res;
@@ -75,8 +75,8 @@ enum field_tuples_uxth_32 = [Tuple!(opcode, string[])(opcode.uxth_32, ["rd","rm"
 /*
 	Data Processing (Register)
 	UXTH.W <Rd>,<Rm>{,<rotation>}
-	[15:5] 11111010010, [4] S, [3:0] Rn
-	[15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
+	First Half-Word: [15:5] 11111010010, [4] S, [3:0] Rn
+	Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
 */
 instr_32 parse_uxth_32(const uint instr) {
 	instr_32 res;

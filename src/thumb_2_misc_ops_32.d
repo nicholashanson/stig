@@ -15,9 +15,8 @@ enum field_tuples_rbit_32 = [Tuple!(opcode, string[])(opcode.rbit_32, ["rt","rn"
 instr_32 parse_rbit_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.rbit_32;
-	ubyte rm = cast(ubyte)( instr        & 0x0f);
-	ubyte rd = cast(ubyte)((instr >>  8) & 0x0f);
-	//ubyte rm = cast(ubyte)((instr >> 16) & 0x0f);
+	ubyte rm = cast(ubyte)( instr       & 0x0f);
+	ubyte rd = cast(ubyte)((instr >> 8) & 0x0f);
 	res.rd = cast(reg)(rd);
 	res.rm = cast(reg)(rm);
 	return res;

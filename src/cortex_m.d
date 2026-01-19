@@ -34,15 +34,6 @@ import thumb_2_data_proc_shift_reg_32;
 import thumb_2_load_store_dual_exc_32;
 import file_parsing;
 
-File* stack_log_ptr = null;
-
-File* stack_log() {
-    if (stack_log_ptr is null) {
-        stack_log_ptr = new File("stack_log.txt", "w");
-    }
-    return stack_log_ptr;
-}
-
 File* pc_log_ptr = null;
 
 File* pc_log() {
@@ -1557,37 +1548,6 @@ instr_16 parse_negs(short instr) {
 	return res;
 }
 
-// ====================
-//  Parse Pop Mult Reg
-// ====================
-
-enum field_tuples_pop_mult_reg = [Tuple!(opcode, string[])(opcode.pop_mult_reg, ["reg_list"])];
-/*
-	Load Multiple Registers
-	LDM <Rn>!,<registers>
-	[15:9] 11001
-	[10:8] Rn
-	[7:0] register_list  
-*/
-instr_16 parse_pop_mult_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.pop_mult_reg;
-	ubyte p = cast(ubyte)((instr >> 8) & 0b1);
-	ubyte reg_mask = cast(ubyte)(instr & 0xff);
-	if (reg_mask & 0x01) res.reg_list ~= reg.r0;
-	if (reg_mask & 0x02) res.reg_list ~= reg.r1;
-	if (reg_mask & 0x04) res.reg_list ~= reg.r2;
-	if (reg_mask & 0x08) res.reg_list ~= reg.r3;
-	if (reg_mask & 0x10) res.reg_list ~= reg.r4;
-	if (reg_mask & 0x20) res.reg_list ~= reg.r5;
-	if (reg_mask & 0x40) res.reg_list ~= reg.r6;
-	if (reg_mask & 0x80) res.reg_list ~= reg.r7;
-	if (p) {
-		res.reg_list ~= reg.pc;
-	}
-	return res;
-}
-
 // =====================
 //  Parse Push Mult Reg
 // =====================
@@ -2750,35 +2710,6 @@ void execute_ldr_pool(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.increment_pc(2);
 }
 
-void exception_return(ref cortex_m_cpu cpu, ref memory mem, uint exc_return) {
-    bool return_to_thread = (exc_return & (1 << 3)) != 0;
-    bool use_psp = (exc_return & (1 << 2)) != 0;
-
-    cpu.sp_sel = use_psp;
-
-    auto f = stack_log();
-	instr_16 pop_instr = instr_16(op: opcode.pop_mult_reg, 
-	                              reg_list: [reg.r0, 
-	                                         reg.r1, 
-	                                         reg.r2, 
-	                                         reg.r3, 
-	                                         reg.r12, 
-	                                         reg.lr, 
-	                                         reg.pc]);
-	execute_pop_mult_reg(pop_instr, cpu, mem);
-	uint addr_xpsr = cpu.get_sp();
-	cpu.set_xpsr(mem.pop(cpu));
-    f.writeln(format("xpsr: [%08X] popped from [%08X]", cpu.get_xpsr(), addr_xpsr));
-	f.flush();
-    cpu.pc &= ~1;
-
-    if (return_to_thread)
-        cpu.current_exception = exception.thread_mode;
-
-    if (return_to_thread)
-        cpu.npriv = false;
-}
-
 // ============
 //  Execute BX
 // ============
@@ -2924,36 +2855,6 @@ void execute_push_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem)
 		f.flush();
 	}
 	cpu.increment_pc(2);
-} 
-
-// ======================
-//  Execute POP MULT REG
-// ======================
-
-void execute_pop_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = stack_log();
-	auto regs = instr.reg_list.dup; 
-	regs.sort!((a,b) => cast(int)a < cast(int)b);
-	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
-	f.writeln(format("Popping from %s at [%08X]", stack_s, cpu.pc));
-	foreach (r; regs) {
-		uint addr = cpu.get_sp();
-		int val = mem.pop(cpu);
-		cpu.set(r, val);
-		f.writeln(format("%s: [%08X] popped from [%08X]", r.to!string, cpu.get(r), addr));
-		f.flush();
-	}
-	if (regs.back == reg.pc) {
-		if ((cpu.pc & 0xff000000) == 0xff000000) {
-	        exception_return(cpu, mem, cpu.pc);
-	        return;
-	    }
-		uint pc = cpu.get(reg.pc);
-		pc &= ~0b1;
-		cpu.set(reg.pc, pc);
-	} else {
-		cpu.increment_pc(2);
-	}
 } 
 
 // ===================
@@ -3782,47 +3683,6 @@ instr_32 parse_mov_imm_32_t2(uint instr) {
 	int imm_32 = thumb_expand_imm(imm_12);
 	res.rd = cast(reg)(rd);
 	res.imm = imm_32;
-	return res;
-}
-
-// ===========
-//  Parse ADD
-// ===========
-
-enum field_tuples_add_reg_32 = [Tuple!(opcode, string[])(opcode.add_reg_32, ["rd","rn","rm"])];
-/*
-	Data Processing (Shifted Register)
-	First Half-Word:
-	[15:5] 1110101000
-	[4] S
-	[3:0] Rn
-	Second Half-Word:
-	[15] 0
-	[14:12] imm3
-	[11:8] Rd
-	[7:6] imm2
-	[5:4] type
-	[3:0] Rm
-*/
-instr_32 parse_add_reg_32(uint instr) {
-	instr_32 res;
-	res.op = opcode.add_reg_32;
-	ubyte rm = cast(ubyte)(instr & 0b1111);
-	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
-	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0b1111);
-	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
-	ubyte imm_5 = cast(ubyte)((imm_3 << 2) | (imm_2));
-	res.shift_t = get_shift_type(type, imm_5);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0b1111);
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
-	res.rm = cast(reg)(rm);
-	if (res.shift_t == shift_type.rrx) {
-		res.shift_n = 1;
-	} else {
-		res.shift_n = imm_5;
-	}
 	return res;
 }
 
@@ -4914,7 +4774,7 @@ instr_32 parse_push_mult_reg_32(uint instr) {
 //  Parse ORR REG
 // ===============
 
-enum field_tuples_orr_reg_32 = [Tuple!(opcode, string[])(opcode.orr_reg_32, ["rd","rn","rm","shift","imm"])];
+enum field_tuples_orr_reg_32 = [Tuple!(opcode, string[])(opcode.orr_reg_32, ["rd","rn","rm","shift"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -4955,7 +4815,7 @@ instr_32 parse_orr_reg_32(uint instr) {
 //  Parse SUB
 // ===========
 
-enum field_tuples_sub_reg_32 = [Tuple!(opcode, string[])(opcode.sub_reg_32, ["rd","rn","rm"])];
+enum field_tuples_sub_reg_32 = [Tuple!(opcode, string[])(opcode.sub_reg_32, ["rd","rn","rm","shift"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -5187,19 +5047,12 @@ instr_32 parse_tst_imm_32(uint instr) {
 //  Parse AND(Register)
 // =====================
 
+enum field_tuples_and_reg_32 = [Tuple!(opcode, string[])(opcode.and_reg_32, ["rd","rn","rm","shift"])];
 /*
 	Branches and Miscellaneous Control
-	First Half-Word:
-	[15:5] 11101010000
-	[4] S
-	[3:0] Rn
-	Second Half-Word:
-	[15] 0
-	[14:12] imm3
-	[11:8] Rd
-	[7:6] imm2
-	[5:4] type
-	[3:0] Rm
+	AND.W <Rd>,<Rn>,<Rm>{,<shift>}
+	First Half-Word: [15:5] 11101010000, [4] S, [3:0] Rn
+	Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type, [3:0] Rm
 */
 instr_32 parse_and_reg_32(uint instr) {
 	instr_32 res;
@@ -5921,19 +5774,6 @@ unittest {
 		    format("Failed for instruction 0x%08X", t.instr)
 		);
     }
-}
-
-// ==============
-//  Executre ADD
-// ==============
-
-void execute_add_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	// instr_32(op: opcode.add_32_reg, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2),
-	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
-	int rn = cpu.get(instr.rn);
-	int res = rn + shifted;
-	cpu.set(instr.rd, res);
-	cpu.increment_pc(4);
 }
 
 // =============
@@ -7947,8 +7787,11 @@ string convert_to_string(uint instr) {
 		if (field == "ra") {
 			ops ~= get_register_name(parsed_instr.ra);
 		}
-		if (field == "shift") {
-			ops ~= parsed_instr.cond.to!string;
+		if (field == "shift" && parsed_instr.shift_t != shift_type.none) {
+			string shift_s = parsed_instr.shift_t.to!string;
+			shift_s ~= " #";
+			shift_s ~= parsed_instr.shift_n.to!string;
+			ops ~= shift_s;
 		}
 		if (field == "rm") {
 			string rm_s;

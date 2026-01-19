@@ -34,9 +34,9 @@ instr_32 parse_adc_imm_32(const uint instr) {
 // ========================
 
 void execute_adc_imm_32(const ref instr_32 instr, ref cortex_m_cpu cpu) {
-	uint imm  = cpu.get(instr.rm);
-	uint rn   = cpu.get(instr.rn);
-	uint c    = cast(uint)(cpu.c);
+	uint imm = instr.imm;
+	uint rn  = cpu.get(instr.rn);
+	uint c   = cast(uint)(cpu.c);
 	ulong wide_res = cast(ulong)rn + cast(ulong)imm + cast(ulong)c;
     uint res = cast(uint)wide_res;
 	if (!cpu.in_it_block()) {
@@ -82,8 +82,8 @@ instr_32 parse_eor_imm_32(const uint instr) {
 // ========================
 
 void execute_eor_imm_32(const ref instr_32 instr, ref cortex_m_cpu cpu) {
-	const uint imm  = cpu.get(instr.rm);
-	const uint rn   = cpu.get(instr.rn);
+	const uint imm = cpu.get(instr.rm);
+	const uint rn  = cpu.get(instr.rn);
     const uint res = rn ^ imm;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
@@ -117,11 +117,11 @@ instr_32 parse_mvn_imm_32(uint instr) {
 // =================
 
 void execute_mvn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int res = ~instr.imm;
+	const uint res = ~instr.imm;
 	cpu.set(instr.rd, res);
 	if (instr.set_flags) {
 		cpu.n = (res == 0);
-		cpu.z = (res < 0);
+		cpu.n = (res & 0x80000000) != 0;
 	}
 	cpu.increment_pc(4);
 }
@@ -157,12 +157,12 @@ instr_32 parse_orn_imm_32(uint instr) {
 // ====================
 
 void execute_orn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int rn = cpu.get(instr.rn);
-	int res = rn | (~instr.imm);
+	const uint rn = cpu.get(instr.rn);
+	const uint res = rn | (~instr.imm);
 	cpu.set(instr.rd, res);
 	if (instr.set_flags) {
 		cpu.n = (res == 0);
-		cpu.z = (res < 0);
+		cpu.n = (res & 0x80000000) != 0;
 	}
 	cpu.increment_pc(4);
 }

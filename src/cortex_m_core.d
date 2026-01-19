@@ -1,5 +1,11 @@
 import std.container;
 import std.conv;
+import std.format;
+
+import memory_sections;
+import thumb_2_misc_16;
+import thumb_2_instrs;
+import thumb_2_opcodes;
 
 enum special_reg : ubyte {
 	APSR = 			0b00000000,
@@ -18,11 +24,46 @@ enum special_reg : ubyte {
 	CONTROL =		0b00010100
 }
 
+// ------------------------------------- Exception -------------------------------------- 
+
 enum exception {
 	thread_mode,
 	SVC_IRQn = 11,
 	SysTick_IRQn = 15
 }
+
+void exception_return(ref cortex_m_cpu cpu, ref memory mem, uint exc_return) {
+    bool return_to_thread = (exc_return & (1 << 3)) != 0;
+    bool use_psp = (exc_return & (1 << 2)) != 0;
+
+    cpu.sp_sel = use_psp;
+
+    auto f = stack_log();
+	instr_16 pop_instr = instr_16(op: opcode.pop_mult_reg, 
+	                              reg_list: [reg.r0, 
+	                                         reg.r1, 
+	                                         reg.r2, 
+	                                         reg.r3, 
+	                                         reg.r12, 
+	                                         reg.lr, 
+	                                         reg.pc]);
+	execute_pop_mult_reg(pop_instr, cpu, mem);
+	uint addr_xpsr = cpu.get_sp();
+	cpu.set_xpsr(mem.pop(cpu));
+    f.writeln(format("xpsr: [%08X] popped from [%08X]", cpu.get_xpsr(), addr_xpsr));
+	f.flush();
+    cpu.pc &= ~1;
+
+    if (return_to_thread)
+        cpu.current_exception = exception.thread_mode;
+
+    if (return_to_thread)
+        cpu.npriv = false;
+}
+
+// --------------------------------------------------------------------------------------
+
+// ------------------------------------- Condition --------------------------------------
 
 enum condition : ubyte {
 	cs = 0b0010,	// carry set
@@ -44,39 +85,23 @@ enum condition : ubyte {
 }
 
 bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
-	switch (cond) {
-		case condition.eq:
-			return (cpu.z == 1);
-		case condition.ne:
-			return (cpu.z == 0);
-		case condition.cc:
-			return (cpu.c == 0);
-		case condition.cs: 
-			return cpu.c == 1;
-		case condition.ge:
-			return (cpu.n == cpu.v);
-		case condition.mi: 
-			return cpu.n == 1;
-		case condition.pl: 
-			return cpu.n == 0;
-		case condition.hi:
-			return (cpu.c == 1 && cpu.z == 0);
-		case condition.ls:
-			return ((cpu.c == 0) || (cpu.z == 1));
-		case condition.vs: 
-			return cpu.v == 1;
-        case condition.vc: 
-        	return cpu.v == 0;
-        case condition.lt:
-    		return cpu.n != cpu.v;
-		case condition.gt:
-    		return (cpu.z == 0 && cpu.n == cpu.v);
-		case condition.le:
-    		return (cpu.z == 1 || cpu.n != cpu.v);
-		case condition.al:
-    		return true;
-		default:
-			return false;
+	final switch (cond) {
+		case condition.eq: return cpu.z == 1;
+		case condition.ne: return cpu.z == 0;
+		case condition.cc: return cpu.c == 0;
+		case condition.cs: return cpu.c == 1;
+		case condition.ge: return cpu.n == cpu.v;
+		case condition.mi: return cpu.n == 1;
+		case condition.pl: return cpu.n == 0;
+		case condition.hi: return cpu.c == 1 && cpu.z == 0;
+		case condition.ls: return (cpu.c == 0) || (cpu.z == 1);
+		case condition.vs: return cpu.v == 1;
+        case condition.vc: return cpu.v == 0;
+        case condition.lt: return cpu.n != cpu.v;
+		case condition.gt: return cpu.z == 0 && cpu.n == cpu.v;
+		case condition.le: return cpu.z == 1 || cpu.n != cpu.v;
+		case condition.al: return true;
+		case condition.invalid: assert(false, "Invalid condition");
 	}
 }
 
@@ -86,6 +111,8 @@ condition get_negation(condition cond) {
 	}
 	return cast(condition)(cond ^ 1);
 }
+
+// --------------------------------------------------------------------------------------
 
 enum reg : ubyte {
 	r0,
