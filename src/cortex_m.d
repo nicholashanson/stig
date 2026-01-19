@@ -1557,29 +1557,6 @@ instr_16 parse_negs(short instr) {
 	return res;
 }
 
-// =====================
-//  Parse ORR(Register)
-// =====================
-
-enum field_tuples_lor_reg = [Tuple!(opcode, string[])(opcode.lor_reg, ["rd","rm"])];
-/*
-	Data Processing
-	ORR <Rdn>,<Rm>
-	[15:6] 0100001100
-	[5:3] Rm
-	[2:0] Rdn
-*/
-instr_16 parse_lor_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.lor_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
 // ====================
 //  Parse Pop Mult Reg
 // ====================
@@ -1936,9 +1913,7 @@ enum field_tuples_uxtb = [Tuple!(opcode, string[])(opcode.uxtb, ["rd","rm"])];
 /*
 	Miscellaneous 16-Bit Instructions
 	UXTB <Rd>,<Rm>
-	[15:6] 1011001011
-	[5:3] Rm
-	[2:0] Rd  
+	[15:6] 1011001011, [5:3] Rm, [2:0] Rd  
 */
 instr_16 parse_uxtb(short instr) {
 	instr_16 res;
@@ -1958,9 +1933,7 @@ enum field_tuples_uxth = [Tuple!(opcode, string[])(opcode.uxth, ["rd","rm"])];
 /*
 	Miscellaneous 16-Bit Instructions
 	UXTB <Rd>,<Rm>
-	[15:6] 1011001011
-	[5:3] Rm
-	[2:0] Rd  
+	[15:6] 1011001011, [5:3] Rm, [2:0] Rd  
 */
 instr_16 parse_uxth(short instr) {
 	instr_16 res;
@@ -2612,22 +2585,6 @@ void execute_lsr_imm(instr_16 lsr_imm_instr, ref cortex_m_cpu cpu) {
 		cpu.c = carry;
 	}
 	cpu.set(lsr_imm_instr.rd, res);
-	cpu.increment_pc(2);
-}
-
-// =============
-//  Execute LOR
-// =============
-
-void execute_lor_reg(instr_16 lor_reg_instr, ref cortex_m_cpu cpu) {
-	int rn = cpu.get(lor_reg_instr.rn);
-	int rm = cpu.get(lor_reg_instr.rm);
-	int res = rn | rm;
-	if (lor_reg_instr.set_flags) {
-		cpu.z = (res == 0);
-		cpu.n = (res < 0);
-	}
-	cpu.set(lor_reg_instr.rd, res);
 	cpu.increment_pc(2);
 }
 

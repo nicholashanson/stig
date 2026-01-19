@@ -133,7 +133,7 @@ void execute_bic_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 
 enum field_tuples_cmp_reg = [Tuple!(opcode, string[])(opcode.cmp_reg, ["rn","rm"])];
 /*
-	Special Data Instructions and Branch and Exchange
+	Data Processing
 	CMP <Rn>,<Rm>
 	[15:6] 0100001010, [5:3] Rm, [2:0] Rn
 */
@@ -329,4 +329,42 @@ void execute_mul(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ----------------------------------------- LOR -----------------------------------------
 
+// =====================
+//  Parse ORR(Register)
+// =====================
+
+enum field_tuples_lor_reg = [Tuple!(opcode, string[])(opcode.lor_reg, ["rd","rm"])];
+/*
+	Data Processing
+	ORR <Rdn>,<Rm>
+	[15:6] 0100001100, [5:3] Rm, [2:0] Rdn
+*/
+instr_16 parse_lor_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.lor_reg;
+	ubyte rdn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =======================
+//  Execute ORR(Register)
+// =======================
+
+void execute_lor_reg(const instr_16 instr, ref cortex_m_cpu cpu) {
+	const uint rn = cpu.get(instr.rn);
+	const uint rm = cpu.get(instr.rm);
+	const uint res = rn | rm;
+	if (instr.set_flags) {
+		cpu.z = (res == 0);
+		cpu.n = (res & 0x80000000) != 0;
+	}
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
