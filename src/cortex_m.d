@@ -1168,28 +1168,6 @@ instr_16 parse_cmp_imm(short instr) {
 //  Parse CMP(Register)
 // =====================
 
-enum field_tuples_cmp_reg = [Tuple!(opcode, string[])(opcode.cmp_reg, ["rn","rm"])];
-/*
-	Special Data Instructions and Branch and Exchange
-	CMP <Rn>,<Rm>
-	[15:6] 0100001010
-	[5:3] Rm
-	[2:0] Rn
-*/
-instr_16 parse_cmp_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.cmp_reg;
-	ubyte rn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rn = cast(reg)(rn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// =====================
-//  Parse CMP(Register)
-// =====================
-
 enum field_tuples_cmp_high_1 = [Tuple!(opcode, string[])(opcode.cmp_high_1, ["rn","rm"])];
 /*
 	Special Data Instructions and Compare and Exchange
@@ -2795,21 +2773,6 @@ void execute_strb_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	mem.write_byte(addr, data);
 	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
 	f.flush();
-	cpu.increment_pc(2);
-}
-
-// =================
-//  Execute CMP REG
-// =================
-
-void execute_cmp_reg(instr_16 cmp_reg_instr, ref cortex_m_cpu cpu) {
-	int rm = cpu.get(cmp_reg_instr.rm);
-	int rn = cpu.get(cmp_reg_instr.rn);
-	int res = rn - rm;
-	cpu.z = (res == 0);
-	cpu.n = (res < 0);
-	cpu.c = cast(uint)rn >= cast(uint)rm;
-	cpu.v = (rn < 0 && res > 0);
 	cpu.increment_pc(2);
 }
 

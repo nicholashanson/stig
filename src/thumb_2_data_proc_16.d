@@ -125,6 +125,44 @@ void execute_bic_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ----------------------------------------- CMP -----------------------------------------
+
+// =====================
+//  Parse CMP(Register)
+// =====================
+
+enum field_tuples_cmp_reg = [Tuple!(opcode, string[])(opcode.cmp_reg, ["rn","rm"])];
+/*
+	Special Data Instructions and Branch and Exchange
+	CMP <Rn>,<Rm>
+	[15:6] 0100001010, [5:3] Rm, [2:0] Rn
+*/
+instr_16 parse_cmp_reg(short instr) {
+	instr_16 res;
+	res.op = opcode.cmp_reg;
+	ubyte rn = cast(ubyte)(instr & 0b111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	res.rn = cast(reg)(rn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =======================
+//  Execute CMP(Register)
+// =======================
+
+void execute_cmp_reg(instr_16 cmp_reg_instr, ref cortex_m_cpu cpu) {
+	const uint rm = cpu.get(cmp_reg_instr.rm);
+	const uint rn = cpu.get(cmp_reg_instr.rn);
+	const int res = rn - rm;
+	cpu.z = (res == 0);
+	cpu.n = (res < 0);
+	cpu.c = cast(uint)rn >= cast(uint)rm;
+	cpu.v = (rn < 0 && res > 0);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
+
 // ----------------------------------------- EOR -----------------------------------------
 
 // =====================
