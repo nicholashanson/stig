@@ -4992,47 +4992,6 @@ instr_32 parse_sub_reg_32(uint instr) {
 	return res;
 }
 
-// ===========
-//  Parse SBC
-// ===========
-
-enum field_tuples_sbc_reg_32 = [Tuple!(opcode, string[])(opcode.sbc_reg_32, ["rd","rn","rm"])];
-/*
-	Branches and Miscellaneous Control
-	First Half-Word:
-	[15:5] 11101011101
-	[4] S
-	[3:0] Rn
-	Second Half-Word:
-	[15] 0 
-	[14:12] imm3
-	[11:8] Rd
-	[7:6] imm2
-	[5:4] type
-	[3:0] Rm
-*/
-instr_32 parse_sbc_reg_32(uint instr) {
-	instr_32 res;
-	res.op = opcode.sbc_reg_32;
-	ubyte rm = cast(ubyte)(instr & 0xf);
-	ubyte type = cast(ubyte)((instr >> 4) & 0b11);
-	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0b11);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
-	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	ubyte imm = cast(ubyte)((imm_3 << 2) | imm_2);
-	res.shift_t = get_shift_type(type, imm);
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
-	res.rm = cast(reg)(rm);
-	if (res.shift_t == shift_type.rrx) {
-		res.shift_n = 1;
-	} else {
-		res.shift_n = imm;
-	}
-	return res;
-}
-
 instr_32 parse_orn_reg_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.orn_reg_32;
@@ -6401,17 +6360,6 @@ void execute_orr_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 void execute_sub_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
 	int res = cpu.get(instr.rn) - shifted;
-	cpu.set(instr.rd, res);
-	cpu.increment_pc(4);
-}
-
-// ==============
-//  Executre SBC
-// ==============
-
-void execute_sbc_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
-	int res = cpu.get(instr.rn) - shifted - cast(uint)(cpu.c);
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(4);
 }
