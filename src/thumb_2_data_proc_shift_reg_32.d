@@ -73,8 +73,8 @@ enum field_tuples_eor_reg_32 = [Tuple!(opcode, string[])(opcode.eor_reg_32, ["rd
 /*
 	Data Processing (Shifted Register)
 	EOR <Rdn>,<Rm> 
-	[15:5] 11101010100, [4] S, [3:0] Rn
-	[15] 0, [14:12] imm3, [11:8] Rd. [7:6] imm2, [5:4] type, [3:0] Rm
+	First Half-Word: [15:5] 11101010100, [4] S, [3:0] Rn
+	Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd. [7:6] imm2, [5:4] type, [3:0] Rm
 */
 instr_32 parse_eor_reg_32(const uint instr) {
 	instr_32 res;

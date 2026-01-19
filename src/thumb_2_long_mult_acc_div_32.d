@@ -40,8 +40,8 @@ void execute_smull_32(const ref instr_32 instr, ref cortex_m_cpu cpu) {
 	const int rm = cpu.get(instr.rm); 
 	const int rn = cpu.get(instr.rn);
 	const long res = cast(long)rm * cast(long)rn;
-	const uint res_hi = cast(uint)((res >> 32) & 0xffffffff);
-	const uint res_lo = cast(uint)( res        & 0xffffffff);
+	const uint res_hi = cast(uint)((res >> 32) & 0xffff_ffff);
+	const uint res_lo = cast(uint)( res        & 0xffff_ffff);
 	cpu.set(instr.rd_lo, res_lo);
 	cpu.set(instr.rd_hi, res_hi);  
 	cpu.increment_pc(4);

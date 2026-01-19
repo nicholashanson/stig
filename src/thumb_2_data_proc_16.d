@@ -19,8 +19,8 @@ enum field_tuples_adc_reg = [Tuple!(opcode, string[])(opcode.adc_reg, ["rd","rm"
 instr_16 parse_adc_reg(ushort instr) {
 	instr_16 res;
 	res.op = opcode.adc_reg;
-	const ubyte rdn = cast(ubyte)( instr       & 0x7);
-	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
+	const ubyte rdn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
 	res.rn = cast(reg)(rdn);
 	res.rm = cast(reg)(rm);
@@ -38,7 +38,7 @@ void execute_adc_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 	const uint res = rn + rm + c;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
-		cpu.n = (res & 0x80000000) != 0;
+		cpu.n = (res & 0x8000_0000) != 0;
 	}
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(2);
@@ -60,8 +60,8 @@ enum field_tuples_and_reg = [Tuple!(opcode, string[])(opcode.and_reg, ["rd","rm"
 instr_16 parse_and_reg(ushort instr) {
 	instr_16 res;
 	res.op = opcode.and_reg;
-	const ubyte rdn = cast(ubyte)( instr       & 0x7);
-	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
+	const ubyte rdn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rn = cast(reg)(rdn);
 	res.rd = cast(reg)(rdn);
 	res.rm = cast(reg)(rm);
@@ -78,7 +78,7 @@ void execute_and_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 	const uint res = rn & rm;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
-		cpu.n = (res & 0x80000000) != 0;
+		cpu.n = (res & 0x8000_0000) != 0;
 	}
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(2);
@@ -100,8 +100,8 @@ enum field_tuples_bic_reg = [Tuple!(opcode, string[])(opcode.bic_reg, ["rd","rn"
 instr_16 parse_bic_reg(ushort instr) {
 	instr_16 res;
 	res.op = opcode.bic_reg;
-	const ubyte rdn = cast(ubyte)( instr       & 0x7);
-	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
+	const ubyte rdn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
 	res.rn = cast(reg)(rdn);
 	res.rm = cast(reg)(rm);
@@ -118,7 +118,7 @@ void execute_bic_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 	const uint res = rm & ~rn;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
-		cpu.n = (res & 0x80000000) != 0;
+		cpu.n = (res & 0x8000_0000) != 0;
 	}
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(2);
@@ -140,8 +140,8 @@ enum field_tuples_cmp_reg = [Tuple!(opcode, string[])(opcode.cmp_reg, ["rn","rm"
 instr_16 parse_cmp_reg(short instr) {
 	instr_16 res;
 	res.op = opcode.cmp_reg;
-	ubyte rn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	const ubyte rn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm = cast(ubyte)((instr >> 3) & 0x07);
 	res.rn = cast(reg)(rn);
 	res.rm = cast(reg)(rm);
 	return res;
@@ -178,8 +178,8 @@ enum field_tuples_eor_reg = [Tuple!(opcode, string[])(opcode.bic_reg, ["rd","rn"
 instr_16 parse_eor_reg(ushort instr) {
 	instr_16 res;
 	res.op = opcode.eor_reg;
-	const ubyte rdn = cast(ubyte)( instr       & 0x7);
-	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
+	const ubyte rdn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
 	res.rn = cast(reg)(rdn);
 	res.rm = cast(reg)(rm);
@@ -196,7 +196,7 @@ void execute_eor_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 	const uint res = rm & ~rn;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
-		cpu.n = (res & 0x80000000) != 0;
+		cpu.n = (res & 0x8000_0000) != 0;
 	}
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(2);
@@ -218,8 +218,8 @@ enum field_tuples_lsl_reg = [Tuple!(opcode, string[])(opcode.lsl_reg, ["rd","rm"
 instr_16 parse_lsl_reg(ushort instr) {
 	instr_16 res;
 	res.op = opcode.lsl_reg;
-	const ubyte rdn = cast(ubyte)( instr       & 0x7);
-	const ubyte rm =  cast(ubyte)((instr >> 3) & 0x7);
+	const ubyte rdn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm =  cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
 	res.rn = cast(reg)(rdn);
 	res.rm = cast(reg)(rm);
@@ -236,7 +236,7 @@ void execute_lsl_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 	const uint res   = rn << shift;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
-		cpu.n = (res & 0x80000000) != 0;
+		cpu.n = (res & 0x8000_0000) != 0;
 		if (shift != 0) {
         	cpu.c = (rn << (32 - shift)) & 1;
     	}
@@ -261,8 +261,8 @@ enum field_tuples_lsr_reg = [Tuple!(opcode, string[])(opcode.lsr_reg, ["rd","rm"
 instr_16 parse_lsr_reg(short instr) {
 	instr_16 res;
 	res.op = opcode.lsr_reg;
-	const ubyte rdn = cast(ubyte)( instr       & 0x7);
-	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x7);
+	const ubyte rdn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
 	res.rn = cast(reg)(rdn);
 	res.rm = cast(reg)(rm);
@@ -279,7 +279,7 @@ void execute_lsr_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 	const uint res   = rn >> shift;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
-		cpu.n = (res & 0x80000000) != 0;
+		cpu.n = (res & 0x8000_0000) != 0;
 		if (shift != 0) {
         	cpu.c = (rn >> (shift - 1)) & 1;
     	}
@@ -304,8 +304,8 @@ enum field_tuples_mul = [Tuple!(opcode, string[])(opcode.mul, ["rd","rn"])];
 instr_16 parse_mul(ushort instr) {
 	instr_16 res;
 	res.op = opcode.mul;
-	const ubyte rdm = cast(ubyte)( instr       & 0x7);
-	const ubyte rn  = cast(ubyte)((instr >> 3) & 0x7);
+	const ubyte rdm = cast(ubyte)( instr       & 0x07);
+	const ubyte rn  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdm);
 	res.rm = cast(reg)(rdm);
 	res.rn = cast(reg)(rn);
@@ -344,8 +344,8 @@ enum field_tuples_lor_reg = [Tuple!(opcode, string[])(opcode.lor_reg, ["rd","rm"
 instr_16 parse_lor_reg(short instr) {
 	instr_16 res;
 	res.op = opcode.lor_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte rdn = cast(ubyte)( instr       & 0x07);
+	ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
 	res.rn = cast(reg)(rdn);
 	res.rm = cast(reg)(rm);
@@ -362,7 +362,7 @@ void execute_lor_reg(const instr_16 instr, ref cortex_m_cpu cpu) {
 	const uint res = rn | rm;
 	if (instr.set_flags) {
 		cpu.z = (res == 0);
-		cpu.n = (res & 0x80000000) != 0;
+		cpu.n = (res & 0x8000_0000) != 0;
 	}
 	cpu.set(instr.rd, res);
 	cpu.increment_pc(2);

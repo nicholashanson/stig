@@ -18,8 +18,8 @@ enum field_tuples_tbb_tbh_32 = [Tuple!(opcode, string[])(opcode.tbb_tbh_32, ["rn
 	Load/Store Dual or Exclusive, Table Branch
 	TBB [<Rn>,<Rm>]
 	TBH [<Rn>,<Rm>,LSL #1]
-	[15:5] 11101010100, [4] S, [3:0] Rn
-	[15] 0, [14:12] imm3, [11:8] Rd. [7:6] imm2, [5:4] type, [3:0] Rm
+	First Half-Word: [15:5] 11101010100, [4] S, [3:0] Rn
+	Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd. [7:6] imm2, [5:4] type, [3:0] Rm
 */
 instr_32 parse_tbb_tbh_32(uint instr) {
 	instr_32 res;
@@ -33,17 +33,17 @@ instr_32 parse_tbb_tbh_32(uint instr) {
 	return res;
 }
 
-// ===============
-//  Parse TBB/TBH
-// ===============
+// =================
+//  Execute TBB/TBH
+// =================
 
 void execute_tbb_tbh_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	auto f = load_store_log();
 	uint half_words;
-	uint rn = cpu.get(instr.rn);
-	uint rm = cpu.get(instr.rm);
-	uint shifted = shift(shift_type.lsl, 1, rm);
-	size_t addr = instr.is_tbh ? rn + shifted : rn + rm;
+	const uint rn = cpu.get(instr.rn);
+	const uint rm = cpu.get(instr.rm);
+	const uint shifted = shift(shift_type.lsl, 1, rm);
+	const size_t addr = instr.is_tbh ? rn + shifted : rn + rm;
 	f.writeln(format("Attempting to access [%08X]", addr));
 	if (instr.is_tbh) {
 		half_words = mem.read_half_word(addr);
@@ -73,9 +73,9 @@ enum field_tuples_ldrex_32 = [Tuple!(opcode, string[])(opcode.ldr_ex, ["rt","rn"
 instr_32 parse_ldrex_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.ldr_ex;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	const ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	const ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
+	const ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
 	res.imm = imm_8 << 2;
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
@@ -89,7 +89,7 @@ instr_32 parse_ldrex_32(uint instr) {
 void execute_ldrex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	uint addr = cpu.get(instr.rn);
 	addr += instr.imm;
-	int val = mem.read_word(addr);
+	uint val = mem.read_word(addr);
 	cpu.set(instr.rt, val);
 	cpu.increment_pc(4);
 }

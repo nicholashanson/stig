@@ -5033,41 +5033,6 @@ instr_32 parse_sbc_reg_32(uint instr) {
 	return res;
 }
 
-// ==================
-//  Parse BIT OR NOT
-// ==================
-
-/*
-	Branches and Miscellaneous Control
-	First Half-Word:
-	[15:5] 11101011010
-	[4] S
-	[3:0] Rn
-	Second Half-Word:
-	[15] 0 
-	[14:12] imm3
-	[11:8] Rd
-	[7:6] imm2
-	[5:4] type
-	[3:0] Rm
-*/
-instr_32 parse_orn_imm_32(uint instr) {
-	instr_32 res;
-	res.op = opcode.orn_imm_32;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
-	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
-	//ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	ubyte S = cast(ubyte)((instr >> 20) & 0b1);
-	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
-	ushort imm_12 = cast(ushort)((i << 3) | (imm_3 << 8) | imm_8);
-	int imm_32 = thumb_expand_imm(imm_12);
-	res.imm = imm_32;
-	res.set_flags = S == 1 ? true : false;
-	res.rd = cast(reg)(rd);
-	return res;
-}
-
 instr_32 parse_orn_reg_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.orn_reg_32;
@@ -5089,31 +5054,6 @@ instr_32 parse_orn_reg_32(uint instr) {
 	}
 	res.set_flags = S == 1 ? true : false;
 	res.rd = cast(reg)(rd);
-	return res;
-}
-
-// ===============
-//  Parse BIT NOT
-// ===============
-
-enum field_tuples_mvn_imm_32 = [Tuple!(opcode, string[])(opcode.mvn_imm_32, ["rd","imm"])];
-/*
-	Branches and Miscellaneous Control
-	First Half-Word:
-	[15:5] 11101011010
-	[4] S
-	[3:0] Rn
-	Second Half-Word:
-	[15] 0 
-	[14:12] imm3
-	[11:8] Rd
-	[7:6] imm2
-	[5:4] type
-	[3:0] Rm
-*/
-instr_32 parse_mvn_imm_32(uint instr) {
-	instr_32 res = parse_orn_imm_32(instr);
-	res.op = opcode.mvn_imm_32;
 	return res;
 }
 
@@ -6473,31 +6413,6 @@ void execute_sbc_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 	int shifted = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
 	int res = cpu.get(instr.rn) - shifted - cast(uint)(cpu.c);
 	cpu.set(instr.rd, res);
-	cpu.increment_pc(4);
-}
-
-// =====================
-//  Executre BIT OR NOT
-// =====================
-
-void execute_orn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int rn = cpu.get(instr.rn);
-	int res = rn | (~instr.imm);
-	cpu.set(instr.rd, res);
-	if (instr.set_flags) {
-		cpu.n = (res == 0);
-		cpu.z = (res < 0);
-	}
-	cpu.increment_pc(4);
-}
-
-void execute_mvn_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int res = ~instr.imm;
-	cpu.set(instr.rd, res);
-	if (instr.set_flags) {
-		cpu.n = (res == 0);
-		cpu.z = (res < 0);
-	}
 	cpu.increment_pc(4);
 }
 
