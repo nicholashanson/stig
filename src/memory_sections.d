@@ -1,4 +1,5 @@
 import std.stdio;
+import std.format;
 
 import cortex_m_core;
 
@@ -170,6 +171,7 @@ struct memory {
         0x40023830: 0,          // RCC_AHB1ENR Peripheral Clock Enable Register
         0x40023840: 0,          // RCC_APB1ENR Peripheral Clock Enable Register
         0x40023844: 0,          // RCC_APB2ENR Peripheral Clock Enable Register
+        0x4002388C: 0,          // RCC_DCKCFGR Dedicated Clock Configuration Register
         // --------------------------------------------------------------------------------------
         // -------------------------------------- USART1 ----------------------------------------
         0x4001100c: 0,          // CR1
@@ -322,7 +324,6 @@ struct memory {
                                 //         is updated to this value
                                 // REGION: on writes, can specify the number of the region to update
         0xE000EDA0: 0,          // MPU_RASR(RW) MPU Region Attribute and Size Register
-
         // --------------------------------------------------------------------------------------  
         // ------------------------------------- NVIC IPR ---------------------------------------                        
         0xE000E400: 0,
@@ -346,6 +347,7 @@ struct memory {
         0xE000E448: 0,
         0xE000E44C: 0,
         0xE000E450: 0,
+        0xE000E454: 0,
         // --------------------------------------------------------------------------------------
         0xE000E3F8: 0,
         0xE000EF34: 0,
@@ -455,8 +457,23 @@ struct memory {
         0xE000ED94: "MPU_CTRL", 
         0xE000ED98: "MPU_RNR",
         0xE000ED9C: "MPU_RBAR",
-        0xE000EDA0: "MPU_RASR"
+        0xE000EDA0: "MPU_RASR",
+        0x4002388C: "RCC_DCKCFGR" 
     ]; 
+
+    string get_reg_name(const uint reg_addr) {
+        const uint ipr_base     = 0xE000E400;
+        const uint ipr_top      = 0xE000E5EC;
+        const uint ise_base     = 0xE000E100;
+        const uint ise_top      = 0xE000E13C;
+        if (reg_addr >= ipr_base && reg_addr <= ipr_top) {
+            return format("NVIC_IPR%d", (reg_addr - ipr_base) / 4);
+        } 
+        if (reg_addr >= ise_base && reg_addr <= ise_top) {
+            return format("NVIC_ISER%d", (reg_addr - ise_base) / 4);
+        } 
+        return peripheral_names.get(reg_addr, "");
+    }
 
     uint read_word(size_t addr) {
         if (addr == 0x08000000) {
