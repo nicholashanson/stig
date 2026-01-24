@@ -398,9 +398,26 @@ ubyte get_elf_32_st_type(ubyte info) {
     return info & 0x0F;
 }
 
-enum stt_func = 2; 
+enum st_type { 
+    stt_notype                      = 0,
+    stt_object                      = 1,
+    stt_func                        = 2,
+    stt_section                     = 3, 
+    stt_file                        = 4,
+    stt_common                      = 5,
+    stt_loos                        = 10,
+    stt_hios                        = 12,
+    stt_loproc                      = 13,
+    //stt_sparc_regioster           = 13,
+    stt_hiproc                      = 14 
+}
 
-string[] get_function_names(const string elf_file) {
+struct st_name_val {
+    string      name;
+    uint        addr;
+}
+
+st_name_val[] get_st_name_val(const string elf_file, const st_type type) {
     auto f_h = load_store_log();
     auto symtab_sec = get_section_by_name(elf_file, ".symtab");
     f_h.writeln(symtab_sec.name);
@@ -414,7 +431,7 @@ string[] get_function_names(const string elf_file) {
     uint text_start = text_sec.addr;
     uint text_end   = text_sec.addr + cast(uint)text_sec.data.length;
 
-    string[] funcs;
+    st_name_val[] items;
 
     for(size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
         elf_32_sym sym;
@@ -425,17 +442,16 @@ string[] get_function_names(const string elf_file) {
         sym.st_other = symdata[pos + 13];
         sym.st_shndx = cast(ushort)(symdata[pos + 14] | (symdata[pos + 15] << 8));
 
-        auto st_type = get_elf_32_st_type(sym.st_info);
-
-        f_h.writeln("st_type: %d", st_type);
-        f_h.flush();
+        auto _st_type = get_elf_32_st_type(sym.st_info);
         
-        if (st_type != stt_func) {
+        if (_st_type != type) {
             continue;
         }
 
-        if(sym.st_value < text_start || sym.st_value >= text_end)
-            continue;
+        if (_st_type == st_type.stt_func) {
+            if (sym.st_value < text_start || sym.st_value >= text_end)
+                continue;
+        }
 
         uint name_off = sym.st_name;
         if(name_off >= strdata.length)
@@ -445,17 +461,22 @@ string[] get_function_names(const string elf_file) {
         while(end < strdata.length && strdata[end] != 0) end++;
         string name = cast(string) strdata[name_off .. end];
 
-        if(name.length)
-            funcs ~= name;
+        if (name == "$d" || name == "$t") {
+            continue;
+        }
+
+        if ((sym.st_value >= 0x08000000) && (sym.st_value <= 0x20020000)) {
+            items ~= st_name_val(name, sym.st_value);
+        }
     }
-    return funcs;
+    return items;
 }
 
 unittest {
     auto filename = "../test/blinky.elf";
-    auto function_names = get_function_names(filename);
-    foreach (f; function_names) {
-        writeln(f);
+    auto f_s = get_st_name_val(filename, st_type.stt_func);
+    foreach (f; f_s) {
+        writeln(f.name);
     }
 }
 
@@ -487,7 +508,7 @@ elf_func get_elf_func(const string elf_file, const string func_name) {
         sym.st_other = symdata[pos + 13];
         sym.st_shndx = cast(ushort)(symdata[pos + 14] | (symdata[pos + 15] << 8));
 
-        if(get_elf_32_st_type(sym.st_info) != stt_func)
+        if(get_elf_32_st_type(sym.st_info) != st_type.stt_func)
             continue;
 
         uint name_off = sym.st_name;
@@ -567,7 +588,7 @@ ubyte[] get_function_by_name(const string elf_file, const string func_name) {
         sym.st_other = symdata[pos + 13];
         sym.st_shndx = cast(ushort)(symdata[pos + 14] | (symdata[pos + 15] << 8));
 
-        if(get_elf_32_st_type(sym.st_info) != stt_func)
+        if(get_elf_32_st_type(sym.st_info) != st_type.stt_func)
             continue;
 
         uint name_off = sym.st_name;
@@ -839,13 +860,13 @@ unittest {
 func[] get_program_from_elf(const string elf_file) {
     auto f_h = load_store_log();
     func[] res;
-    auto f_names = get_function_names(elf_file);
-    if (f_names.length == 0) {
-        f_h.writeln("No function names found");
+    auto f_s = get_st_name_val(elf_file, st_type.stt_func);
+    if (f_s.length == 0) {
+        f_h.writeln("No function found");
         f_h.flush();
     }
-    foreach (n; f_names) {
-        auto f = get_function_from_elf(elf_file, n);
+    foreach (fn; f_s) {
+        auto f = get_function_from_elf(elf_file, fn.name);
         res ~= f; 
     }
     return res;
