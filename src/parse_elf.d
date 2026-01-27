@@ -276,7 +276,7 @@ unittest {
 struct load_segment {
     uint file_offset;
     uint file_size;
-    uint mem_addr;
+    uint vaddr;
 }
 
 load_segment[] get_load_segments(const string elf_file) {
@@ -308,7 +308,7 @@ uint file_offset_to_addr(uint file_offset, load_segment[] segs) {
     foreach (s; segs) {
         if (file_offset >= s.file_offset &&
             file_offset <  s.file_offset + s.file_size) {
-            return s.mem_addr + (file_offset - s.file_offset);
+            return s.vaddr + (file_offset - s.file_offset);
         }
     }
     throw new Exception("file offset not mapped by any PT_LOAD");
@@ -386,12 +386,12 @@ unittest {
 }
 
 struct elf_32_sym {
-    uint    st_name;   
-    uint    st_value; 
-    uint    st_size;   
-    ubyte   st_info;   
-    ubyte   st_other;
-    ushort  st_shndx; 
+    uint                st_name;   
+    uint                st_value; 
+    uint                st_size;   
+    ubyte               st_info;   
+    ubyte               st_other;
+    ushort              st_shndx; 
 }
 
 ubyte get_elf_32_st_type(ubyte info) {
@@ -409,7 +409,8 @@ enum st_type {
     stt_hios                        = 12,
     stt_loproc                      = 13,
     //stt_sparc_regioster           = 13,
-    stt_hiproc                      = 14 
+    stt_hiproc                      = 14,
+    all                             = 0xff
 }
 
 struct st_name_val {
@@ -417,7 +418,18 @@ struct st_name_val {
     uint        addr;
 }
 
-st_name_val[] get_st_name_val(const string elf_file, const st_type type) {
+string[] stm32_start_up = [
+    "_init",
+    "LoopFillZerobss",
+    "frame_dummy",
+    "CopyDataInit",
+    "LoopCopyDataInit",
+    "CopyDataInit",
+    "FillZerobss",
+    "register_tm_clones"
+];
+
+st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_type.all) {
     auto f_h = load_store_log();
     auto symtab_sec = get_section_by_name(elf_file, ".symtab");
     f_h.writeln(symtab_sec.name);
@@ -425,6 +437,9 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type) {
     f_h.writeln(strtab_sec.name);
     auto text_sec   = get_section_by_name(elf_file, "text");
     f_h.writeln(text_sec.name);
+
+    if (text_sec.name == "")
+        text_sec   = get_section_by_name(elf_file, ".text");
 
     ubyte[] symdata = symtab_sec.data;
     ubyte[] strdata = strtab_sec.data;
@@ -444,15 +459,6 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type) {
 
         auto _st_type = get_elf_32_st_type(sym.st_info);
         
-        if (_st_type != type) {
-            continue;
-        }
-
-        if (_st_type == st_type.stt_func) {
-            if (sym.st_value < text_start || sym.st_value >= text_end)
-                continue;
-        }
-
         uint name_off = sym.st_name;
         if(name_off >= strdata.length)
             continue;
@@ -465,8 +471,36 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type) {
             continue;
         }
 
+        if (type != st_type.all) {
+            if (_st_type != type) {
+                if (stm32_start_up.canFind(name)) {
+                    // do nothing
+                }
+                else 
+                    continue;
+            }
+
+            if (_st_type == st_type.stt_func) {
+                if (sym.st_value < text_start || sym.st_value >= text_end)
+                    continue;
+            }
+        }
+
+        if (name == "LoopFillZerobss") 
+            writeln(name, ": ", _st_type.to!string);
+
         if ((sym.st_value >= 0x08000000) && (sym.st_value <= 0x20020000)) {
-            items ~= st_name_val(name, sym.st_value);
+            if (name.canFind("uart_cfg")) {
+                items ~= st_name_val(name ~ ".parity",    sym.st_value    );
+                items ~= st_name_val(name ~ ".stop_bits", sym.st_value + 1);
+                items ~= st_name_val(name ~ ".data_bits", sym.st_value + 2);
+                items ~= st_name_val(name ~ ".flow_ctrl", sym.st_value + 3);
+            } else if (name.canFind("mpu_config") && _st_type != st_type.stt_func) {
+                items ~= st_name_val(name ~ ".num_regions", sym.st_value);
+                items ~= st_name_val(name ~ ".mpu_regions", sym.st_value + 4);
+            } else {
+                items ~= st_name_val(name, sym.st_value);
+            }
         }
     }
     return items;
@@ -480,9 +514,26 @@ unittest {
     }
 }
 
+unittest {
+    auto filename = "../test/stm32_dsp.elf";
+    auto f_s = get_st_name_val(filename, st_type.stt_func);
+    foreach (f; f_s) {
+        writeln(f.name, format(": %08X", f.addr));
+    }
+}
+
 struct elf_func {
     uint    offset;
     ubyte[] data;
+}
+
+size_t va_to_file_offset(const ref load_segment[] segs, uint va) {
+    foreach (s; segs) {
+        if (va >= s.vaddr && va < s.vaddr + s.file_size) {
+            return s.file_offset + (va - s.vaddr);
+        }
+    }
+    throw new Exception(format("VA %08X not in any PT_LOAD segment", va));
 }
 
 elf_func get_elf_func(const string elf_file, const string func_name) {
@@ -490,14 +541,19 @@ elf_func get_elf_func(const string elf_file, const string func_name) {
     auto strtab_sec = get_section_by_name(elf_file, ".strtab");
     auto text_sec   = get_section_by_name(elf_file, "text");
 
+    if (text_sec.name == "")
+        text_sec   = get_section_by_name(elf_file, ".text");
+
     auto f = load_store_log();
-    f.writeln("Extracting function");
+    f.writeln("Extracting function:", func_name);
     f.flush();
 
     ubyte[] symdata = symtab_sec.data;
     ubyte[] strdata = strtab_sec.data;
     uint    text_start = text_sec.addr;
-    ubyte[] text_data = text_sec.data;
+    //ubyte[] text_data = text_sec.data;
+    ubyte[] file_data = cast(ubyte[])read(elf_file);
+    auto segs = get_load_segments(elf_file);
 
     for (size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
         elf_32_sym sym;
@@ -508,8 +564,8 @@ elf_func get_elf_func(const string elf_file, const string func_name) {
         sym.st_other = symdata[pos + 13];
         sym.st_shndx = cast(ushort)(symdata[pos + 14] | (symdata[pos + 15] << 8));
 
-        if(get_elf_32_st_type(sym.st_info) != st_type.stt_func)
-            continue;
+        //if(get_elf_32_st_type(sym.st_info) != st_type.stt_func)
+        //   continue;
 
         uint name_off = sym.st_name;
         if (name_off >= strdata.length) continue;
@@ -520,23 +576,40 @@ elf_func get_elf_func(const string elf_file, const string func_name) {
         if(name != func_name)
             continue;
 
-        if(sym.st_value < text_start || sym.st_value >= text_start + text_data.length)
-            throw new Exception(format("Function %s is outside .text section", func_name));
+        uint func_va = sym.st_value;
+        bool thumb = (func_va & 1) != 0;
+        func_va &= ~1u;
 
-        size_t offset_in_text = cast(size_t)(sym.st_value - text_start);
+        size_t file_offset = va_to_file_offset(segs, func_va);
+
+        //if(sym.st_value < text_start || sym.st_value >= text_start + text_data.length)
+        //    throw new Exception(format("Function %s is outside .text section", func_name));
+
+        //size_t offset_in_text = cast(size_t)(sym.st_value - text_start);
         size_t size = cast(size_t)sym.st_size;
 
         if (name == "__start") size = 52;
         if (name == "__aeabi_uldivmod") size = 48;
         if (name == "__aeabi_read_tp") size = 12;
+        if (name == "LoopFillZerobss") size = 38;
+        if (name == "LoopCopyDataInit") size = 14;
+        if (name == "_init") size = 12;
+        if (name == "frame_dummy") size = 28;
+        if (name == "Reset_Handler") size = 18;
+        if (name == "CopyDataInit") size = 6;
+        if (name == "FillZerobss") size = 4;
+        if (name == "register_tm_clones") size = 36;
 
         //if(offset_in_text + size > text_data.length)
         //    size = text_data.length - offset_in_text;
 
-        auto data = text_data[offset_in_text - 1 .. offset_in_text + size - 1];
+        //auto data = text_data[offset_in_text - 1 .. offset_in_text + size - 1];
+        //file_offset &= ~0x3;
+        auto data = file_data[file_offset .. file_offset + size];
         f.writeln(format("Extracted function %s of size %d", name, data.length));
         f.flush();
-        return elf_func(sym.st_value - 1, data);
+        assert(data.length == size, format("%s: sizes are not equal, %d != %d", name, data.length, size));
+        return elf_func(func_va, data);
     }
     return elf_func(0, []);
 }
@@ -643,28 +716,49 @@ string fetch_instr(ubyte[] b)
     return b.map!(x => format("%02x", x)).join;
 }
 
-func get_function_from_elf(const string elf_file, const string func_name) {
+func get_function_from_elf(const string elf_file, const string func_name, ref bool[uint] pending_literals) {
     func res;
     res.name = func_name;
     auto e_func = get_elf_func(elf_file, func_name);
-    extract_literal_pool(e_func, res);
+    auto literal_offsets = extract_literal_pool(e_func, res, pending_literals);
     uint offset = 0;
+    uint addr_offset = 0;
     while (offset + 2 <= e_func.data.length) {
         ushort first_hw = cast(ushort)(e_func.data[offset] | (e_func.data[offset + 1] << 8));
-        uint len = (first_hw & 0xF800) >= 0xE800 ? 4 : 2;
-        auto bytes = e_func.data[offset .. offset + len];
-        res.instrs ~= addr_instr(e_func.offset + offset, fetch_instr(bytes));
-        offset += len;
+        uint len        = (first_hw & 0xF800) >= 0xE800 ? 4 : 2;
+        auto bytes      = e_func.data[offset .. offset + len];
+        while (addr_offset in literal_offsets) {
+            addr_offset += 4;
+        }
+        res.instrs  ~= addr_instr(e_func.offset + addr_offset, fetch_instr(bytes));
+        offset      += len;
+        addr_offset += len;
     }
     return res; 
 }
 
-void extract_literal_pool(ref elf_func e_func, ref func f) {
+bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] pending_literals) {
+    uint[] toRemove;
+    bool[uint] words_to_remove;
+    bool[uint] literal_offsets;
     auto data = e_func.data;
     uint offset = 0;
-    uint[] words_to_remove;
+    foreach (l, _; pending_literals) {
+        if (l >= e_func.offset && l < e_func.offset + data.length) {
+            toRemove ~= l;
+            const uint rel_offset = l - e_func.offset;
+            words_to_remove[rel_offset] = true;
+            literal_offsets[rel_offset] = true;
+            writeln("removing: ", format("%08X", l));
+            writeln("removing: ", format("%08X", rel_offset)); 
+            f.literal_pool[l] = read_ub_32_(data, rel_offset);        
+        }
+    }
+    foreach (l; toRemove) {
+        pending_literals.remove(l);
+    }
     while (offset + 2 <= data.length) {
-        if (words_to_remove.canFind(offset)) {
+        if (offset in words_to_remove) {
             offset += 4;
             continue;
         }
@@ -673,6 +767,10 @@ void extract_literal_pool(ref elf_func e_func, ref func f) {
                     ((first_hw & 0x1800) != 0x0000);
         uint len = is32 ? 4 : 2;
         if (len == 4) {
+            if (offset + len >= data.length) {
+                offset += 4;
+                continue;
+            }
             uint instr = read_ub_32(data, offset);
             if (decode_mnemonic_32(instr) == opcode.ldr_lit_32) {
                 auto parsed_instr = decode_instr(instr);
@@ -680,9 +778,15 @@ void extract_literal_pool(ref elf_func e_func, ref func f) {
                 base &= ~0x3;   
                 uint lit_offset = base + parsed_instr.imm;
                 uint rel_offset = lit_offset - e_func.offset; 
-                words_to_remove ~= rel_offset; 
+                words_to_remove[rel_offset] = true;
+                literal_offsets[rel_offset] = true;
                 writeln(format("%s: %08X %08X", f.name, e_func.offset + offset, lit_offset));
-                f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
+                if (rel_offset < data.length) 
+                    f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
+                else {
+                    pending_literals[lit_offset] = true;
+                    writeln("Added %08X to pending literals", lit_offset);
+                }
             }
         } else if (len == 2) {
             if (decode_mnemonic(first_hw) == opcode.ldr_pool) {
@@ -691,21 +795,29 @@ void extract_literal_pool(ref elf_func e_func, ref func f) {
                 base &= ~0x3;   
                 uint lit_offset = base + parsed_instr.imm;
                 uint rel_offset = lit_offset - e_func.offset; 
-                words_to_remove ~= rel_offset; 
+                words_to_remove[rel_offset] = true;
+                literal_offsets[rel_offset] = true;
                 writeln(format("%s: %08X %08X", f.name, e_func.offset + offset, lit_offset));
-                f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
+                if (rel_offset < data.length) 
+                    f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
+                else {
+                    pending_literals[lit_offset] = true;
+                    writeln("Added %08X to pending literals", lit_offset);
+                }
             }
         }
         offset += len;
     }
-    words_to_remove.sort;        
-    words_to_remove.reverse;     
-    foreach (w; words_to_remove) {
+    auto keys = words_to_remove.keys;
+    keys.sort;
+    keys.reverse;
+    foreach (w; keys) {
         if (w + 4 <= data.length) {
             data = data[0 .. w] ~ data[w + 4 .. $];
         }
     }
     e_func.data = data;
+    return literal_offsets;
 }
 
 unittest {
@@ -731,7 +843,8 @@ unittest {
     elf_func e_func;
     e_func.data = original;
     func f;
-    extract_literal_pool(e_func, f);
+    bool[uint] l;
+    extract_literal_pool(e_func, f, l);
     assert(e_func.data == expected, "Byte array is not correct after removing literals");
 }
 
@@ -814,7 +927,8 @@ unittest {
     //auto res = f.instrs[0]._instr_bytes;
     //assert(res == "4b01", 
     //       format("Actual instr_bytes is %s, not the expected 4b01", res));
-    auto __start = get_function_from_elf(filename, "__start");
+    bool[uint] l;
+    auto __start = get_function_from_elf(filename, "__start", l);
     auto start_addr = __start.instrs[0]._addr;
     assert(start_addr == 0x8000a90, 
            format("Actual instr_bytes is [%08X], not the expected 0x8000a90", start_addr));
@@ -858,6 +972,7 @@ unittest {
 }
 
 func[] get_program_from_elf(const string elf_file) {
+    bool[uint] pending_literals;
     auto f_h = load_store_log();
     func[] res;
     auto f_s = get_st_name_val(elf_file, st_type.stt_func);
@@ -866,10 +981,15 @@ func[] get_program_from_elf(const string elf_file) {
         f_h.flush();
     }
     foreach (fn; f_s) {
-        auto f = get_function_from_elf(elf_file, fn.name);
+        auto f = get_function_from_elf(elf_file, fn.name, pending_literals);
         res ~= f; 
     }
     return res;
+}
+
+unittest {
+    auto filename = "../test/stm32_dsp.elf";
+    auto prog = get_program_from_elf(filename);
 }
 
 string[] blinky_funcs = [
@@ -1072,9 +1192,10 @@ string[] blinky_funcs = [
 
 unittest {
     auto filename = "../test/blinky.elf";
+    bool[uint] l;
     foreach (f_n; blinky_funcs) {
         writeln(format("%s", f_n));
-        auto f = get_function_from_elf(filename, f_n);
+        auto f = get_function_from_elf(filename, f_n, l);
     }
 }
 
