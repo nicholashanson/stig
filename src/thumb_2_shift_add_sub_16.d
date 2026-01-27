@@ -6,6 +6,50 @@ import thumb_2_instrs;
 import cortex_m_core;
 import memory_sections;
 
+// ---------------------------------------- ASR ------------------------------------------
+
+// ======================
+//  Parse ASR(Immediate)
+// ======================
+
+enum field_tuples_asr_imm = [Tuple!(opcode, string[])(opcode.asr_imm, ["rm","rd","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	ASR <Rd>,<Rm>,#<imm5>
+	[15:11] 00010, [10:6] imm5, [5:3] Rm, [2:0] Rd  
+*/
+instr_16 parse_asr_imm(const ushort instr) {
+	instr_16 res;
+	res.op = opcode.asr_imm;
+	const ubyte rd  = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
+	const ubyte imm = cast(ubyte)((instr >> 6) & 0x1f);
+	res.rm = cast(reg)(rm);
+	res.rd = cast(reg)(rd);
+	res.imm = imm;
+	return res;
+}
+
+// =============
+//  Execute ASR
+// =============
+
+void execute_asr_imm(const instr_16 instr, ref cortex_m_cpu cpu) {
+	int 	   rm = cast(int)(cpu.get(instr.rm));
+	rm = 	   rm >> (instr.imm - 1);
+	const bool carry = (1 & rm);
+	rm = 	   rm >> 1;
+	if (!cpu.in_it_block()) {
+		cpu.z = (rm == 0);			// APSR.Z = IsZeroBit(result);
+		cpu.n = (rm < 0);			// APSR.N = result<31>;
+		cpu.c = carry;				// APSR.C = carry;
+		// APSR.V unchanged
+	}
+	cpu.set(instr.rd, rm);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
+
 // ---------------------------------------- LSL ------------------------------------------
 
 // ======================

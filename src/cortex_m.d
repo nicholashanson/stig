@@ -960,31 +960,6 @@ instr_16 parse_adr(short instr) {
 	return res;
 }
 
-// ======================
-//  Parse ASR(Immediate)
-// ======================
-
-enum field_tuples_asr_imm = [Tuple!(opcode, string[])(opcode.asr_imm, ["rm","rd","imm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move and Compare
-	ASR <Rd>,<Rm>,#<imm5>
-	[15:11] 00010
-	[10:6] imm5
-	[5:3] Rm
-	[2:0] Rd  
-*/
-instr_16 parse_asr_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.asr_imm;
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.imm = imm;
-	res.rm = cast(reg)(rm);
-	res.rd = cast(reg)(rd);
-	return res;
-}
-
 // =========
 //  Parse B
 // =========
@@ -2421,24 +2396,6 @@ void execute_cps(instr_16 instr, ref cortex_m_cpu cpu) {
 			cpu.fault_mask = true;
 		}
 	}
-	cpu.increment_pc(2);
-}
-
-// =============
-//  Execute ASR
-// =============
-
-void execute_asr_imm(instr_16 asr_imm_instr, ref cortex_m_cpu cpu) {
-	int rm_value = cast(int)(cpu.get(asr_imm_instr.rm));
-	rm_value = rm_value >> (asr_imm_instr.imm - 1);
-	bool carry = (1 & rm_value);
-	rm_value = rm_value >> 1;
-	if (asr_imm_instr.set_flags) {
-		cpu.z = (rm_value == 0);
-		cpu.n = (rm_value < 0);
-		cpu.c = carry;
-	}
-	cpu.set(asr_imm_instr.rd, rm_value);
 	cpu.increment_pc(2);
 }
 
