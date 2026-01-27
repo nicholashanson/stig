@@ -32,7 +32,8 @@ import thumb_2_data_proc_reg_32;
 import thumb_2_long_mult_acc_div_32;
 import thumb_2_data_proc_shift_reg_32;
 import thumb_2_load_store_dual_exc_32;
-import file_parsing;
+import parse_elf;
+import thumb_2_shift_add_sub_16;
 
 File* pc_log_ptr = null;
 
@@ -41,6 +42,35 @@ File* pc_log() {
         pc_log_ptr = new File("pc_log.txt", "w");
     }
     return pc_log_ptr;
+}
+
+alias instruction = Algebraic!(instr_16, instr_32);
+
+struct addr_instr {
+    instruction i;
+    uint _in_32;
+    ushort _in_16;
+    uint _addr;
+    string _instr_bytes;
+
+    this(uint addr, string bytes_string) {
+        _instr_bytes = bytes_string;
+        _addr = addr;
+        if (bytes_string.length == 8) {
+            _in_32 = parse!uint(bytes_string, 16);
+            i = decode_instr(_in_32);
+        }
+        if (bytes_string.length == 4) {
+            _in_16 = cast(ushort) parse!uint(bytes_string, 16);
+            i = decode_instr(_in_16);
+        }
+    }
+}
+
+struct func {
+    string name;
+    addr_instr[] instrs;
+    uint[uint] literal_pool;
 }
 
 string[] bare_metal_func_names = [
@@ -816,17 +846,14 @@ enum field_tuples_add_imm_3 = [Tuple!(opcode, string[])(opcode.add_imm_3, ["rd",
 /*
 	Shift(Immediate), Add, Subtract, Move, and Compare
 	ADD <Rd>,<Rn>,#<imm3>
-	[15:9] 0001110
-	[8:6] imm3 
-	[5:3] Rn
-	[2:0] Rd
+	[15:9] 0001110, [8:6] imm3, [5:3] Rn, [2:0] Rd
 */
-instr_16 parse_add_imm_3(short instr) {
+instr_16 parse_add_imm_3(const ushort instr) {
 	instr_16 res;
 	res.op = opcode.add_imm_3;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm_3 = cast(ubyte)((instr >> 6) & 0b111);
+	const ubyte rd    = cast(ubyte)( instr       & 0x07);
+	const ubyte rn 	  = cast(ubyte)((instr >> 3) & 0x07);
+	const ubyte imm_3 = cast(ubyte)((instr >> 6) & 0x07);
 	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
 	res.imm = imm_3;
@@ -1352,31 +1379,6 @@ instr_16 parse_ldrh_imm(short instr) {
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.imm = cast(ubyte)(imm_5 * 2);
-	return res;
-}
-
-// ======================
-//  Parse LSL(Immediate)
-// ======================
-
-enum field_tuples_lsl_imm = [Tuple!(opcode, string[])(opcode.lsl_imm, ["rd","rm","imm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move and Compare
-	LSL <Rd>,<Rm>,#<imm5>
-	[15:11] 00000
-	[10:6] imm5
-	[5:3] Rm
-	[2:0] Rd
-*/
-instr_16 parse_lsl_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.lsl_imm;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.imm = imm;
 	return res;
 }
 
@@ -2513,24 +2515,6 @@ void execute_sub_imm_8(instr_16 instr, ref cortex_m_cpu cpu) {
 }
 
 // =============
-//  Execute LSL 
-// =============
-
-void execute_lsl_imm(instr_16 instr, ref cortex_m_cpu cpu) {
-	int rm = cpu.get(instr.rm);
-	int res = rm << (instr.imm - 1);
-	bool carry = ((res & 0x80000000) != 0);
-	res = res << 1;
-	if (!cpu.in_it_block()) {
-		cpu.z = (res == 0);
-		cpu.n = (res < 0);
-		cpu.c = carry;
-	}
-	cpu.set(instr.rd, res);
-	cpu.increment_pc(2);
-}
-
-// =============
 //  Execute LSR 
 // =============
 
@@ -2773,6 +2757,7 @@ void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 void execute_syc_tick(ref cortex_m_cpu cpu, ref memory mem) {
 	if (cpu.current_exception == exception.thread_mode) {
 		auto f = stack_log();
+		f.writeln("Pushing in SysTick");
     	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
 		uint addr_xpsr = cpu.get_sp();
 	    f.writeln(format("xpsr: [%08X] pushed to [%08X]", cpu.get_xpsr(), addr_xpsr));
@@ -2788,12 +2773,16 @@ void execute_syc_tick(ref cortex_m_cpu cpu, ref memory mem) {
 			                                      reg.pc]);
 		execute_push_mult_reg(push_instr, cpu, mem);
 	}
-
+	auto f_h = load_store_log();
 	cpu.current_exception = exception.SysTick_IRQn;
 	cpu.npriv = false;
 	cpu.lr = cpu.sp_sel ? 0xfffffffd : 0xfffffff9; 
 	cpu.sp_sel = false;
-	uint pc = mem.read_word(mem.flash_origin + 4 * exception.SysTick_IRQn);
+	uint sys_tick_addr = mem.flash_origin + 4 * exception.SysTick_IRQn;
+	uint pc = mem.read_word(sys_tick_addr);
+	pc &= ~0x3;
+	f_h.writeln(format("[%08X] loaded from [%08X]", pc, sys_tick_addr));
+	f_h.flush();
 	cpu.set(reg.pc, pc);
 }
 
@@ -3513,7 +3502,7 @@ unittest {
 		test_case(0x4241, 
 			      instr_16(op: opcode.negs,			 rd: reg.r1,  rn: reg.r0),
 				  cortex_m_cpu(r0: 1),
-			      cortex_m_cpu(r1: -1, r0: 1)),
+			      cortex_m_cpu(pc: 2, r1: -1, r0: 1)),
 		test_case(0xd3f9,
 				  instr_16(op: opcode.b_cond, 		 cond: condition.cc, offset: -14),
 				  cortex_m_cpu(pc: 0x800a1a8),
@@ -6925,9 +6914,7 @@ unittest {
 		test_case(0xf0230310, // bic.w	r3, r3, #16
 				  instr_32(op: opcode.bic_imm_32, rd: reg.r3, rn: reg.r3, imm: 16), // 0001 0000
 				  cortex_m_cpu(r3: 17),                    
-				  cortex_m_cpu(pc: 4, r3: 1)), 
-		// f0230310
-		// 1111 0000 0010 0011 0000 0011 0001 0000                    
+				  cortex_m_cpu(pc: 4, r3: 1)),                    
 		test_case(0xf64f03ff, // movw	r3, #63743	@ 0xf8ff
 				  instr_32(op: opcode.mov_16_imm_32, rd: reg.r3, imm: 63743),
 				  cortex_m_cpu(),
@@ -6957,7 +6944,7 @@ unittest {
 		test_case(0xeb63090b, // sbc.w	r9, r3, fpr10
 			      instr_32(op: opcode.sbc_reg_32, rd: reg.r9, rn: reg.r3, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0),
 			      cortex_m_cpu(r3: 10, r11: 5, c: true),
-				  cortex_m_cpu(pc: 4, r9:  4, r3: 10, r11: 5, c: true)),
+				  cortex_m_cpu(pc: 4, r9: 5, r3: 10, r11: 5, c: true)),
 		test_case(0xeb45030b, // adc.w	r3, r5, fp
 				  instr_32(op: opcode.adc_reg_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0),
 				  cortex_m_cpu(r5:  5, r11: 5, c: true),
@@ -7167,6 +7154,7 @@ string[opcode] opcode_strings = [
 	opcode.str_imm: "str",
 	opcode.strb_imm_32_t2: "strb.w",
 	opcode.strb_imm_32_t3: "strb.w",
+	opcode.strb_reg: "strb",
 	opcode.strb_reg_32: "strb.w",
 	opcode.str_imm_32_t3: "str.w",
 	opcode.str_imm_32_t4: "str.w",
@@ -7419,34 +7407,6 @@ unittest {
 		    format("Failed for instruction [0x%04X], got '%s'", t.instr, actual)
 		);
     }
-}
-
-alias instruction = Algebraic!(instr_16, instr_32);
-
-struct addr_instr {
-    instruction i;
-    uint _in_32;
-    ushort _in_16;
-    uint _addr;
-    string _instr_bytes;
-
-    this(uint addr, string bytes_string) {
-        _instr_bytes = bytes_string;
-        _addr = addr;
-        if (bytes_string.length == 8) {
-            _in_32 = parse!uint(bytes_string, 16);
-            i = decode_instr(_in_32);
-        }
-        if (bytes_string.length == 4) {
-            _in_16 = cast(ushort) parse!uint(bytes_string, 16);
-            i = decode_instr(_in_16);
-        }
-    }
-}
-
-struct func {
-    string name;
-    addr_instr[] instrs;
 }
 
 string extract_angle_brackets(string s) {
@@ -7787,7 +7747,7 @@ string convert_to_string(uint instr) {
 		if (field == "ra") {
 			ops ~= get_register_name(parsed_instr.ra);
 		}
-		if (field == "shift" && parsed_instr.shift_t != shift_type.none) {
+		if (field == "shift" && parsed_instr.shift_t != shift_type.none && parsed_instr.shift_n != 0) {
 			string shift_s = parsed_instr.shift_t.to!string;
 			shift_s ~= " #";
 			shift_s ~= parsed_instr.shift_n.to!string;
@@ -7957,7 +7917,8 @@ string[] table_names = [
 	//"_k_thread_data_led1_id",
 	//"_k_thread_data_led2_id",
 	"rodata",
-	//"_static_thread_data_area",
+	"_static_thread_data_area",
+	"k_heap_area",
 	"device_area",
 	"initlevel",
 	"uart_driver_api_area",
@@ -7965,7 +7926,22 @@ string[] table_names = [
 	"reset_driver_api_area",
 	"sw_isr_table",
 	"datas",
-	"gpio_driver_api_area"
+	"text",
+	"log_msg_ptr_area",
+	"k_sem_area",
+	"log_backend_area",
+	"log_const_area",
+	"log_mpsc_pbuf",
+	"gpio_driver_api_area",
+	"rom_start",
+	"k_msgq_area",
+	"adc_driver_api_area",
+	"i2c_driver_api_area",
+	"sensor_driver_api_area",
+	"k_mutex_area",
+	"k_condvar_area",
+  	"net_buf_pool_area",
+  	".init_array"
 ];
 
 void load_data(const ref string filename, ref memory mem) {
@@ -7999,6 +7975,7 @@ struct cortex_m_vm {
 	memory mem;
 	addr_instr[] current_program;
 	string[] func_names;
+	st_name_val[] objects;
 
 	void load_program(string filename) {
 		load_uart_string_into_flash(mem);
@@ -8211,5 +8188,3 @@ unittest {
     writeln(mem.read_word(memory.stack_base-4));
     //assert(cpu.r3 == 1);
 }
-
-
