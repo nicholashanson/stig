@@ -1382,31 +1382,6 @@ instr_16 parse_ldrh_imm(short instr) {
 	return res;
 }
 
-// ======================
-//  Parse LSR(Immediate)
-// ======================
-
-enum field_tuples_lsr_imm = [Tuple!(opcode, string[])(opcode.lsr_imm, ["rd","rm","imm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move and Compare
-	LSR <Rd>,<Rm>,#<imm5>
-	[15:11] 00001
-	[10:6] imm5
-	[5:3] Rm
-	[2:0] Rd
-*/
-instr_16 parse_lsr_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.lsr_imm;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	ubyte imm = cast(ubyte)((instr >> 6) & 0b11111);
-	res.imm = imm;
-	return res;
-}
-
 // =====================
 //  Parse MOV(Register)
 // =====================
@@ -2511,24 +2486,6 @@ void execute_sub_imm_8(instr_16 instr, ref cortex_m_cpu cpu) {
 		cpu.v = (rn < 0 && res > 0);
 	}
 	cpu.set(instr.rd, res);
-	cpu.increment_pc(2);
-}
-
-// =============
-//  Execute LSR 
-// =============
-
-void execute_lsr_imm(instr_16 lsr_imm_instr, ref cortex_m_cpu cpu) {
-	int rm = cpu.get(lsr_imm_instr.rm);
-	int res = rm >>> (lsr_imm_instr.imm - 1);
-	bool carry = (res & 1);
-	res = res >>> 1;
-	if (!cpu.in_it_block()) {
-		cpu.z = (res == 0);
-		cpu.n = (res < 0);
-		cpu.c = carry;
-	}
-	cpu.set(lsr_imm_instr.rd, res);
 	cpu.increment_pc(2);
 }
 

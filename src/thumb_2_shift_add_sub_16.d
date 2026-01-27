@@ -50,4 +50,49 @@ void execute_lsl_imm(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ---------------------------------------- LSR ------------------------------------------
+
+// ======================
+//  Parse LSR(Immediate)
+// ======================
+
+enum field_tuples_lsr_imm = [Tuple!(opcode, string[])(opcode.lsr_imm, ["rd","rm","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	LSR <Rd>,<Rm>,#<imm5>
+	[15:11] 00001, [10:6] imm5, [5:3] Rm, [2:0] Rd
+*/
+instr_16 parse_lsr_imm(const ushort instr) {
+	instr_16 res;
+	res.op = opcode.lsr_imm;
+	const ubyte rd  = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
+	const ubyte imm = cast(ubyte)((instr >> 6) & 0x1f);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	res.imm = imm;
+	return res;
+}
+
+// ========================
+//  Execute LSR(Immediate) 
+// ========================
+
+void execute_lsr_imm(const ref instr_16 instr, ref cortex_m_cpu cpu) {
+	const uint rm    = cpu.get(instr.rm);
+	uint       res   = rm >>> (instr.imm - 1);
+	const bool carry = (res & 1);
+	res = res >>> 1;
+	if (!cpu.in_it_block()) {
+		cpu.z = (res == 0);		// APSR.Z = IsZeroBit(result); 	
+		cpu.n = (res < 0);		// APSR.N = result<31>;
+		cpu.c = carry;			// APSR.C = carry;
+		// APSR.V unchanged
+	}
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
+
+
 
