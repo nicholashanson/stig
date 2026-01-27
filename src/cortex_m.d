@@ -757,87 +757,6 @@ enum all_field_tuples =
 	~ field_tuples_uxth
 	~ field_tuples_rev;
 
-// =====================
-//  Parse ADD(Register)
-// =====================
-
-enum field_tuples_add_reg = [Tuple!(opcode, string[])(opcode.add_reg, ["rd","rn","rm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move, and Compare
-	ADD <Rd>,<Rn>,<Rm>
-	[15:9] 0001100
-	[8:6] Rm
-	[5:3] Rn
-	[2:0] Rd
-*/
-instr_16 parse_add_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.add_reg;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 6) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// =====================
-//  Parse ADD(Register)
-// =====================
-
-enum field_tuples_add_high_reg_1 = [Tuple!(opcode, string[])(opcode.add_high_reg_1, ["rd","rm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move and Compare
-	ADD <Rdn>,<Rm>
-	[15:8] 01000100
-	[7] DN
-	[6:3] Rm
-	[2:0] Rdn
-*/
-instr_16 parse_add_high_reg_1(short instr) {
-	instr_16 res;
-	res.op = opcode.add_high_reg_1;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm  = cast(ubyte)((instr >> 3) & 0b1111);
-	ubyte dn  = cast(ubyte)((instr >> 7) & 0b1);
-	if (dn) {
-		rdn |= 0b1000;
-	}
-	res.rn = cast(reg)(rdn);
-	res.rd = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// =====================
-//  Parse ADD(Register)
-// =====================
-
-enum field_tuples_add_high_reg_2 = [Tuple!(opcode, string[])(opcode.add_high_reg_2, ["rd","rm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move and Compare
-	ADD <Rdn>,<Rm>
-	[15:8] 01000100
-	[7] DN
-	[6:3] Rm
-	[2:0] Rdn
-*/
-instr_16 parse_add_high_reg_2(short instr) {
-	instr_16 res;
-	res.op = opcode.add_high_reg_2;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	ubyte dn = cast(ubyte)((instr >> 7) & 0b1);
-	if (dn) {
-		rdn |= 0b1000;
-	}
-	res.rn = cast(reg)(rdn);
-	res.rd = cast(reg)(rdn);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
 // ======================
 //  Parse ADD(Immediate)
 // ======================
@@ -2877,15 +2796,6 @@ void execute_adr(instr_16 adr_instr, ref cortex_m_cpu cpu) {
 void execute_mov_high_2(instr_16 mov_high_2_instr, ref cortex_m_cpu cpu) {
 	int rm = cpu.get(mov_high_2_instr.rm);
 	cpu.set(mov_high_2_instr.rd, rm);
-	cpu.increment_pc(2);
-}
-
-// =================
-//  Execute ADD REG
-// =================
-
-void execute_add_reg(instr_16 add_reg_instr, ref cortex_m_cpu cpu) {
-	cpu.set(add_reg_instr.rd, cpu.get(add_reg_instr.rn) + cpu.get(add_reg_instr.rm));
 	cpu.increment_pc(2);
 }
 
