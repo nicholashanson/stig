@@ -40,10 +40,10 @@ instr_32 parse_tbb_tbh_32(uint instr) {
 void execute_tbb_tbh_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	auto f = load_store_log();
 	uint half_words;
-	const uint rn = cpu.get(instr.rn);
-	const uint rm = cpu.get(instr.rm);
-	const uint shifted = shift(shift_type.lsl, 1, rm);
-	const size_t addr = instr.is_tbh ? rn + shifted : rn + rm;
+	//const uint rn 	   = cpu.get(instr.rn);
+	const uint rm 	   = cpu.get(instr.rm);
+	auto       base    = (cpu.pc + 4) & ~3;
+	auto       addr    = base + (instr.is_tbh ? (rm << 1) : rm);
 	f.writeln(format("Attempting to access [%08X]", addr));
 	if (instr.is_tbh) {
 		half_words = mem.read_half_word(addr);
