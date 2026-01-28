@@ -3127,7 +3127,7 @@ unittest {
 		test_case(0x10b6,
 				  instr_16(op: opcode.asr_imm,       rd: reg.r6,  rm: reg.r6, imm: 2),
 			      cortex_m_cpu(r6: 0b10),
-			      cortex_m_cpu(pc: 2, r6: 0)),
+			      cortex_m_cpu(pc: 2, r6: 0, z: true, c: true)),
 		test_case(0x1076,
 				  instr_16(op: opcode.asr_imm,       rd: reg.r6,  rm: reg.r6, imm: 1),
 			      cortex_m_cpu(r6: 0b10),

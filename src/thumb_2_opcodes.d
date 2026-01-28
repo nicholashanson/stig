@@ -323,13 +323,35 @@ opcode decode_shift_add_sub_mov_cmp(ushort instr) {
 }
 
 // =====================
+//  Decode Single Str 1
+// =====================
+
+opcode decode_single_str_1(const ushort instr) {
+	const ubyte opb = cast(ubyte)((instr >>  9) & 0x07);
+	const ubyte opa = cast(ubyte)((instr >> 12) & 0x1f);
+	switch (opb) {
+		case 0b000: return opcode.str_reg;
+		case 0b001: return opcode.strh_reg;
+		case 0b100: return opcode.ldr_reg;
+		case 0b010:
+			if (opa == 0b0101) return opcode.strb_reg;
+			break;
+		case 0b110:
+			if (opa == 0b0101) return opcode.ldrb_reg;
+			break;
+		default: break;
+	}
+	return opcode.invalid;
+}
+
+// =====================
 //  Decode Single Str 2
 // =====================
 
 opcode decode_single_str_2(ushort instr) {
-	ubyte first_bit  = cast(ubyte)((instr >> 12) & 0b1);
-	ubyte second_bit = cast(ubyte)((instr >> 11) & 0b1);
-	ubyte op = cast(ubyte)((first_bit << 1) | second_bit);
+	const ubyte first_bit  = cast(ubyte)((instr >> 12) & 0x1);
+	const ubyte second_bit = cast(ubyte)((instr >> 11) & 0x1);
+	const ubyte op = cast(ubyte)((first_bit << 1) | second_bit);
     final switch (op) {
     	case 0b00: return opcode.str_imm;
     	case 0b01: return opcode.ldr_imm;
@@ -351,25 +373,7 @@ opcode decode_mnemonic(ushort instr) {
     	return decode_data_proc(instr);
     }
     if (((instr >> 12) & 0b1111) == instr_grp.single_str_1) {
-    	ubyte opb = cast(ubyte)((instr >>  9) & 0b111);
-    	ubyte opa = cast(ubyte)((instr >> 12) & 0b1111);
-    	if (cast(ubyte)((instr >> 9) & 0b111) == single_str.str) {
-    		return opcode.str_reg;
-    	}
-    	// 0x559a
-    	// 0101 0101 1001 1010
-    	if ((opa == 0b0101) && (opb == 0b010)) {
-    		return opcode.strb_reg;
-    	}
-    	if (cast(ubyte)((instr >> 9) & 0b111) == single_str.strh) {
-    		return opcode.strh_reg;
-    	}
-    	if ((opa == 0b0101) && (opb == 0b110)) {
-    		return opcode.ldrb_reg;
-    	}
-    	if (cast(ubyte)((instr >> 9) & 0b111) == single_str.ldr_reg) {
-    		return opcode.ldr_reg;
-    	}
+    	return decode_single_str_1(instr);
     }
     if (((instr >> 13) & 0b111)  == instr_grp.single_str_2) {
     	return decode_single_str_2(instr);
@@ -1238,7 +1242,7 @@ unittest {
 		test_case(0xf837c012, opcode.ldh_32),
 		test_case(0xe8dff012, opcode.tbb_tbh_32),
 		test_case(0xF3838814, opcode.msr_32),
-		test_case(0xf837c012, opcode.invalid)
+		test_case(0xf837c012, opcode.ldh_32)
 	];
 
 	foreach (t; tests) {
