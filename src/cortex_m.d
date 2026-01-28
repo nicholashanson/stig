@@ -1375,28 +1375,6 @@ instr_16 parse_mov_lo(short instr) {
 	return res;
 }
 
-// =====================
-//  Parse MVN(Register) 
-// =====================
-
-enum field_tuples_mvn_reg = [Tuple!(opcode, string[])(opcode.mvn_reg, ["rd","rm"])];
-/*
-	Data Processing
-	MVN <Rd>,<Rm>
-	[15:6] 0100001111`
-	[5:3] Rm
-	[2:0] Rd
-*/
-instr_16 parse_mvn_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.mvn_reg;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rm = cast(reg)(rm);
-	return res;
-}
-
 // ============
 //  Parse NEGS
 // ============
@@ -1640,55 +1618,6 @@ instr_16 parse_str_reg(short instr) {
 	res.rt = cast(reg)(rt);
 	res.rn = cast(reg)(rn);
 	res.rm = cast(reg)(rm);
-	return res;
-}
-
-// ======================
-//  Parse SUB(Immediate)
-// ======================
-
-enum field_tuples_sub_imm_3 = [Tuple!(opcode, string[])(opcode.sub_imm_3, ["rd","rn","imm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move, and Compare
-	SUB <Rd>,<Rn>,#<imm3>
-	[15:9] 0001111
-	[8:6] imm3
-	[5:3] Rn
-	[2:0] Rd
-*/
-instr_16 parse_sub_imm_3(short instr) {
-	instr_16 res;
-	res.op = opcode.sub_imm_3;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
-	ubyte imm_3 = cast(ubyte)((instr >> 6) & 0b111);
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
-	res.imm = imm_3;
-	return res;
-}
-
-// ======================
-//  Parse SUB(Immediate)
-// ======================
-
-enum field_tuples_sub_imm_8 = [Tuple!(opcode, string[])(opcode.sub_imm_8, ["rd","imm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move and Compare
-	SUB <Rd>,<Rn>,#<imm8>
-	[15:9] 0001111
-	[8:6] imm3
-	[5:3] Rn
-	[2:0] Rd
-*/
-instr_16 parse_sub_imm_8(short instr) {
-	instr_16 res;
-	res.op = opcode.sub_imm_8;
-	ubyte rdn = cast(ubyte)((instr >> 8) & 0b111);
-	res.rd = cast(reg)(rdn);
-	res.rn = cast(reg)(rdn);
-	ubyte imm = cast(ubyte)(instr & 0xff);
-	res.imm = imm;
 	return res;
 }
 
@@ -2293,38 +2222,6 @@ void execute_mov_imm(instr_16 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(2);
 }
 
-// ==================
-//  Execute SUB IMM8
-// ==================
-
-void execute_sub_imm_8(instr_16 instr, ref cortex_m_cpu cpu) {
-	int rn = cpu.get(instr.rn);
-	int res = rn - instr.imm;
-	if (!cpu.in_it_block()) {
-		cpu.z = (res == 0);
-		cpu.n = (res < 0);
-		cpu.c = cast(uint)rn >= cast(uint)instr.imm;
-		cpu.v = (rn < 0 && res > 0);
-	}
-	cpu.set(instr.rd, res);
-	cpu.increment_pc(2);
-}
-
-// =============
-//  Execute MVN
-// =============
-
-void execute_mvn_reg(instr_16 mvn_reg_instr, ref cortex_m_cpu cpu) {
-	int rm = cpu.get(mvn_reg_instr.rm);
-	int res = ~rm;
-	if (mvn_reg_instr.set_flags) {
-		cpu.z = (res == 0);
-		cpu.n = (res < 0);
-	}
-	cpu.set(mvn_reg_instr.rd, res);
-	cpu.increment_pc(2);
-}
-
 // ========================
 //  Execute STR(Immeidate)
 // ========================
@@ -2760,21 +2657,6 @@ void execute_ldr_reg(instr_16 ldr_reg_instr, ref cortex_m_cpu cpu, ref memory me
 	f.flush();
 	cpu.increment_pc(2);
 }	
-
-// ========================
-//  Execute SUB(Immediate)
-// ========================
-
-void execute_sub_imm_3(instr_16 instr, ref cortex_m_cpu cpu) {
-	int rn = cpu.get(instr.rn);
-	int res = rn - instr.imm;
-	cpu.set(instr.rd, res);
-	cpu.z = (res == 0);
-	cpu.n = (res < 0);
-	cpu.c = cast(uint)rn >= cast(uint)instr.imm;
-	cpu.v = (rn < 0 && res > 0);
-	cpu.increment_pc(2);
-}
 
 // =============
 //  Execute TST

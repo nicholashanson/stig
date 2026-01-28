@@ -232,5 +232,82 @@ void execute_lsr_imm(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ---------------------------------------- SUB ------------------------------------------
 
+// ======================
+//  Parse SUB(Immediate)
+// ======================
 
+enum field_tuples_sub_imm_3 = [Tuple!(opcode, string[])(opcode.sub_imm_3, ["rd","rn","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move, and Compare
+	SUB <Rd>,<Rn>,#<imm3>
+	[15:9] 0001111, [8:6] imm3, [5:3] Rn, [2:0] Rd
+*/
+instr_16 parse_sub_imm_3(short instr) {
+	instr_16 res;
+	res.op = opcode.sub_imm_3;
+	ubyte rd = cast(ubyte)(instr & 0b111);
+	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
+	ubyte imm_3 = cast(ubyte)((instr >> 6) & 0b111);
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	res.imm = imm_3;
+	return res;
+}
+
+// ========================
+//  Execute SUB(Immediate)
+// ========================
+
+void execute_sub_imm_3(instr_16 instr, ref cortex_m_cpu cpu) {
+	int rn = cpu.get(instr.rn);
+	int res = rn - instr.imm;
+	if (!cpu.in_it_block()) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+		cpu.c = cast(uint)rn >= cast(uint)instr.imm;
+		cpu.v = (rn < 0 && res > 0);
+	}
+	cpu.increment_pc(2);
+	cpu.set(instr.rd, res);
+}
+
+// ======================
+//  Parse SUB(Immediate)
+// ======================
+
+enum field_tuples_sub_imm_8 = [Tuple!(opcode, string[])(opcode.sub_imm_8, ["rd","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	SUB <Rd>,<Rn>,#<imm8>
+	[15:9] 0001111, [8:6] imm3, [5:3] Rn, [2:0] Rd
+*/
+instr_16 parse_sub_imm_8(const ushort instr) {
+	instr_16 res;
+	res.op 			= opcode.sub_imm_8;
+	const ubyte imm = cast(ubyte)( instr       & 0xff);
+	const ubyte rdn = cast(ubyte)((instr >> 8) & 0x07);
+	res.rd  = cast(reg)(rdn);
+	res.rn  = cast(reg)(rdn);
+	res.imm = imm;					// imm32 = ZeroExtend(imm8, 32);
+	return res;
+}
+
+// ==================
+//  Execute SUB IMM8
+// ==================
+
+void execute_sub_imm_8(const instr_16 instr, ref cortex_m_cpu cpu) {
+	const int rn  = cpu.get(instr.rn);
+	const int res = rn - instr.imm;
+	if (!cpu.in_it_block()) {
+		cpu.z = (res == 0);
+		cpu.n = (res < 0);
+		cpu.c = cast(uint)rn >= cast(uint)instr.imm;
+		cpu.v = (rn < 0 && res > 0);
+	}
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------

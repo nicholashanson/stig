@@ -289,6 +289,46 @@ void execute_lsr_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ----------------------------------------- MVN -----------------------------------------
+
+// =====================
+//  Parse MVN(Register) 
+// =====================
+
+enum field_tuples_mvn_reg = [Tuple!(opcode, string[])(opcode.mvn_reg, ["rd","rm"])];
+/*
+	Data Processing
+	MVN <Rd>,<Rm>
+	[15:6] 0100001111, [5:3] Rm, [2:0] Rd
+*/
+instr_16 parse_mvn_reg(const ushort instr) {
+	instr_16 res;
+	res.op = opcode.mvn_reg;
+	const ubyte rd = cast(ubyte)( instr       & 0x07);
+	const ubyte rm = cast(ubyte)((instr >> 3) & 0x07);
+	res.rd = cast(reg)(rd);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =============
+//  Execute MVN
+// =============
+
+void execute_mvn_reg(const instr_16 mvn_reg_instr, ref cortex_m_cpu cpu) {
+	int rm = cpu.get(mvn_reg_instr.rm);
+	int res = ~rm;
+	if (mvn_reg_instr.set_flags) {
+		cpu.z = (res == 0);			// APSR.Z = IsZeroBit(result);
+		cpu.n = (res < 0);			// APSR.N = result<31>;
+		// APSR.C = carry;
+		// APSR.V unchanged
+	}
+	cpu.set(mvn_reg_instr.rd, res);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
+
 // ----------------------------------------- MUL -----------------------------------------
 
 // ===========
@@ -301,7 +341,7 @@ enum field_tuples_mul = [Tuple!(opcode, string[])(opcode.mul, ["rd","rn"])];
 	MUL <Rdm>,<Rn>,<Rdm>
 	[15:6] 0100001101, [5:3] Rn, [2:0] Rdm
 */
-instr_16 parse_mul(ushort instr) {
+instr_16 parse_mul(const ushort instr) {
 	instr_16 res;
 	res.op = opcode.mul;
 	const ubyte rdm = cast(ubyte)( instr       & 0x07);
@@ -341,7 +381,7 @@ enum field_tuples_lor_reg = [Tuple!(opcode, string[])(opcode.lor_reg, ["rd","rm"
 	ORR <Rdn>,<Rm>
 	[15:6] 0100001100, [5:3] Rm, [2:0] Rdn
 */
-instr_16 parse_lor_reg(short instr) {
+instr_16 parse_lor_reg(const ushort instr) {
 	instr_16 res;
 	res.op = opcode.lor_reg;
 	ubyte rdn = cast(ubyte)( instr       & 0x07);
