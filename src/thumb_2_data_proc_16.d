@@ -329,6 +329,45 @@ void execute_mvn_reg(const instr_16 mvn_reg_instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ----------------------------------------- MOV -----------------------------------------
+
+// ======================
+//  Parse MOV(Immediate)
+// ======================
+
+enum field_tuples_mov_imm = [Tuple!(opcode, string[])(opcode.mov_imm, ["rd","imm"])];
+/*
+	Shift(Immediate), Add, Subtract, Move and Compare
+	ADD <Rd>,<Rn>,#<imm3>
+	[15:11] 00100, [10:8] Rd, [7:0] imm8
+*/
+instr_16 parse_mov_imm(short instr) {
+	instr_16 res;
+	res.op = opcode.mov_imm;
+	const ubyte imm = cast(ubyte)( instr       & 0xff);
+	const ubyte rd  = cast(ubyte)((instr >> 8) & 0x07);
+	res.imm = imm;							// imm32 = ZeroExtend(imm8, 32);
+	res.rd = cast(reg)(rd);
+	return res;
+}
+
+// ========================
+//  Execute MOV(Immediate)
+// ========================
+
+void execute_mov_imm(const instr_16 instr, ref cortex_m_cpu cpu) {
+	const uint res = instr.imm;
+	if (!cpu.in_it_block()) {
+		cpu.z = (res == 0);					// APSR.Z = IsZeroBit(result);
+		cpu.n = (res & 0x8000_0000) != 0;	// APSR.N = result<31>;
+		// APSR.C = carry;
+		// APSR.V unchanged
+	}
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
+
 // ----------------------------------------- MUL -----------------------------------------
 
 // ===========

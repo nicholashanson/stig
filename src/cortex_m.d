@@ -1326,28 +1326,6 @@ instr_16 parse_mov_high_2(short instr) {
 	return res;
 }
 
-// ======================
-//  Parse MOV(Immediate)
-// ======================
-
-enum field_tuples_mov_imm = [Tuple!(opcode, string[])(opcode.mov_imm, ["rd","imm"])];
-/*
-	Shift(Immediate), Add, Subtract, Move and Compare
-	ADD <Rd>,<Rn>,#<imm3>
-	[15:11] 00100
-	[10:8] Rd
-	[7:0] imm8
-*/
-instr_16 parse_mov_imm(short instr) {
-	instr_16 res;
-	res.op = opcode.mov_imm;
-	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
-	ubyte imm = cast(ubyte)(instr & 0xff);
-	res.imm = imm;
-	res.rd = cast(reg)(rd);
-	return res;
-}
-
 // =====================
 //  Parse MOV(Register)
 // =====================
@@ -2209,21 +2187,10 @@ void execute_add_imm_8(instr_16 add_imm_8_instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(2);
 }
 
-// =============
-//  Execute MOV
-// =============
 
-void execute_mov_imm(instr_16 instr, ref cortex_m_cpu cpu) {
-	cpu.set(instr.rd, instr.imm);
-	if (!cpu.in_it_block()) {
-		cpu.z = (instr.imm == 0);
-		cpu.n = (instr.imm & 0x80) != 0;
-	}
-	cpu.increment_pc(2);
-}
 
 // ========================
-//  Execute STR(Immeidate)
+//  Execute STR(Immediate)
 // ========================
 
 void execute_str_imm(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
