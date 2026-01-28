@@ -173,14 +173,14 @@ instr_16 parse_lsl_imm(const ushort instr) {
 // =============
 
 void execute_lsl_imm(const ref instr_16 instr, ref cortex_m_cpu cpu) {
-	uint rm    = cpu.get(instr.rm);
+	const uint rm    = cpu.get(instr.rm);
 	uint res   = rm << (instr.imm - 1);
-	bool carry = ((res & 0x8000_0000) != 0);
+	const bool carry = ((res & 0x8000_0000) != 0);
 	res 	   = res << 1;
 	if (!cpu.in_it_block()) {
-		cpu.z = (res == 0);		// APSR.Z = IsZeroBit(result);
-		cpu.n = (res < 0);		// APSR.N = result<31>;
-		cpu.c = carry;			// APSR.C = carry;	
+		cpu.z = (res == 0);						// APSR.Z = IsZeroBit(result);
+		cpu.n = ((res & 0x8000_0000) != 0);		// APSR.N = result<31>;
+		cpu.c = carry;							// APSR.C = carry;	
 		// APSR.V unchanged
 	}
 	cpu.set(instr.rd, res);

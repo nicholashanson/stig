@@ -3,6 +3,15 @@ import std.format;
 
 import cortex_m_core;
 
+File* access_log_ptr = null;
+
+File* access_log() {
+    if (access_log_ptr is null) {
+        access_log_ptr = new File("access_log.txt", "w");
+    }
+    return access_log_ptr;
+}
+
 File* stack_log_ptr = null;
 
 File* stack_log() {
@@ -154,6 +163,7 @@ struct memory {
     enum ram_length = 128 * 1024;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t] peripherals = [
+        0x40013818: 0,
         // -------------------------------------- TIM2 ------------------------------------------
         0x40000000: 0,          // TIM2_CR1 TIM2 Control Register 1
         0x40000004: 0,          // TIM2_CR2 TIM2 Control Register 2
@@ -162,6 +172,7 @@ struct memory {
         // -------------------------------------- FLASH -----------------------------------------
         0x40023C00: 0x000083,   // FLASH_ACR 
         // --------------------------------------------------------------------------------------
+        0x40013814: 0,
         0x40013C08: 0,          // SYSCFG_EXTICR1
         0x40013C0C: 0,          // SYSCFG_EXTICR2
         0x40013C10: 0,          // SYSCFG_EXTICR3

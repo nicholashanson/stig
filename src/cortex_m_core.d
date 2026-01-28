@@ -66,23 +66,27 @@ void exception_return(ref cortex_m_cpu cpu, ref memory mem, uint exc_return) {
 // ------------------------------------- Condition --------------------------------------
 
 enum condition : ubyte {
-	cs = 0b0010,	// carry set
-	eq = 0b0000,
-	lt = 0b1011,
-	gt = 0b1100,
-	ge = 0b1010,
-	le = 0b1101,
-	mi = 0b0100,
-	ne = 0b0001,
+	cs = 0b0010,			// carry set
+	eq = 0b0000,			// equal
+	lt = 0b1011,			// less-than
+	gt = 0b1100,			// greater-than
+	ge = 0b1010,			// greater-than or equal-to
+	le = 0b1101,			// less-than or equal-to
+	mi = 0b0100,	
+	ne = 0b0001,			// not equal
 	pl = 0b0101,
 	hi = 0b1000,
 	ls = 0b1001,
 	vs = 0b0110,
 	vc = 0b0111,
-	cc = 0b0011, 	// carry clear
+	cc = 0b0011, 			// carry clear
 	al = 0b1110,
 	invalid = 0xff
 }
+
+// ==================
+//  CONDITION IS MET
+// ==================
 
 bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
 	final switch (cond) {
@@ -105,11 +109,72 @@ bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
 	}
 }
 
+// ==============
+//  GET NEGATION
+// ==============
+
 condition get_negation(condition cond) {
 	if (cond == condition.invalid) {
 		return condition.invalid;
 	}
 	return cast(condition)(cond ^ 1);
+}
+
+// =========
+//  GET XYZ
+// =========
+
+xyz get_xyz(ubyte first_cond_mask) {
+	ubyte first_cond = cast(ubyte)((first_cond_mask >> 4) & 0xf);
+	ubyte mask = cast(ubyte)(first_cond_mask & 0xf);
+	if (mask == 0b0001) {
+		return xyz.none;
+	}
+	ubyte first_cond_0 = cast(ubyte)(first_cond & 0b1);
+	auto bit0 = first_cond_0 ? 1 : 0;
+	if (mask == ((bit0 << 3) | 0b100)) {
+		return xyz.t;
+	}
+	if (mask == (((bit0 ^ 1) << 3) | 0b100)) {
+		return xyz.e;
+	}
+	if (mask == ((bit0 << 3) | (bit0 << 2) | 0b10)) {
+		return xyz.tt;
+	}
+	if (mask == (((bit0 ^ 1) << 3) | (bit0 << 2) | 0b10)) {
+		return xyz.et;
+	}
+	if (mask == ((bit0 << 3) | !(bit0 << 2) | 0b10)) {
+		return xyz.te;
+	}
+	if (mask == (((bit0 ^ 1) << 3) | ((bit0 ^ 1) << 2) | 0b10)) {
+		return xyz.ee;
+	}
+	if (mask == ((bit0 << 3) | (bit0 << 2) | (bit0 << 1) | 0b1)) {
+		return xyz.ttt;
+	}
+	if (mask == (((bit0 ^ 1) << 3) | (bit0 << 2) | (bit0 << 1) | 0b1)) {
+		return xyz.ett;
+	}
+	if (mask == ((bit0 << 3) | ((bit0 ^ 1) << 2) | (bit0 << 1) | 0b1)) {
+		return xyz.tet;
+	}
+	if (mask == (((bit0 ^ 1) << 3) | ((bit0 ^ 1) << 2) | (bit0 << 1) | 0b1)) {
+		return xyz.eet;
+	}
+	if (mask == ((bit0 << 3) | (bit0 << 2) | ((bit0 ^ 1) << 1) | 0b1)) {
+		return xyz.tte;
+	}
+	if (mask == (((bit0 ^ 1) << 3) | (bit0 << 2) | ((bit0 ^ 1) << 1) | 0b1)) {
+		return xyz.ete;
+	}
+	if (mask == ((bit0 << 3) | ((bit0 ^ 1) << 2) | ((bit0 ^ 1) << 1) | 0b1)) {
+		return xyz.tee;
+	}
+	if (mask == (((bit0 ^ 1) << 3) | ((bit0 ^ 1) << 2) | ((bit0 ^ 1) << 1) | 0b1)) {
+		return xyz.eee;
+	}
+	return xyz.none;
 }
 
 // --------------------------------------------------------------------------------------

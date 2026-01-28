@@ -21,7 +21,7 @@ enum field_tuples_asr_reg_32 = [Tuple!(opcode, string[])(opcode.asr_reg_32, ["rd
 instr_32 parse_asr_reg_32(const uint instr) {
 	instr_32 res;
 	res.op   = opcode.asr_reg_32;
-	ubyte rm = cast(ubyte)( instr        & 0xf);
+	ubyte rm = cast(ubyte)( instr        & 0x0f);
 	ubyte rd = cast(ubyte)((instr >>  8) & 0x0f);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0x0f);
 	ubyte S  = cast(ubyte)((instr >> 20) & 0x01);

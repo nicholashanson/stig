@@ -41,7 +41,7 @@ void execute_adc_imm_32(const ref instr_32 instr, ref cortex_m_cpu cpu) {
     uint res = cast(uint)wide_res;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);
-		cpu.n = (res & 0x80000000) != 0;
+		cpu.n = (res & 0x8000_0000) != 0;
 		cpu.c = cast(bool)((wide_res >> 32) & 1);
 		bool signed_overflow = ((cast(int)rn > 0 && cast(int)imm > 0 && cast(int)res < 0) ||
                                 (cast(int)rn < 0 && cast(int)imm < 0 && cast(int)res > 0));

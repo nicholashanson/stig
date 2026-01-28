@@ -2226,61 +2226,6 @@ unittest {
     assert(vm.cpu.get_sp() == memory.stack_base);
 }
 
-// 0xBF1C
-// 1011 1111 0001 1100
-xyz get_xyz(ubyte first_cond_mask) {
-	ubyte first_cond = cast(ubyte)((first_cond_mask >> 4) & 0xf);
-	ubyte mask = cast(ubyte)(first_cond_mask & 0xf);
-	if (mask == 0b0001) {
-		return xyz.none;
-	}
-	ubyte first_cond_0 = cast(ubyte)(first_cond & 0b1);
-	auto bit0 = first_cond_0 ? 1 : 0;
-	if (mask == ((bit0 << 3) | 0b100)) {
-		return xyz.t;
-	}
-	if (mask == (((bit0 ^ 1) << 3) | 0b100)) {
-		return xyz.e;
-	}
-	if (mask == ((bit0 << 3) | (bit0 << 2) | 0b10)) {
-		return xyz.tt;
-	}
-	if (mask == (((bit0 ^ 1) << 3) | (bit0 << 2) | 0b10)) {
-		return xyz.et;
-	}
-	if (mask == ((bit0 << 3) | !(bit0 << 2) | 0b10)) {
-		return xyz.te;
-	}
-	if (mask == (((bit0 ^ 1) << 3) | ((bit0 ^ 1) << 2) | 0b10)) {
-		return xyz.ee;
-	}
-	if (mask == ((bit0 << 3) | (bit0 << 2) | (bit0 << 1) | 0b1)) {
-		return xyz.ttt;
-	}
-	if (mask == (((bit0 ^ 1) << 3) | (bit0 << 2) | (bit0 << 1) | 0b1)) {
-		return xyz.ett;
-	}
-	if (mask == ((bit0 << 3) | ((bit0 ^ 1) << 2) | (bit0 << 1) | 0b1)) {
-		return xyz.tet;
-	}
-	if (mask == (((bit0 ^ 1) << 3) | ((bit0 ^ 1) << 2) | (bit0 << 1) | 0b1)) {
-		return xyz.eet;
-	}
-	if (mask == ((bit0 << 3) | (bit0 << 2) | ((bit0 ^ 1) << 1) | 0b1)) {
-		return xyz.tte;
-	}
-	if (mask == (((bit0 ^ 1) << 3) | (bit0 << 2) | ((bit0 ^ 1) << 1) | 0b1)) {
-		return xyz.ete;
-	}
-	if (mask == ((bit0 << 3) | ((bit0 ^ 1) << 2) | ((bit0 ^ 1) << 1) | 0b1)) {
-		return xyz.tee;
-	}
-	if (mask == (((bit0 ^ 1) << 3) | ((bit0 ^ 1) << 2) | ((bit0 ^ 1) << 1) | 0b1)) {
-		return xyz.eee;
-	}
-	return xyz.none;
-}
-
 // =================
 //  Execute CMP IMM
 // =================
@@ -2296,23 +2241,23 @@ void execute_cmp_imm(instr_16 cmp_imm_instr, ref cortex_m_cpu cpu) {
 }
 
 void execute_cps(instr_16 instr, ref cortex_m_cpu cpu) {
-	bool enable = instr.enable;
-	bool affect_pri = instr.affect_pri;
-	bool affect_fault = instr.affect_fault;
+	bool enable 		= instr.enable;
+	bool affect_pri 	= instr.affect_pri;
+	bool affect_fault 	= instr.affect_fault;
 	if (enable) {
 		if (affect_pri) {
-			cpu.pri_mask = false;
+			cpu.pri_mask 	= false;
 		}
 		if (affect_fault) {
-			cpu.fault_mask = false;
+			cpu.fault_mask 	= false;
 		}
 	}
 	if (!enable) {
 		if (affect_pri) {
-			cpu.pri_mask = true;
+			cpu.pri_mask 	= true;
 		}
 		if (affect_fault) {
-			cpu.fault_mask = true;
+			cpu.fault_mask 	= true;
 		}
 	}
 	cpu.increment_pc(2);
@@ -6988,6 +6933,7 @@ string[opcode] opcode_strings = [
 	opcode.strd_32: "strd",
 	opcode.strh_imm_32_t2: "strh",
 	opcode.str_sp: "str",
+	opcode.rbit_32: "rbit",
 	opcode.str_reg: "str",
 	opcode.str_reg_32: "str.w",
 	opcode.sel_32: "sel",

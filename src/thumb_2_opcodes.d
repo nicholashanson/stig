@@ -291,8 +291,7 @@ opcode decode_data_proc(ushort instr) {
 		case 0b1101: return opcode.mul;
 		case 0b1110: return opcode.bic_reg;
 		case 0b1111: return opcode.mvn_reg;
-		
-		default: assert(false, "Invalid 16-bit Data Processing Instruction: " ~ format("%04X", instr));
+		default: break; // assert(false, "Invalid 16-bit Data Processing Instruction: " ~ format("%04X", instr));
 	}
     return opcode.invalid;
 }
@@ -556,6 +555,8 @@ unittest {
 		test_case(0x4b08, opcode.ldr_pool),
 		test_case(0x4b09, opcode.ldr_pool),
 		test_case(0x4b0a, opcode.ldr_pool),
+		test_case(0x4b01, opcode.ldr_pool),
+		test_case(0x482d, opcode.ldr_pool),
 		test_case(0x58d4, opcode.ldr_reg),
 		test_case(0x58fb, opcode.ldr_reg),
 		test_case(0x9d08, opcode.ldr_sp),
@@ -604,7 +605,11 @@ unittest {
 		test_case(0xb240, opcode.sxtb),
 		test_case(0x4208, opcode.tst),
 		test_case(0xb2db, opcode.uxtb),
-		test_case(0xb29a, opcode.uxth)
+		test_case(0xb29a, opcode.uxth),
+
+
+
+		test_case(0x559a, opcode.strb_reg)
 	];
 
 	foreach (t; tests) {
@@ -669,7 +674,7 @@ opcode decode_data_proc_shift_reg(uint instr) {
 	ubyte rd = cast(ubyte)((instr >>  8) & 0xf);
 	ubyte s  = cast(ubyte)((instr >> 20) & 0x1);
 	enum ubyte pc = 0xf;
-	final switch (op)
+	switch (op)
 	{
 		case 0b1101: 
 			if (rd == pc && s == 1) return opcode.cmp_reg_32; 
@@ -686,6 +691,7 @@ opcode decode_data_proc_shift_reg(uint instr) {
 			if (rd == pc && s == 1) return opcode.tst_reg_32;
 			if (rd != pc) return opcode.and_reg_32;
 			return opcode.invalid;
+		default: break;
 	}
 	return opcode.invalid;
 }
@@ -698,7 +704,7 @@ opcode decode_data_proc_bin_imm(uint instr) {
 	enum ubyte pc = 0xf;
 	ubyte op = cast(ubyte)((instr >> 20) & 0x1f);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	final switch (op)
+	switch (op)
 	{
 		case 0b00000: return rn == pc ? opcode.adr_32 : opcode.add_imm_32;
 		case 0b10110: return rn == pc ? opcode.bfc_32 : opcode.bfi_32;
@@ -707,6 +713,7 @@ opcode decode_data_proc_bin_imm(uint instr) {
 		case 0b10100: return opcode.sbfx_32;
 		case 0b01010: return rn == pc ? opcode.adr_32 : opcode.sub_imm_32;
 		case 0b11100: return opcode.ubfx_32;
+		default: break;
 	}
 	return opcode.invalid;
 }
@@ -721,7 +728,7 @@ opcode decode_data_proc_imm(uint instr) {
 	ubyte rn = cast(ubyte)((instr >> 16) & 0x0f);
 	enum ubyte pc = 0xf;
 	ubyte masked_op = op & 0b11110;
-	final switch (masked_op)
+	switch (masked_op)
 	{
 		case 0b11010: return rd == pc ? opcode.cmp_imm_32 : opcode.sub_imm_32;
 		case 0b00000: return rd == pc ? opcode.tst_imm_32 : opcode.and_imm_32;
@@ -742,6 +749,7 @@ opcode decode_data_proc_imm(uint instr) {
 		case 0b10110: return opcode.sbc_imm_32;
 		case 0b00010: return opcode.bic_imm_32;
 		case 0b11100: return opcode.rsb_imm_32;
+		default: break;
 	}
 	return opcode.invalid;  
 }
@@ -757,11 +765,12 @@ opcode decode_load_store_mult(uint instr) {
 	ubyte Wrn  = cast(ubyte)((W << 4) | rn);
 	ubyte L    = cast(ubyte)((instr >> 20) & 0x1);
 	ubyte op_L = cast(ubyte)((op << 1) | L);
-	final switch (op_L) {
+	switch (op_L) {
 		case 0b011: return Wrn == 0b11101 ? opcode.pop_mult_reg_32  : opcode.ldmia_32;
 		case 0b100: return Wrn == 0b11101 ? opcode.push_mult_reg_32 : opcode.stmb_32;
 		case 0b101: return opcode.ldmdb_32;
 		case 0b010: return opcode.stmia_32;
+		default: break;
 	}
 	return opcode.invalid;
 }
@@ -822,9 +831,10 @@ opcode decode_mult(uint instr) {
 	ubyte op2 = cast(ubyte)((instr >>  4) & 0x3);
 	enum ubyte pc = 0xf;
 	ubyte op12 = cast(ubyte)((op1 << 2) | op2); 
-	final switch (op12) {
+	switch (op12) {
 		case 0b00000: return ra == pc ? opcode.mul_32 : opcode.mla_32;
 		case 0b00001: return opcode.mls_32;
+		default: break;// assert(false, "Invalid 32-bit Data Mult Instruction: " ~ format("%04X", instr));
 	}
 	return opcode.invalid;
 }
@@ -1226,7 +1236,9 @@ unittest {
 		test_case(0xf1720100, opcode.sbc_imm_32),
 		test_case(0xfa90f7a0, opcode.rbit_32),
 		test_case(0xf837c012, opcode.ldh_32),
-		test_case(0xe8dff012, opcode.tbb_tbh_32)
+		test_case(0xe8dff012, opcode.tbb_tbh_32),
+		test_case(0xF3838814, opcode.msr_32),
+		test_case(0xf837c012, opcode.invalid)
 	];
 
 	foreach (t; tests) {

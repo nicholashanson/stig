@@ -305,7 +305,11 @@ load_segment[] get_load_segments(const string elf_file) {
 }
 
 uint file_offset_to_addr(uint file_offset, load_segment[] segs) {
+    auto f = load_store_log();
     foreach (s; segs) {
+        f.writeln(format("Segment file offset: %08X", s.file_offset));
+        f.writeln(format("Segment file size: %08X", s.file_size));
+        f.writeln(format("Segment file vaddr: %08X", s.vaddr));
         if (file_offset >= s.file_offset &&
             file_offset <  s.file_offset + s.file_size) {
             return s.vaddr + (file_offset - s.file_offset);
@@ -315,14 +319,17 @@ uint file_offset_to_addr(uint file_offset, load_segment[] segs) {
 }
 
 void load_section_into_memory(const ref string filename, const string section_name, ref memory mem) {
+    auto f = load_store_log();
     auto section = get_section_by_name(filename, section_name);
     if (section.data.length == 0)
         return;
     auto segments = get_load_segments(filename);
     uint addr = file_offset_to_addr(section.file_offset, segments);
-    writeln(format("%s: load @ %08X", section_name, addr));
     foreach (b; section.data) {
+        f.writeln(format("Attempting to write one after %08X", addr));
         mem.write_byte(addr++, b);
+        f.writeln(format("%s: load @ %08X", section_name, addr));
+        f.flush();
     }
 }
 
@@ -491,13 +498,20 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_typ
 
         if ((sym.st_value >= 0x08000000) && (sym.st_value <= 0x20020000)) {
             if (name.canFind("uart_cfg")) {
-                items ~= st_name_val(name ~ ".parity",    sym.st_value    );
-                items ~= st_name_val(name ~ ".stop_bits", sym.st_value + 1);
-                items ~= st_name_val(name ~ ".data_bits", sym.st_value + 2);
-                items ~= st_name_val(name ~ ".flow_ctrl", sym.st_value + 3);
+                items ~= st_name_val(name ~ ".parity",               sym.st_value    );
+                items ~= st_name_val(name ~ ".stop_bits",            sym.st_value + 1);
+                items ~= st_name_val(name ~ ".data_bits",            sym.st_value + 2);
+                items ~= st_name_val(name ~ ".flow_ctrl",            sym.st_value + 3);
             } else if (name.canFind("mpu_config") && _st_type != st_type.stt_func) {
-                items ~= st_name_val(name ~ ".num_regions", sym.st_value);
-                items ~= st_name_val(name ~ ".mpu_regions", sym.st_value + 4);
+                items ~= st_name_val(name ~ ".num_regions",          sym.st_value    );
+                items ~= st_name_val(name ~ ".mpu_regions",          sym.st_value + 4);
+            } else if (name.canFind("gpio_stm32_cfg")) {
+                items ~= st_name_val(name ~ ".common.port_pin_mask", sym.st_value     );
+                items ~= st_name_val(name ~ ".base",                 sym.st_value +  4);
+                items ~= st_name_val(name ~ ".port",                 sym.st_value +  8);
+                items ~= st_name_val(name ~ ".pclken.bus",           sym.st_value + 12);
+                items ~= st_name_val(name ~ ".pclken.div",           sym.st_value + 16); 
+                items ~= st_name_val(name ~ ".pclken.enr",           sym.st_value + 20);
             } else {
                 items ~= st_name_val(name, sym.st_value);
             }
@@ -588,17 +602,17 @@ elf_func get_elf_func(const string elf_file, const string func_name) {
         //size_t offset_in_text = cast(size_t)(sym.st_value - text_start);
         size_t size = cast(size_t)sym.st_size;
 
-        if (name == "__start") size = 52;
-        if (name == "__aeabi_uldivmod") size = 48;
-        if (name == "__aeabi_read_tp") size = 12;
-        if (name == "LoopFillZerobss") size = 38;
-        if (name == "LoopCopyDataInit") size = 14;
-        if (name == "_init") size = 12;
-        if (name == "frame_dummy") size = 28;
-        if (name == "Reset_Handler") size = 18;
-        if (name == "CopyDataInit") size = 6;
-        if (name == "FillZerobss") size = 4;
-        if (name == "register_tm_clones") size = 36;
+        if (name == "__start")              size = 52;
+        if (name == "__aeabi_uldivmod")     size = 48;
+        if (name == "__aeabi_read_tp")      size = 12;
+        if (name == "LoopFillZerobss")      size = 38;
+        if (name == "LoopCopyDataInit")     size = 14;
+        if (name == "_init")                size = 12;
+        if (name == "frame_dummy")          size = 28;
+        if (name == "Reset_Handler")        size = 18;
+        if (name == "CopyDataInit")         size =  6;
+        if (name == "FillZerobss")          size =  4;
+        if (name == "register_tm_clones")   size = 36;
 
         //if(offset_in_text + size > text_data.length)
         //    size = text_data.length - offset_in_text;
@@ -701,8 +715,7 @@ unittest {
     writeln(); 
 }
 
-bool is_32_bit_instr(uint instr)
-{
+bool is_32_bit_instr(uint instr) {
     ushort first_hw = cast(ushort)(instr & 0xFFFF);
     return (first_hw & 0xF800) >= 0xE800;
 }

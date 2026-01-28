@@ -11,7 +11,7 @@ import core.time : MonoTime, dur;
 import thumb_2_opcodes;
 import thumb_2_instrs;
 import memory_sections;
-import file_parsing;
+import parse_elf;
 
 // Global pad and scroll offset:
 WINDOW* instrPad;
@@ -84,6 +84,18 @@ void draw_register_box_view(cortex_m_vm vm) {
     drawRegisterBoxes(stdscr, y++, x, "V   ", vm.cpu.v ? 1u : 0u);
 }
 
+int color_for_value(uint val, ref cortex_m_vm vm) {
+    if (val == 0x00000000)
+        return 1;
+    else if (val >= vm.mem.ram_origin   && val <= vm.mem.ram_origin   + vm.mem.ram_length  )
+        return 3;
+    else if (val >= vm.mem.flash_origin && val <= vm.mem.flash_origin + vm.mem.flash_length)
+        return 4;
+    else if (val > vm.mem.flash_origin + vm.mem.flash_length)
+        return 5;
+    return 2;
+}
+
 void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
     static uint previous_pc = 0;
     if (vm.cpu.pc != previous_pc) {
@@ -102,8 +114,27 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         int stackX = 0;
 
         auto printReg = (string name, uint val, ref cortex_m_vm vm) {
-            string reg_name = vm.mem.peripheral_names.get(val, "              ");
+            auto f = access_log();
+            string reg_name = vm.mem.get_reg_name(val);
+            if (reg_name == "") {
+                foreach (e; vm.objects) {
+                if (e.addr == val) {
+                        reg_name = e.name;
+                        break;
+                    }
+                }
+            }
+            if (reg_name == "") 
+                reg_name = "                                                     ";
+            else {
+                f.writeln(reg_name);
+                f.flush();
+                reg_name ~= "               ";
+            }
+            int color = color_for_value(val, vm);
+            wattron(regPad, COLOR_PAIR(color));
             mvwprintw(regPad, regY++, regX, toStringz(format("%s %08x %s", name, val, reg_name)));
+            wattroff(regPad, COLOR_PAIR(color));
         };
         auto printFlag = (string name, bool val) {
             mvwprintw(flagPad, flagY++, regX, toStringz(format("%s %d", name, val)));
@@ -163,9 +194,6 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         }
     }
 
-    // ----------------------------
-    // Right pane: instructions ON PAD
-    // ----------------------------
     int instrPadRow = 0;
     int instrPadCol = 0;
     int currentPcRow = 0; 
@@ -325,9 +353,30 @@ void main(string[] args) {
     start_color();
     use_default_colors();
 
-    init_pair(1, COLOR_BLACK, COLOR_GREEN); // set
-    init_pair(2, COLOR_BLACK, COLOR_RED);   // clear
-    init_pair(3, COLOR_WHITE, -1);          // normal text
+    start_color();
+
+    //init_color(COLOR_BLACK,  150, 160, 140);
+
+    // Foreground
+    init_color(COLOR_WHITE,  970, 970, 950);
+
+    // Cyan
+    init_color(COLOR_CYAN,   400, 850, 940);
+
+    // Yellow
+    init_color(COLOR_YELLOW, 900, 860, 450);
+
+    // Green
+    init_color(COLOR_GREEN,  650, 880, 180);
+
+    // Red
+    init_color(COLOR_RED,    980, 150, 450);
+
+    init_pair(1, COLOR_WHITE,  COLOR_BLACK); 
+    init_pair(2, COLOR_CYAN,   COLOR_BLACK); 
+    init_pair(3, COLOR_YELLOW, COLOR_BLACK); 
+    init_pair(4, COLOR_GREEN,  COLOR_BLACK); 
+    init_pair(5, COLOR_RED,    COLOR_BLACK); 
     
     scope(exit) endwin();
     cbreak();
@@ -342,7 +391,34 @@ void main(string[] args) {
     instrPad = newpad(10000, 200);
 
     cortex_m_vm vm;
-    vm.load_program(objdump_file_name);
+    if (!objdump_file_name.canFind("elf")) {
+        vm.load_program(objdump_file_name);
+    } else {
+        auto f_h = load_store_log();
+        f_h.writeln("Loading program");
+        f_h.flush();
+        auto f_s = get_program_from_elf(objdump_file_name);
+        vm.cpu.pc = get_elf_entry_point(objdump_file_name) - 1;
+        if (f_s.length == 0) {
+            f_h.writeln("No functions found");
+            f_h.flush();
+        }
+        foreach (f; f_s) {
+            load_function_into_memory(f, vm.mem);
+            f_h.writeln(f.name, ": ", f.instrs.length);
+            f_h.flush();
+            vm.current_program ~= f.instrs;
+            vm.func_names ~= f.name;
+            f_h.writeln(vm.current_program.length);
+            f_h.flush();
+        }
+        foreach (t; table_names) {
+            load_section_into_memory(objdump_file_name, t, vm.mem);
+        }
+        vm.objects = get_st_name_val(objdump_file_name, st_type.stt_func);
+        vm.objects ~= get_st_name_val(objdump_file_name, st_type.stt_notype);
+        vm.objects ~= get_st_name_val(objdump_file_name, st_type.stt_object);
+    }
 
     auto file_mem = File("mem.txt", "w");
     for (size_t i = memory.flash_origin; i < memory.flash_origin + memory.flash_length; i += 4) {
@@ -379,6 +455,8 @@ void main(string[] args) {
             func f = get_function(objdump_file_name, name);
             f_s ~= f;
         }
+    } else if (objdump_file_name.canFind("elf")) {
+        f_s = get_program_from_elf(objdump_file_name);
     } else {
         foreach (name; vm.func_names) {
             func f = get_function(objdump_file_name, name);

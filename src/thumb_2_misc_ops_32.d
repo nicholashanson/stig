@@ -6,7 +6,7 @@ import cortex_m_core;
 
 // ---------------------------------------- RBIT -----------------------------------------
 
-enum field_tuples_rbit_32 = [Tuple!(opcode, string[])(opcode.rbit_32, ["rt","rn","rm"])];
+enum field_tuples_rbit_32 = [Tuple!(opcode, string[])(opcode.rbit_32, ["rd","rm"])];
 /*
 	Miscellaneous Operations
 	First Half-Word: [15:4] 111110101001, [3:0] Rm
