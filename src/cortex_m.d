@@ -4982,75 +4982,6 @@ instr_32 parse_cmn_imm_32(uint instr) {
 	return res;
 }
 
-// =======================
-//  Parse STRB(Immediate)
-// =======================
-
-enum field_tuples_strb_imm_32_t2 = [Tuple!(opcode, string[])(opcode.strb_imm_32_t2, ["rt","rn","imm"])];
-/*
-	Data Processing
-	Mov Register and Immeidate Shifts
-	STRB<c>.W <Rt>,[<Rn>,#<imm12>]
-	First Half-Word:
-	[15:4] 111110001000
-	[3:0] Rn 
-	Second Half-Word:
-	[15:12] Rt 
-	[11:0] imm12
-*/
-// ea4f 06a6: 1110 1010 0100 1111 0000 0110 1010 0110
-instr_32 parse_strb_imm_32_t2(uint instr) {
-	instr_32 res;
-	res.op = opcode.strb_imm_32_t2;
-	ushort imm_12 = cast(ushort)(instr & 0xfff);
-	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	res.imm = imm_12;
-	res.index = true;
-	res.add = true;
-	return res;
-}
-
-// =======================
-//  Parse STRB(Immediate)
-// =======================
-
-enum field_tuples_strb_imm_32_t3 = [Tuple!(opcode, string[])(opcode.strb_imm_32_t3, ["rt","rn","imm"])];
-/*
-	Data Processing
-	Mov Register and Immeidate Shifts
-	STRB<c>.W <Rt>,[<Rn>,#<imm12>]
-	First Half-Word:
-	[15:4] 111110001000
-	[3:0] Rn 
-	Second Half-Word:
-	[15:12] Rt 
-	[11:0] imm12
-*/
-// ea4f 06a6: 1110 1010 0100 1111 0000 0110 1010 0110
-instr_32 parse_strb_imm_32_t3(uint instr) {
-	instr_32 res;
-	res.op = opcode.strb_imm_32_t3;
-	ubyte imm_8 = cast(ushort)(instr & 0xff);
-	ubyte W  = cast(ubyte)((instr >>  8) & 0b1);
-	ubyte U  = cast(ubyte)((instr >>  9) & 0b1);
-	ubyte P  = cast(ubyte)((instr >> 10) & 0b1);
-	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	bool wback = W == 0b1 ? true : false;
-	bool add   = U == 0b1 ? true : false;
-	bool index = P == 0b1 ? true : false;
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
-	res.imm = imm_8;
-	res.wback = wback;
-	res.add = add;
-	res.index = index;
-	return res;
-}
-
 // ==============
 //  Decode Instr
 // ==============
@@ -5188,10 +5119,8 @@ instr_32 decode_instr(uint instr) {
 			return parse_b_uncond_32(instr);
 		case opcode.ldrd_imm_32:
 			return parse_ldrd_imm_32(instr);
-		case opcode.strb_imm_32_t2:
-			return parse_strb_imm_32_t2(instr);
-		case opcode.strb_imm_32_t3:
-			return parse_strb_imm_32_t3(instr);
+		case opcode.strb_imm_32_t2: res = parse_strb_imm_32_t2(instr); break;
+		case opcode.strb_imm_32_t3: res = parse_strb_imm_32_t3(instr); break;
 		case opcode.ldrb_imm_32_t2:
        		return parse_ldrb_imm_32_t2(instr);
        	case opcode.cmn_imm_32:
@@ -5210,12 +5139,12 @@ instr_32 decode_instr(uint instr) {
         	return parse_clz_32(instr);
         case opcode.orn_reg_32:
         	return parse_orn_reg_32(instr);
-        case opcode.strh_reg_32:
-        	return parse_strh_reg_32(instr);
+        case opcode.strh_reg_32: res = parse_strh_reg_32(instr); break;
 		default:
-			res.op = op;
-			return res;
+			break;
 	}
+	res.op = op;
+	return res;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
