@@ -18,7 +18,7 @@ enum field_tuples_strh_reg_32 = [Tuple!(opcode, string[])(opcode.strh_reg_32, ["
 	First Half-Word: [15:4] 111110000010, [3:0] Rn
 	Second Half-Word: [15:12] Rt, [5:4] imm2, [3:0] Rm
 */
-instr_32 parse_strh_reg_32(uint instr) {
+instr_32 parse_strh_reg_32(const uint instr) {
 	instr_32 res;
 	res.op = opcode.strh_reg_32;
 	ubyte rm    = cast(ubyte)( instr        & 0x0f);

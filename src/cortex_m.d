@@ -1342,9 +1342,9 @@ enum field_tuples_mov_lo = [Tuple!(opcode, string[])(opcode.mov_lo, ["rd","rm"])
 instr_16 parse_mov_lo(short instr) {
 	instr_16 res;
 	res.op = opcode.mov_lo;
-	ubyte rd = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	ubyte d = cast(ubyte)((instr >> 7) & 0b1);
+	ubyte 		rd = cast(ubyte)( instr       & 0x7);
+	const ubyte rm = cast(ubyte)((instr >> 3) & 0xf);
+	const ubyte d  = cast(ubyte)((instr >> 7) & 0x1);
 	if (d) {
 		rd |= 0b1000;
 	}
@@ -1372,37 +1372,6 @@ instr_16 parse_negs(short instr) {
 	ubyte rn = cast(ubyte)((instr >> 3) & 0b111);
 	res.rd = cast(reg)(rd);
 	res.rn = cast(reg)(rn);
-	return res;
-}
-
-// =====================
-//  Parse Push Mult Reg
-// =====================
-
-enum field_tuples_push_mult_reg = [Tuple!(opcode, string[])(opcode.push_mult_reg, ["reg_list"])];
-/*
-	Store Multiple Registers
-	STM <Rn>!,<registers>
-	[15:9] 11000
-	[10:8] Rn
-	[7:0] register_list  
-*/
-instr_16 parse_push_mult_reg(short instr) {
-	instr_16 res;
-	res.op = opcode.push_mult_reg;
-	ubyte m = cast(ubyte)((instr >> 8) & 0b1);
-	ubyte reg_mask = cast(ubyte)(instr & 0xff);
-	if (reg_mask & 0x01) res.reg_list ~= reg.r0;
-	if (reg_mask & 0x02) res.reg_list ~= reg.r1;
-	if (reg_mask & 0x04) res.reg_list ~= reg.r2;
-	if (reg_mask & 0x08) res.reg_list ~= reg.r3;
-	if (reg_mask & 0x10) res.reg_list ~= reg.r4;
-	if (reg_mask & 0x20) res.reg_list ~= reg.r5;
-	if (reg_mask & 0x40) res.reg_list ~= reg.r6;
-	if (reg_mask & 0x80) res.reg_list ~= reg.r7;
-	if (m) {
-		res.reg_list ~= reg.lr;
-	}
 	return res;
 }
 
@@ -1899,18 +1868,14 @@ unittest {
 		test_case(0x4283, instr_16(op: opcode.cmp_reg,       rn: reg.r3,  rm: reg.r0)),
 		test_case(0x4803, instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 12)),
 		//  80091a0:	4803      	ldr	r0, [pc, #12]	@ (80091b0 <stdio_exit_handler+0x14>)
-		// 0100 1000 0000 0011
 		test_case(0xd002, instr_16(op: opcode.b_cond,        cond: condition.eq,      offset: 4)),
-		// 1101 0000 0000 0010
 		test_case(0xb103, instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset: 0)),
-		// 1101 0001 0000 0011
 		test_case(0x4718, instr_16(op: opcode.bx,            rm: reg.r3)),
 		test_case(0x1a1b, instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0)),
 		test_case(0xb510, instr_16(op: opcode.push_mult_reg, reg_list: [reg.r4, reg.lr])),
 		test_case(0xb943, instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,			  offset: 16)),
 		test_case(0xbd10, instr_16(op: opcode.pop_mult_reg,  reg_list: [reg.r4, reg.pc])),
 		test_case(0xe7cf, instr_16(op: opcode.b_imm_11,					 		      offset: -98)),
-		// 1110 0111 1100 1111
 		//test_case(0xbf00, instr_16(op: if_then))
 		test_case(0x469d, instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3)),
 		test_case(0x460f, instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1)),
@@ -2469,24 +2434,6 @@ void execute_sub_reg(instr_16 sub_reg_instr, ref cortex_m_cpu cpu) {
 	cpu.set(sub_reg_instr.rd, res);
 	cpu.increment_pc(2);
 }
-
-// =======================
-//  Execute PUSH MULT REG
-// =======================
-
-void execute_push_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = stack_log();
-	auto regs = instr.reg_list.dup; 
-	regs.sort!((a,b) => cast(int)a > cast(int)b);
-	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
-	f.writeln(format("Pushing to %s at [%08X]", stack_s, cpu.pc));
-	foreach (r; regs) {
-		mem.push(cpu, cpu.get(r));
-		f.writeln(format("%s: [%08X] pushed to [%08X]", r.to!string, cpu.get(r), cpu.get_sp()));
-		f.flush();
-	}
-	cpu.increment_pc(2);
-} 
 
 // ===================
 //  Execute CMP BR NZ
@@ -6676,132 +6623,132 @@ unittest {
 }
 
 string[opcode] opcode_strings = [
-	opcode.adc_reg: "adcs",
-	opcode.adc_imm_32: "adc.w",
-	opcode.adc_reg_32: "adc.w",
-	opcode.add_imm_32: "add.w",
-	opcode.add_reg_32: "add.w",
-	opcode.add_imm_3: "adds",
-	opcode.add_imm_8: "adds",
-	opcode.add_high_reg_1: "add",
-	opcode.add_high_reg_2: "add",
-	opcode.add_lo_reg: "add",
-	opcode.add_reg: "adds",
-	opcode.add_sp_t1: "add",
-	opcode.add_sp_t2: "add",
-	opcode.adr: "add",
-	opcode.and_imm_32: "and.w",
-	opcode.asr_imm: "asrs",
-	opcode.and_reg: "ands",
-	opcode.asr_reg_32: "asr",
-	opcode.b_32: "b.w",
-	opcode.b_cond: "b",
-	opcode.b_uncond_32: "b.w",
-	opcode.b_imm_11: "b",
-	opcode.bic_reg_32: "bic.w",
-	opcode.bic_imm_32: "bic.w",
-	opcode.mvn_imm_32: "mvn.w", 
-	opcode.bl_32: "bl",
-	opcode.blx: "blx",
-	opcode.bx: "bx",
-	opcode.cmp_br_nz: "cbnz",
-	opcode.cmp_br_z: "cbz",
-	opcode.cmn_imm_32: "cmn.w",
-	opcode.cmp_high_1: "cmp",
-	opcode.cmp_high_2: "cmp",
-	opcode.cmp_imm: "cmp",
-	opcode.cmp_imm_32: "cmp",
-	opcode.cmp_reg: "cmp",
-	opcode.clz_32: "clz",
-	opcode.dmb_32: "dmb",
-	opcode.dsb_32: "dsb",
-	opcode.eor_imm_32: "eor",
-	opcode.if_then: "it",
-	opcode.isb_32: "isb",
-	opcode.ldr_imm: "ldr",
-	opcode.ldr_imm_32_t3: "ldr.w",
-	opcode.ldr_lit_32: "ldr.w",
-	opcode.ldr_pool: "ldr",
-	opcode.ldr_imm_32_t4: "ldr.w",
-	opcode.ldr_reg: "ldr",
-	opcode.ldr_reg_32: "ldr.w",
-	opcode.ldr_sp: "ldr",
-	opcode.ldrb_imm: "ldrb",
-	opcode.ldrb_imm_32_t2: "ldrb.w",
-	opcode.ldrb_imm_32_t3: "ldrb.w",
-	opcode.ldrb_reg: "ldrb",
-	opcode.ldrd_imm_32: "ldrd",
-	opcode.ldrh_imm: "ldrh",
-	opcode.ldrsb_imm_32_t1: "ldrsb.w",
-	opcode.ldrsb_imm_32_t2: "ldrsb.w",
-	opcode.lor_reg: "orrs",
-	opcode.lsl_reg_32: "lsl.w",
-	opcode.lsl_imm: "lsls",
-	opcode.lsl_reg: "lsls",
-	opcode.lsr_imm: "lsrs",
-	opcode.lsr_imm_32: "mov.w",
-	opcode.lsr_reg: "lsrs",
-	opcode.lsr_reg_32: "lsr.w",
-	opcode.mla_32: "mla",
-	opcode.mls_32: "mls",
-	opcode.asr_imm_32: "mov.w",
-	opcode.mov_16_imm_32: "movw",
-	opcode.mov_high_1: "mov",
-	opcode.mov_high_2: "mov",
-	opcode.mov_imm: "movs",
-	opcode.mov_imm_32_t2: "mov.w",
-	opcode.mov_lo: "mov",
-	opcode.msr_32: "msr",
-	opcode.mrs_32: "mrs",
-	opcode.mvn_reg: "mvns",
-	opcode.mul: "mul",
-	opcode.mul_32: "mul.w",
-	opcode.negs: "negs",
-	opcode.nop: "nop",
-	opcode.nop_32: "nop.w",
-	opcode.orr_imm_32: "orr.w",
-	opcode.orr_reg_32: "orr.w",
-	opcode.pop_mult_reg: "pop",
+	opcode.adc_reg: 				"adcs",
+	opcode.adc_imm_32: 			   "adc.w",
+	opcode.adc_reg_32: 			   "adc.w",
+	opcode.add_imm_32: 			   "add.w",
+	opcode.add_reg_32: 			   "add.w",
+	opcode.add_imm_3: 				"adds",
+	opcode.add_imm_8: 				"adds",
+	opcode.add_high_reg_1: 			 "add",
+	opcode.add_high_reg_2: 			 "add",
+	opcode.add_lo_reg: 				 "add",
+	opcode.add_reg: 				"adds",
+	opcode.add_sp_t1: 				 "add",
+	opcode.add_sp_t2: 				 "add",
+	opcode.adr: 					 "add",
+	opcode.and_imm_32: 			   "and.w",
+	opcode.asr_imm: 				"asrs",
+	opcode.and_reg: 				"ands",
+	opcode.asr_reg_32: 				 "asr",
+	opcode.b_32: 					 "b.w",
+	opcode.b_cond: 					   "b",
+	opcode.b_uncond_32: 			 "b.w",
+	opcode.b_imm_11: 				   "b",
+	opcode.bic_reg_32: 			   "bic.w",
+	opcode.bic_imm_32: 			   "bic.w",
+	opcode.mvn_imm_32: 			   "mvn.w", 
+	opcode.bl_32: 					  "bl",
+	opcode.blx: 					 "blx",
+	opcode.bx: 						  "bx",
+	opcode.cmp_br_nz: 				"cbnz",
+	opcode.cmp_br_z: 				 "cbz",
+	opcode.cmn_imm_32: 			   "cmn.w",
+	opcode.cmp_high_1: 				 "cmp",
+	opcode.cmp_high_2: 				 "cmp",
+	opcode.cmp_imm: 				 "cmp",
+	opcode.cmp_imm_32: 				 "cmp",
+	opcode.cmp_reg: 				 "cmp",
+	opcode.clz_32: 					 "clz",
+	opcode.dmb_32: 					 "dmb",
+	opcode.dsb_32: 					 "dsb",
+	opcode.eor_imm_32: 				 "eor",
+	opcode.if_then: 				  "it",
+	opcode.isb_32: 					 "isb",
+	opcode.ldr_imm: 				 "ldr",
+	opcode.ldr_imm_32_t3: 		   "ldr.w",
+	opcode.ldr_lit_32: 			   "ldr.w",
+	opcode.ldr_pool: 				 "ldr",
+	opcode.ldr_imm_32_t4:   	   "ldr.w",
+	opcode.ldr_reg: 				 "ldr", 
+	opcode.ldr_reg_32: 			   "ldr.w",
+	opcode.ldr_sp: 					 "ldr",
+	opcode.ldrb_imm: 				"ldrb",
+	opcode.ldrb_imm_32_t2: 		  "ldrb.w",
+	opcode.ldrb_imm_32_t3: 		  "ldrb.w",
+	opcode.ldrb_reg: 				"ldrb",
+	opcode.ldrd_imm_32: 			"ldrd",
+	opcode.ldrh_imm: 				"ldrh",
+	opcode.ldrsb_imm_32_t1: 	 "ldrsb.w",
+	opcode.ldrsb_imm_32_t2: 	 "ldrsb.w",
+	opcode.lor_reg: 				"orrs",
+	opcode.lsl_reg_32: 			   "lsl.w",
+	opcode.lsl_imm: 				"lsls",
+	opcode.lsl_reg: 				"lsls",
+	opcode.lsr_imm: 				"lsrs",
+	opcode.lsr_imm_32: 			   "mov.w",
+	opcode.lsr_reg: 			    "lsrs",
+	opcode.lsr_reg_32: 			   "lsr.w",
+	opcode.mla_32: 					 "mla",
+	opcode.mls_32: 					 "mls",
+	opcode.asr_imm_32: 			   "mov.w",
+	opcode.mov_16_imm_32: 			"movw",
+	opcode.mov_high_1: 				 "mov",
+	opcode.mov_high_2: 				 "mov",
+	opcode.mov_imm: 				"movs",
+	opcode.mov_imm_32_t2: 		   "mov.w",
+	opcode.mov_lo: 					 "mov",
+	opcode.msr_32: 					 "msr",
+	opcode.mrs_32: 					 "mrs",
+	opcode.mvn_reg: 				"mvns",
+	opcode.mul: 					 "mul",
+	opcode.mul_32: 				   "mul.w",
+	opcode.negs: 					"negs",
+	opcode.nop: 					 "nop",
+	opcode.nop_32: 				   "nop.w",
+	opcode.orr_imm_32:			   "orr.w",
+	opcode.orr_reg_32: 			   "orr.w",
+	opcode.pop_mult_reg: 			 "pop",
 	opcode.pop_mult_reg_32: "ldmia.w sp!,",
-	opcode.push_mult_reg: "push",
-	opcode.push_mult_reg_32: "push",
-	opcode.rev: "rev",
-	opcode.rsb_imm_32: "rsb",
-	opcode.sbc_reg_32: "sbc.w",
-	opcode.smull_32: "smull",
-	opcode.str_imm: "str",
-	opcode.strb_imm_32_t2: "strb.w",
-	opcode.strb_imm_32_t3: "strb.w",
-	opcode.strb_reg: "strb",
-	opcode.strb_reg_32: "strb.w",
-	opcode.str_imm_32_t3: "str.w",
-	opcode.str_imm_32_t4: "str.w",
-	opcode.strb_imm: "strb",
-	opcode.strh_imm: "strh",
-	opcode.strh_reg_32: "strh",
-	opcode.strd_32: "strd",
-	opcode.strh_imm_32_t2: "strh",
-	opcode.str_sp: "str",
-	opcode.rbit_32: "rbit",
-	opcode.str_reg: "str",
-	opcode.str_reg_32: "str.w",
-	opcode.sel_32: "sel",
-	opcode.sub_imm_3: "subs",
-	opcode.sub_imm_8: "subs",
-	opcode.sub_imm_32: "sub.w",
-	opcode.sub_reg: "subs",
-	opcode.sub_reg_32: "sub.w",
-	opcode.sxtb: "sxtb",
-	opcode.svc: "svc",
-	opcode.tst: "tst",
-	opcode.tst_imm_32: "tst.w",
-	opcode.sub_sp: "sub",
-	opcode.uadd8_32: "uadd8",
-	opcode.udiv_32: "udiv",
-	opcode.umull_32: "umull",
-	opcode.ubfx_32: "ubfx",
-	opcode.uxtb: "uxtb",
-	opcode.uxth: "uxth"
+	opcode.push_mult_reg: 			"push",
+	opcode.push_mult_reg_32: 		"push",
+	opcode.rev: 					 "rev",
+	opcode.rsb_imm_32: 				 "rsb",
+	opcode.sbc_reg_32: 			   "sbc.w",
+	opcode.smull_32: 			   "smull",
+	opcode.str_imm: 				 "str",
+	opcode.strb_imm_32_t2: 		  "strb.w",
+	opcode.strb_imm_32_t3: 	      "strb.w",
+	opcode.strb_reg: 				"strb",
+	opcode.strb_reg_32: 		  "strb.w",
+	opcode.str_imm_32_t3: 		   "str.w",
+	opcode.str_imm_32_t4: 		   "str.w",
+	opcode.strb_imm: 			 	"strb",
+	opcode.strh_imm: 				"strh",
+	opcode.strh_reg_32: 			"strh",
+	opcode.strd_32: 				"strd",
+	opcode.strh_imm_32_t2: 			"strh",
+	opcode.str_sp: 					 "str",
+	opcode.rbit_32: 				"rbit",
+	opcode.str_reg: 				 "str",
+	opcode.str_reg_32: 			   "str.w",
+	opcode.sel_32: 				     "sel",
+	opcode.sub_imm_3: 				"subs",
+	opcode.sub_imm_8: 				"subs",
+	opcode.sub_imm_32: 			   "sub.w",
+	opcode.sub_reg: 				"subs",
+	opcode.sub_reg_32: 	 		   "sub.w",
+	opcode.sxtb: 					"sxtb",
+	opcode.svc: 					 "svc",
+	opcode.tst: 					 "tst",
+	opcode.tst_imm_32: 	 		   "tst.w",
+	opcode.sub_sp: 					 "sub",
+	opcode.uadd8_32: 	 		   "uadd8",
+	opcode.udiv_32: 				"udiv",
+	opcode.umull_32: 	 		   "umull",
+	opcode.ubfx_32: 				"ubfx",
+	opcode.uxtb: 					"uxtb",
+	opcode.uxth: 					"uxth"
 ];
 
 string get_register_name(reg r) {
@@ -7464,9 +7411,9 @@ unittest {
 	}
 
 	test_case[] tests = [
-		test_case(0xf8dfd034, "ldr.w sp, [pc, #52]"), // 1111 1000 1101 1111 1101 0000 0011 0100
+		test_case(0xf8dfd034, "ldr.w sp, [pc, #52]"), 
 		test_case(0xeba30605, "sub.w r6, r3, r5"),
-		//test_case(0xf8553b04, "ldr.w r3, [r5], #4"), // 1111 1000 0101 0101 0011 1011 0000 0100
+		//test_case(0xf8553b04, "ldr.w r3, [r5], #4"), 
 		test_case(0xf8c46188, "str.w r6, [r4, #392]"),
 		test_case(0xf4437300, "orr.w r3, r3, #512"),
 		test_case(0xf4436380, "orr.w r3, r3, #1024"),

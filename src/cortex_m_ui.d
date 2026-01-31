@@ -91,7 +91,7 @@ int color_for_value(uint val, ref cortex_m_vm vm) {
         return 3;
     else if (val >= vm.mem.flash_origin && val <= vm.mem.flash_origin + vm.mem.flash_length)
         return 4;
-    else if (val > vm.mem.flash_origin + vm.mem.flash_length)
+    else if (val > vm.mem.ram_origin + vm.mem.ram_length)
         return 5;
     return 2;
 }

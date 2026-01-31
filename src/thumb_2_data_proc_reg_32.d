@@ -25,9 +25,9 @@ instr_32 parse_asr_reg_32(const uint instr) {
 	ubyte rd = cast(ubyte)((instr >>  8) & 0x0f);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0x0f);
 	ubyte S  = cast(ubyte)((instr >> 20) & 0x01);
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
-	res.rm = cast(reg)(rm);
+	res.rd   = cast(reg)(rd);
+	res.rn   = cast(reg)(rn);
+	res.rm   = cast(reg)(rm);
 	res.set_flags = S == 1 ? true : false;
 	return res;
 }

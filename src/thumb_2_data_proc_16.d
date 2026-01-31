@@ -347,7 +347,7 @@ instr_16 parse_mov_imm(short instr) {
 	const ubyte imm = cast(ubyte)( instr       & 0xff);
 	const ubyte rd  = cast(ubyte)((instr >> 8) & 0x07);
 	res.imm = imm;							// imm32 = ZeroExtend(imm8, 32);
-	res.rd = cast(reg)(rd);
+	res.rd  = cast(reg)(rd);
 	return res;
 }
 
