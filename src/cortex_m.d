@@ -1710,8 +1710,7 @@ instr_16 decode_instr(ushort instr) {
     		return parse_eor_reg(instr);
     	case opcode.bic_reg:
     		return parse_bic_reg(instr);
-    	case opcode.strh_reg:
-    		return parse_strh_reg(instr);
+    	case opcode.strh_reg: res = parse_strh_reg(instr); break;
     	case opcode.sxtb:
     		return parse_sxtb(instr);
     	case opcode.rev:
@@ -2214,7 +2213,7 @@ void execute_strh_imm(instr_16 strh_imm_instr, ref cortex_m_cpu cpu, ref memory 
 	size_t addr = rn + strh_imm_instr.imm;
 	int target = mem.read_word(addr);
 	target = (target & 0xffff0000) | rt;  
-	mem.write_half_word(addr, cast(ushort)target);
+	mem.write_half_word(addr, cast(ushort)target, cpu.pc);
 	cpu.increment_pc(2);
 }
 
@@ -5694,10 +5693,7 @@ void execute_strh_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	}
 	size_t addr = instr.index ? offset_addr : rn;
 	ushort data = cast(ushort)(cpu.get(instr.rt) & 0xffff);
-	f.writeln(format("Attempting to access [%08X]", addr));
-	mem.write_half_word(addr, data);
-	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
-	f.flush();
+	mem.write_half_word(addr, data, cpu.pc);
 	if (instr.wback) {
 		cpu.set(instr.rn, cast(uint)offset_addr);
 	}
@@ -7415,9 +7411,7 @@ void load_instructions(ref memory mem, addr_instr[] instrs) {
             f.writeln(format("Instruction %s stored to [%08X]", instr._instr_bytes, instr._addr));
             f.flush();
         } else if (instr._instr_bytes.length == 4) {
-            mem.write_half_word(instr._addr, instr._in_16);
-            f.writeln(format("Instruction %s stored to [%08X]", instr._instr_bytes, instr._addr));
-            f.flush();
+            mem.write_half_word(instr._addr, instr._in_16, 0);
         } else {
             assert(false, "Invalid instruction length at address " ~ format("%08X", instr._addr));
         }

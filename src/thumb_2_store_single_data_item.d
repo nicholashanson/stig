@@ -124,17 +124,13 @@ instr_32 parse_strh_reg_32(const uint instr) {
 // ========================
 
 void execute_strh_reg_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	const uint rm = cpu.get(instr.rm); 
-	const uint rn = cpu.get(instr.rn);
-	const uint rt = cpu.get(instr.rt);
+	const uint   rm     = cpu.get(instr.rm); 
+	const uint   rn     = cpu.get(instr.rn);
+	const uint   rt     = cpu.get(instr.rt);
 	const size_t offset = shift(instr.shift_t, instr.shift_n, rm);	
-	const size_t addr = rn + offset;
-	auto f = load_store_log();
-	f.writeln(format("Attempting to access [%08X]", addr));
-	uint target = (rt & 0xffff);
-	mem.write_half_word(addr, cast(ushort)target);
-	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, target, addr));
-	f.flush();
+	const size_t addr   = rn + offset;
+	const uint   target = (rt & 0xffff);
+	mem.write_half_word(addr, cast(ushort)target, cpu.pc);
 	cpu.increment_pc(4);
 }
 // ---------------------------------------------------------------------------------------

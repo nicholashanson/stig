@@ -951,7 +951,7 @@ void load_function_into_memory(const string elf_file, const string func_name, re
     func f = get_function(elf_file, func_name);
     foreach (i; f.instrs) {
         if (i._instr_bytes.length == 4) {
-            mem.write_half_word(i._addr, i._in_16);
+            mem.write_half_word(i._addr, i._in_16, 0);
         }
         if (i._instr_bytes.length == 8) {
             mem.write_word(i._addr, i._in_32);
@@ -965,7 +965,7 @@ void load_function_into_memory(const string elf_file, const string func_name, re
 void load_function_into_memory(func f, ref memory mem) {
     foreach (i; f.instrs) {
         if (i._instr_bytes.length == 4) {
-            mem.write_half_word(i._addr, i._in_16);
+            mem.write_half_word(i._addr, i._in_16, 0);
         }
         if (i._instr_bytes.length == 8) {
             mem.write_word(i._addr, i._in_32);

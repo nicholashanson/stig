@@ -529,12 +529,15 @@ struct memory {
         }
     }
 
-    void write_half_word(size_t addr, ushort val) {
+    void write_half_word(size_t addr, ushort val, uint pc) {
+        auto f = load_store_log();
         if (addr >= ram_origin) {
-            return ram.write_half_word(addr, val);
+            ram.write_half_word(addr, val);
         } else {
-            return flash.write_half_word(addr, val);
+            flash.write_half_word(addr, val);
         }
+        f.writeln(format("%08X: %08X stored to [%08X]", pc, addr, addr));
+        f.flush();
     }
 
     const(ubyte) read_byte(size_t addr) {
