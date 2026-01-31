@@ -18,19 +18,18 @@ import memory_sections;
 enum field_tuples_pop_mult_reg = [Tuple!(opcode, string[])(opcode.pop_mult_reg, ["reg_list"])];
 /*
 	Miscellaneous 16-bit Instructions
-	LDM <Rn>!,<registers>
-	[15:9] 11001, [10:8] Rn, [7:0] register_list  
+	POP <registers>
+	[15:9] 1011110, [8] P, [7:0] register_list  
 */
 instr_16 parse_pop_mult_reg(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.pop_mult_reg;
 	const ubyte p        = cast(ubyte)((instr >> 8) & 0x01);
 	const ubyte reg_mask = cast(ubyte)( instr       & 0xff);
 	foreach (i; 0 .. 8)
     	if (reg_mask & (1 << i))
         	res.reg_list ~= cast(reg)i;
 	if (p) {
-		res.reg_list ~= reg.pc;
+		res.reg_list ~= reg.pc; // registers = P:'0000000':register_list;
 	}
 	return res;
 }
@@ -80,14 +79,13 @@ enum field_tuples_push_mult_reg = [Tuple!(opcode, string[])(opcode.push_mult_reg
 */
 instr_16 parse_push_mult_reg(short instr) {
 	instr_16 res;
-	res.op = opcode.push_mult_reg;
 	const ubyte m        = cast(ubyte)((instr >> 8) & 0x01);
 	const ubyte reg_mask = cast(ubyte)( instr       & 0xff);
 	foreach (i; 0 .. 8)
     	if (reg_mask & (1 << i))
         	res.reg_list ~= cast(reg)i;
 	if (m) {
-		res.reg_list ~= reg.lr;
+		res.reg_list ~= reg.lr; // registers = '0':M:'000000':register_list;
 	}
 	return res;
 }

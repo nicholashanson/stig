@@ -1764,12 +1764,10 @@ instr_16 decode_instr(ushort instr) {
        		return parse_bx(instr);
        	case opcode.sub_reg:
        		return parse_sub_reg(instr);
-       	case opcode.push_mult_reg:
-       		return parse_push_mult_reg(instr);
+       	case opcode.push_mult_reg: res = parse_push_mult_reg(instr); break;
        	case opcode.cmp_br_nz:
        		return parse_cmp_br_nz(instr);
-       	case opcode.pop_mult_reg: 
-       		return parse_pop_mult_reg(instr);
+       	case opcode.pop_mult_reg: res  = parse_pop_mult_reg(instr); break;
        	case opcode.b_imm_11:
        		return parse_b_imm_11(instr);
        	case opcode.mov_high_1:
@@ -1836,9 +1834,10 @@ instr_16 decode_instr(ushort instr) {
         case opcode.svc: 
         	return parse_svc(instr);
         default:
-        	res.op = op;
-            return res;
+        	break;
     }
+    res.op = op;
+    return res;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
