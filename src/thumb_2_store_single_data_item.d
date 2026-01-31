@@ -1,10 +1,40 @@
 import std.typecons : Tuple;
-import std.format : format;
+import std.format   : format;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
 import memory_sections;
+
+// ======================
+//  Parse STR(Immediate)
+// ======================
+
+enum field_tuples_str_imm_32_t4 = [Tuple!(opcode, string[])(opcode.str_imm_32_t4, ["rt","rn","imm"])];
+/*
+	Store Single Data Item
+	First Half-Word: [15:4] 111110000100, [3:0] Rn
+	Second Half-Word: [15:12] Rt, [11] 1, [10] P, [9] U, [8] W, [7:0] imm8
+*/
+instr_32 parse_str_imm_32_t4(const uint instr) {
+	instr_32 res;
+	const ushort imm_8 = cast(ushort)( instr        & 0xff);
+	const ubyte  W     = cast(ubyte )((instr >>  8) & 0x01);
+	const ubyte  U     = cast(ubyte )((instr >>  9) & 0x01);
+	const ubyte  P     = cast(ubyte )((instr >> 10) & 0x01);
+	const ubyte  rt    = cast(ubyte )((instr >> 12) & 0x0f);
+	const ubyte  rn    = cast(ubyte )((instr >> 16) & 0x0f);
+	const bool   wback = W == 1 ? true: false;
+	const bool   add   = U == 1 ? true: false;
+	const bool   index = P == 1 ? true: false;
+	res.rn    = cast(reg)(rn);
+	res.rt    = cast(reg)(rt);
+	res.wback = wback;
+	res.add   = add;
+	res.index = index;
+	res.imm   = imm_8;
+	return res;
+}
 
 // =======================
 //  Parse STRB(Immediate)

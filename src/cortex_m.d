@@ -4055,45 +4055,6 @@ instr_32 parse_strh_imm_32_t2(uint instr) {
 }
 
 // ===========
-//  Parse STR
-// ===========
-
-enum field_tuples_str_imm_32_t4 = [Tuple!(opcode, string[])(opcode.str_imm_32_t4, ["rt","rn","imm"])];
-/*
-	Multiply, Multiply Accumulate, and Absolute Difference
-	First Half-Word:
-	[15:4] 111110000100
-	[3:0] Rn
-	Second Half-Word:
-	[15:12] Rt
-	[11] 1
-	[10] P
-	[9] U
-	[8] W
-	[7:0] imm8
-*/
-instr_32 parse_str_imm_32_t4(uint instr) {
-	instr_32 res;
-	res.op = opcode.str_imm_32_t4;
-	ubyte W = cast(ubyte)((instr >>  8) & 0b1);
-	ubyte U = cast(ubyte)((instr >>  9) & 0b1);
-	ubyte P = cast(ubyte)((instr >> 10) & 0b1);
-	bool wback = W == 1 ? true: false;
-	bool add = U == 1 ? true: false;
-	bool index = P == 1 ? true: false;
-	ushort imm_8 = cast(ushort)(instr & 0xff);
-	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	res.rn = cast(reg)(rn);
-	res.rt = cast(reg)(rt);
-	res.wback = wback;
-	res.add = add;
-	res.index = index;
-	res.imm = imm_8;
-	return res;
-}
-
-// ===========
 //  Parse DSB
 // ===========
 
@@ -5057,8 +5018,7 @@ instr_32 decode_instr(uint instr) {
 			return parse_strh_imm_32_t2(instr);
 		case opcode.str_imm_32_t3:
 			return parse_str_imm_32_t3(instr);
-		case opcode.str_imm_32_t4:
-			return parse_str_imm_32_t4(instr);
+		case opcode.str_imm_32_t4: res = parse_str_imm_32_t4(instr); break;
 		case opcode.dsb_32:
 			return parse_dsb_32(instr);
 		case opcode.rsb_imm_32:
