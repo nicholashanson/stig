@@ -2243,30 +2243,22 @@ void execute_ldrb_imm(instr_16 ldrb_imm_instr, ref cortex_m_cpu cpu, ref memory 
 //  Execute STRB
 // ==============
 
-void execute_strb_imm(instr_16 strb_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	int rt = cpu.get(strb_imm_instr.rt);
-	int rn = cpu.get(strb_imm_instr.rn);
-	size_t addr = rn + strb_imm_instr.imm;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	int data = rt & 0xff;
-	mem.write_byte(addr, data);
-	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
-	f.flush();
+void execute_strb_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	const uint   rt   = cpu.get(instr.rt);
+	const uint   rn   = cpu.get(instr.rn);
+	const size_t addr = rn + instr.imm;
+	const uint   data = rt & 0xff;
+	mem.write_byte(addr, data, cpu.pc);
 	cpu.increment_pc(2);
 }
 
 void execute_strb_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	uint rt = cpu.get(instr.rt);
-	uint rn = cpu.get(instr.rn);
-	uint rm = cpu.get(instr.rm);
-	size_t addr = rn + rm;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	int data = rt & 0xff;
-	mem.write_byte(addr, data);
-	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
-	f.flush();
+	const uint   rt   = cpu.get(instr.rt);
+	const uint   rn   = cpu.get(instr.rn);
+	const uint   rm   = cpu.get(instr.rm);
+	const size_t addr = rn + rm;
+	const uint   data = rt & 0xff;
+	mem.write_byte(addr, data, cpu.pc);
 	cpu.increment_pc(2);
 }
 
@@ -5602,25 +5594,16 @@ void execute_strh_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute STRB(Immediate)
 // =========================
 
-void execute_strb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	int rn = cpu.get(instr.rn);
-	size_t offset_addr;
-	if (instr.add) {
-		offset_addr = rn + instr.imm;
-	} else {
-		offset_addr = rn - instr.imm;
-	}
-	size_t addr = instr.index ? offset_addr : rn;
-	auto f = load_store_log();
-	int data = cpu.get(instr.rt);
-	data = (data & 0xff);
-	f.writeln(format("Attempting to access [%08X]", addr));
-	mem.write_byte(addr, data);
-	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
-	f.flush();
-	if (instr.wback) {
+void execute_strb_imm_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	const uint   rn   = cpu.get(instr.rn);
+	size_t       offset_addr;
+	offset_addr       = instr.add   ? rn + instr.imm : rn - instr.imm;
+	const size_t addr = instr.index ? offset_addr    : rn;
+	uint         data = cpu.get(instr.rt);
+	data              = (data & 0xff);
+	mem.write_byte(addr, data, cpu.pc);
+	if (instr.wback) 
 		cpu.set(instr.rn, cast(uint)offset_addr);
-	}
 	cpu.increment_pc(4);
 }
 
@@ -7226,11 +7209,11 @@ void load_uart_string_into_flash(ref memory mem)
 
     foreach (c; msg)
     {
-        mem.write_byte(addr, cast(ubyte)c);
+        mem.write_byte(addr, cast(ubyte)c, 0);
         addr += 1;
     }
 
-    mem.write_byte(addr, 0);
+    mem.write_byte(addr, 0, 0);
 }
 
 string[] table_names = [

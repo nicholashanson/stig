@@ -319,17 +319,13 @@ uint file_offset_to_addr(uint file_offset, load_segment[] segs) {
 }
 
 void load_section_into_memory(const ref string filename, const string section_name, ref memory mem) {
-    auto f = load_store_log();
     auto section = get_section_by_name(filename, section_name);
     if (section.data.length == 0)
         return;
     auto segments = get_load_segments(filename);
     uint addr = file_offset_to_addr(section.file_offset, segments);
     foreach (b; section.data) {
-        f.writeln(format("Attempting to write one after %08X", addr));
-        mem.write_byte(addr++, b);
-        f.writeln(format("%s: load @ %08X", section_name, addr));
-        f.flush();
+        mem.write_byte(addr++, b, 0);
     }
 }
 

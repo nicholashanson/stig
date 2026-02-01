@@ -597,8 +597,10 @@ struct memory {
         }
     }
 
-    void write_byte(size_t addr, uint val) {
-        ubyte b = cast(ubyte)(val & 0xff);
+    void write_byte(const size_t addr, const uint val, const uint pc) {
+        auto f = load_store_log();
+        f.writeln(format("Attempting to access [%08X]", addr));
+        const ubyte b = cast(ubyte)(val & 0xff);
         if (addr > ram_origin + ram_length) {
             size_t word_addr = addr & ~3;
             uint shift = (addr & 3) * 8;
@@ -606,13 +608,13 @@ struct memory {
             uint old = peripherals[word_addr];
             uint masked = (old & ~(0xff << shift)) | (b << shift);
             peripherals[word_addr] = masked;
-            return;
-        } 
-        if (addr >= ram_origin) {
-            return ram.write_byte(addr, b);
+        } else if (addr >= ram_origin) {
+            ram.write_byte(addr, b);
         } else {
-            return flash.write_byte(addr, b);
+            flash.write_byte(addr, b);
         }
+        f.writeln(format("%08X: %08X stored to [%08X]", pc, val, addr));
+        f.flush();
     }
 
     void inc_sp_word_width(ref cortex_m_cpu cpu) {
