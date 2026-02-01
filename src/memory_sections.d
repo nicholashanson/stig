@@ -499,18 +499,22 @@ struct memory {
         return peripheral_names.get(reg_addr, "");
     }
 
-    uint read_word(size_t addr) {
+    uint read_word(size_t addr, uint pc) {
+        auto f = load_store_log();
+        f.writeln(format("Attempting to access [%08X]", addr));
+        uint res;
         if (addr == 0x08000000) {
-            return 0x20020000;
-        }
-        if (addr > ram_origin + ram_length) {
-            return peripherals[addr];
-        }
-        if (addr >= ram_origin) {
-            return ram.read_word(addr);
+            res = 0x20020000;
+        } else if (addr > ram_origin + ram_length) {
+            res = peripherals[addr];
+        } else if (addr >= ram_origin) {
+            res = ram.read_word(addr);
         } else {
-            return flash.read_word(addr);
+            res = flash.read_word(addr);
         }
+        f.writeln(format("%08X: %08X loaded from [%08X]", pc, res, addr));
+        f.flush();
+        return res;
     }
 
     void flip_bit(size_t addr, int bit_pos) {

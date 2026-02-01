@@ -173,7 +173,7 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         printFlag("FAULTMASK:", vm.cpu.fault_mask);
         printFlag("PRIMASK:", vm.cpu.pri_mask);
         mvwprintw(flagPad, flagY++, regX, toStringz(format("BASEPRI: %08x", vm.cpu.basepri)));
-        mvwprintw(flagPad, flagY++, regX, toStringz(format("USART1 DR: %08x", vm.mem.read_word(0x0800a280)))); 
+        mvwprintw(flagPad, flagY++, regX, toStringz(format("USART1 DR: %08x", vm.mem.read_word(0x0800a280, 0)))); 
         flagY++;
         mvwprintw(flagPad, flagY++, regX, toStringz(format("Tick: %d", vm.cpu.tick)));
         
@@ -182,7 +182,7 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         if (vm.cpu.get_sp() != 0) {
             uint ptr = vm.cpu.get_sp();
             while (ptr < vm.mem.stack_base) {
-                uint val = vm.mem.read_word(ptr);
+                uint val = vm.mem.read_word(ptr, 0);
                 mvwprintw(stackPad, stackY++, stackX, toStringz(format("%08x: %08x", ptr, val)));
                 ptr += 4;
             }
@@ -422,7 +422,7 @@ void main(string[] args) {
 
     auto file_mem = File("mem.txt", "w");
     for (size_t i = memory.flash_origin; i < memory.flash_origin + memory.flash_length; i += 4) {
-        uint val = vm.mem.read_word(i);
+        uint val = vm.mem.read_word(i, 0);
         if (val != 0) {
             file_mem.writeln("PC = 0x", format("[%08X]: %08X", i, val));
         }

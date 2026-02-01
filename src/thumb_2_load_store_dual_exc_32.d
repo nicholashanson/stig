@@ -89,7 +89,7 @@ instr_32 parse_ldrex_32(uint instr) {
 void execute_ldrex(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	uint addr = cpu.get(instr.rn);
 	addr += instr.imm;
-	const uint val = mem.read_word(addr);
+	const uint val = mem.read_word(addr, cpu.pc);
 	cpu.set(instr.rt, val);
 	cpu.increment_pc(4);
 }

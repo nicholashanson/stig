@@ -32,6 +32,7 @@ import thumb_2_data_proc_reg_32;
 import thumb_2_long_mult_acc_div_32;
 import thumb_2_data_proc_shift_reg_32;
 import thumb_2_load_store_dual_exc_32;
+import thumb_2_load_store_multiple;
 import parse_elf;
 import thumb_2_shift_add_sub_16;
 
@@ -2164,8 +2165,8 @@ void execute_str_imm(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref memory me
 }
 
 void execute_str_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	int rt = cpu.get(instr.rt);
-	size_t addr = cpu.get_sp() + instr.imm;
+	const uint rt = cpu.get(instr.rt);
+	size_t addr   = cpu.get_sp() + instr.imm;
 	mem.write_word(addr, rt);
 	cpu.increment_pc(2);
 }
@@ -2174,27 +2175,19 @@ void execute_str_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute LDR
 // =============
 
-void execute_ldr_imm(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	int rn = cpu.get(instr.rn);
-	size_t addr = rn + instr.imm;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	int data = mem.read_word(addr);
+void execute_ldr_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	const int    rn   = cpu.get(instr.rn);
+	const size_t addr = rn + instr.imm;
+	const uint   data = mem.read_word(addr, cpu.pc);
 	cpu.set(instr.rt, data);
-	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
-	f.flush();
 	cpu.increment_pc(2);
 }
 
 void execute_ldr_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	uint sp = cpu.get_sp();
-	size_t addr = sp + instr.imm;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	int data = mem.read_word(addr);
+	const uint   sp   = cpu.get_sp();
+	const size_t addr = sp + instr.imm;
+	const uint   data = mem.read_word(addr, cpu.pc);
 	cpu.set(instr.rt, data);
-	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
-	f.flush();
 	cpu.increment_pc(2);
 }
 
@@ -2202,12 +2195,12 @@ void execute_ldr_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute STRH
 // ==============
 
-void execute_strh_imm(instr_16 strh_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
-	int rt = cpu.get(strh_imm_instr.rt);
-	int rn = cpu.get(strh_imm_instr.rn);
-	size_t addr = rn + strh_imm_instr.imm;
-	int target = mem.read_word(addr);
-	target = (target & 0xffff0000) | rt;  
+void execute_strh_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	const uint   rt     = cpu.get(instr.rt);
+	const uint   rn     = cpu.get(instr.rn);
+	const size_t addr   = rn + instr.imm;
+	uint         target = mem.read_word(addr, cpu.pc);
+	target = (target & 0xffff_0000) | rt;  
 	mem.write_half_word(addr, cast(ushort)target, cpu.pc);
 	cpu.increment_pc(2);
 }
@@ -2281,15 +2274,11 @@ void execute_strb_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute LDR POOL
 // ==================
 
-void execute_ldr_pool(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	int base = cpu.get(reg.pc) + 4;
-	base &= ~0x3;   
-	int addr = base + instr.imm;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	uint data = mem.read_word(addr);
-	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
-	f.flush();
+void execute_ldr_pool(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	uint base = cpu.get(reg.pc) + 4;
+	base     &= ~0x3;   
+	const uint addr = base + instr.imm;
+	const uint data = mem.read_word(addr, cpu.pc);
 	cpu.set(instr.rt, data);
 	cpu.increment_pc(2);
 }
@@ -2350,7 +2339,7 @@ void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.current_exception = exception.SVC_IRQn;
 	cpu.npriv = false;
 	cpu.lr = 0xfffffffd;
-	uint pc = mem.read_word(mem.flash_origin + 4 * exception.SVC_IRQn);
+	uint pc = mem.read_word(mem.flash_origin + 4 * exception.SVC_IRQn, cpu.pc);
 	cpu.set(reg.pc, pc);
 }
 
@@ -2379,7 +2368,7 @@ void execute_syc_tick(ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.lr = cpu.sp_sel ? 0xfffffffd : 0xfffffff9; 
 	cpu.sp_sel = false;
 	uint sys_tick_addr = mem.flash_origin + 4 * exception.SysTick_IRQn;
-	uint pc = mem.read_word(sys_tick_addr);
+	uint pc = mem.read_word(sys_tick_addr, cpu.pc);
 	pc &= ~0x3;
 	f_h.writeln(format("[%08X] loaded from [%08X]", pc, sys_tick_addr));
 	f_h.flush();
@@ -2552,16 +2541,12 @@ void execute_mov_high_2(instr_16 mov_high_2_instr, ref cortex_m_cpu cpu) {
 //  Execute LDR REG
 // =================
 
-void execute_ldr_reg(instr_16 ldr_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	int rn = cpu.get(ldr_reg_instr.rn);
-	int rm = cpu.get(ldr_reg_instr.rm);
-	size_t addr = rn + rm;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	int data = mem.read_word(addr);
-	cpu.set(ldr_reg_instr.rt, data);
-	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
-	f.flush();
+void execute_ldr_reg(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	const uint   rn   = cpu.get(instr.rn);
+	const uint   rm   = cpu.get(instr.rm);
+	const size_t addr = rn + rm;
+	const uint data   = mem.read_word(addr, cpu.pc);
+	cpu.set(instr.rt, data);
 	cpu.increment_pc(2);
 }	
 
@@ -5084,76 +5069,59 @@ unittest {
 		test_case(0xf003030c, // and.w	r3, r3, #12
 				  instr_32(op: opcode.and_imm_32, rd: reg.r3, rn: reg.r3, imm: 12)),
 		test_case(0xfbb2f3f3, // udiv	r3, r2, r3
-				  instr_32(op: opcode.udiv_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
+				  instr_32(op: opcode.udiv_32,    rd: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xf3c20208, // ubfx	r2, r2, #0, #9
-				  instr_32(op: opcode.ubfx_32, rd: reg.r2, rn: reg.r2, ls_bit: 0, width: 9)),
+				  instr_32(op: opcode.ubfx_32, 	  rd: reg.r2, rn: reg.r2, ls_bit: 0, width: 9)),
 		test_case(0xfb02f303, // mul.w	r3, r2, r3
-			      instr_32(op: opcode.mul_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
+			      instr_32(op: opcode.mul_32, 	  rd: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xfa22f303, // lsr.w	r3, r2, r3
 				  instr_32(op: opcode.lsr_reg_32, rd: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xf4434380, // orr.w	r3, r3, #16384	@ 0x4000
 				  instr_32(op: opcode.orr_imm_32, rd: reg.r3, rn: reg.r3, imm: 16384)),
-		// 1111 0100 0100 0011 0100 0011 1000 0000
 		test_case(0xf1070314, // add.w	r3, r7, #20
 				  instr_32(op: opcode.add_imm_32, rd: reg.r3, rn: reg.r7, imm: 20)),
 		test_case(0xf0230310, // bic.w	r3, r3, #16
-				  // 1111 0000 0010 0011 0000 0011 0001 0000
 				  instr_32(op: opcode.bic_imm_32, rd: reg.r3, rn: reg.r3, imm: 16)),
 		test_case(0xf64f03ff, // movw	r3, #63743	@ 0xf8ff
-				  instr_32(op: opcode.mov_16_imm_32, rd: reg.r3, imm: 63743)),
-		// 1111 0110 0100 1111 000 0011 1111 1111
+				  instr_32(op: opcode.mov_16_imm_32,   rd: reg.r3, imm: 63743)),
 		test_case(0xf9973007, // ldrsb.w	r3, [r7, #7]
 				  instr_32(op: opcode.ldrsb_imm_32_t1, rt: reg.r3, rn: reg.r7, imm: 7)),
-		// 1111 1001 1001 0111 0011 0000 0000 0111
 		test_case(0xf8412023, // str.w	r2, [r1, r3, lsl #2]
 				  instr_32(op: opcode.str_reg_32, rt: reg.r2, rn: reg.r1, rm: reg.r3, imm: 2)),
-		// 1111 1000 0100 0001 0010 0000 0010 0011
 		test_case(0xf3bf8f4f, 
 				  instr_32(op: opcode.dsb_32)),
-		// 1111 0011 1011 1111 1000 1111 0100 1111
 		test_case(0xf1c30307, // rsb	r3, r3, #7
 				  instr_32(op: opcode.rsb_imm_32, rd: reg.r3, rn: reg.r3, imm: 7)),
 		test_case(0xfba22303, // umull	r2, r3, r2, r3
-				  instr_32(op: opcode.umull_32, rd_lo: reg.r2, rd_hi: reg.r3, rn: reg.r2, rm: reg.r3)),
-		// 1111 1011 1010 0010 0010 0011 0000 0011
+				  instr_32(op: opcode.umull_32,   rd_lo: reg.r2, rd_hi: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xe9c72300, // strd	r2, r3, [r7]
-				  instr_32(op: opcode.strd_32, add: true, rt: reg.r2, rt_2: reg.r3, rn: reg.r7, imm: 0)),
-		// 1110 1001 1100 0111 0010 0011 0000 0000
-		//		  instr_32(op: opcode.strd_32)),
+				  instr_32(op: opcode.strd_32, 	  add: true, rt: reg.r2, rt_2: reg.r3, rn: reg.r7, imm: 0)),
 		test_case(0xf67fae90, // bls.w	8004360
-				  instr_32(op: opcode.b_32, cond: condition.ls, offset: -736)),
-		// 1111 0110 0111 1111 1010 1110 1001 0000
+				  instr_32(op: opcode.b_32, 	  cond: condition.ls, offset: -736)),
 		test_case(0xe92d4fb0, // stmdb	sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
 				  instr_32(op: opcode.push_mult_reg_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr])),
-		// 1110 1001 0010 1101 0100 1111 1011 0000
 		test_case(0xea4161d2, // orr.w	r1, r1, r2, lsr #27
-				  instr_32(op: opcode.orr_reg_32, rd: reg.r1, rn: reg.r1, rm: reg.r2, shift_t: shift_type.lsr, shift_n: 27)),
+				  instr_32(op: opcode.orr_reg_32, rd: reg.r1, rn: reg.r1, rm:  reg.r2, shift_t: shift_type.lsr, shift_n: 27)),
 		test_case(0xebb2080a, // subs.w	r8, r2, sl
-				  instr_32(op: opcode.sub_reg_32, rd: reg.r8, rn: reg.r2, rm: reg.r10, shift_t: shift_type.lsl, shift_n: 0)),
-		// 1110 1011 1011 0010 0000 1000 0000 1010
+				  instr_32(op: opcode.sub_reg_32, rd: reg.r8, rn: reg.r2, rm: reg.r10, shift_t: shift_type.lsl, shift_n:  0)),
 		test_case(0xeb63090b, // sbc.w	r9, r3, fp
-			      instr_32(op: opcode.sbc_reg_32, rd: reg.r9, rn: reg.r3, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
+			      instr_32(op: opcode.sbc_reg_32, rd: reg.r9, rn: reg.r3, rm: reg.r11, shift_t: shift_type.lsl, shift_n:  0)),
 		test_case(0xeb45030b, // adc.w	r3, r5, fp
-				  instr_32(op: opcode.adc_reg_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0)),
+				  instr_32(op: opcode.adc_reg_32, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n:  0)),
 		test_case(0xf06f0240, // mvn.w	r2, #64	@ 0x40 
 				  instr_32(op: opcode.mvn_imm_32, rd: reg.r2, imm: 64)),
-		// 1111 0000 0110 1111 0000 0010 0100 0000
 		test_case(0xe8533f00, // ldrex	r3, [r3]
-				  instr_32(op: opcode.ldr_ex, rt: reg.r3, rn: reg.r3)),
-		// 1110 1000 0101 0011 0011 1111 0000 0000
+				  instr_32(op: opcode.ldr_ex,     rt: reg.r3, rn: reg.r3)),
 		test_case(0xe8412300, // strex	r3, r2, [r1]
-				  instr_32(op: opcode.str_rex, rd: reg.r3, rt: reg.r2, rn: reg.r1)),
+				  instr_32(op: opcode.str_rex,    rd: reg.r3, rt: reg.r2, rn: reg.r1)),
 		test_case(0xfb0e7711, // mls	r7, lr, r1, r7
-				  instr_32(op: opcode.mls_32, rd: reg.r7, rn: reg.lr, rm: reg.r1, ra: reg.r7)),
+				  instr_32(op: opcode.mls_32,     rd: reg.r7, rn: reg.lr, rm: reg.r1, ra: reg.r7)),
 		test_case(0xf9b4500c, // ldrsh.w	r5, [r4, #12]
-				  instr_32(op: opcode.ldh_32, rt: reg.r5, rn: reg.r4, imm: 12)),
-		// 1111 1001 1011 0100 0101 0000 0000 1100
+				  instr_32(op: opcode.ldh_32,     rt: reg.r5, rn: reg.r4, imm: 12)),
 		test_case(0xea1c0f0e, // tst.w	ip, lr
 				  instr_32(op: opcode.tst_reg_32, rn: reg.r12, rm: reg.lr, shift_t: shift_type.lsl)),
-		// 1110 1010 0001 1100 0000 1111 0000 1110
 		test_case(0xea010808, // and.w	r8, r1, r8 
 				  instr_32(op: opcode.and_reg_32, rd: reg.r8, rn: reg.r1, rm: reg.r8)),
-		// 1110 1010 0000 0001 0000 1000 0000 1000
 		test_case(0xea23030c, // bic.w	r3, r3, ip
 				  instr_32(op: opcode.bic_reg_32, rd: reg.r3, rn: reg.r3, rm: reg.r12)),
 		test_case(0xf7ffbfbb, // b.w	8009c5c <_fclose_r>
@@ -5240,29 +5208,6 @@ void execute_pop_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory me
 	} else {
 		cpu.increment_pc(4);
 	}
-}
-
-// ===============
-//  Execute LMDIA
-// ===============
-
-void execute_ldmia_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	import std.algorithm : sort;
-	auto regs = instr.reg_list.dup; 
-	auto f = load_store_log();
-	regs.sort!((a,b) => cast(int)a < cast(int)b);
-	uint rn = cpu.get(instr.rn);
-	foreach (r; regs) {
-		f.writeln(format("Attempting to access [%08X]", rn));
-		uint data = mem.read_word(rn);
-		f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, rn));
-		cpu.set(r, data);
-		rn += 4;
-	}
-	if (instr.wback) {
-		cpu.set(instr.rn, rn);
-	}
-	cpu.increment_pc(4);
 }
 
 // ================
@@ -5787,44 +5732,28 @@ void execute_and_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // ======================
 
 void execute_ldr_lit_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
 	size_t addr;
 	uint pc = cpu.get(reg.pc);
-	pc = ((pc + 4) & ~3);
-	if (instr.add) {
-		addr = pc + instr.imm;
-	} else {
-		addr = pc - instr.imm;
-	}
-	f.writeln(format("Attempting to access [%08X]", addr));
-	uint data = mem.read_word(addr);
+	pc      = ((pc + 4) & ~3);
+	addr    = instr.add ? pc + instr.imm : pc - instr.imm;
+	const uint data   = mem.read_word(addr, cpu.pc);
+	const uint pc_val = cpu.get(reg.pc);
 	cpu.set(instr.rt, data);
-	int pc_val = cpu.get(reg.pc);
 	cpu.set(reg.pc, pc_val + 4);
-	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
-	f.flush();
 }
 
 // =========================
 //  Execute LDRD(Immediate)
 // =========================
 
-void execute_ldrd_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	uint rn = cpu.get(instr.rn);
-	size_t offset_addr;
-	if (instr.add) {
-	 	offset_addr = rn + instr.imm;
-	} else {
-		offset_addr = rn - instr.imm;
-	}
-	size_t addr = instr.index ? offset_addr : rn;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	uint data1 = mem.read_word(addr);
-	uint data2 = mem.read_word(addr+4);
-	f.writeln(format("%08X: %08X and %08X loaded from [%08X] and [%08X]", cpu.pc, data1, data2, addr, addr + 4));
-	f.flush();
-	cpu.set(instr.rt, data1);
+void execute_ldrd_imm_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	size_t       offset_addr;
+	const uint   rn    = cpu.get(instr.rn);
+	offset_addr        = instr.add   ? rn + instr.imm : rn - instr.imm;
+	const size_t addr  = instr.index ? offset_addr    : rn;
+	const uint   data1 = mem.read_word(addr,     cpu.pc);
+	const uint   data2 = mem.read_word(addr + 4, cpu.pc);
+	cpu.set(instr.rt,   data1);
 	cpu.set(instr.rt_2, data2);
 	if (instr.wback) {
 		cpu.set(instr.rn, cast(uint)offset_addr);
@@ -5836,16 +5765,12 @@ void execute_ldrd_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute LDR(Register)
 // =======================
 
-void execute_ldr_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	uint rn = cpu.get(instr.rn);
-	uint rm = cpu.get(instr.rm);
-	int shifted = shift(instr.shift_t, instr.shift_n, rm);
-	size_t addr = rn + shifted;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	uint data = mem.read_word(addr);
-	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
-	f.flush();
+void execute_ldr_reg_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	const uint   rn      = cpu.get(instr.rn);
+	const uint   rm      = cpu.get(instr.rm);
+	const int    shifted = shift(instr.shift_t, instr.shift_n, rm);
+	const size_t addr    = rn + shifted;
+	const uint   data    = mem.read_word(addr, cpu.pc);
 	cpu.set(instr.rt, data);
 	cpu.increment_pc(4);
 }
@@ -5990,20 +5915,12 @@ void execute_mov_imm_32_t2(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute LDR(Immediate)
 // ========================
 
-void execute_ldr_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
-	uint rn = cpu.get(instr.rn);
-	size_t offset_addr = rn;
-	if (instr.add) {
-		offset_addr += instr.imm;
-	} else {
-		offset_addr -= instr.imm;
-	}
-	size_t addr = instr.index ? offset_addr : rn;
-	f.writeln(format("Attempting to access [%08X]", addr));
-	int data = mem.read_word(addr);
-	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, data, addr));
-	f.flush();
+void execute_ldr_imm_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+	const uint rn          = cpu.get(instr.rn);
+	size_t     offset_addr = rn;
+	instr.add ? (offset_addr += instr.imm) : (offset_addr -= instr.imm);
+	size_t     addr        = instr.index ? offset_addr : rn;
+	const uint data        = mem.read_word(addr, cpu.pc);
 	if (instr.wback) {
 		cpu.set(instr.rn, cast(uint)offset_addr);
 	}
@@ -7095,7 +7012,7 @@ void load_init_array_start(ref memory mem, string filename) {
 unittest {
 	memory mem;
 	load_init_array_start(mem, "../test/cortex_m_asm.txt");
-	uint val = mem.read_word(0x800a2dc);
+	uint val = mem.read_word(0x800a2dc, 0);
 	assert(val == 0x800a1e1, format("Got [0x%04X] instead of 0x800a1e1", val));
 }
 
@@ -7555,20 +7472,20 @@ void load_literals(ref memory mem, string filename) {
 unittest {
 	memory mem;
 	load_literals(mem, "../test/cortex_m_asm.txt");
-	assert(mem.read_word(0x800a1c4) == 0x20020000, format("Failed to load [0x%04X] into [0x%04X]", 0x20020000, 0x800a1c4));
-	assert(mem.read_word(0x800a1c8) == 0x20000000, format("Failed to load [0x%04X] into [0x%04X]", 0x20000000, 0x800a1c8));
-	assert(mem.read_word(0x800a1cc) == 0x20000560, format("Failed to load [0x%04X] into [0x%04X]", 0x20000560, 0x800a1cc));
-	assert(mem.read_word(0x800a1d0) == 0x0800a2e8, format("Failed to load [0x%04X] into [0x%04X]", 0x0800a2e8, 0x800a1d0));
-	assert(mem.read_word(0x800a1d4) == 0x20000560, format("Failed to load [0x%04X] into [0x%04X]", 0x20000560, 0x800a1d4));
-	assert(mem.read_word(0x800a1d8) == 0x20000958, format("Failed to load [0x%04X] into [0x%04X]", 0x20000958, 0x800a1d8));
+	assert(mem.read_word(0x800a1c4, 0) == 0x20020000, format("Failed to load [0x%04X] into [0x%04X]", 0x20020000, 0x800a1c4));
+	assert(mem.read_word(0x800a1c8, 0) == 0x20000000, format("Failed to load [0x%04X] into [0x%04X]", 0x20000000, 0x800a1c8));
+	assert(mem.read_word(0x800a1cc, 0) == 0x20000560, format("Failed to load [0x%04X] into [0x%04X]", 0x20000560, 0x800a1cc));
+	assert(mem.read_word(0x800a1d0, 0) == 0x0800a2e8, format("Failed to load [0x%04X] into [0x%04X]", 0x0800a2e8, 0x800a1d0));
+	assert(mem.read_word(0x800a1d4, 0) == 0x20000560, format("Failed to load [0x%04X] into [0x%04X]", 0x20000560, 0x800a1d4));
+	assert(mem.read_word(0x800a1d8, 0) == 0x20000958, format("Failed to load [0x%04X] into [0x%04X]", 0x20000958, 0x800a1d8));
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
 	memory mem;
 	load_literals(mem, "../test/freertos_blink_asm.txt");
-	assert(mem.read_word(0x8017c10) == 0x20000038, format("Failed to load [0x%04X] into [0x%04X]", 0x20020000, 0x800a1c4));
-	assert(mem.read_word(0x8017d1c) == 0x20020000, format("Failed to load [0x%04X] into [0x%04X]", 0x20000000, 0x800a1c8));
+	assert(mem.read_word(0x8017c10, 0) == 0x20000038, format("Failed to load [0x%04X] into [0x%04X]", 0x20020000, 0x800a1c4));
+	assert(mem.read_word(0x8017d1c, 0) == 0x20020000, format("Failed to load [0x%04X] into [0x%04X]", 0x20000000, 0x800a1c8));
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -25,6 +25,7 @@
         "thumb_2_data_proc_shift_reg_32.d",
         "thumb_2_load_store_dual_exc_32.d",
         "parse_elf.d",
-        "thumb_2_shift_add_sub_16.d"
+        "thumb_2_shift_add_sub_16.d",
+        "thumb_2_load_store_multiple.d"
     ]
 }
