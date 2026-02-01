@@ -953,9 +953,7 @@ enum field_tuples_blx = [Tuple!(opcode, string[])(opcode.blx, ["rm"])];
 /*
 	Special Data Instructions and Branch and Exchange
 	BLX <Rm>
-	[15:8] 010001111
-	[6:3] Rm
-	[2:0] 000
+	[15:8] 010001111, [6:3] Rm, [2:0] 000
 */
 instr_16 parse_blx(short instr) {
 	instr_16 res;
@@ -1865,7 +1863,6 @@ unittest {
 		test_case(0x68fb, instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 12)),
 		test_case(0x4283, instr_16(op: opcode.cmp_reg,       rn: reg.r3,  rm: reg.r0)),
 		test_case(0x4803, instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 12)),
-		//  80091a0:	4803      	ldr	r0, [pc, #12]	@ (80091b0 <stdio_exit_handler+0x14>)
 		test_case(0xd002, instr_16(op: opcode.b_cond,        cond: condition.eq,      offset: 4)),
 		test_case(0xb103, instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset: 0)),
 		test_case(0x4718, instr_16(op: opcode.bx,            rm: reg.r3)),
@@ -1874,7 +1871,6 @@ unittest {
 		test_case(0xb943, instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,			  offset: 16)),
 		test_case(0xbd10, instr_16(op: opcode.pop_mult_reg,  reg_list: [reg.r4, reg.pc])),
 		test_case(0xe7cf, instr_16(op: opcode.b_imm_11,					 		      offset: -98)),
-		//test_case(0xbf00, instr_16(op: if_then))
 		test_case(0x469d, instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3)),
 		test_case(0x460f, instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1)),
 		test_case(0x4798, instr_16(op: opcode.blx,           rm: reg.r3)),
@@ -1898,7 +1894,6 @@ unittest {
 		test_case(0x58fb, instr_16(op: opcode.ldr_reg,	     rt: reg.r3,  rn: reg.r7, rm: reg.r3)),
 		test_case(0x50c4, instr_16(op: opcode.str_reg,	     rt: reg.r4,  rn: reg.r0, rm: reg.r3)),
 		test_case(0xd3f9,  instr_16(op: opcode.b_cond,		 cond: condition.cc,	  offset: -14))
-		//50c4      	str	r4, [r0, r3]
 	];
 
 	foreach (t; tests) {
@@ -3070,14 +3065,10 @@ unittest {
 				  instr_16(op: opcode.b_cond, 		 cond: condition.cc, offset: -14),
 				  cortex_m_cpu(pc: 0x800a1a8),
 				  cortex_m_cpu(pc: 0x800a19e)),
-				  //  800a1a8:	d3f9      	bcc.n	800a19e
-				  // 1101 0011 1111 1001
 		test_case(0xe001,
 				  instr_16(op: opcode.b_imm_11,		offset: 2),
 				  cortex_m_cpu(pc: 0x800a1b0),
 				  cortex_m_cpu(pc: 0x800a1b6))
-				  // 1110 0000 0000 00001
-				  // 800a1b0:	e001      	b.n	800a1b6 <LoopFillZerobss>
 	];
 
 	foreach (t; tests) {
@@ -3411,43 +3402,6 @@ instr_32 parse_sub_imm_32(uint instr) {
 	res.rn = cast(reg)(rn);
 	int imm_32 = thumb_expand_imm(imm_12);
 	res.imm = imm_32;
-	return res;
-}
-
-// ==================
-//  Parse AND IMM 32
-// ==================
-
-enum field_tuples_and_imm_32 = [Tuple!(opcode, string[])(opcode.and_imm_32, ["rd","rn","imm"])];
-/*
-	Data Processing (Modified Immediate)
-	First Half-Word:
-	[15:11] 11110
-	[10] i
-	[9:5] 00000
-	[4] S
-	[3:0] Rn
-	Second Half-Word:
-	[15] 0
-	[14:12] imm3
-	[11:8] Rd
-	[7:0] imm8 
-*/
-instr_32 parse_and_imm_32(uint instr) {
-	instr_32 res;
-	res.op = opcode.and_imm_32;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);
-	ubyte i = cast(ubyte)((instr >> 26) & 0b1);
-	ubyte S = cast(ubyte)((instr >> 26) & 0b1);
-	ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
-	uint imm_32 = thumb_expand_imm(imm_12);
-	res.imm = imm_32;
-	res.set_flags = S == 1 ? true : false;
-	res.rd = cast(reg)(rd);
-	res.rn = cast(reg)(rn);
 	return res;
 }
 
@@ -4983,8 +4937,7 @@ instr_32 decode_instr(uint instr) {
 			return parse_ldmia_32(instr);
 		case opcode.sub_imm_32:
 			return parse_sub_imm_32(instr);
-		case opcode.and_imm_32:
-			return parse_and_imm_32(instr);
+		case opcode.and_imm_32: res = parse_and_imm_32(instr); break;
 		case opcode.udiv_32:
 			return parse_udiv_32(instr);
 		case opcode.ubfx_32:

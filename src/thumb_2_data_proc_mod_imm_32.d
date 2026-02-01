@@ -52,6 +52,33 @@ void execute_adc_imm_32(const ref instr_32 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ==================
+//  Parse AND IMM 32
+// ==================
+
+enum field_tuples_and_imm_32 = [Tuple!(opcode, string[])(opcode.and_imm_32, ["rd","rn","imm"])];
+/*
+	Data Processing (Modified Immediate)
+	First Half-Word: [15:11] 11110, [10] i, [9:5] 00000, [4] S, [3:0] Rn
+	Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8 
+*/
+instr_32 parse_and_imm_32(const uint instr) {
+	instr_32 res;
+	const ubyte  imm_8  = cast(ubyte)( instr        & 0xff);
+	const ubyte  rd     = cast(ubyte)((instr >>  8) & 0x0f);
+	const ubyte  rn     = cast(ubyte)((instr >> 16) & 0x0f);
+	const ubyte  imm_3  = cast(ubyte)((instr >> 12) & 0x07);
+	const ubyte  i      = cast(ubyte)((instr >> 26) & 0x01);
+	const ubyte  S      = cast(ubyte)((instr >> 26) & 0x01);
+	const ushort imm_12 = cast(ushort)((i << 11) | (imm_3 << 8) | imm_8);
+	const uint   imm_32 = thumb_expand_imm(imm_12);
+	res.imm = imm_32;
+	res.set_flags = S == 1 ? true : false;
+	res.rd = cast(reg)(rd);
+	res.rn = cast(reg)(rn);
+	return res;
+}
+
 // ----------------------------------------- EOR -----------------------------------------
 
 // ======================
@@ -214,4 +241,6 @@ void execute_sbc_imm_32(const ref instr_32 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(4);
 }
 // ---------------------------------------------------------------------------------------
+
+
 
