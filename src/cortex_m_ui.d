@@ -12,6 +12,7 @@ import thumb_2_opcodes;
 import thumb_2_instrs;
 import memory_sections;
 import parse_elf;
+import std.array : replicate;
 
 // Global pad and scroll offset:
 WINDOW* instrPad;
@@ -124,12 +125,9 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
                     }
                 }
             }
-            if (reg_name == "") 
-                reg_name = "                                                     ";
-            else {
-                f.writeln(reg_name);
-                f.flush();
-                reg_name ~= "               ";
+            enum reg_name_width = 35;
+            if (reg_name.length < reg_name_width) {
+                reg_name ~= replicate(" ", reg_name_width - reg_name.length);
             }
             int color = color_for_value(val, vm);
             wattron(regPad, COLOR_PAIR(color));
