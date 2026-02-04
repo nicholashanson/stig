@@ -334,7 +334,7 @@ unittest {
     auto section_name = "device_area";
     memory mem;
     load_section_into_memory(filename, section_name, mem);
-    auto actual_data = mem.read_word(0x80039d4);
+    auto actual_data = mem.read_word(0x80039d4, 0);
     assert(actual_data == 0x08004446, 
            format("Actual device area length is %d, not the expected 0x08004446", actual_data));
 }
@@ -383,7 +383,7 @@ unittest {
     auto section_name = "rodata";
     memory mem;
     load_section_into_memory(filename, section_name, mem);
-    auto actual_data = mem.read_word(0x8003e34);
+    auto actual_data = mem.read_word(0x8003e34, 0);
     assert(actual_data == 0x00000044, 
            format("Actual value at 0x8003e34 is %08X, not the expected 0x00000044", actual_data));
 }
@@ -976,7 +976,7 @@ unittest {
     auto filename = "../test/blinky.elf";
     memory mem;
     //load_function_into_memory(filename, "char_out", mem);
-    auto lit = mem.read_word(0x80004f4);
+    auto lit = mem.read_word(0x80004f4, 0);
     //assert(lit == 0x20000000, format("Actual instrs length is %08X, not the expected 0x20000000", lit));
 }
 

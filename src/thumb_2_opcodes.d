@@ -96,10 +96,10 @@ enum opcode : ubyte {
 	pld_32,
 	pld_imm_32,
 	pld_reg_32,
-	pop_mult_reg,
-	pop_mult_reg_32,
-	push_mult_reg,
-	push_mult_reg_32,
+	pop,
+	pop_32,
+	push,
+	push_32,
 	rev,
 	stmb_32,
 	stmia_32,
@@ -246,8 +246,8 @@ enum single_str : ubyte {
 enum misc : ubyte {
 	cmp_br 		    = 0b0001,
 	sub_sp          = 0b00001,
-	push_mult_reg   = 0b010,
-	pop_mult_reg  	= 0b110,
+	push   = 0b010,
+	pop  	= 0b110,
 	if_then			= 0b1111,
 	blx				= 0b111,
 	uxtb 			= 0b001011
@@ -427,11 +427,11 @@ opcode decode_mnemonic(ushort instr) {
     	if (cast(ubyte)((instr >> 6) & 0b111111) == 0b001001) {
     		return opcode.sxtb;
     	}
-    	if (cast(ubyte)((instr >> 9) & 0b111) == misc.push_mult_reg) {
-    		return opcode.push_mult_reg;
+    	if (cast(ubyte)((instr >> 9) & 0b111) == misc.push) {
+    		return opcode.push;
     	}
-    	if (cast(ubyte)((instr >> 9) & 0b111) == misc.pop_mult_reg) {
-    		return opcode.pop_mult_reg;
+    	if (cast(ubyte)((instr >> 9) & 0b111) == misc.pop) {
+    		return opcode.pop;
     	}
     	if (cast(ubyte)((instr >> 8) & 0b1111) == misc.if_then) {
     		if (cast(ubyte)(instr & 0xff) == 0) {
@@ -583,10 +583,10 @@ unittest {
 		test_case(0x43db, opcode.mvn_reg),
 		test_case(0x4241, opcode.negs),
 		test_case(0xbf00, opcode.nop),
-		test_case(0xbd10, opcode.pop_mult_reg),
-		test_case(0xb480, opcode.push_mult_reg),
-		test_case(0xb510, opcode.push_mult_reg),
-		test_case(0xb580, opcode.push_mult_reg),
+		test_case(0xbd10, opcode.pop),
+		test_case(0xb480, opcode.push),
+		test_case(0xb510, opcode.push),
+		test_case(0xb580, opcode.push),
 		test_case(0x3902, opcode.sub_imm_8),	
 		test_case(0x6013, opcode.str_imm),
 		test_case(0x601a, opcode.str_imm),
@@ -770,8 +770,8 @@ opcode decode_load_store_mult(uint instr) {
 	ubyte L    = cast(ubyte)((instr >> 20) & 0x1);
 	ubyte op_L = cast(ubyte)((op << 1) | L);
 	switch (op_L) {
-		case 0b011: return Wrn == 0b11101 ? opcode.pop_mult_reg_32  : opcode.ldmia_32;
-		case 0b100: return Wrn == 0b11101 ? opcode.push_mult_reg_32 : opcode.stmb_32;
+		case 0b011: return Wrn == 0b11101 ? opcode.pop_32  : opcode.ldmia_32;
+		case 0b100: return Wrn == 0b11101 ? opcode.push_32 : opcode.stmb_32;
 		case 0b101: return opcode.ldmdb_32;
 		case 0b010: return opcode.stmia_32;
 		default: break;
@@ -1143,7 +1143,7 @@ unittest {
 		test_case(0xeb0101a3, opcode.add_reg_32),
 		test_case(0xf7ffffda, opcode.bl_32),
 		test_case(0xf3af8000, opcode.nop_32),
-		test_case(0xe8bd4008, opcode.pop_mult_reg_32),
+		test_case(0xe8bd4008, opcode.pop_32),
 		test_case(0xf5a33a80, opcode.sub_imm_32),
 		test_case(0xf008ff15, opcode.bl_32),
 		test_case(0xf009f8a6, opcode.bl_32),
@@ -1164,7 +1164,7 @@ unittest {
 		test_case(0xfba22303, opcode.umull_32),
 		test_case(0xe9c72300, opcode.strd_32),
 		test_case(0xf67fae90, opcode.b_32),
-		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
+		test_case(0xe92d4fb0, opcode.push_32),
 		test_case(0xea4161d2, opcode.orr_reg_32),
 		test_case(0xebb2080a, opcode.sub_reg_32),
 		test_case(0xeb63090b, opcode.sbc_reg_32),
@@ -1185,18 +1185,18 @@ unittest {
 		test_case(0xf7ffb8f7, opcode.b_uncond_32),
 		test_case(0xf8441023, opcode.str_reg_32),
 		test_case(0xf8c46188, opcode.str_imm_32_t3),
-		test_case(0xe8bd4008, opcode.pop_mult_reg_32),
+		test_case(0xe8bd4008, opcode.pop_32),
 		test_case(0xeb0101a3, opcode.add_reg_32),
 		test_case(0xf1b37f80, opcode.cmp_imm_32),
 		test_case(0xf1070318, opcode.add_imm_32),
 		test_case(0xfa02f303, opcode.lsl_reg_32),
-		test_case(0xe92d4fb0, opcode.push_mult_reg_32),
+		test_case(0xe92d4fb0, opcode.push_32),
 		test_case(0xea400301, opcode.orr_reg_32),
 		test_case(0xe9d7453a, opcode.ldrd_imm_32),
 		test_case(0xe9d78928, opcode.ldrd_imm_32),
 		test_case(0xf04f31ff, opcode.mov_imm_32_t2),
 		test_case(0xf04f30ff, opcode.mov_imm_32_t2),
-		test_case(0xe8bd4010, opcode.pop_mult_reg_32),
+		test_case(0xe8bd4010, opcode.pop_32),
 		test_case(0xf883203c, opcode.strb_imm_32_t2),
 		test_case(0xf9973007, opcode.ldrsb_imm_32_t1),
 		test_case(0xf890f000, opcode.pld_imm_32),

@@ -15,13 +15,13 @@ import memory_sections;
 //  Parse Pop Mult Reg
 // ====================
 
-enum field_tuples_pop_mult_reg = [Tuple!(opcode, string[])(opcode.pop_mult_reg, ["reg_list"])];
+enum field_tuples_pop = [Tuple!(opcode, string[])(opcode.pop, ["reg_list"])];
 /*
 	Miscellaneous 16-bit Instructions
 	POP <registers>
 	[15:9] 1011110, [8] P, [7:0] register_list  
 */
-instr_16 parse_pop_mult_reg(const ushort instr) {
+instr_16 parse_pop(const ushort instr) {
 	instr_16 res;
 	const ubyte p        = cast(ubyte)((instr >> 8) & 0x01);
 	const ubyte reg_mask = cast(ubyte)( instr       & 0xff);
@@ -38,7 +38,7 @@ instr_16 parse_pop_mult_reg(const ushort instr) {
 //  Execute POP MULT REG
 // ======================
 
-void execute_pop_mult_reg(const ref instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_pop(const ref instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	auto f = stack_log();
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a < cast(int)b);
@@ -71,13 +71,13 @@ void execute_pop_mult_reg(const ref instr_16 instr, ref cortex_m_cpu cpu, ref me
 //  Parse Push Mult Reg
 // =====================
 
-enum field_tuples_push_mult_reg = [Tuple!(opcode, string[])(opcode.push_mult_reg, ["reg_list"])];
+enum field_tuples_push = [Tuple!(opcode, string[])(opcode.push, ["reg_list"])];
 /*
 	Miscellaneous 16-bit Instructions
 	PUSH <registers>
 	[15:9] 1011010, [8] M, [7:0] register_list  
 */
-instr_16 parse_push_mult_reg(short instr) {
+instr_16 parse_push(short instr) {
 	instr_16 res;
 	const ubyte m        = cast(ubyte)((instr >> 8) & 0x01);
 	const ubyte reg_mask = cast(ubyte)( instr       & 0xff);
@@ -94,7 +94,7 @@ instr_16 parse_push_mult_reg(short instr) {
 //  Execute PUSH MULT REG
 // =======================
 
-void execute_push_mult_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_push(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	auto f = stack_log();
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a > cast(int)b);

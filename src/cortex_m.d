@@ -714,10 +714,10 @@ enum all_field_tuples =
 	~ field_tuples_nop_32
 	~ field_tuples_orr_imm_32
 	~ field_tuples_orr_reg_32
-	~ field_tuples_pop_mult_reg
-	~ field_tuples_pop_mult_reg_32
-	~ field_tuples_push_mult_reg
-	~ field_tuples_push_mult_reg_32
+	~ field_tuples_pop
+	~ field_tuples_pop_32
+	~ field_tuples_push
+	~ field_tuples_push_32
 	~ field_tuples_rbit_32
 	~ field_tuples_rsb_imm_32
 	~ field_tuples_sbc_reg_32
@@ -770,7 +770,6 @@ enum field_tuples_add_imm_3 = [Tuple!(opcode, string[])(opcode.add_imm_3, ["rd",
 */
 instr_16 parse_add_imm_3(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.add_imm_3;
 	const ubyte rd    = cast(ubyte)( instr       & 0x07);
 	const ubyte rn 	  = cast(ubyte)((instr >> 3) & 0x07);
 	const ubyte imm_3 = cast(ubyte)((instr >> 6) & 0x07);
@@ -792,13 +791,12 @@ enum field_tuples_add_imm_8 = [Tuple!(opcode, string[])(opcode.add_imm_8, ["rn",
 	[10:8] Rdn
 	[7:0] imm8
 */
-instr_16 parse_add_imm_8(short instr) {
+instr_16 parse_add_imm_8(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.add_imm_8;
-	ubyte rdn = cast(ubyte)((instr >> 8) & 0b111);
+	const ubyte imm = cast(ubyte)( instr       & 0xff);
+	const ubyte rdn = cast(ubyte)((instr >> 8) & 0x07);
 	res.rn = cast(reg)(rdn);
 	res.rd = cast(reg)(rdn);
-	ubyte imm = cast(ubyte)(instr & 0xff);
 	res.imm = imm;
 	return res;
 }
@@ -811,16 +809,12 @@ enum field_tuples_add_lo_reg = [Tuple!(opcode, string[])(opcode.add_lo_reg, ["rd
 /*
 	Special Data Instructions and Branch and Exchange
 	ADD <Rdn>,<Rm>
-	[15:8] 01000100
-	[7] DN
-	[6:3] Rm
-	[2:0] Rdn  
+	[15:8] 01000100, [7] DN, [6:3] Rm, [2:0] Rdn  
 */
-instr_16 parse_add_lo_reg(short instr) {
+instr_16 parse_add_lo_reg(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.add_lo_reg;
-	ubyte rdn = cast(ubyte)(instr & 0b111);
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
+	const ubyte rdn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x0f);
 	res.rd = cast(reg)(rdn);
 	res.rn = cast(reg)(rdn);
 	res.rm = cast(reg)(rm);
@@ -866,17 +860,14 @@ enum field_tuples_adr = [Tuple!(opcode, string[])(opcode.adr, ["rd","pc","imm"])
 /*
 	Generate PC-Relative Address
 	ADR <Rd>,<Label>
-	[15:11] 10100
-	[10:8] Rd
-	[7:0] imm8  
+	[15:11] 10100, [10:8] Rd, [7:0] imm8  
 */
-instr_16 parse_adr(short instr) {
+instr_16 parse_adr(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.adr;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0b111);
-	res.imm = cast(ubyte)(imm_8 * 4);
-	res.rd = cast(reg)(rd);
+	const ubyte imm_8 = cast(ubyte)( instr       & 0xff);
+	const ubyte rd    = cast(ubyte)((instr >> 8) & 0x07);
+	res.rd  = cast(reg)(rd);
+	res.imm = imm_8 * 4;
 	return res;
 }
 
@@ -888,17 +879,14 @@ enum field_tuples_b_cond = [Tuple!(opcode, string[])(opcode.b_cond, [])];
 /*
 	Condtional Branch, and Supervisor Call
 	B <label>
-	[15:12] 1101
-	[11:8] cond
-	[7:0] imm8
+	[15:12] 1101, [11:8] cond, [7:0] imm8
 */
-instr_16 parse_b_cond(short instr) {
+instr_16 parse_b_cond(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.b_cond;
-	ubyte cond = cast(ubyte)((instr >> 8 ) & 0xf);
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
-	byte s = cast(byte) imm_8; 
-	int imm_32 = cast(int)s << 1;
+	const ubyte cond   = cast(ubyte)((instr >> 8 ) & 0x0f);
+	const ubyte imm_8  = cast(ubyte)( instr        & 0xff);
+	const byte  s      = cast(byte)imm_8; 
+	const int   imm_32 = cast(int)s << 1;
 	res.cond = cast(condition)(cond);
 	res.offset = imm_32;
 	return res;
@@ -908,14 +896,11 @@ enum field_tuples_svc = [Tuple!(opcode, string[])(opcode.svc, ["imm"])];
 /*
 	Condtional Branch, and Supervisor Call
 	B <label>
-	[15:12] 1101
-	[11:8] cond
-	[7:0] imm8
+	[15:12] 1101, [11:8] cond, [7:0] imm8
 */
-instr_16 parse_svc(short instr) {
+instr_16 parse_svc(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.svc;
-	ubyte imm_8 = cast(ubyte)(instr & 0xff);
+	const ubyte imm_8 = cast(ubyte)(instr & 0xff);
 	res.imm = imm_8;
 	return res;
 }
@@ -928,16 +913,11 @@ enum field_tuples_b_imm_11 = [Tuple!(opcode, string[])(opcode.b_imm_11, [])];
 /*
 	Uncondtional Branch
 	B <label>
-	[15:11] 11100
-	[10:0] imm11
+	[15:11] 11100, [10:0] imm11
 */
-// e001      	b.n	800a1b6 <LoopFillZerobss>
-// 1110 0000 0000 0001
-instr_16 parse_b_imm_11(short instr) {
-	//  800023a:	e7cf      	b.n	80001dc
+instr_16 parse_b_imm_11(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.b_imm_11;
-	int imm_11 = cast(int)(instr & 0x7ff); 
+	int      imm_11 = cast(int)(instr & 0x7ff); 
 	imm_11 <<= 1;              
     if ((imm_11 & 0x800) != 0) { 
         imm_11 |= ~0xfff; 
@@ -956,11 +936,10 @@ enum field_tuples_blx = [Tuple!(opcode, string[])(opcode.blx, ["rm"])];
 	BLX <Rm>
 	[15:8] 010001111, [6:3] Rm, [2:0] 000
 */
-instr_16 parse_blx(short instr) {
+instr_16 parse_blx(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.blx;
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
-	res.rm = cast(reg)(rm);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0x0f);
+	res.rm   = cast(reg)(rm);
 	return res;
 } 
 
@@ -972,14 +951,11 @@ enum field_tuples_bx = [Tuple!(opcode, string[])(opcode.bx, ["rm"])];
 /*
 	Special Data Instructions and Branch and Exchange
 	BX <Rm>
-	[15:7] 010001110
-	[6:3] Rm
-	[2:0] 000
+	[15:7] 010001110, [6:3] Rm, [2:0] 000
 */
-instr_16 parse_bx(short instr) {
+instr_16 parse_bx(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.bx;
-	ubyte rm = cast(ubyte)((instr >> 3) & 0b1111);
+	ubyte rm = cast(ubyte)((instr >> 3) & 0x0f);
 	res.rm = cast(reg)(rm);
 	return res;
 }
@@ -992,32 +968,25 @@ enum field_tuples_cmp_br_nz = [Tuple!(opcode, string[])(opcode.cmp_br_nz, ["rn"]
 /*
 	Miscellaneous 16-Bit Instructions
 	CBNZ <Rn>,<label>
-	[15:12] 1011
-	[11] op
-	[10] 0
-	[9] i
-	[8] 1
-	[7:3] imm5
-	[2:0] Rn  
+	[15:12] 1011, [11] op, [10] 0, [9] i, [8] 1, [7:3] imm5, [2:0] Rn  
 */
-instr_16 parse_cmp_br_nz(short instr) {
+instr_16 parse_cmp_br_nz(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.cmp_br_nz;
-	ubyte rn = cast(ubyte)(instr & 0b111);
-	ubyte i = cast(ubyte)((instr >> 9) & 0b1);
-	ushort imm_5 = cast(ushort)((instr >> 3) & 0b11111);
-	uint imm = (i << 6) | (imm_5 << 1);
+	const ubyte  rn    = cast(ubyte )( instr       & 0x07);
+	const ubyte  i     = cast(ubyte )((instr >> 9) & 0x01);
+	const ushort imm_5 = cast(ushort)((instr >> 3) & 0x1f);
+	const uint imm = (i << 6) | (imm_5 << 1);
 	res.rn = cast(reg)(rn);
 	res.offset = imm;
 	return res;
 }
 
-instr_16 parse_cps(short instr) {
+instr_16 parse_cps(const ushort instr) {
 	instr_16 res;
-	res.op    = opcode.cps;
-	ubyte F   = cast(ubyte)( instr       & 0x1);
-	ubyte I   = cast(ubyte)((instr >> 1) & 0x1);
-	ubyte imm = cast(ubyte)((instr >> 4) & 0x1);
+	res.op    		= opcode.cps;
+	const ubyte F   = cast(ubyte)( instr       & 0x1);
+	const ubyte I   = cast(ubyte)((instr >> 1) & 0x1);
+	const ubyte imm = cast(ubyte)((instr >> 4) & 0x1);
 	res.enable       = (imm == 0);
 	res.affect_pri   = (I   == 1);
 	res.affect_fault = (F   == 1);
@@ -1061,17 +1030,14 @@ enum field_tuples_cmp_imm = [Tuple!(opcode, string[])(opcode.cmp_imm, ["rn","imm
 /*
 	Shift(Immediate), Add, Subtract, Move and Compare
 	CMP <Rn>,#<imm8>
-	[15:11] 00101
-	[10:8] Rn 
-	[7:0] imm8  
+	[15:11] 00101, [10:8] Rn, [7:0] imm8  
 */
-instr_16 parse_cmp_imm(short instr) {
+instr_16 parse_cmp_imm(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.cmp_imm;
-	ubyte rn = cast(ubyte)((instr >> 8) & 0b111);
-	ubyte imm = cast(ubyte)(instr & 0xff);
-	res.imm = imm;
+	const ubyte imm = cast(ubyte)( instr       & 0xff);
+	const ubyte rn  = cast(ubyte)((instr >> 8) & 0x07);
 	res.rn = cast(reg)(rn);
+	res.imm = imm;
 	return res;
 }
 
@@ -1705,134 +1671,72 @@ instr_16 decode_instr(ushort instr) {
     auto op = decode_mnemonic(instr);
 
     switch (op) {
-    	case opcode.eor_reg:
-    		return parse_eor_reg(instr);
-    	case opcode.bic_reg:
-    		return parse_bic_reg(instr);
-    	case opcode.strh_reg: res = parse_strh_reg(instr); break;
-    	case opcode.sxtb:
-    		return parse_sxtb(instr);
-    	case opcode.rev:
-    		return parse_rev(instr);
-    	case opcode.ldr_sp:
-    		return parse_ldr_sp(instr);
-        case opcode.cmp_imm:
-            return parse_cmp_imm(instr);
-        case opcode.asr_imm:
-            return parse_asr_imm(instr);
-        case opcode.add_imm_8:
-            return parse_add_imm_8(instr);
-        case opcode.and_reg:
-            return parse_and_reg(instr);
-        case opcode.mov_imm:
-            return parse_mov_imm(instr);
-        case opcode.sub_imm_8:
-            return parse_sub_imm_8(instr);
-        case opcode.lsl_imm:
-        	return parse_lsl_imm(instr);
-        case opcode.lsr_imm:
-        	return parse_lsr_imm(instr);
-        case opcode.lor_reg:
-        	return parse_lor_reg(instr);
-        case opcode.mvn_reg:
-        	return parse_mvn_reg(instr);
-        case opcode.str_imm:
-        	return parse_str_imm(instr);
-        case opcode.strh_imm:
-        	return parse_strh_imm(instr);
-       	case opcode.ldrh_imm:
-       		return parse_ldrh_imm(instr);
-       	case opcode.ldrb_imm:
-       		return parse_ldrb_imm(instr);
-       	case opcode.strb_imm:
-       		return parse_strb_imm(instr);
-       	case opcode.strb_reg:
-       		return parse_strb_reg(instr);
-       	case opcode.ldr_imm:
-       		return parse_ldr_imm(instr);
-       	case opcode.cmp_reg:
-       		return parse_cmp_reg(instr);
-       	case opcode.ldr_pool:
-       		return parse_ldr_pool(instr); 
-       	case opcode.b_cond:
-       		return parse_b_cond(instr);
-       	case opcode.cmp_br_z:
-       		return parse_cmp_br_z(instr);
-       	case opcode.bx:
-       		return parse_bx(instr);
-       	case opcode.sub_reg:
-       		return parse_sub_reg(instr);
-       	case opcode.push_mult_reg: res = parse_push_mult_reg(instr); break;
-       	case opcode.cmp_br_nz:
-       		return parse_cmp_br_nz(instr);
-       	case opcode.pop_mult_reg: res  = parse_pop_mult_reg(instr); break;
-       	case opcode.b_imm_11:
-       		return parse_b_imm_11(instr);
-       	case opcode.mov_high_1:
-       		return parse_mov_high_1(instr);
-       	case opcode.mov_lo:
-       		return parse_mov_lo(instr);
-       	case opcode.blx: 
-       		return parse_blx(instr);
+    	case opcode.eor_reg  : res = parse_eor_reg(instr);   break;
+    	case opcode.bic_reg  : res = parse_bic_reg(instr);   break;
+    	case opcode.strh_reg : res = parse_strh_reg(instr);  break;
+    	case opcode.sxtb     : res = parse_sxtb(instr); 	 break;
+    	case opcode.rev      : res = parse_rev(instr);	     break;
+    	case opcode.ldr_sp   : res = parse_ldr_sp(instr);    break;
+        case opcode.cmp_imm  : res = parse_cmp_imm(instr);   break;
+        case opcode.asr_imm  : res = parse_asr_imm(instr);	 break;
+        case opcode.add_imm_8: res = parse_add_imm_8(instr); break;
+        case opcode.and_reg  : res = parse_and_reg(instr); 	 break;
+        case opcode.mov_imm  : res = parse_mov_imm(instr); 	 break;
+        case opcode.sub_imm_8: res = parse_sub_imm_8(instr); break;
+        case opcode.lsl_imm  : res = parse_lsl_imm(instr);	 break;
+        case opcode.lsr_imm  : res = parse_lsr_imm(instr);	 break;
+        case opcode.lor_reg  : res = parse_lor_reg(instr); 	 break;
+        case opcode.mvn_reg  : res = parse_mvn_reg(instr); 	 break;
+        case opcode.str_imm  : res = parse_str_imm(instr);	 break;
+        case opcode.strh_imm : res = parse_strh_imm(instr);	 break;
+       	case opcode.ldrh_imm : res = parse_ldrh_imm(instr);	 break;
+       	case opcode.ldrb_imm : res = parse_ldrb_imm(instr);  break;
+       	case opcode.strb_imm : res = parse_strb_imm(instr);  break;
+       	case opcode.strb_reg : res = parse_strb_reg(instr);  break;
+       	case opcode.ldr_imm  : res = parse_ldr_imm(instr);   break;
+       	case opcode.cmp_reg  : res = parse_cmp_reg(instr);   break;
+       	case opcode.ldr_pool : res = parse_ldr_pool(instr);  break;
+       	case opcode.b_cond   : res = parse_b_cond(instr);	 break;
+       	case opcode.cmp_br_z : res = parse_cmp_br_z(instr);	 break;
+       	case opcode.bx       : res = parse_bx(instr);		 break;
+       	case opcode.sub_reg  : res = parse_sub_reg(instr);	 break;
+       	case opcode.push     : res = parse_push(instr); 	 break;
+       	case opcode.cmp_br_nz: res = parse_cmp_br_nz(instr); break;
+       	case opcode.pop      : res = parse_pop(instr); 		 break;
+       	case opcode.b_imm_11 : res = parse_b_imm_11(instr);  break;		
+       	case opcode.mov_high_1: return parse_mov_high_1(instr); break;
+       	case opcode.mov_lo   : res = parse_mov_lo(instr);	 break;	
+       	case opcode.blx      : res = parse_blx(instr);		 break;
        	case opcode.add_sp_t1:
-       	case opcode.add_sp_t2:
-       		return parse_add_sp(instr);
-       	case opcode.ldrb_reg:
-       		return parse_ldrb_reg(instr);
-       	case opcode.sub_sp:
-       		return parse_sub_sp(instr);
-       	case opcode.add_imm_3:
-       		return parse_add_imm_3(instr);
-       	case opcode.add_lo_reg:
-       		return parse_add_lo_reg(instr);
-       	case opcode.lsl_reg:
-       		return parse_lsl_reg(instr);
-       	case opcode.lsr_reg:
-       		return parse_lsr_reg(instr);
-       	case opcode.adr:
-       		return parse_adr(instr);
-       	case opcode.mov_high_2:
-       		return parse_mov_high_2(instr);
-       	case opcode.str_sp:
-       		return parse_str_sp(instr);
-       	case opcode.add_reg:
-       		return parse_add_reg(instr);
-       	case opcode.mul:
-       		return parse_mul(instr);
-       	case opcode.cmp_high_1:
-       		return parse_cmp_high_1(instr);
-        case opcode.add_high_reg_1:
-        	return parse_add_high_reg_1(instr);
-        case opcode.add_high_reg_2:
-        	return parse_add_high_reg_2(instr);
-        case opcode.sub_imm_3:
-        	return parse_sub_imm_3(instr);
-        case opcode.cmp_high_2:
-        	return parse_cmp_high_2(instr);
-        case opcode.negs:
-        	return parse_negs(instr);
-        case opcode.ldr_reg:
-        	return parse_ldr_reg(instr);
-        case opcode.nop:
-        	return parse_nop(instr);
-        case opcode.str_reg:
-        	return parse_str_reg(instr);
-        case opcode.uxtb:
-        	return parse_uxtb(instr);
-        case opcode.uxth:
-        	return parse_uxth(instr);
-        case opcode.adc_reg:
-        	return parse_adc_reg(instr);
-        case opcode.if_then:
-        	return parse_if_then(instr);
-        case opcode.tst:
-        	return parse_tst(instr);
-        case opcode.cps:
-        	return parse_cps(instr);
-        case opcode.svc: 
-        	return parse_svc(instr);
-        default:
-        	break;
+       	case opcode.add_sp_t2: res = parse_add_sp(instr);	 break;
+       	case opcode.ldrb_reg : res = parse_ldrb_reg(instr);	 break;
+       	case opcode.sub_sp   : res = parse_sub_sp(instr);	 break;
+       	case opcode.add_imm_3: res = parse_add_imm_3(instr); break;
+       	case opcode.add_lo_reg: res = parse_add_lo_reg(instr); break;
+       	case opcode.lsl_reg  : res = parse_lsl_reg(instr); 	 break;
+       	case opcode.lsr_reg  : res = parse_lsr_reg(instr); 	 break;
+       	case opcode.adr      : res = parse_adr(instr);		 break;
+       	case opcode.mov_high_2: res = parse_mov_high_2(instr); break;
+       	case opcode.str_sp   : res = parse_str_sp(instr);	 break;
+       	case opcode.add_reg  : res = parse_add_reg(instr);	 break;
+       	case opcode.mul      : res = parse_mul(instr); 		 break;
+       	case opcode.cmp_high_1: res = parse_cmp_high_1(instr); break;
+        case opcode.add_high_reg_1: res = parse_add_high_reg_1(instr); break;
+        case opcode.add_high_reg_2: res = parse_add_high_reg_2(instr); break;
+        case opcode.sub_imm_3: res = parse_sub_imm_3(instr); break;
+        case opcode.cmp_high_2: res = parse_cmp_high_2(instr); break;
+        case opcode.negs     : res = parse_negs(instr);		 break;
+        case opcode.ldr_reg  : res = parse_ldr_reg(instr);	 break;
+        case opcode.nop      : res = parse_nop(instr);		 break;
+        case opcode.str_reg  : res = parse_str_reg(instr);	 break;
+        case opcode.uxtb     : res = parse_uxtb(instr);		 break;
+        case opcode.uxth     : res = parse_uxth(instr);		 break;
+        case opcode.adc_reg  : res = parse_adc_reg(instr);	 break;
+        case opcode.if_then  : res = parse_if_then(instr);	 break;
+        case opcode.tst      : res = parse_tst(instr);		 break;
+        case opcode.cps      : res = parse_cps(instr);		 break;
+        case opcode.svc      : res = parse_svc(instr);		 break;
+        default              : 								 break;
     }
     res.op = op;
     return res;
@@ -1846,55 +1750,55 @@ unittest {
 	}
 
 	test_case[] tests = [
-		test_case(0x2b00, instr_16(op: opcode.cmp_imm,       rn: reg.r3,              imm: 0)),
-		test_case(0x10b6, instr_16(op: opcode.asr_imm,       rd: reg.r6,  rm: reg.r6, imm: 2)),
-		test_case(0x3730, instr_16(op: opcode.add_imm_8,     rd: reg.r7,  rn: reg.r7, imm: 48)),
+		test_case(0x2b00, instr_16(op: opcode.cmp_imm,       rn: reg.r3,              imm:     0)),
+		test_case(0x10b6, instr_16(op: opcode.asr_imm,       rd: reg.r6,  rm: reg.r6, imm:     2)),
+		test_case(0x3730, instr_16(op: opcode.add_imm_8,     rd: reg.r7,  rn: reg.r7, imm: 	  48)),
 		test_case(0x4013, instr_16(op: opcode.and_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r2)),
-		test_case(0x2300, instr_16(op: opcode.mov_imm,       rd: reg.r3,              imm: 0)),
-		test_case(0x3902, instr_16(op: opcode.sub_imm_8,     rd: reg.r1,  rn: reg.r1, imm: 2)),
-		test_case(0x00d9, instr_16(op: opcode.lsl_imm,       rd : reg.r1, rm: reg.r3, imm: 3)),
-		test_case(0x099b, instr_16(op: opcode.lsr_imm,       rd: reg.r3,  rm: reg.r3, imm: 6)),
+		test_case(0x2300, instr_16(op: opcode.mov_imm,       rd: reg.r3,              imm: 	   0)),
+		test_case(0x3902, instr_16(op: opcode.sub_imm_8,     rd: reg.r1,  rn: reg.r1, imm: 	   2)),
+		test_case(0x00d9, instr_16(op: opcode.lsl_imm,       rd : reg.r1, rm: reg.r3, imm: 	   3)),
+		test_case(0x099b, instr_16(op: opcode.lsr_imm,       rd: reg.r3,  rm: reg.r3, imm: 	   6)),
 		test_case(0x4313, instr_16(op: opcode.lor_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r2)),
-		test_case(0x43db, instr_16(op: opcode.mvn_reg,       rd: reg.r3,  rm: reg.r3 )),
-		test_case(0x608b, instr_16(op: opcode.str_imm,       rt: reg.r3,  rn: reg.r1, imm: 8)),
-		test_case(0x80fb, instr_16(op: opcode.strh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6)),
-		test_case(0x88fb, instr_16(op: opcode.ldrh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6)),
-		test_case(0x781a, instr_16(op: opcode.ldrb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0)),
-		test_case(0x701a, instr_16(op: opcode.strb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0)),
-		test_case(0x68fb, instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 12)),
-		test_case(0x4283, instr_16(op: opcode.cmp_reg,       rn: reg.r3,  rm: reg.r0)),
-		test_case(0x4803, instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 12)),
-		test_case(0xd002, instr_16(op: opcode.b_cond,        cond: condition.eq,      offset: 4)),
-		test_case(0xb103, instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset: 0)),
-		test_case(0x4718, instr_16(op: opcode.bx,            rm: reg.r3)),
+		test_case(0x43db, instr_16(op: opcode.mvn_reg,       rd: reg.r3,  rm: reg.r3 			)),
+		test_case(0x608b, instr_16(op: opcode.str_imm,       rt: reg.r3,  rn: reg.r1, imm: 	   8)),
+		test_case(0x80fb, instr_16(op: opcode.strh_imm,      rt: reg.r3,  rn: reg.r7, imm: 	   6)),
+		test_case(0x88fb, instr_16(op: opcode.ldrh_imm,      rt: reg.r3,  rn: reg.r7, imm: 	   6)),
+		test_case(0x781a, instr_16(op: opcode.ldrb_imm,      rt: reg.r2,  rn: reg.r3, imm: 	   0)),
+		test_case(0x701a, instr_16(op: opcode.strb_imm,      rt: reg.r2,  rn: reg.r3, imm: 	   0)),
+		test_case(0x68fb, instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 	  12)),
+		test_case(0x4283, instr_16(op: opcode.cmp_reg,       rn: reg.r3,  rm: reg.r0 			)),
+		test_case(0x4803, instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 	  12)),
+		test_case(0xd002, instr_16(op: opcode.b_cond,        cond: condition.eq,      offset:  4)),
+		test_case(0xb103, instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset:  0)),
+		test_case(0x4718, instr_16(op: opcode.bx,            rm: reg.r3                         )),
 		test_case(0x1a1b, instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0)),
-		test_case(0xb510, instr_16(op: opcode.push_mult_reg, reg_list: [reg.r4, reg.lr])),
+		test_case(0xb510, instr_16(op: opcode.push, reg_list: [reg.r4, reg.lr]         )),
 		test_case(0xb943, instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,			  offset: 16)),
-		test_case(0xbd10, instr_16(op: opcode.pop_mult_reg,  reg_list: [reg.r4, reg.pc])),
-		test_case(0xe7cf, instr_16(op: opcode.b_imm_11,					 		      offset: -98)),
-		test_case(0x469d, instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3)),
-		test_case(0x460f, instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1)),
-		test_case(0x4798, instr_16(op: opcode.blx,           rm: reg.r3)),
-		test_case(0xaf00, instr_16(op: opcode.add_sp_t1,     rd: reg.r7, 			  imm: 0)),
+		test_case(0xbd10, instr_16(op: opcode.pop,  reg_list: [reg.r4, reg.pc]         )),
+		test_case(0xe7cf, instr_16(op: opcode.b_imm_11,					 		      offset:-98)),
+		test_case(0x469d, instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3            )),
+		test_case(0x460f, instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1            )),
+		test_case(0x4798, instr_16(op: opcode.blx,           rm: reg.r3                         )),
+		test_case(0xaf00, instr_16(op: opcode.add_sp_t1,     rd: reg.r7, 			  imm: 	   0)),
 		test_case(0x5cd3, instr_16(op: opcode.ldrb_reg,      rt: reg.r3,  rn: reg.r2, rm: reg.r3)),
-		test_case(0xb092, instr_16(op: opcode.sub_sp,		 						  imm: 72)),
-		test_case(0x1d3b, instr_16(op: opcode.add_imm_3,     rd: reg.r3,  rn: reg.r7, imm: 4)),
+		test_case(0xb092, instr_16(op: opcode.sub_sp,		 						  imm: 	  72)),
+		test_case(0x1d3b, instr_16(op: opcode.add_imm_3,     rd: reg.r3,  rn: reg.r7, imm: 	   4)),
 		test_case(0x4413, instr_16(op: opcode.add_lo_reg,    rd: reg.r3,  rn: reg.r3, rm: reg.r2)),
 		test_case(0x409a, instr_16(op: opcode.lsl_reg,       rd: reg.r2,  rn: reg.r2, rm: reg.r3)),
 		test_case(0x40da, instr_16(op: opcode.lsr_reg,	     rd: reg.r2,  rn: reg.r2, rm: reg.r3)),
-		test_case(0xa201, instr_16(op: opcode.adr,			 rd: reg.r2,  			  imm: 4)),
-		test_case(0x4652, instr_16(op: opcode.mov_high_2, 	 rd: reg.r2,  rm: reg.r10)),
-		test_case(0x9300, instr_16(op: opcode.str_sp,		 rt: reg.r3,			  imm: 0)),
+		test_case(0xa201, instr_16(op: opcode.adr,			 rd: reg.r2,  			  imm: 	   4)),
+		test_case(0x4652, instr_16(op: opcode.mov_high_2, 	 rd: reg.r2,  rm: reg.r10           )),
+		test_case(0x9300, instr_16(op: opcode.str_sp,		 rt: reg.r3,			  imm:     0)),
 		test_case(0x1891, instr_16(op: opcode.add_reg, 		 rd: reg.r1,  rn: reg.r2, rm: reg.r2)),
-		test_case(0x458c, instr_16(op: opcode.cmp_high_1,    rn: reg.r12, rm: reg.r1)),
-		test_case(0x4463, instr_16(op: opcode.add_high_reg_1,rd: reg.r3,  rn: reg.r3, rm: reg.r12)),
-		test_case(0x1e54, instr_16(op: opcode.sub_imm_3,     rd: reg.r4,  rn: reg.r2, imm: 1)),
-		test_case(0x44e6, instr_16(op: opcode.add_high_reg_2,rd: reg.lr,  rn: reg.lr, rm: reg.r12)),
-		test_case(0x4572, instr_16(op: opcode.cmp_high_2,	 rn: reg.r2,  rm: reg.lr)),
-		test_case(0x4241, instr_16(op: opcode.negs,			 rd: reg.r1,  rn: reg.r0)),
+		test_case(0x458c, instr_16(op: opcode.cmp_high_1,    rn: reg.r12, rm: reg.r1            )),
+		test_case(0x4463, instr_16(op: opcode.add_high_reg_1,rd: reg.r3,  rn: reg.r3, rm:reg.r12)),
+		test_case(0x1e54, instr_16(op: opcode.sub_imm_3,     rd: reg.r4,  rn: reg.r2, imm:     1)),
+		test_case(0x44e6, instr_16(op: opcode.add_high_reg_2,rd: reg.lr,  rn: reg.lr, rm:reg.r12)),
+		test_case(0x4572, instr_16(op: opcode.cmp_high_2,	 rn: reg.r2,  rm: reg.lr            )),
+		test_case(0x4241, instr_16(op: opcode.negs,			 rd: reg.r1,  rn: reg.r0            )),
 		test_case(0x58fb, instr_16(op: opcode.ldr_reg,	     rt: reg.r3,  rn: reg.r7, rm: reg.r3)),
 		test_case(0x50c4, instr_16(op: opcode.str_reg,	     rt: reg.r4,  rn: reg.r0, rm: reg.r3)),
-		test_case(0xd3f9,  instr_16(op: opcode.b_cond,		 cond: condition.cc,	  offset: -14))
+		test_case(0xd3f9,  instr_16(op: opcode.b_cond,		 cond: condition.cc,	  offset:-14))
 	];
 
 	foreach (t; tests) {
@@ -2317,7 +2221,7 @@ void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	    f.writeln(format("xpsr: [%08X] pushed to [%08X]", cpu.get_xpsr(), addr_xpsr));
 		f.flush();
 		mem.push(cpu, cpu.get_xpsr());
-		instr_16 push_instr = instr_16(op: opcode.push_mult_reg, 
+		instr_16 push_instr = instr_16(op: opcode.push, 
 			                           reg_list: [reg.r0, 
 			                                      reg.r1, 
 			                                      reg.r2, 
@@ -2325,7 +2229,7 @@ void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			                                      reg.r12, 
 			                                      reg.lr, 
 			                                      reg.pc]);
-		execute_push_mult_reg(push_instr, cpu, mem);
+		execute_push(push_instr, cpu, mem);
 	}
 
 	cpu.current_exception = exception.SVC_IRQn;
@@ -2344,7 +2248,7 @@ void execute_syc_tick(ref cortex_m_cpu cpu, ref memory mem) {
 	    f.writeln(format("xpsr: [%08X] pushed to [%08X]", cpu.get_xpsr(), addr_xpsr));
 		f.flush();
 		mem.push(cpu, cpu.get_xpsr());
-		instr_16 push_instr = instr_16(op: opcode.push_mult_reg, 
+		instr_16 push_instr = instr_16(op: opcode.push, 
 			                           reg_list: [reg.r0, 
 			                                      reg.r1, 
 			                                      reg.r2, 
@@ -2352,7 +2256,7 @@ void execute_syc_tick(ref cortex_m_cpu cpu, ref memory mem) {
 			                                      reg.r12, 
 			                                      reg.lr, 
 			                                      reg.pc]);
-		execute_push_mult_reg(push_instr, cpu, mem);
+		execute_push(push_instr, cpu, mem);
 	}
 	auto f_h = load_store_log();
 	cpu.current_exception = exception.SysTick_IRQn;
@@ -2774,10 +2678,10 @@ void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_ldr_imm(instr, cpu, mem);
 		case opcode.ldr_pool:
 			return execute_ldr_pool(instr, cpu, mem);
-		case opcode.push_mult_reg:
-			return execute_push_mult_reg(instr, cpu, mem);
-		case opcode.pop_mult_reg:
-			return execute_pop_mult_reg(instr, cpu, mem);
+		case opcode.push:
+			return execute_push(instr, cpu, mem);
+		case opcode.pop:
+			return execute_pop(instr, cpu, mem);
 		case opcode.ldrb_reg:
 			return execute_ldrb_reg(instr, cpu, mem);
 		case opcode.ldr_reg:
@@ -3122,7 +3026,7 @@ unittest {
 			          memory(flash: make_flash_with(0x80091b0 - memory.flash_origin, 0x000000ee)),
 			          memory(flash: make_flash_with(0x80091b0 - memory.flash_origin, 0x000000ee))),
 		test_case_mem(0xb510, 
-			      	  instr_16(op: opcode.push_mult_reg, reg_list: [reg.r4, reg.lr]),
+			      	  instr_16(op: opcode.push, reg_list: [reg.r4, reg.lr]),
 			      	  cortex_m_cpu(msp: memory.stack_base, lr: 0x000000ff, r4: 0x000000ee),
 			          cortex_m_cpu(pc: 2, msp: memory.stack_base-8, lr: 0x000000ff, r4: 0x000000ee),
 			          memory(),
@@ -3130,7 +3034,7 @@ unittest {
 			          							[0x000000ff, 0x000000ee]))),
 		/*
 		test_case_mem(0xbd10, 
-				      instr_16(op: opcode.pop_mult_reg,  reg_list: [reg.r4, reg.pc]),
+				      instr_16(op: opcode.pop,  reg_list: [reg.r4, reg.pc]),
 				      cortex_m_cpu(msp: memory.stack_base-8),
 			          cortex_m_cpu(msp: memory.stack_base, pc: 0x000000ee, r4: 0x000000ff),
 			          memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
@@ -3256,7 +3160,7 @@ instr_32 parse_nop_32(uint instr) {
 //  Parse Pop Mult Reg
 // ====================
 
-enum field_tuples_pop_mult_reg_32 = [Tuple!(opcode, string[])(opcode.pop_mult_reg_32, ["reg_list"])];
+enum field_tuples_pop_32 = [Tuple!(opcode, string[])(opcode.pop_32, ["reg_list"])];
 /*
 	Load Multiple and Store Multiple
 	First Half-Word:
@@ -3270,9 +3174,9 @@ enum field_tuples_pop_mult_reg_32 = [Tuple!(opcode, string[])(opcode.pop_mult_re
 	[13] 0
 	[12:0] register_list 
 */
-instr_32 parse_pop_mult_reg_32(uint instr) {
+instr_32 parse_pop_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.pop_mult_reg_32;
+	res.op = opcode.pop_32;
 	ushort reg_list = cast(ushort)(instr & 0xffff);
 	if (reg_list & 0x0001) res.reg_list ~= reg.r0;
 	if (reg_list & 0x0002) res.reg_list ~= reg.r1;
@@ -4180,7 +4084,7 @@ instr_32 parse_b_uncond_32(uint instr) {
 //  Parse PUSH MULT REG
 // =====================
 
-enum field_tuples_push_mult_reg_32 = [Tuple!(opcode, string[])(opcode.push_mult_reg_32, ["reg_list"])];
+enum field_tuples_push_32 = [Tuple!(opcode, string[])(opcode.push_32, ["reg_list"])];
 /*
 	Branches and Miscellaneous Control
 	First Half-Word:
@@ -4191,9 +4095,9 @@ enum field_tuples_push_mult_reg_32 = [Tuple!(opcode, string[])(opcode.push_mult_
 	[13] 0
 	[12:0] register_list
 */
-instr_32 parse_push_mult_reg_32(uint instr) {
+instr_32 parse_push_32(uint instr) {
 	instr_32 res;
-	res.op = opcode.push_mult_reg_32;
+	res.op = opcode.push_32;
 	ushort reg_list = cast(ushort)(instr & 0xffff);
 	if (reg_list & 0x0001) res.reg_list ~= reg.r0;
 	if (reg_list & 0x0002) res.reg_list ~= reg.r1;
@@ -4908,8 +4812,8 @@ instr_32 decode_instr(uint instr) {
 			return parse_bl_32(instr);
 		case opcode.nop_32:
 			return parse_nop_32(instr);
-		case opcode.pop_mult_reg_32:
-			return parse_pop_mult_reg_32(instr);
+		case opcode.pop_32:
+			return parse_pop_32(instr);
 		case opcode.ldmia_32:
 			return parse_ldmia_32(instr);
 		case opcode.sub_imm_32:
@@ -4958,8 +4862,8 @@ instr_32 decode_instr(uint instr) {
 			return parse_strd_32(instr);
 		case opcode.b_32:
 			return parse_b_32(instr);
-		case opcode.push_mult_reg_32:
-			return parse_push_mult_reg_32(instr);
+		case opcode.push_32:
+			return parse_push_32(instr);
 		case opcode.orr_reg_32:
 			return parse_orr_reg_32(instr);
 		case opcode.sub_reg_32:
@@ -5051,7 +4955,7 @@ unittest {
 		test_case(0xf3af8000, 
 				  instr_32(op: opcode.nop_32)),
 		test_case(0xe8bd4008, 
-				  instr_32(op: opcode.pop_mult_reg_32, reg_list: [reg.r3, reg.lr])),
+				  instr_32(op: opcode.pop_32, reg_list: [reg.r3, reg.lr])),
 		test_case(0xf5a33a80, //  sub.w	sl, r3, #65536	@ 0x10000
 				  instr_32(op: opcode.sub_imm_32, rd: reg.r10, rn: reg.r3, imm: 65536)),
 		test_case(0xf008ff15, 
@@ -5091,7 +4995,7 @@ unittest {
 		test_case(0xf67fae90, // bls.w	8004360
 				  instr_32(op: opcode.b_32, 	  cond: condition.ls, offset: -736)),
 		test_case(0xe92d4fb0, // stmdb	sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
-				  instr_32(op: opcode.push_mult_reg_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr])),
+				  instr_32(op: opcode.push_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr])),
 		test_case(0xea4161d2, // orr.w	r1, r1, r2, lsr #27
 				  instr_32(op: opcode.orr_reg_32, rd: reg.r1, rn: reg.r1, rm:  reg.r2, shift_t: shift_type.lsr, shift_n: 27)),
 		test_case(0xebb2080a, // subs.w	r8, r2, sl
@@ -5179,7 +5083,7 @@ void execute_nop_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre POP MULT REG
 // =======================
 
-void execute_pop_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_pop_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	import std.algorithm : sort;
 	auto f = stack_log();
 	auto regs = instr.reg_list.dup; 
@@ -5492,7 +5396,7 @@ void execute_strd_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Executre PUSH MULT REG
 // ========================
 
-void execute_push_mult_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_push_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	auto f = stack_log();
 	import std.algorithm : sort;
 	auto regs = instr.reg_list.dup;
@@ -6097,14 +6001,14 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 			return execute_tbb_tbh_32(instr, cpu, mem);
 		case opcode.stmia_32:
 			return execute_stmia_32(instr, cpu, mem);
-		case opcode.pop_mult_reg_32:
-			return execute_pop_mult_reg_32(instr, cpu, mem);
+		case opcode.pop_32:
+			return execute_pop_32(instr, cpu, mem);
 		case opcode.str_reg_32:
 			return execute_str_reg_32(instr, cpu, mem);
 		case opcode.strd_32:
 		 	return execute_strd_32(instr, cpu, mem);
-		case opcode.push_mult_reg_32:
-			return execute_push_mult_reg_32(instr, cpu, mem);
+		case opcode.push_32:
+			return execute_push_32(instr, cpu, mem);
 		case opcode.ldr_ex:
 			return execute_ldrex(instr, cpu, mem);
 		case opcode.str_rex:
@@ -6280,7 +6184,7 @@ unittest {
 	test_case_mem[] tests_mem = [
 	/*
 		test_case_mem(0xe8bd4008, 
-				      instr_32(op: opcode.pop_mult_reg_32, reg_list: [reg.r3, reg.lr]),
+				      instr_32(op: opcode.pop_32, reg_list: [reg.r3, reg.lr]),
 				      cortex_m_cpu(msp: memory.stack_base - 8),
 				      cortex_m_cpu(pc: 4, msp: memory.stack_base, r3: 0xffffffee, lr: 0xffffffff),
 				      memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
@@ -6308,7 +6212,7 @@ unittest {
 				      memory(),
 				      memory(ram: make_ram_with([2,3], [0xffffffee, 0xffffffff]))),
 		test_case_mem(0xe92d4fb0, // stmdb	sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
-				      instr_32(op: opcode.push_mult_reg_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr]),
+				      instr_32(op: opcode.push_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr]),
 				      cortex_m_cpu(sp: memory.stack_base, r4: 1, r5: 2, r7: 3, r8: 4, r9: 5, r10: 6, r11: 7, lr: 8),
 				      cortex_m_cpu(sp: memory.stack_base-8, r4: 1, r5: 2, r7: 3, r8: 4, r9: 5, r10: 6, r11: 7, lr: 8),
 				      memory(),
@@ -6445,10 +6349,10 @@ string[opcode] opcode_strings = [
 	opcode.nop_32: 				   "nop.w",
 	opcode.orr_imm_32:			   "orr.w",
 	opcode.orr_reg_32: 			   "orr.w",
-	opcode.pop_mult_reg: 			 "pop",
-	opcode.pop_mult_reg_32: "ldmia.w sp!,",
-	opcode.push_mult_reg: 			"push",
-	opcode.push_mult_reg_32: 		"push",
+	opcode.pop: 			 "pop",
+	opcode.pop_32: "ldmia.w sp!,",
+	opcode.push: 			"push",
+	opcode.push_32: 		"push",
 	opcode.rev: 					 "rev",
 	opcode.rsb_imm_32: 				 "rsb",
 	opcode.sbc_reg_32: 			   "sbc.w",
@@ -7475,17 +7379,17 @@ unittest {
 unittest {
     memory mem = memory();
     cortex_m_cpu cpu = cortex_m_cpu(r3: 1, r4: 2, r5: 3, r6: 4, r7: 5, lr: 6, msp: memory.stack_base);
-    instr_16 push = instr_16(op: opcode.push_mult_reg, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7, reg.lr]);
+    instr_16 push = instr_16(op: opcode.push, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7, reg.lr]);
     execute_load_store(push, cpu, mem);
     writeln(cpu.get_sp());
     writeln(memory.stack_base);
-    instr_16 pop1 = instr_16(op: opcode.pop_mult_reg, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7]);
+    instr_16 pop1 = instr_16(op: opcode.pop, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7]);
     execute_load_store(pop1, cpu, mem);
     writeln("---------------------------------");
-    writeln(mem.read_word(memory.stack_base-4));
-    instr_16 pop2 = instr_16(op: opcode.pop_mult_reg, reg_list: [reg.r3]);
+    writeln(mem.read_word(memory.stack_base-4, 0));
+    instr_16 pop2 = instr_16(op: opcode.pop, reg_list: [reg.r3]);
     execute_load_store(pop2, cpu, mem);
     writeln("---------------------------------");
-    writeln(mem.read_word(memory.stack_base-4));
+    writeln(mem.read_word(memory.stack_base-4, 0));
     //assert(cpu.r3 == 1);
 }

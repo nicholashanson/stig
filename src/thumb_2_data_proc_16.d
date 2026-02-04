@@ -18,7 +18,6 @@ enum field_tuples_adc_reg = [Tuple!(opcode, string[])(opcode.adc_reg, ["rd","rm"
 */
 instr_16 parse_adc_reg(ushort instr) {
 	instr_16 res;
-	res.op = opcode.adc_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x07);
 	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
@@ -59,7 +58,6 @@ enum field_tuples_and_reg = [Tuple!(opcode, string[])(opcode.and_reg, ["rd","rm"
 */
 instr_16 parse_and_reg(ushort instr) {
 	instr_16 res;
-	res.op = opcode.and_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x07);
 	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rn = cast(reg)(rdn);
@@ -99,7 +97,6 @@ enum field_tuples_bic_reg = [Tuple!(opcode, string[])(opcode.bic_reg, ["rd","rn"
 */
 instr_16 parse_bic_reg(ushort instr) {
 	instr_16 res;
-	res.op = opcode.bic_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x07);
 	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
@@ -139,7 +136,6 @@ enum field_tuples_cmp_reg = [Tuple!(opcode, string[])(opcode.cmp_reg, ["rn","rm"
 */
 instr_16 parse_cmp_reg(short instr) {
 	instr_16 res;
-	res.op = opcode.cmp_reg;
 	const ubyte rn = cast(ubyte)( instr       & 0x07);
 	const ubyte rm = cast(ubyte)((instr >> 3) & 0x07);
 	res.rn = cast(reg)(rn);
@@ -177,7 +173,6 @@ enum field_tuples_eor_reg = [Tuple!(opcode, string[])(opcode.bic_reg, ["rd","rn"
 */
 instr_16 parse_eor_reg(ushort instr) {
 	instr_16 res;
-	res.op = opcode.eor_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x07);
 	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
@@ -217,7 +212,6 @@ enum field_tuples_lsl_reg = [Tuple!(opcode, string[])(opcode.lsl_reg, ["rd","rm"
 */
 instr_16 parse_lsl_reg(ushort instr) {
 	instr_16 res;
-	res.op = opcode.lsl_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x07);
 	const ubyte rm =  cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
@@ -260,7 +254,6 @@ enum field_tuples_lsr_reg = [Tuple!(opcode, string[])(opcode.lsr_reg, ["rd","rm"
 */
 instr_16 parse_lsr_reg(short instr) {
 	instr_16 res;
-	res.op = opcode.lsr_reg;
 	const ubyte rdn = cast(ubyte)( instr       & 0x07);
 	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
@@ -303,7 +296,6 @@ enum field_tuples_mvn_reg = [Tuple!(opcode, string[])(opcode.mvn_reg, ["rd","rm"
 */
 instr_16 parse_mvn_reg(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.mvn_reg;
 	const ubyte rd = cast(ubyte)( instr       & 0x07);
 	const ubyte rm = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rd);
@@ -343,7 +335,6 @@ enum field_tuples_mov_imm = [Tuple!(opcode, string[])(opcode.mov_imm, ["rd","imm
 */
 instr_16 parse_mov_imm(short instr) {
 	instr_16 res;
-	res.op = opcode.mov_imm;
 	const ubyte imm = cast(ubyte)( instr       & 0xff);
 	const ubyte rd  = cast(ubyte)((instr >> 8) & 0x07);
 	res.imm = imm;							// imm32 = ZeroExtend(imm8, 32);
@@ -382,7 +373,6 @@ enum field_tuples_mul = [Tuple!(opcode, string[])(opcode.mul, ["rd","rn"])];
 */
 instr_16 parse_mul(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.mul;
 	const ubyte rdm = cast(ubyte)( instr       & 0x07);
 	const ubyte rn  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdm);
@@ -422,7 +412,6 @@ enum field_tuples_lor_reg = [Tuple!(opcode, string[])(opcode.lor_reg, ["rd","rm"
 */
 instr_16 parse_lor_reg(const ushort instr) {
 	instr_16 res;
-	res.op = opcode.lor_reg;
 	ubyte rdn = cast(ubyte)( instr       & 0x07);
 	ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
 	res.rd = cast(reg)(rdn);
@@ -436,8 +425,8 @@ instr_16 parse_lor_reg(const ushort instr) {
 // =======================
 
 void execute_lor_reg(const instr_16 instr, ref cortex_m_cpu cpu) {
-	const uint rn = cpu.get(instr.rn);
-	const uint rm = cpu.get(instr.rm);
+	const uint rn  = cpu.get(instr.rn);
+	const uint rm  = cpu.get(instr.rm);
 	const uint res = rn | rm;
 	if (instr.set_flags) {
 		cpu.z = (res == 0);

@@ -39,7 +39,7 @@ void exception_return(ref cortex_m_cpu cpu, ref memory mem, uint exc_return) {
     cpu.sp_sel = use_psp;
 
     auto f = stack_log();
-	instr_16 pop_instr = instr_16(op: opcode.pop_mult_reg, 
+	instr_16 pop_instr = instr_16(op: opcode.pop, 
 	                              reg_list: [reg.r0, 
 	                                         reg.r1, 
 	                                         reg.r2, 
@@ -47,7 +47,7 @@ void exception_return(ref cortex_m_cpu cpu, ref memory mem, uint exc_return) {
 	                                         reg.r12, 
 	                                         reg.lr, 
 	                                         reg.pc]);
-	execute_pop_mult_reg(pop_instr, cpu, mem);
+	execute_pop(pop_instr, cpu, mem);
 	uint addr_xpsr = cpu.get_sp();
 	cpu.set_xpsr(mem.pop(cpu));
     f.writeln(format("xpsr: [%08X] popped from [%08X]", cpu.get_xpsr(), addr_xpsr));
