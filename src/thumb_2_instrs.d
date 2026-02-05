@@ -119,71 +119,70 @@ uint rotr(uint value, uint n) {
 // ==================
 
 uint thumb_expand_imm(ushort imm_12) {
-	ubyte first_four_bits = cast(ubyte)((imm_12 >> 8) & 0xf);
-	ubyte imm_8 = cast(ubyte)(imm_12 & 0xff);
+	const ubyte first_four_bits = cast(ubyte)((imm_12 >> 8) & 0x0f);
+	const ubyte imm_8 			= cast(ubyte)( imm_12 		& 0xff);
 	switch (first_four_bits) {
 		case 0b0010: return (imm_8 << 24) | (imm_8 << 8);
-		case 0b0000: return imm_8;
+		case 0b0000: return  imm_8;
 		case 0b0011: return (imm_8 << 24) | (imm_8 << 16) | (imm_8 << 8) | imm_8;
 		case 0b0001: return (imm_8 << 24) | (imm_8 << 8);
 		default: break;
 	}  
-	uint rotate_by = ((imm_12) >> 7) & 0x1f;
-	uint unrotated = (1 << 7) | (imm_12 & 0x7f);
-	uint rotated = rotr(unrotated, rotate_by);
+	const uint rotate_by = ((imm_12) >> 7) & 0x1f;
+	const uint unrotated = (1 << 7) | (imm_12 & 0x7f);
+	const uint rotated = rotr(unrotated, rotate_by);
 	return rotated;
 }
 // ---------------------------------------------------------------------------------------
 
 // --------------------------------------- INSTR 16 --------------------------------------
 struct instr_16 {
-	uint addr;
-	opcode op;
-	reg rd;
-	reg rm;
-	reg rn;
-	reg rt;
-	uint imm;
-	int offset;
-	int imm_long;
-	condition cond;
-	reg[] reg_list;
-	bool set_flags;
-	ubyte first_cond;
-	ubyte mask;
-	bool enable;
-	bool affect_pri;
+	opcode 		   op;
+	reg 		   rd;
+	reg 		   rm;
+	reg 		   rn;
+	reg 		   rt;
+	uint 	   	  imm;
+	int 	   offset;
+	int   	 imm_long;
+	condition 	 cond;
+	reg[] 	 reg_list;
+	bool  	set_flags;
+	ubyte  first_cond;
+	ubyte 		 mask;
+	bool   	   enable;
+	bool   affect_pri;
 	bool affect_fault;
 }
 // ---------------------------------------------------------------------------------------
 
 // --------------------------------------- INSTR 32 --------------------------------------
 struct instr_32 {
-	opcode op;
-	reg rd;
-	reg rn;
-	reg rm;
-	reg rt;
-	shift_type shift_t;
-	uint imm;
-	ubyte shift_n;
-	int offset;
-	reg[] reg_list;
-	uint ls_bit;
-	uint width;
-	uint ms_bit;
-	reg rd_hi;
-	reg rd_lo;
-	reg rt_2;
-	reg ra;
-	condition cond;
-	bool wback;
-	bool add;
-	bool index;
-	ubyte mask;
-	bool is_tbh;
+	opcode 			  op;
+	reg 			  rd;
+	reg 			  rn;
+	reg 			  rm;
+	reg 			  rt;
+	shift_type   shift_t;
+	uint 		     imm;
+	ubyte 	     shift_n;
+	int 		  offset;
+	reg[] 	    reg_list;
+	uint 		  ls_bit;
+	uint 		   width;
+	uint 		  ms_bit;
+	reg 		   rd_hi;
+	reg 		   rd_lo;
+	reg 		    rt_2;
+	reg 			  ra;
+	condition 	    cond;
+	bool 		   wback;
+	bool 		     add;
+	bool 		   index;
+	ubyte 		    mask;
+	bool 		  is_tbh;
 	special_reg spec_reg;
-	bool set_flags;
+	bool 	   set_flags;
 }
 // ---------------------------------------------------------------------------------------
 

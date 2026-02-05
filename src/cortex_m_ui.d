@@ -13,77 +13,33 @@ import thumb_2_instrs;
 import memory_sections;
 import parse_elf;
 import std.array : replicate;
+import cortex_m_core;
 
-// Global pad and scroll offset:
-WINDOW* instrPad;
-WINDOW* regPad;
-WINDOW* flagPad;
-WINDOW* stackPad;
-int padPos = 0;
-bool regBoxView = false;
+WINDOW*        instrPad;
+WINDOW*         reg_pad;
+WINDOW*         flagPad;
+WINDOW*        stackPad;
+WINDOW* instr_pad_frame;
+int          padPos = 0;
 
-void drawBitBox(WINDOW* win, int y, int x, bool setBit) {
-    if (setBit)
-        wattron(win, COLOR_PAIR(1));
-    else
-        wattron(win, COLOR_PAIR(2));
+int frame_h;
+int frame_w;
+int frame_y;
+int frame_x;
 
-    mvwprintw(win, y, x, " ");
-
-    if (setBit)
-        wattroff(win, COLOR_PAIR(1));
-    else
-        wattroff(win, COLOR_PAIR(2));
+void init_frames() {
+    frame_h =    LINES - 2;
+    frame_w =     COLS / 2;
+    frame_y =            1;
+    frame_x =     COLS / 2;
 }
 
-void drawRegisterBoxes(
-    WINDOW* win,
-    int y,
-    int x,
-    string name,
-    uint value
-) {
-    // label
-    wattron(win, COLOR_PAIR(3));
-    mvwprintw(win, y, x, toStringz(name ~ ":"));
-    wattroff(win, COLOR_PAIR(3));
-
-    int bitX = cast(int)(x + name.length + 2);
-
-    foreach (i; 0 .. 32) {
-        int bit = 31 - i;
-        bool setBit = ((value >> bit) & 1) != 0;
-        drawBitBox(win, y, bitX + i, setBit);
-    }
+struct reg_cache_item {
+    uint    val;
+    string    s;
 }
 
-void draw_register_box_view(cortex_m_vm vm) {
-    int y = 0;
-    int x = 0;
-
-    drawRegisterBoxes(stdscr, y++, x, "r0 ", vm.cpu.r0);
-    drawRegisterBoxes(stdscr, y++, x, "r1 ", vm.cpu.r1);
-    drawRegisterBoxes(stdscr, y++, x, "r2 ", vm.cpu.r2);
-    drawRegisterBoxes(stdscr, y++, x, "r3 ", vm.cpu.r3);
-    drawRegisterBoxes(stdscr, y++, x, "r4 ", vm.cpu.r4);
-    drawRegisterBoxes(stdscr, y++, x, "r5 ", vm.cpu.r5);
-    drawRegisterBoxes(stdscr, y++, x, "r6 ", vm.cpu.r6);
-    drawRegisterBoxes(stdscr, y++, x, "r7 ", vm.cpu.r7);
-    drawRegisterBoxes(stdscr, y++, x, "r8 ", vm.cpu.r8);
-    drawRegisterBoxes(stdscr, y++, x, "r9 ", vm.cpu.r9);
-    drawRegisterBoxes(stdscr, y++, x, "r10", vm.cpu.r10);
-    drawRegisterBoxes(stdscr, y++, x, "r11", vm.cpu.r11);
-    drawRegisterBoxes(stdscr, y++, x, "r12", vm.cpu.r12);
-    drawRegisterBoxes(stdscr, y++, x, "sp ", vm.cpu.get_sp());
-    drawRegisterBoxes(stdscr, y++, x, "lr ", vm.cpu.lr);
-    drawRegisterBoxes(stdscr, y++, x, "pc ", vm.cpu.pc);
-
-    y++;
-    drawRegisterBoxes(stdscr, y++, x, "Z   ", vm.cpu.z ? 1u : 0u);
-    drawRegisterBoxes(stdscr, y++, x, "N   ", vm.cpu.n ? 1u : 0u);
-    drawRegisterBoxes(stdscr, y++, x, "C   ", vm.cpu.c ? 1u : 0u);
-    drawRegisterBoxes(stdscr, y++, x, "V   ", vm.cpu.v ? 1u : 0u);
-}
+reg_cache_item[16] reg_cache;
 
 int color_for_value(uint val, ref cortex_m_vm vm) {
     if (val == 0x00000000)
@@ -99,24 +55,16 @@ int color_for_value(uint val, ref cortex_m_vm vm) {
 
 void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
     static uint previous_pc = 0;
-    if (vm.cpu.pc != previous_pc) {
-        //clear(); // clear screen
-    }
-    // ----------------------------
-    // Left pane: registers
-    // ----------------------------
-    if (regBoxView) {
-        draw_register_box_view(vm);
-    } else { 
-        int regX = 0;
-        int regY = 0;
-        int flagY = 0;
-        int stackY = 0;
-        int stackX = 0;
+    int regX   = 1;
+    int regY   = 1;
+    int flagY  = 1;
+    int stackY = 0;
+    int stackX = 0;
 
-        auto printReg = (string name, uint val, ref cortex_m_vm vm) {
-            auto f = access_log();
-            string reg_name = vm.mem.get_reg_name(val);
+    auto printReg = (string name, reg r, uint val, ref cortex_m_vm vm) {
+        string reg_name; 
+        if (reg_cache[r].val != val) {
+            vm.mem.get_reg_name(val);
             if (reg_name == "") {
                 foreach (e; vm.objects) {
                 if (e.addr == val) {
@@ -125,80 +73,85 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
                     }
                 }
             }
-            enum reg_name_width = 35;
+            const int reg_name_width = COLS / 2 - 18;
             if (reg_name.length < reg_name_width) {
                 reg_name ~= replicate(" ", reg_name_width - reg_name.length);
             }
-            int color = color_for_value(val, vm);
-            wattron(regPad, COLOR_PAIR(color));
-            mvwprintw(regPad, regY++, regX, toStringz(format("%s %08x %s", name, val, reg_name)));
-            wattroff(regPad, COLOR_PAIR(color));
-        };
-        auto printFlag = (string name, bool val) {
-            mvwprintw(flagPad, flagY++, regX, toStringz(format("%s %d", name, val)));
-        };
-
-        mvwprintw(regPad, regY++, regX, "Core Registers:");
-        printReg("r0: ", vm.cpu.r0, vm);
-        printReg("r1: ", vm.cpu.r1, vm);
-        printReg("r2: ", vm.cpu.r2, vm);
-        printReg("r3: ", vm.cpu.r3, vm);
-        printReg("r4: ", vm.cpu.r4, vm);
-        printReg("r5: ", vm.cpu.r5, vm);
-        printReg("r6: ", vm.cpu.r6, vm);
-        printReg("r7: ", vm.cpu.r7, vm);
-        printReg("r8: ", vm.cpu.r8, vm);
-        printReg("r9: ", vm.cpu.r9, vm);
-        printReg("r10:", vm.cpu.r10, vm);
-        printReg("r11:", vm.cpu.r11, vm);
-        printReg("r12:", vm.cpu.r12, vm);
-        printReg("sp: ", vm.cpu.get_sp(), vm);
-        printReg("lr: ", vm.cpu.lr, vm);
-        printReg("pc: ", vm.cpu.pc, vm);
-        printReg("CONTROL:", vm.cpu.get_control_reg(), vm);
-        mvwprintw(flagPad, flagY++, regX, "Flags:");
-        printFlag("z:", vm.cpu.z);
-        printFlag("n:", vm.cpu.n);
-        printFlag("c:", vm.cpu.c);
-        printFlag("v:", vm.cpu.v);
-        printFlag("ge0:", vm.cpu.ge0);
-        printFlag("ge1:", vm.cpu.ge1);
-        printFlag("ge2:", vm.cpu.ge2);
-        printFlag("ge3:", vm.cpu.ge3);
-        flagY++;
-        printFlag("SPSEL:", vm.cpu.sp_sel);
-        printFlag("NPRIV:", vm.cpu.npriv);
-        printFlag("FAULTMASK:", vm.cpu.fault_mask);
-        printFlag("PRIMASK:", vm.cpu.pri_mask);
-        mvwprintw(flagPad, flagY++, regX, toStringz(format("BASEPRI: %08x", vm.cpu.basepri)));
-        mvwprintw(flagPad, flagY++, regX, toStringz(format("USART1 DR: %08x", vm.mem.read_word(0x0800a280, 0)))); 
-        flagY++;
-        mvwprintw(flagPad, flagY++, regX, toStringz(format("Tick: %d", vm.cpu.tick)));
-        
-        regY++;
-        mvwprintw(stackPad, stackY++, stackX, "Stack:");
-        if (vm.cpu.get_sp() != 0) {
-            uint ptr = vm.cpu.get_sp();
-            while (ptr < vm.mem.stack_base) {
-                uint val = vm.mem.read_word(ptr, 0);
-                mvwprintw(stackPad, stackY++, stackX, toStringz(format("%08x: %08x", ptr, val)));
-                ptr += 4;
-            }
+        } else {
+            reg_name = reg_cache[r].s;
         }
-        flagY++;
-        mvwprintw(flagPad, flagY++, regX, "IT Stack:");
-        foreach (item; vm.cpu.it_block_stack) {
-            mvwprintw(flagPad, flagY++, regX, toStringz(format("%s", item.to!string)));
+        int color = color_for_value(val, vm);
+        wattron(reg_pad, COLOR_PAIR(color));
+        mvwprintw(reg_pad, regY++, regX, toStringz(format("%s %08x %s", name, val, reg_name)));
+        wattroff(reg_pad, COLOR_PAIR(color));
+    };
+    auto printFlag = (string name, bool val) {
+        int color  = val ? 4 : 1;
+        wattron(flagPad, COLOR_PAIR(color));
+        mvwprintw(flagPad, flagY++, regX, toStringz(format("%s %d", name, val)));
+        wattroff(flagPad, COLOR_PAIR(color));
+    };
+
+    mvwprintw(reg_pad, regY++, regX, "Core Registers:");
+    printReg("r0: ",             reg.r0, vm.cpu.r0, vm);
+    printReg("r1: ",             reg.r1, vm.cpu.r1, vm);
+    printReg("r2: ",             reg.r2, vm.cpu.r2, vm);
+    printReg("r3: ",             reg.r3, vm.cpu.r3, vm);
+    printReg("r4: ",             reg.r4, vm.cpu.r4, vm);
+    printReg("r5: ",             reg.r5, vm.cpu.r5, vm);
+    printReg("r6: ",             reg.r6, vm.cpu.r6, vm);
+    printReg("r7: ",             reg.r7, vm.cpu.r7, vm);
+    printReg("r8: ",             reg.r8, vm.cpu.r8, vm);
+    printReg("r9: ",             reg.r9, vm.cpu.r9, vm);
+    printReg("r10:",            reg.r10,vm.cpu.r10, vm);
+    printReg("r11:",            reg.r11,vm.cpu.r11, vm);
+    printReg("r12:",            reg.r12,vm.cpu.r12, vm);
+    printReg("sp: ",        reg.sp,vm.cpu.get_sp(), vm);
+    printReg("lr: ",             reg.lr, vm.cpu.lr, vm);
+    printReg("pc: ",             reg.pc, vm.cpu.pc, vm);
+    
+    mvwprintw(flagPad, flagY++, regX, "Flags:");
+    printFlag("z:",                   vm.cpu.z);
+    printFlag("n:",                   vm.cpu.n);
+    printFlag("c:",                   vm.cpu.c);
+    printFlag("v:",                   vm.cpu.v);
+    printFlag("ge0:",               vm.cpu.ge0);
+    printFlag("ge1:",               vm.cpu.ge1);
+    printFlag("ge2:",               vm.cpu.ge2);
+    printFlag("ge3:",               vm.cpu.ge3);
+    printFlag("SPSEL:",          vm.cpu.sp_sel);
+    printFlag("NPRIV:",           vm.cpu.npriv);
+    printFlag("FAULTMASK:",  vm.cpu.fault_mask);
+    printFlag("PRIMASK:",      vm.cpu.pri_mask);
+    
+    regY++;
+    
+    /*
+    mvwprintw(stackPad, stackY++, stackX, "Stack:");
+    if (vm.cpu.get_sp() != 0) {
+        uint ptr = vm.cpu.get_sp();
+        while (ptr < vm.mem.stack_base) {
+            uint val = vm.mem.read_word(ptr, 0);
+            mvwprintw(stackPad, stackY++, stackX, toStringz(format("%08x: %08x", ptr, val)));
+            ptr += 4;
         }
     }
+    */
+    flagY++;
+    mvwprintw(flagPad, flagY++, regX, "IT Stack:");
+    string[] it_s = ["first_cond", "x", "y", "z"];
+    int i = 0;  
+    foreach (item; vm.cpu.it_block_stack) {
+        mvwprintw(flagPad, flagY++, regX, toStringz(format("%s: %s", it_s[i], item.to!string)));
+        i++;
+    }
 
-    int instrPadRow = 0;
-    int instrPadCol = 0;
+    int instrPadRow  = 0;
+    int instrPadCol  = 1;
     int currentPcRow = 0; 
 
     bool pad_changed = key_press;
     if (true) { 
-        //werase(instrPad);
         previous_pc = vm.cpu.pc;
         pad_changed = true;
         foreach (f; functions) {
@@ -260,50 +213,47 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         }
     }
 
-    int visibleLines = LINES;
-    int bottomMargin = 5; // minimum lines below PC
+    int visibleLines = 45;
+    int bottomMargin =  5;
 
-    // Scroll up if PC is above view
     if (currentPcRow < padPos) {
         padPos = currentPcRow;
     }
 
-    // Soft scroll down if PC is too close to bottom
     int distanceToBottom = padPos + visibleLines - currentPcRow - 1;
     if (distanceToBottom < bottomMargin) {
-        padPos += bottomMargin - distanceToBottom; // scroll just enough to restore margin
+        padPos += bottomMargin - distanceToBottom; 
     }
 
-    // Draw pad into right side of screen
-    int instrScreenX = 50;   // <-- visible position
+    int instrScreenX = 50;   
 
     wnoutrefresh(stdscr);
 
-    int regScreenRow = 0;   // top row to display registers
-    int regScreenCol = 0;   // left column
-    int regHeight = 18;     // number of rows visible
-    int regWidth = 50;      // width of the pad
+    int regScreenRow =            1;  
+    int regScreenCol =            1;   
+    int regHeight    =           21;    
+    int regWidth     = COLS / 2 - 2;      
 
-    int flagScreenRow = regHeight + 1;   
-    int flagScreenCol = 0;   
-    int flagHeight = 20;     
-    int flagWidth = 25;
+    int flagScreenRow = regHeight;   
+    int flagScreenCol =         1;   
+    int flagHeight    =        26;     
+    int flagWidth     =  COLS / 4;
 
-    int stackScreenRow = regHeight + 1;   
-    int stackScreenCol = 50;   
-    int stackHeight = 17;     
-    int stackWidth = 25;
+    int stackScreenRow = regHeight;   
+    int stackScreenCol =  COLS / 4;   
+    int stackHeight    =        26;     
+    int stackWidth     =  COLS / 4;
 
     prefresh(
-        regPad,
-        0, 0,                     // first line/col of pad to show
-        regScreenRow, regScreenCol,   // top-left on screen
-        regScreenRow + regHeight - 1, regScreenCol + regWidth - 1 // bottom-right on screen
+        reg_pad,
+        0,                                                      0,                     
+        regScreenRow,                                regScreenCol,   
+        regScreenRow + regHeight - 1, regScreenCol + regWidth - 1 
     );
     prefresh(
         flagPad,
-        0, 0,                     
-        flagScreenRow, flagScreenCol,   
+        0,                                                          0,                     
+        flagScreenRow,                                  flagScreenCol,   
         flagScreenRow + flagHeight - 1, flagScreenCol + flagWidth - 1 
     );
     prefresh(
@@ -312,23 +262,21 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         stackScreenRow, stackScreenCol,   
         stackScreenRow + stackHeight - 1, stackScreenCol + stackWidth - 1 
     );
+    wnoutrefresh(instr_pad_frame);
     prefresh(instrPad,
-             padPos, 0,           // first line of pad to show
-             0, COLS / 2 - 1,     // location on real screen
-             LINES - 1, COLS - 1  // bottom-right of real screen
+             padPos,                                    0,          
+             frame_y + 1,                     frame_x + 1,     
+             frame_y + frame_h - 2, frame_x + frame_w - 2  
     );
-
     doupdate();
-
-    //mvwprintw(stdscr, 0, 0, toStringz(format("%d: %d", LINES, COLS)));
 }
 
 void main(string[] args) {
     bool isPlaying = false;
-    auto lastTime = MonoTime.currTime;       // last execution time
+    auto lastTime = MonoTime.currTime;       
     auto interval = dur!"msecs"(20);
     auto lastDraw = MonoTime.currTime;
-    auto frameInterval = dur!"msecs"(33); // ~30 FPS
+    auto frameInterval = dur!"msecs"(33); 
 
     uint entryPoint = 0; 
     string objdump_file_name;
@@ -347,34 +295,27 @@ void main(string[] args) {
     }
 
     initscr();
+    init_frames();
     curs_set(0);
     start_color();
     use_default_colors();
 
     start_color();
-
-    //init_color(COLOR_BLACK,  150, 160, 140);
-
-    // Foreground
     init_color(COLOR_WHITE,  970, 970, 950);
-
-    // Cyan
     init_color(COLOR_CYAN,   400, 850, 940);
-
-    // Yellow
     init_color(COLOR_YELLOW, 900, 860, 450);
-
-    // Green
     init_color(COLOR_GREEN,  650, 880, 180);
-
-    // Red
     init_color(COLOR_RED,    980, 150, 450);
+    init_color(8,            500, 500, 500);
+    init_color(9,            248, 248, 248);
 
     init_pair(1, COLOR_WHITE,  COLOR_BLACK); 
     init_pair(2, COLOR_CYAN,   COLOR_BLACK); 
     init_pair(3, COLOR_YELLOW, COLOR_BLACK); 
     init_pair(4, COLOR_GREEN,  COLOR_BLACK); 
-    init_pair(5, COLOR_RED,    COLOR_BLACK); 
+    init_pair(5, COLOR_RED,    COLOR_BLACK);
+    init_pair(6, COLOR_WHITE,            8);
+    init_pair(7, COLOR_WHITE,            9); 
     
     scope(exit) endwin();
     cbreak();
@@ -383,10 +324,16 @@ void main(string[] args) {
 
     timeout(20);
 
-    regPad = newpad(32, 50);
-    flagPad = newpad(42, 25);
-    stackPad = newpad(32, 25);
-    instrPad = newpad(10000, 200);
+    instr_pad_frame = newwin(frame_h, frame_w, frame_y, frame_x);
+
+    reg_pad  = newpad(19, COLS / 2 - 2);
+    flagPad  = newpad(15, COLS / 4 - 2);
+    stackPad = newpad(20,     COLS / 4);
+    instrPad = newpad(10000,       200);
+
+    box(reg_pad,         0, 0);
+    box(flagPad,         0, 0);
+    box(instr_pad_frame, 0, 0);
 
     cortex_m_vm vm;
     if (!objdump_file_name.canFind("elf")) {
@@ -413,7 +360,7 @@ void main(string[] args) {
         foreach (t; table_names) {
             load_section_into_memory(objdump_file_name, t, vm.mem);
         }
-        vm.objects = get_st_name_val(objdump_file_name, st_type.stt_func);
+        vm.objects  = get_st_name_val(objdump_file_name, st_type.stt_func);
         vm.objects ~= get_st_name_val(objdump_file_name, st_type.stt_notype);
         vm.objects ~= get_st_name_val(objdump_file_name, st_type.stt_object);
     }
@@ -493,10 +440,7 @@ void main(string[] args) {
             }
             if (ch == 'b') {
                 padPos = cast(int)(vm.current_program.length + (f_s.length * 2) - LINES);
-            }
-            if (ch == 'v') {
-                regBoxView = !regBoxView;
-            }
+            }                   
             if (ch == 'p') {
                 vm.mem.flip_bit(0x40023800, 25);
             }  
@@ -507,19 +451,13 @@ void main(string[] args) {
 
         auto now = MonoTime.currTime;
         if (isPlaying) {
-            auto delta = now - lastTime; // delta is already a Duration
+            auto delta = now - lastTime; 
             if (delta >= interval) {
                 vm.execute_next_instr();
                 lastTime = now;
             }
         }
         draw_screen(vm, f_s, key_press);
-        /*
-        if (now - lastDraw >= frameInterval) {
-            
-            lastDraw = now;
-        }
-        */
     }
 
     endwin();
