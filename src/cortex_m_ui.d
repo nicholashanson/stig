@@ -15,7 +15,7 @@ import parse_elf;
 import std.array : replicate;
 import cortex_m_core;
 
-WINDOW*        instrPad;
+WINDOW*        instr_pad;
 WINDOW*         reg_pad;
 WINDOW*         flagPad;
 WINDOW*        stackPad;
@@ -41,6 +41,66 @@ struct reg_cache_item {
 
 reg_cache_item[16] reg_cache;
 
+struct row_view {
+    enum kind { func_name, blank_line, instr };
+    kind    type;
+    string     s;
+    uint    addr;
+}
+
+row_view[] generate_instr_rows(func[] functions) {
+    row_view[] res;
+    foreach (f; functions) {
+        res ~= row_view(type: row_view.kind.func_name, s: f.name);
+        foreach (ins; f.instrs) {
+            string s;
+            try {
+                auto i16 = ins.i.get!instr_16;
+                s = convert_to_string(ins._in_16);
+
+                if (i16.op == opcode.b_cond || i16.op == opcode.b_imm_11) {
+                    uint target = ins._addr + i16.offset + 4;
+                    s ~= format("%8x", target);
+                }
+                if (i16.op == opcode.cmp_br_z || i16.op == opcode.cmp_br_nz) {
+                    uint target = ins._addr + i16.offset + 4;
+                    s ~= format(" %4x", target);
+                }
+                if (i16.op == opcode.ldr_pool) {
+                    int base = ins._addr + 4;
+                    base &= ~0x3;
+                    s ~= format(" @ (%7X)", base + i16.imm);
+                }
+            }
+            catch (Exception e) {
+                try {
+                    auto i32 = ins.i.get!instr_32;
+                    s = convert_to_string(ins._in_32);
+                    if (i32.op == opcode.bl_32 || i32.op == opcode.b_32 || i32.op == opcode.b_uncond_32) {
+                        uint target = ins._addr + i32.offset + 4;
+                        s ~= format(" %x", target);
+                    }
+                }
+                catch (Exception) {
+                    s = "Unknown instruction type";
+                }
+            }
+
+            if (ins._instr_bytes.length == 8) {
+                res ~= row_view(type: row_view.kind.instr,
+                                addr: ins._addr, 
+                                s: format("%x: %s     %s",     ins._addr, ins._instr_bytes, s));
+            } else {
+                res ~= row_view(type: row_view.kind.instr,
+                                addr: ins._addr, 
+                                s: format("%x: %s         %s", ins._addr, ins._instr_bytes, s));
+            }
+        }
+        res ~= row_view(type: row_view.kind.blank_line);
+    }
+    return res;
+}
+
 int color_for_value(uint val, ref cortex_m_vm vm) {
     if (val == 0x00000000)
         return 1;
@@ -53,15 +113,17 @@ int color_for_value(uint val, ref cortex_m_vm vm) {
     return 2;
 }
 
-void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
-    static uint previous_pc = 0;
+void draw_screen(cortex_m_vm vm, const ref row_view[] rows, bool key_press) {
+    werase(instr_pad);
+    static int start;
+    static int end;
     int regX   = 1;
     int regY   = 1;
     int flagY  = 1;
     int stackY = 0;
     int stackX = 0;
 
-    auto printReg = (string name, reg r, uint val, ref cortex_m_vm vm) {
+    auto print_reg = (string name, reg r, uint val, ref cortex_m_vm vm) {
         string reg_name; 
         if (reg_cache[r].val != val) {
             vm.mem.get_reg_name(val);
@@ -85,7 +147,7 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         mvwprintw(reg_pad, regY++, regX, toStringz(format("%s %08x %s", name, val, reg_name)));
         wattroff(reg_pad, COLOR_PAIR(color));
     };
-    auto printFlag = (string name, bool val) {
+    auto print_flag = (string name, bool val) {
         int color  = val ? 4 : 1;
         wattron(flagPad, COLOR_PAIR(color));
         mvwprintw(flagPad, flagY++, regX, toStringz(format("%s %d", name, val)));
@@ -93,51 +155,40 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
     };
 
     mvwprintw(reg_pad, regY++, regX, "Core Registers:");
-    printReg("r0: ",             reg.r0, vm.cpu.r0, vm);
-    printReg("r1: ",             reg.r1, vm.cpu.r1, vm);
-    printReg("r2: ",             reg.r2, vm.cpu.r2, vm);
-    printReg("r3: ",             reg.r3, vm.cpu.r3, vm);
-    printReg("r4: ",             reg.r4, vm.cpu.r4, vm);
-    printReg("r5: ",             reg.r5, vm.cpu.r5, vm);
-    printReg("r6: ",             reg.r6, vm.cpu.r6, vm);
-    printReg("r7: ",             reg.r7, vm.cpu.r7, vm);
-    printReg("r8: ",             reg.r8, vm.cpu.r8, vm);
-    printReg("r9: ",             reg.r9, vm.cpu.r9, vm);
-    printReg("r10:",            reg.r10,vm.cpu.r10, vm);
-    printReg("r11:",            reg.r11,vm.cpu.r11, vm);
-    printReg("r12:",            reg.r12,vm.cpu.r12, vm);
-    printReg("sp: ",        reg.sp,vm.cpu.get_sp(), vm);
-    printReg("lr: ",             reg.lr, vm.cpu.lr, vm);
-    printReg("pc: ",             reg.pc, vm.cpu.pc, vm);
+    print_reg("r0: ",             reg.r0, vm.cpu.r0, vm);
+    print_reg("r1: ",             reg.r1, vm.cpu.r1, vm);
+    print_reg("r2: ",             reg.r2, vm.cpu.r2, vm);
+    print_reg("r3: ",             reg.r3, vm.cpu.r3, vm);
+    print_reg("r4: ",             reg.r4, vm.cpu.r4, vm);
+    print_reg("r5: ",             reg.r5, vm.cpu.r5, vm);
+    print_reg("r6: ",             reg.r6, vm.cpu.r6, vm);
+    print_reg("r7: ",             reg.r7, vm.cpu.r7, vm);
+    print_reg("r8: ",             reg.r8, vm.cpu.r8, vm);
+    print_reg("r9: ",             reg.r9, vm.cpu.r9, vm);
+    print_reg("r10:",            reg.r10,vm.cpu.r10, vm);
+    print_reg("r11:",            reg.r11,vm.cpu.r11, vm);
+    print_reg("r12:",            reg.r12,vm.cpu.r12, vm);
+    print_reg("sp: ",        reg.sp,vm.cpu.get_sp(), vm);
+    print_reg("lr: ",             reg.lr, vm.cpu.lr, vm);
+    print_reg("pc: ",             reg.pc, vm.cpu.pc, vm);
     
     mvwprintw(flagPad, flagY++, regX, "Flags:");
-    printFlag("z:",                   vm.cpu.z);
-    printFlag("n:",                   vm.cpu.n);
-    printFlag("c:",                   vm.cpu.c);
-    printFlag("v:",                   vm.cpu.v);
-    printFlag("ge0:",               vm.cpu.ge0);
-    printFlag("ge1:",               vm.cpu.ge1);
-    printFlag("ge2:",               vm.cpu.ge2);
-    printFlag("ge3:",               vm.cpu.ge3);
-    printFlag("SPSEL:",          vm.cpu.sp_sel);
-    printFlag("NPRIV:",           vm.cpu.npriv);
-    printFlag("FAULTMASK:",  vm.cpu.fault_mask);
-    printFlag("PRIMASK:",      vm.cpu.pri_mask);
+    print_flag("z:",                  vm.cpu.z);
+    print_flag("n:",                  vm.cpu.n);
+    print_flag("c:",                  vm.cpu.c);
+    print_flag("v:",                  vm.cpu.v);
+    print_flag("ge0:",              vm.cpu.ge0);
+    print_flag("ge1:",              vm.cpu.ge1);
+    print_flag("ge2:",              vm.cpu.ge2);
+    print_flag("ge3:",              vm.cpu.ge3);
+    print_flag("SPSEL:",         vm.cpu.sp_sel);
+    print_flag("NPRIV:",          vm.cpu.npriv);
+    print_flag("FAULTMASK:", vm.cpu.fault_mask);
+    print_flag("PRIMASK:",     vm.cpu.pri_mask);
     
     regY++;
-    
-    /*
-    mvwprintw(stackPad, stackY++, stackX, "Stack:");
-    if (vm.cpu.get_sp() != 0) {
-        uint ptr = vm.cpu.get_sp();
-        while (ptr < vm.mem.stack_base) {
-            uint val = vm.mem.read_word(ptr, 0);
-            mvwprintw(stackPad, stackY++, stackX, toStringz(format("%08x: %08x", ptr, val)));
-            ptr += 4;
-        }
-    }
-    */
     flagY++;
+
     mvwprintw(flagPad, flagY++, regX, "IT Stack:");
     string[] it_s = ["first_cond", "x", "y", "z"];
     int i = 0;  
@@ -146,86 +197,54 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
         i++;
     }
 
-    int instrPadRow  = 0;
-    int instrPadCol  = 1;
-    int currentPcRow = 0; 
+    int screen_row     = 0;
+    int col            = 1;
 
-    bool pad_changed = key_press;
-    if (true) { 
-        previous_pc = vm.cpu.pc;
-        pad_changed = true;
-        foreach (f; functions) {
-            mvwprintw(instrPad, instrPadRow++, instrPadCol,
-                          toStringz(format("%s", f.name)));
-            foreach (ins; f.instrs) {
-                string s;
+    int visible_lines  = 39;
+    int current_pc_row = -1;
 
-                if (ins._addr == vm.cpu.pc) {
-                    wattron(instrPad, A_REVERSE);
-                    currentPcRow = instrPadRow;
-                }
+    int pc_r = 0;
+    foreach (r; rows) {
+        if (r.addr == vm.cpu.pc) {
+            current_pc_row = pc_r;
+        }
+        pc_r++;
+    }
 
-                try {
-                    auto i16 = ins.i.get!instr_16;
-                    s = convert_to_string(ins._in_16);
+    bool pad_is_focused = (current_pc_row >= start) && (current_pc_row < end);
 
-                    if (i16.op == opcode.b_cond || i16.op == opcode.b_imm_11) {
-                        uint target = ins._addr + i16.offset + 4;
-                        s ~= format("%8x", target);
-                    }
-                    if (i16.op == opcode.cmp_br_z || i16.op == opcode.cmp_br_nz) {
-                        uint target = ins._addr + i16.offset + 4;
-                        s ~= format(" %4x", target);
-                    }
-                    if (i16.op == opcode.ldr_pool) {
-                        int base = ins._addr + 4;
-                        base &= ~0x3;
-                        s ~= format(" @ (%7X)", base + i16.imm);
-                    }
-                }
-                catch (Exception e) {
-                    try {
-                        auto i32 = ins.i.get!instr_32;
-                        s = convert_to_string(ins._in_32);
-                        if (i32.op == opcode.bl_32 || i32.op == opcode.b_32 || i32.op == opcode.b_uncond_32) {
-                            uint target = ins._addr + i32.offset + 4;
-                            s ~= format(" %x", target);
-                        }
-                    }
-                    catch (Exception) {
-                        s = "Unknown instruction type";
-                    }
-                }
+    if (!pad_is_focused) {
+        start = max(0,              current_pc_row - 5);
+        end   = min(start + visible_lines, rows.length);
+    }
 
-                if (ins._instr_bytes.length == 8) {
-                    mvwprintw(instrPad, instrPadRow++, instrPadCol,
-                              toStringz(format("%x: %s     %s", ins._addr, ins._instr_bytes, s)));
-                } else {
-                    mvwprintw(instrPad, instrPadRow++, instrPadCol,
-                              toStringz(format("%x: %s         %s", ins._addr, ins._instr_bytes, s)));
-                }
+    int bottom_margin =  5;
+    int distance_to_bottom = end - current_pc_row;
+    if (distance_to_bottom < bottom_margin) {
+        int delta = bottom_margin - distance_to_bottom;
+        end   = min(end + delta, rows.length);
+        start = end - visible_lines;
+    }
 
-                if (ins._addr == vm.cpu.pc) {
-                    wattroff(instrPad, A_REVERSE);
-                }
+    for (int j = start; j < end; ++j) {
+        auto r = rows[j];
+        if (r.type == row_view.kind.func_name) {
+            mvwprintw(instr_pad, screen_row++, col, toStringz(r.s));
+        }
+        if (r.type == row_view.kind.instr) {
+            if (r.addr == vm.cpu.pc) {
+                wattron(instr_pad, A_REVERSE);
+                current_pc_row = j;
             }
-            instrPadRow++;
+            mvwprintw(instr_pad, screen_row++, col, toStringz(r.s));
+            if (r.addr == vm.cpu.pc) {
+                wattroff(instr_pad, A_REVERSE);
+            }
+        }
+        if (r.type == row_view.kind.blank_line) {
+            screen_row++;
         }
     }
-
-    int visibleLines = 45;
-    int bottomMargin =  5;
-
-    if (currentPcRow < padPos) {
-        padPos = currentPcRow;
-    }
-
-    int distanceToBottom = padPos + visibleLines - currentPcRow - 1;
-    if (distanceToBottom < bottomMargin) {
-        padPos += bottomMargin - distanceToBottom; 
-    }
-
-    int instrScreenX = 50;   
 
     wnoutrefresh(stdscr);
 
@@ -259,12 +278,12 @@ void draw_screen(cortex_m_vm vm, func[] functions, bool key_press) {
     prefresh(
         stackPad,
         0, 0,                     
-        stackScreenRow, stackScreenCol,   
+        stackScreenRow,                                    stackScreenCol,   
         stackScreenRow + stackHeight - 1, stackScreenCol + stackWidth - 1 
     );
     wnoutrefresh(instr_pad_frame);
-    prefresh(instrPad,
-             padPos,                                    0,          
+    prefresh(instr_pad,
+             0,                                         0,          
              frame_y + 1,                     frame_x + 1,     
              frame_y + frame_h - 2, frame_x + frame_w - 2  
     );
@@ -326,10 +345,10 @@ void main(string[] args) {
 
     instr_pad_frame = newwin(frame_h, frame_w, frame_y, frame_x);
 
-    reg_pad  = newpad(19, COLS / 2 - 2);
-    flagPad  = newpad(15, COLS / 4 - 2);
-    stackPad = newpad(20,     COLS / 4);
-    instrPad = newpad(10000,       200);
+    reg_pad   = newpad(19, COLS / 2 - 2);
+    flagPad   = newpad(15, COLS / 4 - 2);
+    stackPad  = newpad(20,     COLS / 4);
+    instr_pad = newpad(10000,       200);
 
     box(reg_pad,         0, 0);
     box(flagPad,         0, 0);
@@ -409,12 +428,14 @@ void main(string[] args) {
         }
     }
 
+    auto rows = generate_instr_rows(f_s);
+
     if (entryPoint != 0) {
         vm.run_to(entryPoint);
     }
 
     bool key_press = false;
-    draw_screen(vm, f_s, key_press);
+    draw_screen(vm, rows, key_press);
 
     int ch;
     while (true) {
@@ -426,14 +447,6 @@ void main(string[] args) {
             }
             if (ch == KEY_DOWN) {
                 vm.execute_next_instr();
-            }
-            if (ch == 'z') { // scroll down
-                padPos = min(padPos + 1, vm.current_program.length + (f_s.length * 2) - LINES);
-                key_press = !key_press;
-            }
-            if (ch == 'x') { // scroll up
-                padPos = max(padPos - 1, 0);
-                key_press = !key_press;
             }
             if (ch == ' ') { 
                 isPlaying = !isPlaying;
@@ -457,7 +470,7 @@ void main(string[] args) {
                 lastTime = now;
             }
         }
-        draw_screen(vm, f_s, key_press);
+        draw_screen(vm, rows, key_press);
     }
 
     endwin();
