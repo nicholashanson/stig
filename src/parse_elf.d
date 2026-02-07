@@ -401,6 +401,7 @@ enum st_type {
 struct st_name_val {
     string      name;
     uint        addr;
+    uint        size;
 }
 
 string[] stm32_start_up = [
@@ -414,7 +415,7 @@ string[] stm32_start_up = [
     "register_tm_clones"
 ];
 
-st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_type.all, bool get_all = false) {
+st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_type.all, bool get_all = false, bool get_size = false) {
     auto symtab_sec = get_section_by_name(elf_file, ".symtab");
     auto strtab_sec = get_section_by_name(elf_file, ".strtab");
     auto text_sec   = get_section_by_name(elf_file, "text");
@@ -470,29 +471,33 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_typ
         if (name == "LoopFillZerobss") 
             writeln(name, ": ", _st_type.to!string);
 
-        if (!get_all) { 
-            if ((sym.st_value >= 0x08000000) && (sym.st_value <= 0x20020000)) {
-                if (name.canFind("uart_cfg")) {
-                    items ~= st_name_val(name ~ ".parity",               sym.st_value    );
-                    items ~= st_name_val(name ~ ".stop_bits",            sym.st_value + 1);
-                    items ~= st_name_val(name ~ ".data_bits",            sym.st_value + 2);
-                    items ~= st_name_val(name ~ ".flow_ctrl",            sym.st_value + 3);
-                } else if (name.canFind("mpu_config") && _st_type != st_type.stt_func) {
-                    items ~= st_name_val(name ~ ".num_regions",          sym.st_value    );
-                    items ~= st_name_val(name ~ ".mpu_regions",          sym.st_value + 4);
-                } else if (name.canFind("gpio_stm32_cfg")) {
-                    items ~= st_name_val(name ~ ".common.port_pin_mask", sym.st_value     );
-                    items ~= st_name_val(name ~ ".base",                 sym.st_value +  4);
-                    items ~= st_name_val(name ~ ".port",                 sym.st_value +  8);
-                    items ~= st_name_val(name ~ ".pclken.bus",           sym.st_value + 12);
-                    items ~= st_name_val(name ~ ".pclken.div",           sym.st_value + 16); 
-                    items ~= st_name_val(name ~ ".pclken.enr",           sym.st_value + 20);
-                } else {
-                    items ~= st_name_val(name, sym.st_value);
+        if (!get_size) {
+            if (!get_all) { 
+                if ((sym.st_value >= 0x08000000) && (sym.st_value <= 0x20020000)) {
+                    if (name.canFind("uart_cfg")) {
+                        items ~= st_name_val(name ~ ".parity",               sym.st_value    );
+                        items ~= st_name_val(name ~ ".stop_bits",            sym.st_value + 1);
+                        items ~= st_name_val(name ~ ".data_bits",            sym.st_value + 2);
+                        items ~= st_name_val(name ~ ".flow_ctrl",            sym.st_value + 3);
+                    } else if (name.canFind("mpu_config") && _st_type != st_type.stt_func) {
+                        items ~= st_name_val(name ~ ".num_regions",          sym.st_value    );
+                        items ~= st_name_val(name ~ ".mpu_regions",          sym.st_value + 4);
+                    } else if (name.canFind("gpio_stm32_cfg")) {
+                        items ~= st_name_val(name ~ ".common.port_pin_mask", sym.st_value     );
+                        items ~= st_name_val(name ~ ".base",                 sym.st_value +  4);
+                        items ~= st_name_val(name ~ ".port",                 sym.st_value +  8);
+                        items ~= st_name_val(name ~ ".pclken.bus",           sym.st_value + 12);
+                        items ~= st_name_val(name ~ ".pclken.div",           sym.st_value + 16); 
+                        items ~= st_name_val(name ~ ".pclken.enr",           sym.st_value + 20);
+                    } else {
+                        items ~= st_name_val(name, sym.st_value);
+                    }
                 }
+            } else {
+                items ~= st_name_val(name, sym.st_value);
             }
         } else {
-            items ~= st_name_val(name, sym.st_value);
+            items ~= st_name_val(name, sym.st_value, sym.st_size);
         }
     }
     return items;

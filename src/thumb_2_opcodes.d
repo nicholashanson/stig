@@ -17,6 +17,7 @@ enum opcode : ubyte {
 	and_imm_32,
 	and_reg,
 	asr_imm,
+	asr_reg,
 	b_32,
 	b_cond_32,
 	b_imm_11,
@@ -280,6 +281,7 @@ opcode decode_data_proc(ushort instr) {
 	switch (op) 
 	{
 		case 0b0000: return opcode.and_reg;
+		case 0b0100: return opcode.asr_reg;
 		case 0b0001: return opcode.eor_reg;
 		case 0b0010: return opcode.lsl_reg;
 		case 0b0011: return opcode.lsr_reg;

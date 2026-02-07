@@ -292,8 +292,16 @@ void draw_screen(cortex_m_vm vm, const ref row_view[] rows, bool key_press) {
     doupdate();
 }
 
-void find_symbols(const string elf_filename, const string sym) {
-    auto vals = get_st_name_val(elf_filename, st_type.all, true);
+// ==============
+//  FIND SYMBOLS
+// ==============
+
+void find_symbols(const string elf_filename, const string sym, bool show_size = false) {
+    st_name_val[] vals;
+    if (show_size) 
+        vals = get_st_name_val(elf_filename, st_type.all, true, true);
+    else 
+        vals = get_st_name_val(elf_filename, st_type.all, true);
     st_name_val[] matches;
     foreach (v; vals) {
         if (v.name.canFind(sym)) {
@@ -304,11 +312,21 @@ void find_symbols(const string elf_filename, const string sym) {
         writeln(format("No matching symbols found in %s", elf_filename));
         return;
     }
+
     foreach (m; matches) {
-        writeln(format("%s: %X", m.name, m.addr));
+        string s;
+        if (show_size) 
+            s = format("%s: %X, size: %d", m.name, m.addr, m.size);
+        else 
+            s = format("%s: %X", m.name, m.addr);
+        writeln(s);
     }
     writeln(format("%d matching symbols found", matches.length));
 }
+
+// ==================
+//  GET SECTION SIZE
+// ==================
 
 void get_section_size(const string elf_filename, const string section_name) {
     auto section = get_section_by_name(elf_filename, section_name);
@@ -331,9 +349,10 @@ void main(string[] args) {
     }
 
     switch (first_arg) {
-        case "syms"        : find_symbols(args[2], args[3]);     return;
-        case "section_size": get_section_size(args[2], args[3]); return;
-        default            :                                      break;
+        case "syms"        : find_symbols(args[2], args[3]);       return;
+        case "syms_size"   : find_symbols(args[2], args[3], true); return;
+        case "section_size": get_section_size(args[2], args[3]);   return;
+        default            :                                       break;
     }
 
     target_file_name = first_arg;

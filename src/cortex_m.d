@@ -647,6 +647,7 @@ enum all_field_tuples =
 	~ field_tuples_and_imm_32
 	~ field_tuples_and_reg
 	~ field_tuples_asr_imm
+	~ field_tuples_asr_reg
 	~ field_tuples_b_32
 	~ field_tuples_b_cond
 	~ field_tuples_b_imm_11
@@ -1672,6 +1673,7 @@ instr_16 decode_instr(ushort instr) {
     auto op = decode_mnemonic(instr);
 
     switch (op) {
+    	case opcode.asr_reg  : res = parse_asr_reg(instr);   break;
     	case opcode.eor_reg  : res = parse_eor_reg(instr);   break;
     	case opcode.bic_reg  : res = parse_bic_reg(instr);   break;
     	case opcode.strh_reg : res = parse_strh_reg(instr);  break;
@@ -2550,6 +2552,8 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.asr_reg:
+			return execute_asr_reg(instr, cpu);
 		case opcode.eor_reg:
 			return execute_eor_reg(instr, cpu);
 		case opcode.bic_reg:
@@ -6281,6 +6285,7 @@ string[opcode] opcode_strings = [
 	opcode.adr: 					 "add",
 	opcode.and_imm_32: 			   "and.w",
 	opcode.asr_imm: 				"asrs",
+	opcode.asr_reg:                 "asrs",
 	opcode.and_reg: 				"ands",
 	opcode.asr_reg_32: 				 "asr",
 	opcode.b_32: 					 "b.w",

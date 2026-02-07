@@ -282,6 +282,59 @@ void execute_lsr_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 }
 // ---------------------------------------------------------------------------------------
 
+// ----------------------------------------- ASR -----------------------------------------
+
+// =====================
+//  Parse ASR(Register)
+// =====================
+
+enum field_tuples_asr_reg = [Tuple!(opcode, string[])(opcode.asr_reg, ["rd","rm"])];
+/*                
+    Data Processing
+	LSR <Rdn>,<Rm>
+	[15:6] 0100000100, [5:3] Rm, [2:0] Rdn  
+*/
+instr_16 parse_asr_reg(short instr) {
+	instr_16 res;
+	const ubyte rdn = cast(ubyte)( instr       & 0x07);
+	const ubyte rm  = cast(ubyte)((instr >> 3) & 0x07);
+	res.rd = cast(reg)(rdn);
+	res.rn = cast(reg)(rdn);
+	res.rm = cast(reg)(rm);
+	return res;
+}
+
+// =======================
+//  Execute ASR(Register)
+// =======================
+
+void execute_asr_reg(const ref instr_16 instr, ref cortex_m_cpu cpu) {
+	const uint shift = cpu.get(instr.rm);
+	const uint rn_u  = cpu.get(instr.rn);
+	const int  rn    = cast(int)(rn_u);
+
+	uint res;
+    if (shift >= 32) {
+        res = (rn < 0) ? 0xFFFF_FFFF : 0;
+        if (!cpu.in_it_block()) {
+            cpu.c = (rn < 0);
+        }
+    } else {
+        res = cast(uint)(rn >> shift);
+        if (!cpu.in_it_block() && shift != 0) {
+            cpu.c = (rn_u >> (shift - 1)) & 1;
+        }
+    }
+
+    if (!cpu.in_it_block()) {
+        cpu.z = (res == 0);
+        cpu.n = (res & 0x8000_0000) != 0;
+    }
+	cpu.set(instr.rd, res);
+	cpu.increment_pc(2);
+}
+// ---------------------------------------------------------------------------------------
+
 // ----------------------------------------- MVN -----------------------------------------
 
 // =====================
