@@ -66,21 +66,21 @@ void exception_return(ref cortex_m_cpu cpu, ref memory mem, uint exc_return) {
 // ------------------------------------- Condition --------------------------------------
 
 enum condition : ubyte {
-	cs = 0b0010,			// carry set
-	eq = 0b0000,			// equal
-	lt = 0b1011,			// less-than
-	gt = 0b1100,			// greater-than
-	ge = 0b1010,			// greater-than or equal-to
-	le = 0b1101,			// less-than or equal-to
-	mi = 0b0100,	
-	ne = 0b0001,			// not equal
-	pl = 0b0101,
-	hi = 0b1000,
-	ls = 0b1001,
-	vs = 0b0110,
-	vc = 0b0111,
-	cc = 0b0011, 			// carry clear
-	al = 0b1110,
+	cs		= 0b0010,			// carry set
+	eq		= 0b0000,			// equal
+	lt		= 0b1011,			// less-than
+	gt		= 0b1100,			// greater-than
+	ge		= 0b1010,			// greater-than or equal-to
+	le		= 0b1101,			// less-than or equal-to
+	mi		= 0b0100,	
+	ne		= 0b0001,			// not equal
+	pl		= 0b0101,
+	hi		= 0b1000,
+	ls		= 0b1001,
+	vs		= 0b0110,
+	vc		= 0b0111,
+	cc		= 0b0011, 			// carry clear
+	al		= 0b1110,
 	invalid = 0xff
 }
 

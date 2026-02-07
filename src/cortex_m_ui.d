@@ -14,6 +14,7 @@ import memory_sections;
 import parse_elf;
 import std.array : replicate;
 import cortex_m_core;
+import load_store_log_;
 
 WINDOW*        instr_pad;
 WINDOW*         reg_pad;
@@ -126,7 +127,7 @@ void draw_screen(cortex_m_vm vm, const ref row_view[] rows, bool key_press) {
     auto print_reg = (string name, reg r, uint val, ref cortex_m_vm vm) {
         string reg_name; 
         if (reg_cache[r].val != val) {
-            vm.mem.get_reg_name(val);
+            reg_name = vm.mem.get_reg_name(val);
             if (reg_name == "") {
                 foreach (e; vm.objects) {
                 if (e.addr == val) {
@@ -139,6 +140,8 @@ void draw_screen(cortex_m_vm vm, const ref row_view[] rows, bool key_press) {
             if (reg_name.length < reg_name_width) {
                 reg_name ~= replicate(" ", reg_name_width - reg_name.length);
             }
+            reg_cache[r].s   = reg_name;
+            reg_cache[r].val = val;
         } else {
             reg_name = reg_cache[r].s;
         }

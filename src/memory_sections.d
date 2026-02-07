@@ -2,6 +2,7 @@ import std.stdio;
 import std.format;
 
 import cortex_m_core;
+import load_store_log_;
 
 File* access_log_ptr = null;
 
@@ -37,15 +38,6 @@ File* gpio_log() {
         gpio_log_ptr = new File("gpio_log.txt", "w");
     }
     return gpio_log_ptr;
-}
-
-File* load_store_log_ptr = null;
-
-File* load_store_log() {
-    if (load_store_log_ptr is null) {
-        load_store_log_ptr = new File("load_store_log.txt", "w");
-    }
-    return load_store_log_ptr;
 }
 
 // =================
@@ -163,6 +155,9 @@ struct memory {
     enum ram_length = 128 * 1024;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t] peripherals = [
+        0x4000780C: 0,          // reserved
+        0x40007810: 0,          // reserved
+        0x40007814: 0,          // reserved
         0x40013818: 0,
         // -------------------------------------- TIM2 ------------------------------------------
         0x40000000: 0,          // TIM2_CR1 TIM2 Control Register 1
@@ -171,6 +166,15 @@ struct memory {
         // --------------------------------------------------------------------------------------
         // -------------------------------------- FLASH -----------------------------------------
         0x40023C00: 0x000083,   // FLASH_ACR 
+        // --------------------------------------------------------------------------------------
+        // -------------------------------------- USART6 ----------------------------------------
+        0x40011400: 0,          // USART_SR
+        0x40011404: 0,          // USART_DR
+        0x40011408: 0,          // USART_BRR
+        0x4001140C: 0,          // USART_CR1
+        0x40011410: 0,          // USART_CR2
+        0x40011414: 0,          // USART_CR3
+        0x40011418: 0,          // USART_GTPR
         // --------------------------------------------------------------------------------------
         0x40013814: 0,
         0x40013C08: 0,          // SYSCFG_EXTICR1
@@ -360,6 +364,10 @@ struct memory {
         0xE000E44C: 0,
         0xE000E450: 0,
         0xE000E454: 0,
+        0xE000E458: 0,
+        0xE000E45C: 0,
+        0xE000E460: 0,
+        0xE000E464: 0,
         // --------------------------------------------------------------------------------------
         0xE000E3F8: 0,
         0xE000EF34: 0,
@@ -470,7 +478,14 @@ struct memory {
         0xE000ED98: "MPU_RNR",
         0xE000ED9C: "MPU_RBAR",
         0xE000EDA0: "MPU_RASR",
-        0x4002388C: "RCC_DCKCFGR" 
+        0x4002388C: "RCC_DCKCFGR",
+        0x40011400: "USART_SR",
+        0x40011404: "USART_DR",
+        0x40011408: "USART_BRR",
+        0x4001140C: "USART_CR1",
+        0x40011410: "USART_CR2",
+        0x40011414: "USART_CR3",
+        0x40011418: "USART_GTPR" 
     ]; 
 
     string get_reg_name(const uint reg_addr) {
@@ -499,9 +514,18 @@ struct memory {
         return peripheral_names.get(reg_addr, "");
     }
 
+    unittest {
+        memory mem;
+        auto reg_name = mem.get_reg_name(0xE000E100);
+        assert(reg_name == "NVIC_ISER0", format("reg_name of 0xE000E100 is %s, instead of the expected NVIC_ISER0", reg_name));
+        auto zero_case = mem.get_reg_name(0x0);
+        assert(zero_case == "", format("reg_name of 0xE000E100 is %s, instead of the expected empty string", zero_case));
+    }
+
     uint read_word(size_t addr, uint pc) {
         auto f = load_store_log();
         f.writeln(format("Attempting to access [%08X]", addr));
+        f.flush();
         uint res;
         if (addr == 0x08000000) {
             res = 0x20020000;

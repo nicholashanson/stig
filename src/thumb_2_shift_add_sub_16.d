@@ -174,9 +174,9 @@ instr_16 parse_lsl_imm(const ushort instr) {
 
 void execute_lsl_imm(const ref instr_16 instr, ref cortex_m_cpu cpu) {
 	const uint rm    = cpu.get(instr.rm);
-	uint res   = rm << (instr.imm - 1);
+	uint res         = rm << (instr.imm - 1);
 	const bool carry = ((res & 0x8000_0000) != 0);
-	res 	   = res << 1;
+	res 	         = res << 1;
 	if (!cpu.in_it_block()) {
 		cpu.z = (res == 0);						// APSR.Z = IsZeroBit(result);
 		cpu.n = ((res & 0x8000_0000) != 0);		// APSR.N = result<31>;

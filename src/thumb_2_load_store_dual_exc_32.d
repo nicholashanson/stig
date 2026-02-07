@@ -5,6 +5,7 @@ import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
 import memory_sections;
+//import load_store_log_;
 
 // --------------------------------------- TBB/TBH ---------------------------------------
 
@@ -38,20 +39,20 @@ instr_32 parse_tbb_tbh_32(const uint instr) {
 // =================
 
 void execute_tbb_tbh_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	auto f = load_store_log();
+	//auto f = load_store_log();
 	uint half_words;
 	//const uint rn    = cpu.get(instr.rn);
 	const uint rm 	   = cpu.get(instr.rm);
 	auto       base    = (cpu.pc + 4) & ~3;
 	auto       addr    = base + (instr.is_tbh ? (rm << 1) : rm);
-	f.writeln(format("Attempting to access [%08X]", addr));
+	//f.writeln(format("Attempting to access [%08X]", addr));
 	if (instr.is_tbh) {
 		half_words = mem.read_half_word(addr);
 	} else {
 		half_words = mem.read_byte(addr);
 	}
-	f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, half_words, addr));
-	f.flush();
+	//f.writeln(format("%08X: %08X loaded from [%08X]", cpu.pc, half_words, addr));
+	//f.flush();
 	cpu.increment_pc(2 * half_words);
 }
 // ---------------------------------------------------------------------------------------

@@ -183,12 +183,8 @@ unittest {
 }
 
 ubyte[] get_shstrtab(const ref string filename) {
-    auto f = load_store_log();
     auto shstr_off = get_shstr_off(filename);
     auto shstr_size = get_shstr_size(filename);
-    f.writeln("shstr_off: ", shstr_off);
-    f.writeln("shstr_size: ", shstr_size);
-    f.flush();
     ubyte[] data = cast(ubyte[]) read(filename, shstr_off + shstr_size);
     return data[shstr_off .. shstr_off + shstr_size];
 }
@@ -232,20 +228,10 @@ struct elf_section {
 
 elf_section get_section_by_name(const string filename, const string section_name) {
     ubyte[] data = cast(ubyte[]) read(filename);
-    auto f = load_store_log();
     auto e_shnum   = get_e_shnum(filename);
-    f.writeln(section_name);
-    f.writeln("Eshnum: ", e_shnum);
-    f.flush();
     auto e_shoff   = get_e_shoff(filename);
-    f.writeln("Eshoff: ", e_shoff);
-    f.flush();
     auto e_shentsz = get_e_shentsz(filename);
-    f.writeln("Eshentsz: ", e_shentsz);
-    f.flush();
     auto shstrtab  = get_shstrtab(filename);
-    f.writeln("Size of shstrtab: ", shstrtab.length);
-    f.flush();
     foreach (i; 0 .. e_shnum) {
         size_t shdr = e_shoff + i * e_shentsz;
         uint name_off = read_ul_32(data, shdr);
@@ -305,11 +291,7 @@ load_segment[] get_load_segments(const string elf_file) {
 }
 
 uint file_offset_to_addr(uint file_offset, load_segment[] segs) {
-    auto f = load_store_log();
     foreach (s; segs) {
-        f.writeln(format("Segment file offset: %08X", s.file_offset));
-        f.writeln(format("Segment file size: %08X", s.file_size));
-        f.writeln(format("Segment file vaddr: %08X", s.vaddr));
         if (file_offset >= s.file_offset &&
             file_offset <  s.file_offset + s.file_size) {
             return s.vaddr + (file_offset - s.file_offset);
@@ -432,14 +414,10 @@ string[] stm32_start_up = [
     "register_tm_clones"
 ];
 
-st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_type.all) {
-    auto f_h = load_store_log();
+st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_type.all, bool get_all = false) {
     auto symtab_sec = get_section_by_name(elf_file, ".symtab");
-    f_h.writeln(symtab_sec.name);
     auto strtab_sec = get_section_by_name(elf_file, ".strtab");
-    f_h.writeln(strtab_sec.name);
     auto text_sec   = get_section_by_name(elf_file, "text");
-    f_h.writeln(text_sec.name);
 
     if (text_sec.name == "")
         text_sec   = get_section_by_name(elf_file, ".text");
@@ -451,7 +429,7 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_typ
 
     st_name_val[] items;
 
-    for(size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
+    for (size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
         elf_32_sym sym;
         sym.st_name  = read_ul_32(symdata, pos + 0);
         sym.st_value = read_ul_32(symdata, pos + 4);
@@ -492,25 +470,29 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_typ
         if (name == "LoopFillZerobss") 
             writeln(name, ": ", _st_type.to!string);
 
-        if ((sym.st_value >= 0x08000000) && (sym.st_value <= 0x20020000)) {
-            if (name.canFind("uart_cfg")) {
-                items ~= st_name_val(name ~ ".parity",               sym.st_value    );
-                items ~= st_name_val(name ~ ".stop_bits",            sym.st_value + 1);
-                items ~= st_name_val(name ~ ".data_bits",            sym.st_value + 2);
-                items ~= st_name_val(name ~ ".flow_ctrl",            sym.st_value + 3);
-            } else if (name.canFind("mpu_config") && _st_type != st_type.stt_func) {
-                items ~= st_name_val(name ~ ".num_regions",          sym.st_value    );
-                items ~= st_name_val(name ~ ".mpu_regions",          sym.st_value + 4);
-            } else if (name.canFind("gpio_stm32_cfg")) {
-                items ~= st_name_val(name ~ ".common.port_pin_mask", sym.st_value     );
-                items ~= st_name_val(name ~ ".base",                 sym.st_value +  4);
-                items ~= st_name_val(name ~ ".port",                 sym.st_value +  8);
-                items ~= st_name_val(name ~ ".pclken.bus",           sym.st_value + 12);
-                items ~= st_name_val(name ~ ".pclken.div",           sym.st_value + 16); 
-                items ~= st_name_val(name ~ ".pclken.enr",           sym.st_value + 20);
-            } else {
-                items ~= st_name_val(name, sym.st_value);
+        if (!get_all) { 
+            if ((sym.st_value >= 0x08000000) && (sym.st_value <= 0x20020000)) {
+                if (name.canFind("uart_cfg")) {
+                    items ~= st_name_val(name ~ ".parity",               sym.st_value    );
+                    items ~= st_name_val(name ~ ".stop_bits",            sym.st_value + 1);
+                    items ~= st_name_val(name ~ ".data_bits",            sym.st_value + 2);
+                    items ~= st_name_val(name ~ ".flow_ctrl",            sym.st_value + 3);
+                } else if (name.canFind("mpu_config") && _st_type != st_type.stt_func) {
+                    items ~= st_name_val(name ~ ".num_regions",          sym.st_value    );
+                    items ~= st_name_val(name ~ ".mpu_regions",          sym.st_value + 4);
+                } else if (name.canFind("gpio_stm32_cfg")) {
+                    items ~= st_name_val(name ~ ".common.port_pin_mask", sym.st_value     );
+                    items ~= st_name_val(name ~ ".base",                 sym.st_value +  4);
+                    items ~= st_name_val(name ~ ".port",                 sym.st_value +  8);
+                    items ~= st_name_val(name ~ ".pclken.bus",           sym.st_value + 12);
+                    items ~= st_name_val(name ~ ".pclken.div",           sym.st_value + 16); 
+                    items ~= st_name_val(name ~ ".pclken.enr",           sym.st_value + 20);
+                } else {
+                    items ~= st_name_val(name, sym.st_value);
+                }
             }
+        } else {
+            items ~= st_name_val(name, sym.st_value);
         }
     }
     return items;
@@ -553,10 +535,6 @@ elf_func get_elf_func(const string elf_file, const string func_name) {
 
     if (text_sec.name == "")
         text_sec   = get_section_by_name(elf_file, ".text");
-
-    auto f = load_store_log();
-    f.writeln("Extracting function:", func_name);
-    f.flush();
 
     ubyte[] symdata = symtab_sec.data;
     ubyte[] strdata = strtab_sec.data;
@@ -616,8 +594,6 @@ elf_func get_elf_func(const string elf_file, const string func_name) {
         //auto data = text_data[offset_in_text - 1 .. offset_in_text + size - 1];
         //file_offset &= ~0x3;
         auto data = file_data[file_offset .. file_offset + size];
-        f.writeln(format("Extracted function %s of size %d", name, data.length));
-        f.flush();
         assert(data.length == size, format("%s: sizes are not equal, %d != %d", name, data.length, size));
         return elf_func(func_va, data);
     }
@@ -982,13 +958,8 @@ unittest {
 
 func[] get_program_from_elf(const string elf_file) {
     bool[uint] pending_literals;
-    auto f_h = load_store_log();
     func[] res;
     auto f_s = get_st_name_val(elf_file, st_type.stt_func);
-    if (f_s.length == 0) {
-        f_h.writeln("No function found");
-        f_h.flush();
-    }
     foreach (fn; f_s) {
         auto f = get_function_from_elf(elf_file, fn.name, pending_literals);
         res ~= f; 

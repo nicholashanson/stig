@@ -35,6 +35,7 @@ import thumb_2_load_store_dual_exc_32;
 import thumb_2_load_store_multiple;
 import parse_elf;
 import thumb_2_shift_add_sub_16;
+import load_store_log_;
 
 File* pc_log_ptr = null;
 
@@ -7376,7 +7377,7 @@ unittest {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
+unittest {	
     memory mem = memory();
     cortex_m_cpu cpu = cortex_m_cpu(r3: 1, r4: 2, r5: 3, r6: 4, r7: 5, lr: 6, msp: memory.stack_base);
     instr_16 push = instr_16(op: opcode.push, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7, reg.lr]);
