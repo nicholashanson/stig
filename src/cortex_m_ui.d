@@ -307,6 +307,7 @@ void find_symbols(const string elf_filename, const string sym) {
     foreach (m; matches) {
         writeln(format("%s: %X", m.name, m.addr));
     }
+    writeln(format("%d matching symbols found", matches.length));
 }
 
 void get_section_size(const string elf_filename, const string section_name) {

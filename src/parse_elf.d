@@ -233,12 +233,12 @@ elf_section get_section_by_name(const string filename, const string section_name
     auto e_shentsz = get_e_shentsz(filename);
     auto shstrtab  = get_shstrtab(filename);
     foreach (i; 0 .. e_shnum) {
-        size_t shdr = e_shoff + i * e_shentsz;
+        size_t shdr   = e_shoff + i * e_shentsz;
         uint name_off = read_ul_32(data, shdr);
-        size_t end = name_off;
+        size_t end    = name_off;
         while (end < shstrtab.length && shstrtab[end] != 0) 
             end++;
-        string name = (name_off < shstrtab.length) ? cast(string) shstrtab[name_off .. end] : "<invalid>";
+        string name   = (name_off < shstrtab.length) ? cast(string) shstrtab[name_off .. end] : "<invalid>";
         if (name == section_name) {
             uint sec_addr = read_ul_32(data, shdr + 12);
             uint sec_off  = read_ul_32(data, shdr + 16);

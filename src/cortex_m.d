@@ -5993,7 +5993,7 @@ void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 		condition active_cond = cpu.it_block_stack.back;
 		cpu.it_block_stack.removeBack();
 		if (!condition_is_met(active_cond, cpu)) {
-			cpu.increment_pc(2);
+			cpu.increment_pc(4);
 			return;
 		}
 	}

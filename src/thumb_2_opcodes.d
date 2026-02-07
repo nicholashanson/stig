@@ -782,7 +782,7 @@ opcode decode_load_store_mult(uint instr) {
 // ======================
 //  Decode Load Halfword
 // ======================
-
+	
 opcode decode_load_half_word(uint instr) {
 	ubyte op1 = cast(ubyte)((instr >> 23) & 0x1);
 	if ((op1 & 0b10) == 0b00) {
@@ -1242,7 +1242,8 @@ unittest {
 		test_case(0xf837c012, opcode.ldh_32),
 		test_case(0xe8dff012, opcode.tbb_tbh_32),
 		test_case(0xF3838814, opcode.msr_32),
-		test_case(0xf837c012, opcode.ldh_32)
+		test_case(0xf837c012, opcode.ldh_32),
+		test_case(0xf8213012, opcode.strh_reg_32)
 	];
 
 	foreach (t; tests) {
