@@ -227,7 +227,7 @@ struct elf_section {
 }
 
 elf_section get_section_by_name(const string filename, const string section_name) {
-    ubyte[] data = cast(ubyte[]) read(filename);
+    ubyte[] data   = cast(ubyte[]) read(filename);
     auto e_shnum   = get_e_shnum(filename);
     auto e_shoff   = get_e_shoff(filename);
     auto e_shentsz = get_e_shentsz(filename);

@@ -309,6 +309,11 @@ void find_symbols(const string elf_filename, const string sym) {
     }
 }
 
+void get_section_size(const string elf_filename, const string section_name) {
+    auto section = get_section_by_name(elf_filename, section_name);
+    writeln(format("%s size: %d", section.name, section.data.length));
+}
+
 void main(string[] args) {
     bool is_playing     =             false;
     auto last_time      = MonoTime.currTime;       
@@ -324,10 +329,11 @@ void main(string[] args) {
         first_arg = args[1];
     }
 
-    if (first_arg == "syms") {
-        find_symbols(args[2], args[3]);
-        return;
-    } 
+    switch (first_arg) {
+        case "syms"        : find_symbols(args[2], args[3]);     return;
+        case "section_size": get_section_size(args[2], args[3]); return;
+        default            :                                      break;
+    }
 
     target_file_name = first_arg;
 
