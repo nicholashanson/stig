@@ -89,6 +89,51 @@ struct ram_mem_section {
     static enum ram_origin = 0x20000000;
 }
 
+struct ram_mem_section_2 {
+    ubyte[256 * 1024] cells;
+
+    const(ubyte) read_byte(size_t index) const {
+        index -= ram_origin;
+        return cells[index];
+    }
+
+    const(ushort) read_half_word(size_t index) {
+        index -= ram_origin;
+        ushort res = (cells[index + 1] << 8) | cells[index];
+        return res;
+    }
+
+    const(uint) read_word(size_t index) {
+        index -= ram_origin;
+        uint res = (cells[index + 3] << 24) | 
+                   (cells[index + 2] << 16) | 
+                   (cells[index + 1] <<  8) | 
+                    cells[index    ];
+        return res;
+    }
+
+    void write_byte(size_t index, ubyte val) {
+        index -= ram_origin;
+        cells[index] = val;
+    }
+
+    void write_half_word(size_t index, ushort val) {
+        index -= ram_origin;
+        cells[index + 1] = (val >> 8) & 0xff;
+        cells[index] =      val       & 0xff;
+    }
+
+    void write_word(size_t index, uint val) {
+        index -= ram_origin;
+        cells[index + 3] = (val >> 24) & 0xff;
+        cells[index + 2] = (val >> 16) & 0xff;
+        cells[index + 1] = (val >>  8) & 0xff;
+        cells[index] =      val        & 0xff;
+    }
+
+    static enum ram_origin = 0x20000000;
+}
+
 struct sram_1_section {
     ubyte[368 * 1024] cells; 
 
@@ -135,6 +180,7 @@ struct sram_1_section {
 }
 
 __gshared ubyte[1024 * 1024] g_flash;
+__gshared ubyte[ 256 * 1024] g_flash_2;
 
 // ===================
 //  Flash Mem Section
@@ -183,6 +229,49 @@ struct flash_mem_section {
     enum flash_origin = 0x8000000;
 }
 
+struct flash_mem_section_2 {
+    const(ubyte) read_byte(size_t index) const {
+        index -= flash_origin;
+        return g_flash_2[index];
+    }
+
+    const(ushort) read_half_word(size_t index) const {
+        index -= flash_origin;
+        ushort res = (g_flash_2[index + 1] << 8) | g_flash_2[index];
+        return res;
+    }
+
+    void write_byte(size_t index, ubyte val) {
+        index -= flash_origin;
+        g_flash_2[index] = val;
+    }
+
+    void write_half_word(size_t index, ushort val) {
+        index -= flash_origin;
+        g_flash_2[index + 1] = (val >> 8) & 0xff;
+        g_flash_2[index] =      val       & 0xff;
+    }
+
+    const(uint) read_word(size_t index) const {
+        index -= flash_origin;
+        uint res = (g_flash_2[index + 3] << 24) | 
+                   (g_flash_2[index + 2] << 16) | 
+                   (g_flash_2[index + 1] <<  8) |  
+                    g_flash_2[index];
+        return res;
+    }
+
+    static void write_word(size_t index, uint val) {
+        index -= flash_origin;
+        g_flash_2[index + 3] = (val >> 24) & 0xff;
+        g_flash_2[index + 2] = (val >> 16) & 0xff;
+        g_flash_2[index + 1] = (val >>  8) & 0xff;
+        g_flash_2[index    ] =  val        & 0xff;
+    }
+
+    enum flash_origin = 0x0000000;
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
     flash_mem_section flash;
@@ -191,7 +280,7 @@ unittest {
     assert(read_value == 32, "Failed to read word from flash");
 }
 
-struct memory {
+struct stm32f4_mem {
     sram_1_section   sram_1;            
     ram_mem_section     ram;
     flash_mem_section flash;
@@ -670,6 +759,198 @@ struct memory {
         }
         if (addr >= sram_1_origin) {
             return sram_1.write_word(addr, val);
+        }
+        if (addr >= ram_origin) {
+            return ram.write_word(addr, val);
+        } else {
+            return flash.write_word(addr, val);
+        }
+    }
+
+    void write_byte(const size_t addr, const uint val, const uint pc) {
+        auto f = load_store_log();
+        f.writeln(format("Attempting to access [%08X]", addr));
+        const ubyte b = cast(ubyte)(val & 0xff);
+        if (addr > ram_origin + ram_length) {
+            size_t word_addr = addr & ~3;
+            uint shift = (addr & 3) * 8;
+
+            uint old = peripherals[word_addr];
+            uint masked = (old & ~(0xff << shift)) | (b << shift);
+            peripherals[word_addr] = masked;
+        } else if (addr >= ram_origin) {
+            ram.write_byte(addr, b);
+        } else {
+            flash.write_byte(addr, b);
+        }
+        f.writeln(format("%08X: %08X stored to [%08X]", pc, val, addr));
+        f.flush();
+    }
+
+    void inc_sp_word_width(ref cortex_m_cpu cpu) {
+        uint current_sp = cpu.get_sp();
+        current_sp += 4;
+        cpu.set_sp(current_sp);
+    }
+
+    void dec_sp_word_width(ref cortex_m_cpu cpu) {
+        uint current_sp = cpu.get_sp();
+        current_sp -= 4;
+        cpu.set_sp(current_sp);
+    }
+
+    void push(ref cortex_m_cpu cpu, uint val) {
+        dec_sp_word_width(cpu);
+        ram.write_word(cpu.get_sp(), val);
+    }
+
+    uint pop(ref cortex_m_cpu cpu) {
+        uint res = ram.read_word(cpu.get_sp());
+        inc_sp_word_width(cpu);
+        return res;
+    }
+}
+
+struct nrf52840_mem {     
+    ram_mem_section_2     ram;
+    flash_mem_section_2 flash;
+    enum flash_origin  =  0x00000000;
+    enum ram_origin    =  0x20000000;
+    enum flash_length  =  256 * 1024;
+    enum ram_length    =  256 * 1024;
+    static uint stack_base = ram_origin + ram_length;
+    uint[size_t]   peripherals      = null;
+    string[size_t] peripheral_names = null; 
+
+    string get_reg_name(const uint reg_addr) {
+        const uint ise_base     = 0xE000E100;
+        const uint ise_top      = 0xE000E13C;
+        const uint ice_base     = 0xE000E180;
+        const uint ice_top      = 0xE000E1BC;
+        const uint isp_base     = 0xE000E200;
+        const uint isp_top      = 0xE000E23C;
+        const uint iab_base     = 0xE000E300;
+        const uint iab_top      = 0xE000E33C;
+        const uint ipr_base     = 0xE000E400;
+        const uint ipr_top      = 0xE000E5EC;
+        if (reg_addr >= ipr_base && reg_addr <= ipr_top) {
+            return format("NVIC_IPR%d", (reg_addr - ipr_base) / 4);
+        } 
+        if (reg_addr >= ise_base && reg_addr <= ise_top) {
+            return format("NVIC_ISER%d", (reg_addr - ise_base) / 4);
+        }
+        if (reg_addr >= ice_base && reg_addr <= ice_top) {
+            return format("NVIC_ICER%d", (reg_addr - ice_base) / 4);
+        }  
+        if (reg_addr >= isp_base && reg_addr <= isp_top) {
+            return format("NVIC_ISPR%d", (reg_addr - isp_base) / 4);
+        }  
+        return peripheral_names.get(reg_addr, "");
+    }
+
+    unittest {
+        memory mem;
+        auto reg_name = mem.get_reg_name(0xE000E100);
+        assert(reg_name == "NVIC_ISER0", format("reg_name of 0xE000E100 is %s, instead of the expected NVIC_ISER0", reg_name));
+        auto zero_case = mem.get_reg_name(0x0);
+        assert(zero_case == "", format("reg_name of 0xE000E100 is %s, instead of the expected empty string", zero_case));
+    }
+
+    uint read_word(size_t addr, uint pc) {
+        auto f = load_store_log();
+        f.writeln(format("Attempting to access [%08X]", addr));
+        f.flush();
+        uint res;
+        if (addr == 0x08000000) {
+            res = 0x20020000;
+        } else if (addr > ram_origin + ram_length) {
+            if (auto p = addr in peripherals) {
+                res = *p;              
+            } else {
+                throw new Exception("Invalid access");            
+            }
+        } else if (addr >= ram_origin) {
+            res = ram.read_word(addr);
+        } else {
+            res = flash.read_word(addr);
+        }
+        f.writeln(format("%08X: %08X loaded from [%08X]", pc, res, addr));
+        f.flush();
+        return res;
+    }
+
+    void flip_bit(size_t addr, int bit_pos) {
+        if (addr > ram_origin + ram_length) {
+            uint val = peripherals[addr];
+            val ^= (1u << bit_pos);
+            peripherals[addr] = val;
+        }
+    }
+
+    const(ushort) read_half_word(size_t addr) {
+        if (addr >= ram_origin) {
+            return ram.read_half_word(addr);
+        } else {
+            return flash.read_half_word(addr);
+        }
+    }
+
+    void write_half_word(size_t addr, ushort val, uint pc) {
+        auto f = load_store_log();
+        if (addr >= ram_origin) {
+            ram.write_half_word(addr, val);
+        } else {
+            flash.write_half_word(addr, val);
+        }
+        f.writeln(format("%08X: %08X stored to [%08X]", pc, addr, addr));
+        f.flush();
+    }
+
+    const(ubyte) read_byte(size_t addr) {
+        if (addr > ram_origin + ram_length) {
+            if (addr == 0xE000E400) {
+                return 0xf0;
+            }
+            size_t word_addr = addr & ~3;
+            uint shift = (addr & 3) * 8;
+            uint val = peripherals[word_addr];
+            return cast(ubyte)((val >> shift) & 0xff);
+        } 
+        if (addr >= ram_origin) {
+            return ram.read_byte(addr);
+        } else {
+            return flash.read_byte(addr);
+        }
+    }
+
+    void write_word(size_t addr, uint val) {
+        if (addr > ram_origin + ram_length) {
+            if (addr == 0x40023808) {
+                uint cfgr = peripherals[addr];
+                cfgr = val;
+                uint sw = val & 0x3;
+                cfgr &= ~(0x3 << 2);
+                cfgr |= (sw << 2);
+                peripherals[addr] = cfgr;
+            } else if (addr == 0x40023874 && val == 0x1) {
+                peripherals[addr] = 0x3;
+            } else if (addr == 0x40011004 || addr == 0x40004404 || addr == 0x40011404) {
+                auto f = uart_log();
+                f.write(cast(char)(val & 0xff));
+                f.flush();
+            } else if (addr == 0x40020018) { 
+                auto f = gpio_log();
+                if (val & (1 << 5)) {
+                    f.write("GPIOA5 toggled on\n");
+                }
+                if (val & (1 << (5 + 16))) {
+                    f.write("GPIOA5 toggled off\n");
+                }
+                f.flush();
+            } else {
+                peripherals[addr] = val;
+            }
+            return;
         }
         if (addr >= ram_origin) {
             return ram.write_word(addr, val);

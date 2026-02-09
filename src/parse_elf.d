@@ -300,7 +300,7 @@ uint file_offset_to_addr(uint file_offset, load_segment[] segs) {
     throw new Exception("file offset not mapped by any PT_LOAD");
 }
 
-void load_section_into_memory(const ref string filename, const string section_name, ref memory mem) {
+void load_section_into_memory(mem_t)(const ref string filename, const string section_name, ref mem_t mem) {
     auto section = get_section_by_name(filename, section_name);
     if (section.data.length == 0)
         return;
@@ -314,7 +314,7 @@ void load_section_into_memory(const ref string filename, const string section_na
 unittest {
     auto filename = "../test/blinky.elf";
     auto section_name = "device_area";
-    memory mem;
+    stm32f4_mem mem;
     load_section_into_memory(filename, section_name, mem);
     auto actual_data = mem.read_word(0x80039d4, 0);
     assert(actual_data == 0x08004446, 
@@ -324,7 +324,7 @@ unittest {
 unittest {
     auto filename = "../test/blinky.elf";
     auto section_name = "text";
-    memory mem;
+    stm32f4_mem mem;
     load_section_into_memory(filename, section_name, mem);
     auto actual_data_start = mem.read_half_word(0x8000188);
     assert(actual_data_start == 0xb953, 
@@ -337,7 +337,7 @@ unittest {
 unittest {
     auto filename = "../test/button.elf";
     auto section_name = "text";
-    memory mem;
+    stm32f4_mem mem;
     load_section_into_memory(filename, section_name, mem);
     auto actual_data_start = mem.read_half_word(0x8000194);
     assert(actual_data_start == 0xb953, 
@@ -350,7 +350,7 @@ unittest {
 unittest {
     auto filename = "../test/sys_heap.elf";
     auto section_name = "text";
-    memory mem;
+    stm32f4_mem mem;
     load_section_into_memory(filename, section_name, mem);
     auto actual_data_start = mem.read_half_word(0x8003e68);
     assert(actual_data_start == 0x2e09, 
@@ -363,7 +363,7 @@ unittest {
 unittest {
     auto filename = "../test/blinky.elf";
     auto section_name = "rodata";
-    memory mem;
+    stm32f4_mem mem;
     load_section_into_memory(filename, section_name, mem);
     auto actual_data = mem.read_word(0x8003e34, 0);
     assert(actual_data == 0x00000044, 
@@ -415,7 +415,13 @@ string[] stm32_start_up = [
     "register_tm_clones"
 ];
 
-st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_type.all, bool get_all = false, bool get_size = false) {
+enum soc {
+    stm32,
+    nrf,
+    all
+}
+
+st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_type.all, soc mcu, bool get_all = false, bool get_size = false) {
     auto symtab_sec = get_section_by_name(elf_file, ".symtab");
     auto strtab_sec = get_section_by_name(elf_file, ".strtab");
     auto text_sec   = get_section_by_name(elf_file, "text");
@@ -472,8 +478,12 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_typ
             writeln(name, ": ", _st_type.to!string);
 
         if (!get_size) {
-            if (!get_all) { 
-                if ((sym.st_value >= 0x08000000) && (sym.st_value <= 0x20020000)) {
+            if (!get_all) {
+                uint lower_bound;
+                if (mcu == soc.stm32) {
+                    lower_bound = 0x08000000;
+                } 
+                if ((sym.st_value >= lower_bound) && (sym.st_value <= 0x20020000)) {
                     if (name.canFind("uart_cfg")) {
                         items ~= st_name_val(name ~ ".parity",               sym.st_value    );
                         items ~= st_name_val(name ~ ".stop_bits",            sym.st_value + 1);
@@ -924,7 +934,7 @@ unittest {
            format("Actual instr_bytes is [%08X], not the expected 0x8000a90", start_addr));
 }
 
-void load_function_into_memory(const string elf_file, const string func_name, ref memory mem) {
+void load_function_into_memory(mem_t)(const string elf_file, const string func_name, ref mem_t mem) {
     func f = get_function(elf_file, func_name);
     foreach (i; f.instrs) {
         if (i._instr_bytes.length == 4) {
@@ -939,7 +949,7 @@ void load_function_into_memory(const string elf_file, const string func_name, re
     }
 }
 
-void load_function_into_memory(func f, ref memory mem) {
+void load_function_into_memory(mem_t)(func f, ref mem_t mem) {
     foreach (i; f.instrs) {
         if (i._instr_bytes.length == 4) {
             mem.write_half_word(i._addr, i._in_16, 0);
@@ -955,7 +965,7 @@ void load_function_into_memory(func f, ref memory mem) {
 
 unittest {
     auto filename = "../test/blinky.elf";
-    memory mem;
+    stm32f4_mem mem;
     //load_function_into_memory(filename, "char_out", mem);
     auto lit = mem.read_word(0x80004f4, 0);
     //assert(lit == 0x20000000, format("Actual instrs length is %08X, not the expected 0x20000000", lit));
@@ -964,7 +974,7 @@ unittest {
 func[] get_program_from_elf(const string elf_file) {
     bool[uint] pending_literals;
     func[] res;
-    auto f_s = get_st_name_val(elf_file, st_type.stt_func);
+    auto f_s = get_st_name_val(elf_file, st_type.stt_func, soc.all);
     foreach (fn; f_s) {
         auto f = get_function_from_elf(elf_file, fn.name, fn.addr, pending_literals);
         res ~= f; 

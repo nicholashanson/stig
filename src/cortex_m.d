@@ -75,439 +75,6 @@ struct func {
     uint[uint] literal_pool;
 }
 
-string[] bare_metal_func_names = [
-    "SystemInit",
-    "Reset_Handler",
-    "CopyDataInit",
-    "LoopCopyDataInit",
-    "FillZerobss",
-    "LoopFillZerobss",
-    "__libc_init_array",
-    "_init",
-    "register_fini",
-    "atexit",
-    "__register_exitproc",
-    "frame_dummy",
-    "register_tm_clones",
-    "main",
-    "HAL_Init",
-    "HAL_NVIC_SetPriorityGrouping",
-    "__NVIC_SetPriorityGrouping",
-    "HAL_InitTick",
-    "HAL_SYSTICK_Config",
-    "SysTick_Config",
-    "HAL_MspInit",
-    "SystemClock_Config",
-    "memset",
-    "MX_GPIO_Init",
-    "MX_USART1_UART_Init",
-    "HAL_UART_Init",
-    "HAL_UART_MspInit",
-    "HAL_GPIO_Init",
-    "UART_SetConfig",
-    "HAL_RCC_GetPCLK2Freq",
-    "HAL_RCC_GetHCLKFreq",
-    "__aeabi_uldivmod",
-    "__udivmoddi4",
-    "__aeabi_idiv0",
-    "strlen",
-    "HAL_UART_Transmit",
-    "HAL_Delay",
-    "HAL_GetTick",
-    "SysTick_Handler",
-    "HAL_IncTick",
-	"UART_WaitOnFlagUntilTimeout"
-];
-
-string[] freertos_no_task = [
-	"SystemInit",
-    "Reset_Handler",
-    "CopyDataInit",
-    "LoopCopyDataInit",
-    "FillZerobss",
-    "LoopFillZerobss",
-    "__libc_init_array",
-    "_init",
-	"register_fini",
-    "atexit",
-    "__register_exitproc",
-    "frame_dummy",
-    "register_tm_clones",
-    "main",
-    "HAL_Init",
-    "HAL_NVIC_SetPriorityGrouping",
-    "__NVIC_SetPriorityGrouping",
-    "HAL_InitTick",
-    "HAL_SYSTICK_Config",
-    "SysTick_Config",
-    "HAL_MspInit",
-    "SystemClock_Config",
-    "memset",
-    "MX_GPIO_Init",
-    "HAL_RCC_GetClockConfig",
-    "HAL_RCC_GetPCLK1Freq",
-    "HAL_RCC_GetHCLKFreq",
-    "HAL_TIM_Base_Init",
-    "HAL_TIM_Base_MspInit",
-    "TIM_Base_SetConfig",
-    "HAL_TIM_Base_Start_IT",
-    "HAL_NVIC_SetPriority",
-    "__NVIC_GetPriorityGrouping",
-    "NVIC_EncodePriority",
-    "__NVIC_SetPriority",
-    "HAL_NVIC_GetPriorityGrouping",
-    "HAL_RCC_OscConfig",
-    "HAL_RCC_ClockConfig",
-    "HAL_GetTick",
-    "HAL_RCC_GetSysClockFreq",
-    "HAL_GPIO_WritePin",
-    "HAL_GPIO_Init",
-    "osKernelInitialize",
-    "osThreadNew",
-    "xTaskCreate",
-    "pvPortMalloc",
-    "vTaskSuspendAll",
-    "prvHeapInit",
-    "xTaskResumeAll",
-    "vPortEnterCritical",
-    "vPortExitCritical",
-    "HAL_NVIC_EnableIRQ",
-    "__NVIC_EnableIRQ",
-    "prvInsertBlockIntoFreeList",
-    "prvInitialiseNewTask",
-    "vListInitialiseItem",
-    "pxPortInitialiseStack",
-    "prvAddNewTaskToReadyList",
-    "prvInitialiseTaskLists",
-    "vListInitialise",
-    "vListInsertEnd",
-    "osKernelStart",
-    "SVC_Setup",
-    "___NVIC_SetPriority",
-    "vTaskStartScheduler",
-    "vApplicationGetIdleTaskMemory",
-    "xTaskCreateStatic",
-    "xTimerCreateTimerTask",
-    "prvCheckForValidListAndQueue",
-    "xQueueGenericCreateStatic",
-    "prvInitialiseNewQueue",
-    "xQueueGenericReset",
-    "vQueueAddToRegistry",
-    "vApplicationGetTimerTaskMemory",
-    "xPortStartScheduler",
-    "vPortSetupTimerInterrupt",
-    "vPortEnableVFP",
-    "prvPortStartFirstTask",
-    "vTaskSwitchContext",
-    "prvTaskExitError",
-    "HAL_GPIO_TogglePin",
-    "osDelay",
-    "vTaskDelay",
-    "prvAddCurrentTaskToDelayedList",
-    "uxListRemove",
-    "vListInsert",
-
-    "SVC_Handler",
-    "SysTick_Handler",
-    "xTaskGetSchedulerState",
-    "xPortSysTickHandler",
-    "xTaskIncrementTick",
-    "StartDefaultTask"
-];
-
-string[] dsp_func_names = [
-	"SystemInit",
-    "Reset_Handler",
-    "CopyDataInit",
-    "LoopCopyDataInit",
-    "FillZerobss",
-    "LoopFillZerobss",
-    "__libc_init_array",
-    "_init",
-    //"register_fini",
-    //"atexit",
-    //"__register_exitproc",
-    "frame_dummy",
-    //"register_tm_clones",
-    "main",
-    "HAL_Init",
-	"SystemClock_Config",
-	"MX_GPIO_Init",
-	"MX_DMA_Init",
-	"MX_ADC1_Init",
-	"MX_TIM2_Init",
-	"MX_DAC_Init",
-	"HAL_NVIC_SetPriorityGrouping",
-    "__NVIC_SetPriorityGrouping",
-    "HAL_InitTick",
-    "HAL_SYSTICK_Config",
-    "SysTick_Config",
-    "HAL_MspInit",
-    "SystemClock_Config",
-    "memset",
-    "__NVIC_GetPriorityGrouping",
-    //"HAL_RCC_GetClockConfig",
-    //"HAL_RCC_GetPCLK1Freq",
-    //"HAL_RCC_GetHCLKFreq",
-    //"HAL_TIM_Base_Init",
-    "HAL_TIM_Base_MspInit",
-	"TIM_Base_SetConfig",
-	"HAL_TIM_ConfigClockSource",
-    //"HAL_TIM_Base_Start_IT",
-    //"HAL_NVIC_SetPriority",
-    //"__NVIC_GetPriorityGrouping",
-    "NVIC_EncodePriority",
-    "Error_Handler",
-    "__NVIC_SetPriority",
-    //"HAL_NVIC_GetPriorityGrouping",
-    "HAL_RCC_OscConfig",
-    //"HAL_RCC_ClockConfig",
-    "HAL_GetTick",
-    "SysTick_Handler",
-    "HAL_IncTick",
-    "HAL_NVIC_EnableIRQ",
-    "__NVIC_EnableIRQ",
-    "HAL_ADC_Init",
-    //"HAL_RCC_GetSysClockFreq",
-    //"HAL_GPIO_WritePin",
-    "HAL_GPIO_Init",
-    "HAL_RCC_ClockConfig",
-    "HAL_RCC_GetSysClockFreq",
-    "HAL_NVIC_SetPriority",
-    "__aeabi_uldivmod",
-    "__aeabi_idiv0",
-    "HAL_ADC_MspInit",
-    "HAL_DMA_Init",
-    "DMA_CalcBaseAndBitshift",
-    "ADC_Init",
-    "HAL_ADC_ConfigChannel",
-    "HAL_TIM_Base_Init",
-    "HAL_TIMEx_MasterConfigSynchronization",
-    "HAL_DAC_Init",
-    "HAL_DAC_MspInit",
-    "HAL_DAC_ConfigChannel",
-    "__udivmoddi4"
-];
-
-string[] freertos_func_names = [
-	"SystemInit",
-    "Reset_Handler",
-    "CopyDataInit",
-    "LoopCopyDataInit",
-    "FillZerobss",
-    "LoopFillZerobss",
-    "__libc_init_array",
-    "_init",
-    "register_fini",
-    "atexit",
-    "__register_exitproc",
-    "frame_dummy",
-    "register_tm_clones",
-    "main",
-    "HAL_Init",
-    "HAL_NVIC_SetPriorityGrouping",
-    "__NVIC_SetPriorityGrouping",
-    "HAL_InitTick",
-    "HAL_SYSTICK_Config",
-    "SysTick_Config",
-    "HAL_MspInit",
-    "SystemClock_Config",
-    "memset",
-    "MX_GPIO_Init",
-    "HAL_RCC_GetClockConfig",
-    "HAL_RCC_GetPCLK1Freq",
-    "HAL_RCC_GetHCLKFreq",
-    "HAL_TIM_Base_Init",
-    "HAL_TIM_Base_MspInit",
-    "TIM_Base_SetConfig",
-    "HAL_TIM_Base_Start_IT",
-    "HAL_NVIC_SetPriority",
-    "__NVIC_GetPriorityGrouping",
-    "NVIC_EncodePriority",
-    "__NVIC_SetPriority",
-    "HAL_NVIC_GetPriorityGrouping",
-    "HAL_RCC_OscConfig",
-    "HAL_RCC_ClockConfig",
-    "HAL_GetTick",
-    "HAL_RCC_GetSysClockFreq",
-    "HAL_GPIO_WritePin",
-    "HAL_GPIO_Init",
-    "osKernelInitialize",
-    "osThreadNew",
-    "xTaskCreate",
-    "pvPortMalloc",
-    "vTaskSuspendAll",
-    "prvHeapInit",
-    "xTaskResumeAll",
-    "vPortEnterCritical",
-    "vPortExitCritical",
-    "HAL_NVIC_EnableIRQ",
-    "__NVIC_EnableIRQ",
-    "prvInsertBlockIntoFreeList",
-    "prvInitialiseNewTask",
-    "vListInitialiseItem",
-    "pxPortInitialiseStack",
-    "prvAddNewTaskToReadyList",
-    "prvInitialiseTaskLists",
-    "vListInitialise",
-    "vListInsertEnd",
-    "osKernelStart",
-    "SVC_Setup",
-    "___NVIC_SetPriority",
-    "vTaskStartScheduler",
-    "vApplicationGetIdleTaskMemory",
-    "xTaskCreateStatic",
-    "xTimerCreateTimerTask",
-    "prvCheckForValidListAndQueue",
-    "xQueueGenericCreateStatic",
-    "prvInitialiseNewQueue",
-    "xQueueGenericReset",
-    "vQueueAddToRegistry",
-    "vApplicationGetTimerTaskMemory",
-    "xPortStartScheduler",
-    "vPortSetupTimerInterrupt",
-    "vPortEnableVFP",
-    "prvPortStartFirstTask",
-    "SVC_Handler",
-    "vTaskSwitchContext",
-    "prvTaskExitError",
-    "LedTask2",
-    "HAL_GPIO_TogglePin",
-    "osDelay",
-    "vTaskDelay",
-    "prvAddCurrentTaskToDelayedList",
-    "uxListRemove",
-    "vListInsert",
-    "SysTick_Handler",
-    "xTaskGetSchedulerState",
-    "xPortSysTickHandler",
-    "xTaskIncrementTick"
-];
-
-string[] zephyr_func_names = [
-	"__start",
-	"z_prep_c",
-	"relocate_vector_table",
-	"arch_bss_zero",
-	"arch_early_memset",
-	"memset",
-	"arch_data_copy",
-	"arch_early_memcpy",
-	"memcpy",
-	"z_arm_interrupt_init",
-	"z_cstart",
-	"z_sys_init_run_level",
-	"z_arm_fault_init",
-	"z_arm_cpu_idle_init",
-	"z_arm_mpu_init",
-	"arm_core_mpu_disable",
-	"mem_attr_get_regions",
-	"arm_core_mpu_enable",
-	"z_arm_configure_static_mpu_regions",
-	"arm_core_mpu_configure_static_mpu_regions",
-	"mpu_configure_regions",
-	"z_dummy_thread_init",
-	"soc_early_init_hook",
-	"z_sched_init",
-	"z_setup_new_thread",
-	//"arch_tls_stack_setup",
-	"arch_new_thread",
-	"z_ready_thread",
-	"ready_thread",
-	"z_reset_time_slice",
-	"z_abort_timeout",
-	"first",
-	"remove_timeout",
-	"thread_is_sliceable",
-	"z_init_cpu",
-	"arch_switch_to_main_thread",
-	"z_arm_configure_dynamic_mpu_regions",
-	"arm_core_mpu_configure_dynamic_mpu_regions",
-	"size_to_mpu_rasr_size",
-	"arch_irq_unlock_outlined",
-	"z_thread_entry",
-	"z_impl_k_sched_current_thread_query",
-	//"__aeabi_read_tp",
-	"bg_thread_main",
-	"boot_banner",
-	"printk",
-	"vprintk",
-	"__l_vfprintf",
-	"region_init",
-	"sys_clock_isr",
-	"elapsed",
-	"sys_clock_announce",
-	"next_timeout",
-	"sys_clock_set_timeout",
-	"z_time_slice",
-	"k_sched_lock",
-	"z_add_timeout",
-	"_elapsed",
-	"sys_clock_elapsed",
-	"do_device_init",
-	"st_stm32_common_config",
-	"gpio_stm32_init",
-	"z_impl_device_is_ready",
-	"stm32_clock_control_on",
-	"stm32_exti_gpio_intc_init",
-	"stm32_fill_irq_table",
-	"arm_irq_priority_set",
-	"malloc_prepare",
-	"sys_heap_init",
-	"free_list_add",
-	"chunk_size",
-	"char_out",
-	"arch_printk_char_out",
-	"k_sched_unlock",
-	"z_reschedule_irqlock",
-	"main",
-	"gpio_stm32_config",
-	"gpio_stm32_configure_raw.isra.0",
-	"z_impl_k_thread_abort",
-	"z_thread_abort",
-	"arch_coprocessors_disable",
-	"z_swap_irqlock",
-	"stm32_clock_control_init",
-	"config_enable_default_clocks",
-	"config_regulator_voltage",
-	"HAL_RCC_GetSysClockFreq",
-	"z_arm_exc_exit",
-	"config_pll_sysclock",
-	"config_plli2s",
-	"LL_SetFlashLatency",
-	"stm32_exti_init",
-	"_ConfigAbsSyms", // t
-	"z_arm_svc",
-	"z_do_kernel_oops",
-	"z_arm_fatal_error",
-	"z_fatal_error",
-	"k_sys_fatal_error_handler",
-	"arch_system_halt",
-	"uart_stm32_init",
-	"pinctrl_lookup_state",
-	"pinctrl_configure_pins",
-	"gpio_stm32_configure",
-	"reset_stm32_line_toggle",
-	"reset_stm32_line_assert",
-	"reset_stm32_line_deassert",
-	"uart_stm32_parameters_set",
-	"uart_stm32_set_baudrate",
-	"stm32_clock_control_get_subsys_rate",
-	"__aeabi_uldivmod",
-	"__udivmoddi4",
-	"uart_console_init",
-	"__stdout_hook_install",
-	"__printk_hook_install",
-	"sys_clock_driver_init",
-	"console_out",
-	"uart_stm32_poll_out",
-	"k_msleep.isra.0",
-	"z_impl_k_sleep",
-	"z_tick_sleep",
-	"unready_thread",
-	"sys_dlist_remove"
-];
-
 struct imm {
 	int value;
 }
@@ -1992,11 +1559,11 @@ string get_operands(string line) {
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
     cortex_m_vm vm;
-    vm.cpu.set_sp(memory.stack_base);
+    vm.cpu.set_sp(stm32f4_mem.stack_base);
     vm.mem.push(vm.cpu, 32);
     int val = vm.mem.pop(vm.cpu);
     assert(val == 32);
-    assert(vm.cpu.get_sp() == memory.stack_base);
+    assert(vm.cpu.get_sp() == stm32f4_mem.stack_base);
 }
 
 // =================
@@ -2059,7 +1626,7 @@ void execute_add_imm_8(instr_16 add_imm_8_instr, ref cortex_m_cpu cpu) {
 //  Execute STR(Immediate)
 // ========================
 
-void execute_str_imm(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_str_imm(mem_t)(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = load_store_log();
 	uint rt = cpu.get(str_imm_instr.rt);
 	uint rn = cpu.get(str_imm_instr.rn);
@@ -2071,7 +1638,7 @@ void execute_str_imm(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref memory me
 	cpu.increment_pc(2);
 }
 
-void execute_str_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_str_sp(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint rt = cpu.get(instr.rt);
 	size_t addr   = cpu.get_sp() + instr.imm;
 	mem.write_word(addr, rt);
@@ -2082,7 +1649,7 @@ void execute_str_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute LDR
 // =============
 
-void execute_ldr_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_imm(mem_t)(const instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const int    rn   = cpu.get(instr.rn);
 	const size_t addr = rn + instr.imm;
 	const uint   data = mem.read_word(addr, cpu.pc);
@@ -2090,7 +1657,7 @@ void execute_ldr_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem)
 	cpu.increment_pc(2);
 }
 
-void execute_ldr_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_sp(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   sp   = cpu.get_sp();
 	const size_t addr = sp + instr.imm;
 	const uint   data = mem.read_word(addr, cpu.pc);
@@ -2102,7 +1669,7 @@ void execute_ldr_sp(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute STRH
 // ==============
 
-void execute_strh_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_strh_imm(mem_t)(const instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   rt     = cpu.get(instr.rt);
 	const uint   rn     = cpu.get(instr.rn);
 	const size_t addr   = rn + instr.imm;
@@ -2116,7 +1683,7 @@ void execute_strh_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem
 //  Execute LDRH
 // ==============
 
-void execute_ldrh_imm(instr_16 ldrh_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldrh_imm(mem_t)(instr_16 ldrh_imm_instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = load_store_log();
 	int rt = cpu.get(ldrh_imm_instr.rt);
 	int rn = cpu.get(ldrh_imm_instr.rn);
@@ -2133,7 +1700,7 @@ void execute_ldrh_imm(instr_16 ldrh_imm_instr, ref cortex_m_cpu cpu, ref memory 
 //  Execute LDRB
 // ==============
 
-void execute_ldrb_imm(instr_16 ldrb_imm_instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldrb_imm(mem_t)(instr_16 ldrb_imm_instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = load_store_log();
 	int rt = cpu.get(ldrb_imm_instr.rt);
 	int rn = cpu.get(ldrb_imm_instr.rn);
@@ -2150,7 +1717,7 @@ void execute_ldrb_imm(instr_16 ldrb_imm_instr, ref cortex_m_cpu cpu, ref memory 
 //  Execute STRB
 // ==============
 
-void execute_strb_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_strb_imm(mem_t)(const instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   rt   = cpu.get(instr.rt);
 	const uint   rn   = cpu.get(instr.rn);
 	const size_t addr = rn + instr.imm;
@@ -2159,7 +1726,7 @@ void execute_strb_imm(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem
 	cpu.increment_pc(2);
 }
 
-void execute_strb_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_strb_reg(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   rt   = cpu.get(instr.rt);
 	const uint   rn   = cpu.get(instr.rn);
 	const uint   rm   = cpu.get(instr.rm);
@@ -2173,7 +1740,7 @@ void execute_strb_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute LDR POOL
 // ==================
 
-void execute_ldr_pool(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_pool(mem_t)(const instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	uint base = cpu.get(reg.pc) + 4;
 	base     &= ~0x3;   
 	const uint addr = base + instr.imm;
@@ -2186,9 +1753,9 @@ void execute_ldr_pool(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem
 //  Execute BX
 // ============
 
-void execute_bx(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_bx(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	int rm = cpu.get(instr.rm);
-	if ((rm & 0xff000000) == 0xff000000) {
+	if ((rm & 0xff00_0000) == 0xff00_0000) {
         exception_return(cpu, mem, rm);
         return;
     }
@@ -2215,7 +1782,7 @@ void execute_uxth(instr_16 instr, ref cortex_m_cpu cpu) {
 	cpu.increment_pc(2);
 }
 
-void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_svc(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	cpu.increment_pc(2);
 	if (cpu.current_exception == exception.thread_mode) {
 		auto f = stack_log();
@@ -2242,7 +1809,7 @@ void execute_svc(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.set(reg.pc, pc);
 }
 
-void execute_syc_tick(ref cortex_m_cpu cpu, ref memory mem) {
+void execute_syc_tick(mem_t)(ref cortex_m_cpu cpu, ref mem_t mem) {
 	if (cpu.current_exception == exception.thread_mode) {
 		auto f = stack_log();
 		f.writeln("Pushing in SysTick");
@@ -2365,7 +1932,8 @@ void execute_add_sp(instr_16 instr, ref cortex_m_cpu cpu) {
 //  Execute LDRB REG
 // ==================
 
-void execute_ldrb_reg(instr_16 ldrb_reg_instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldrb_reg(mem_t)
+(instr_16 ldrb_reg_instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = load_store_log();
 	size_t addr = cpu.get(ldrb_reg_instr.rn) + cpu.get(ldrb_reg_instr.rm);
 	f.writeln(format("Attempting to access [%08X]", addr));
@@ -2440,7 +2008,7 @@ void execute_mov_high_2(instr_16 mov_high_2_instr, ref cortex_m_cpu cpu) {
 //  Execute LDR REG
 // =================
 
-void execute_ldr_reg(const instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_reg(mem_t)(const instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   rn   = cpu.get(instr.rn);
 	const uint   rm   = cpu.get(instr.rm);
 	const size_t addr = rn + rm;
@@ -2510,7 +2078,7 @@ void execute_b_imm_11(instr_16 instr, ref cortex_m_cpu cpu) {
 //  Execute STR(Register)
 // =======================
 
-void execute_str_reg(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_str_reg(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = load_store_log();
 	size_t addr = cpu.get(instr.rn) + cpu.get(instr.rm);
 	int data = cpu.get(instr.rt);
@@ -2647,7 +2215,7 @@ void execute_instr(instr_16 instr, ref cortex_m_cpu cpu) {
 	}
 }
 
-void execute_load_store(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_load_store(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	if (!cpu.it_block_stack.empty) {
 		auto f = load_store_log();
 		condition active_cond = cpu.it_block_stack.back;
@@ -2754,7 +2322,7 @@ unittest {
 ram_mem_section make_ram_with(size_t index, uint value)
 {
     ram_mem_section r;
-    r.write_word(memory.ram_origin + index, value);
+    r.write_word(stm32f4_mem.ram_origin + index, value);
     return r;
 }
 
@@ -2772,7 +2340,7 @@ ram_mem_section make_ram_with(size_t[] indices, uint[] values)
 flash_mem_section make_flash_with(size_t index, uint value)
 {
     flash_mem_section f;
-    f.write_word(memory.flash_origin + index, value);
+    f.write_word(stm32f4_mem.flash_origin + index, value);
     return f;
 }
 
@@ -2790,8 +2358,8 @@ unittest {
 		instr_16 instr;
 		cortex_m_cpu before;
 		cortex_m_cpu expected;
-		memory mem_before;
-		memory mem_after;
+		stm32f4_mem mem_before;
+		stm32f4_mem mem_after;
 	}
 
 	test_case[] tests = [
@@ -2971,32 +2539,32 @@ unittest {
 			      	  instr_16(op: opcode.bx,            rm: reg.r3),
 			      	  cortex_m_cpu(r3: 0, pc: 10),
 				  	  cortex_m_cpu(r3: 0, pc:  0),
-				  	  memory(),
-				      memory()),
+				  	  stm32f4_mem(),
+				      stm32f4_mem()),
 		test_case_mem(0x608b, 
 			          instr_16(op: opcode.str_imm,       rt: reg.r3,  rn: reg.r1, imm: 8),
-			          cortex_m_cpu(r3: 0b0101, r1: memory.ram_origin + 12),
-			          cortex_m_cpu(pc: 2, r3: 0b0101, r1: memory.ram_origin + 12),
-			          memory(ram: make_ram_with(20, 0)),
-			          memory(ram: make_ram_with(20, 0b0101))),
+			          cortex_m_cpu(r3: 0b0101, r1: stm32f4_mem.ram_origin + 12),
+			          cortex_m_cpu(pc: 2, r3: 0b0101, r1: stm32f4_mem.ram_origin + 12),
+			          stm32f4_mem(ram: make_ram_with(20, 0)),
+			          stm32f4_mem(ram: make_ram_with(20, 0b0101))),
 		test_case_mem(0x50c4, // str	r4, [r0, r3]
 				      instr_16(op: opcode.str_reg, 	     rt: reg.r4,  rn: reg.r0, rm: reg.r3),
-					  cortex_m_cpu(r4: 0xffffffff, r3: 10, r0: memory.ram_origin),
-					  cortex_m_cpu(r4: 0xffffffff, pc: 2, r3: 10, r0: memory.ram_origin),
-					  memory(),
-					  memory(ram: make_ram_with(10, 0xffffffff))),
+					  cortex_m_cpu(r4: 0xffffffff, r3: 10, r0: stm32f4_mem.ram_origin),
+					  cortex_m_cpu(r4: 0xffffffff, pc: 2, r3: 10, r0: stm32f4_mem.ram_origin),
+					  stm32f4_mem(),
+					  stm32f4_mem(ram: make_ram_with(10, 0xffffffff))),
 		test_case_mem(0x80fb, 
 			          instr_16(op: opcode.strh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6),
-			          cortex_m_cpu(r3: 0x0000eeee, r7: memory.ram_origin + 10),
-			          cortex_m_cpu(pc: 2, r3: 0x0000eeee, r7: memory.ram_origin + 10),
-			          memory(ram: make_ram_with(16, 0xffffffff)),
-			          memory(ram: make_ram_with(16, 0xffffeeee))),
+			          cortex_m_cpu(r3: 0x0000eeee, r7: stm32f4_mem.ram_origin + 10),
+			          cortex_m_cpu(pc: 2, r3: 0x0000eeee, r7: stm32f4_mem.ram_origin + 10),
+			          stm32f4_mem(ram: make_ram_with(16, 0xffffffff)),
+			          stm32f4_mem(ram: make_ram_with(16, 0xffffeeee))),
 		test_case_mem(0x88fb, 
 			          instr_16(op: opcode.ldrh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6),
-			          cortex_m_cpu(r3: 0xffffffff, r7: memory.ram_origin + 10),
-			          cortex_m_cpu(pc: 2, r3: 0xffffeeee, r7: memory.ram_origin + 10),
-			          memory(ram: make_ram_with(16, 0x0000eeee)),
-			          memory(ram: make_ram_with(16, 0x0000eeee))),
+			          cortex_m_cpu(r3: 0xffffffff, r7: stm32f4_mem.ram_origin + 10),
+			          cortex_m_cpu(pc: 2, r3: 0xffffeeee, r7: stm32f4_mem.ram_origin + 10),
+			          stm32f4_mem(ram: make_ram_with(16, 0x0000eeee)),
+			          stm32f4_mem(ram: make_ram_with(16, 0x0000eeee))),
 		/*
 		test_case_mem(0x781a, 
 					  instr_16(op: opcode.ldrb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0),
@@ -3007,35 +2575,35 @@ unittest {
 		*/
 		test_case_mem(0x701a, 
 				      instr_16(op: opcode.strb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0),
-				      cortex_m_cpu(r2: 0x000000ee, r3: memory.ram_origin + 10),
-			          cortex_m_cpu(pc: 2, r2: 0x000000ee, r3: memory.ram_origin + 10),
-			          memory(ram: make_ram_with(10, 0xffffffff)),
-			          memory(ram: make_ram_with(10, 0xffffffee))),
+				      cortex_m_cpu(r2: 0x000000ee, r3: stm32f4_mem.ram_origin + 10),
+			          cortex_m_cpu(pc: 2, r2: 0x000000ee, r3: stm32f4_mem.ram_origin + 10),
+			          stm32f4_mem(ram: make_ram_with(10, 0xffffffff)),
+			          stm32f4_mem(ram: make_ram_with(10, 0xffffffee))),
 		test_case_mem(0x68fb, 
 					  instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 12),
-					  cortex_m_cpu(r3: 0x000000ff, r7: memory.ram_origin + 10),
-			          cortex_m_cpu(pc: 2, r3: 0x000000ee, r7: memory.ram_origin + 10),
-			          memory(ram: make_ram_with(22, 0x000000ee)),
-			          memory(ram: make_ram_with(22, 0x000000ee))),
+					  cortex_m_cpu(r3: 0x000000ff, r7: stm32f4_mem.ram_origin + 10),
+			          cortex_m_cpu(pc: 2, r3: 0x000000ee, r7: stm32f4_mem.ram_origin + 10),
+			          stm32f4_mem(ram: make_ram_with(22, 0x000000ee)),
+			          stm32f4_mem(ram: make_ram_with(22, 0x000000ee))),
 		test_case_mem(0x68fb, 
 					  instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 0x30),
 					  cortex_m_cpu(r7: 0x40023800),
 			          cortex_m_cpu(pc: 2, r7: 0x40023800),
-			          memory(),
-			          memory()),
+			          stm32f4_mem(),
+			          stm32f4_mem()),
 		test_case_mem(0x4803, 
 					  // 80091a0:	4803      	ldr	r0, [pc, #12]	@ (80091b0 <stdio_exit_handler+0x14>)
 					  instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 12),
 					  cortex_m_cpu(r0: 0x000000ff, pc: 0x80091a0),
 			          cortex_m_cpu(r0: 0x000000ee, pc: 0x80091a2),
-			          memory(flash: make_flash_with(0x80091b0 - memory.flash_origin, 0x000000ee)),
-			          memory(flash: make_flash_with(0x80091b0 - memory.flash_origin, 0x000000ee))),
+			          stm32f4_mem(flash: make_flash_with(0x80091b0 - stm32f4_mem.flash_origin, 0x000000ee)),
+			          stm32f4_mem(flash: make_flash_with(0x80091b0 - stm32f4_mem.flash_origin, 0x000000ee))),
 		test_case_mem(0xb510, 
 			      	  instr_16(op: opcode.push, reg_list: [reg.r4, reg.lr]),
-			      	  cortex_m_cpu(msp: memory.stack_base, lr: 0x000000ff, r4: 0x000000ee),
-			          cortex_m_cpu(pc: 2, msp: memory.stack_base-8, lr: 0x000000ff, r4: 0x000000ee),
-			          memory(),
-			          memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
+			      	  cortex_m_cpu(msp: stm32f4_mem.stack_base, lr: 0x000000ff, r4: 0x000000ee),
+			          cortex_m_cpu(pc: 2, msp: stm32f4_mem.stack_base-8, lr: 0x000000ff, r4: 0x000000ee),
+			          stm32f4_mem(),
+			          stm32f4_mem(ram: make_ram_with([stm32f4_mem.stack_base-4, stm32f4_mem.stack_base-8],
 			          							[0x000000ff, 0x000000ee]))),
 		/*
 		test_case_mem(0xbd10, 
@@ -3048,16 +2616,16 @@ unittest {
 		*/
 		test_case_mem(0x5cd3, 
 			      	  instr_16(op: opcode.ldrb_reg,      rt: reg.r3,  rn: reg.r2, rm: reg.r3),
-			          cortex_m_cpu(r2: memory.ram_origin + 10, r3: 10),
-				      cortex_m_cpu(pc: 2, r3: 0x000000ee, r2: memory.ram_origin + 10),
-				      memory(ram: make_ram_with(20, 0xffffffee)),
-				      memory(ram: make_ram_with(20, 0xffffffee))),
+			          cortex_m_cpu(r2: stm32f4_mem.ram_origin + 10, r3: 10),
+				      cortex_m_cpu(pc: 2, r3: 0x000000ee, r2: stm32f4_mem.ram_origin + 10),
+				      stm32f4_mem(ram: make_ram_with(20, 0xffffffee)),
+				      stm32f4_mem(ram: make_ram_with(20, 0xffffffee))),
 		test_case_mem(0x58fb, 
 			          instr_16(op: opcode.ldr_reg,	     rt: reg.r3,  rn: reg.r7, rm: reg.r3),
-			          cortex_m_cpu(r3:         10, r7: memory.ram_origin + 10),
-			          cortex_m_cpu(pc: 2, r3: 0xffffffee, r7: memory.ram_origin + 10),
-			          memory(ram: make_ram_with(20, 0xffffffee)),
-				      memory(ram: make_ram_with(20, 0xffffffee))),
+			          cortex_m_cpu(r3:         10, r7: stm32f4_mem.ram_origin + 10),
+			          cortex_m_cpu(pc: 2, r3: 0xffffffee, r7: stm32f4_mem.ram_origin + 10),
+			          stm32f4_mem(ram: make_ram_with(20, 0xffffffee)),
+				      stm32f4_mem(ram: make_ram_with(20, 0xffffffee))),
 		/*
 		test_case_mem(0x6013, 
 			          instr_16(op: opcode.str_imm,	     rt: reg.r3,  rn: reg.r2, imm: 0),
@@ -4328,7 +3896,7 @@ instr_32 parse_cmp_imm_32(uint instr) {
 	First Half-Word: [15:4] 111110011011, [3:0] Rn
 	Second Half-Word: [15:12] Rt, [11:0] imm12
 */
-instr_32 parse_ldh_32(uint instr) {
+instr_32 parse_ldh_32(const uint instr) {
 	instr_32 res;
 	res.op = opcode.ldh_32;
 	const ubyte imm_12 = cast(ubyte)(instr         & 0xfff);
@@ -5084,8 +4652,7 @@ void execute_nop_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre POP MULT REG
 // =======================
 
-void execute_pop_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
-	import std.algorithm : sort;
+void execute_pop_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = stack_log();
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a < cast(int)b);
@@ -5111,7 +4678,7 @@ void execute_pop_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Executre STMIA
 // ================
 
-void execute_stmia_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_stmia_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	import std.algorithm : sort;
 	auto regs = instr.reg_list.dup; 
 	auto f = load_store_log();
@@ -5317,7 +4884,7 @@ void execute_mov_16_imm_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Executre LDRSB
 // ================
 
-void execute_ldrsb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldrsb_imm_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	size_t addr = cpu.get(instr.rn) + instr.imm;
 	byte val = cast(byte)mem.read_byte(addr);
 	cpu.set(instr.rt, cast(int)val);	
@@ -5328,7 +4895,7 @@ void execute_ldrsb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) 
 //  Execute STR(Register)
 // =======================
 
-void execute_str_reg_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_str_reg_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	int offset = shift(instr.shift_t, instr.shift_n, cpu.get(instr.rm));
 	auto f = load_store_log();
 	size_t addr = cpu.get(instr.rn) + offset;
@@ -5369,7 +4936,7 @@ void execute_umull_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute STRD(Immediate)
 // =========================
 
-void execute_strd_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_strd_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = load_store_log();
 	uint offset;
 	if (instr.add) {
@@ -5397,7 +4964,7 @@ void execute_strd_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Executre PUSH MULT REG
 // ========================
 
-void execute_push_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_push_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = stack_log();
 	import std.algorithm : sort;
 	auto regs = instr.reg_list.dup;
@@ -5444,7 +5011,7 @@ void execute_sub_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute STREX
 // ===============
 
-void execute_strex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_strex(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	size_t addr = cpu.get(instr.rn);
 	addr += instr.imm;
 	mem.write_word(addr, cpu.get(instr.rt));
@@ -5456,7 +5023,7 @@ void execute_strex(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute STR(Immediate)
 // ========================
 
-void execute_str_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_str_imm_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	size_t offset_addr; 
 	uint rn = cpu.get(instr.rn);
 	auto f = load_store_log();
@@ -5477,7 +5044,7 @@ void execute_str_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 	cpu.increment_pc(4);
 }
 
-void execute_strh_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_strh_imm_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	size_t offset_addr; 
 	uint rn = cpu.get(instr.rn);
 	auto f = load_store_log();
@@ -5499,7 +5066,7 @@ void execute_strh_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute STRB(Immediate)
 // =========================
 
-void execute_strb_imm_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_strb_imm_32(mem_t)(const instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   rn   = cpu.get(instr.rn);
 	size_t       offset_addr;
 	offset_addr       = instr.add   ? rn + instr.imm : rn - instr.imm;
@@ -5568,7 +5135,7 @@ void execute_sel_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute LDRH
 // ==============
 
-void execute_ldrh_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldrh_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	size_t addr = cpu.get(instr.rn);
 	addr += instr.imm;
 	ushort val = mem.read_half_word(addr);
@@ -5619,7 +5186,7 @@ void execute_and_reg_32(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute LDR(Literal)
 // ======================
 
-void execute_ldr_lit_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_lit_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	size_t addr;
 	uint pc = cpu.get(reg.pc);
 	pc      = ((pc + 4) & ~3);
@@ -5634,7 +5201,7 @@ void execute_ldr_lit_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
 //  Execute LDRD(Immediate)
 // =========================
 
-void execute_ldrd_imm_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldrd_imm_32(mem_t)(const instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	size_t       offset_addr;
 	const uint   rn    = cpu.get(instr.rn);
 	offset_addr        = instr.add   ? rn + instr.imm : rn - instr.imm;
@@ -5653,7 +5220,7 @@ void execute_ldrd_imm_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory 
 //  Execute LDR(Register)
 // =======================
 
-void execute_ldr_reg_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_reg_32(mem_t)(const instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   rn      = cpu.get(instr.rn);
 	const uint   rm      = cpu.get(instr.rm);
 	const int    shifted = shift(instr.shift_t, instr.shift_n, rm);
@@ -5663,7 +5230,7 @@ void execute_ldr_reg_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory m
 	cpu.increment_pc(4);
 }
 
-void execute_ldrb_imm_32(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldrb_imm_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = load_store_log();
 	uint rn = cpu.get(instr.rn);
 	size_t offset_addr;
@@ -5803,7 +5370,7 @@ void execute_mov_imm_32_t2(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute LDR(Immediate)
 // ========================
 
-void execute_ldr_imm_32(const instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_ldr_imm_32(mem_t)(const instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint rn          = cpu.get(instr.rn);
 	size_t     offset_addr = rn;
 	instr.add ? (offset_addr += instr.imm) : (offset_addr -= instr.imm);
@@ -5988,7 +5555,7 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 //  Execute Load Store
 // ====================
 
-void execute_load_store(instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_load_store(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	if (!cpu.it_block_stack.empty) {
 		condition active_cond = cpu.it_block_stack.back;
 		cpu.it_block_stack.removeBack();
@@ -6061,8 +5628,8 @@ unittest {
 		instr_32 instr;
 		cortex_m_cpu before;
 		cortex_m_cpu expected;
-		memory mem_before;
-		memory mem_after;
+		stm32f4_mem mem_before;
+		stm32f4_mem mem_after;
 	}
 
 	test_case[] tests = [
@@ -6351,10 +5918,10 @@ string[opcode] opcode_strings = [
 	opcode.nop_32: 				   "nop.w",
 	opcode.orr_imm_32:			   "orr.w",
 	opcode.orr_reg_32: 			   "orr.w",
-	opcode.pop: 			 "pop",
-	opcode.pop_32: "ldmia.w sp!,",
-	opcode.push: 			"push",
-	opcode.push_32: 		"push",
+	opcode.pop: 			 		 "pop",
+	opcode.pop_32: 			"ldmia.w sp!,",
+	opcode.push: 					"push",
+	opcode.push_32: 				"push",
 	opcode.rev: 					 "rev",
 	opcode.rsb_imm_32: 				 "rsb",
 	opcode.sbc_reg_32: 			   "sbc.w",
@@ -6618,293 +6185,6 @@ unittest {
     }
 }
 
-string extract_angle_brackets(string s) {
-    auto start = s.indexOf('<');
-    auto end = s.indexOf('>');
-    if (start != -1 && end != -1 && end > start) {
-        return s[start + 1 .. end];
-    }
-    return "";
-}
-
-string get_function_str(string file_name, string function_name) {
-    File file;
-    try {
-        file = File(file_name, "r");
-    } catch (Exception e) {
-        writeln("Error opening file: ", e.msg);
-        return "";
-    }
-    auto lines = file.byLineCopy.array;
-    ptrdiff_t start = -1;
-    foreach (i, line; lines) {
-        string to_find = format("<%s>", function_name);
-        if (line.canFind(to_find) && line.front == '0') {
-            start = i;
-            break;
-        }
-    }
-    if (start == -1) {
-        return "";
-    }
-    ptrdiff_t end = start + 1;
-    while (end < lines.length && lines[end].strip.length > 0) {
-        ++end;
-    }
-    return lines[start .. end].join("\n");
-}
-
-func get_function(string file_name, string function_name) {
-    string f_s = get_function_str(file_name, function_name);
-    auto lines = f_s.splitLines();
-    func f;
-    f.name = extract_angle_brackets(lines[0]);
-
-    foreach(line; lines[1..$]) {
-        line = line.strip();
-        if (line.length == 0) continue;
-        if (line.canFind(".word")) continue;
-        if (line.canFind(".byte")) continue;
-        auto parts = split(line, ":");
-        if (parts.length < 2) continue;
-        auto addr_str = parts[0].strip();
-
-        string addr_str_clean = addr_str.startsWith("0x") ? addr_str[2..$] : addr_str;
-        uint addr = parse!uint(addr_str_clean, 16);
-
-        auto rest = parts[1].strip();
-        auto bytes_part = rest.split("\t")[0].replace(" ", "");
-        f.instrs ~= addr_instr(addr, bytes_part);        
-    }
-    return f;
-}
-
-struct FunctionWithLine {
-    func f;
-    size_t line_number;
-}
-
-FunctionWithLine get_next_function(string file_name, size_t line_number) {
-    import std.file : readText;
-    import std.string : strip, splitLines;
-    import std.exception : enforce;
-
-    auto lines = readText(file_name).splitLines();
-
-    foreach (i, line; lines[line_number .. $]) {
-        line = line.strip();
-        if (line.canFind("device_area") ||
-        	line.canFind("rodata") ||
-        	line.canFind("datas") ||
-        	line.canFind("initlevel") ||
-        	line.canFind("sw_isr_table") ||
-        	line.canFind("gpio_driver_api_area") ||
-        	line.canFind("reset_driver_api_area") ||
-        	line.canFind("clock_control_driver_api_area") ||
-        	line.canFind("uart_driver_api_area")) {
-        	continue;
-        }
-
-        if (line.length > 0 && line[0] == '0' && line.canFind("<") && line.canFind(">") && line.endsWith(":")) {
-            auto start = line.indexOf("<") + 1;
-            auto end = line.indexOf(">");
-            if (start >= 0 && end > start) {
-                string func_name = line[start .. end];
-                auto f = get_function(file_name, func_name);
-                return FunctionWithLine(f, line_number + i); 
-            }
-        }
-    }
-
-    enforce(false, "No next function found after line "~to!string(line_number));
-    assert(0);
-}
-
-func[] get_all_functions(string file_name) {
-    func[] all_funcs;
-    size_t line_number = 0;
-
-    while (true) {
-        bool done = false;
-        try {
-            auto fwl = get_next_function(file_name, line_number);
-            all_funcs ~= fwl.f;
-            line_number = fwl.line_number + 1;
-        } catch (Exception e) {
-            done = true;
-        }
-
-        if (done) break;
-    }
-
-    return all_funcs;
-}
-
-immutable reset_handler =
-    "0800a18c <Reset_Handler>:\n"
-  ~ " 800a18c:	f8df d034 	ldr.w	sp, [pc, #52]	@ 800a1c4 <LoopFillZerobss+0xe>\n"
-  ~ " 800a190:	f7f6 f89c 	bl	80002cc <SystemInit>\n"
-  ~ " 800a194:	480c      	ldr	r0, [pc, #48]	@ (800a1c8 <LoopFillZerobss+0x12>)\n"
-  ~ " 800a196:	490d      	ldr	r1, [pc, #52]	@ (800a1cc <LoopFillZerobss+0x16>)\n"
-  ~ " 800a198:	4a0d      	ldr	r2, [pc, #52]	@ (800a1d0 <LoopFillZerobss+0x1a>)\n"
-  ~ " 800a19a:	2300      	movs	r3, #0\n"
-  ~ " 800a19c:	e002      	b.n	800a1a4 <LoopCopyDataInit>";
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
-	string actual = get_function_str("../test/cortex_m_asm.txt", "Reset_Handler");
-	auto bytesExpected = cast(ubyte[]) reset_handler;
-	auto bytesGot = cast(ubyte[]) actual;
-	writeln(bytesExpected);
-	writeln(bytesGot);
-	assert(actual == reset_handler,
-		   format("Failed, got '%s'", actual));
-}
-
-struct table {
-	string name;
-	data[] data_arr;
-}
-
-struct data {
-	uint addr_;
-	uint data_;
-}
-
-table get_data(string file_name, string table_name) {
-	string f_s = get_function_str(file_name, table_name);
-	auto lines = f_s.splitLines();
-    table t;
-    t.name = extract_angle_brackets(lines[0]);
-
-    foreach(line; lines[1..$]) {
-        data d;
-        line = line.strip();
-        if (line.length == 0) continue;
-        if (line.canFind(".word")) continue;
-        if (line.canFind(".byte")) continue;
-        auto parts = split(line, ":");
-        if (parts.length < 2) continue;
-        auto addr_str = parts[0].strip();
-
-        string addr_str_clean = addr_str.startsWith("0x") ? addr_str[2..$] : addr_str;
-		uint addr = parse!uint(addr_str_clean, 16);
-
-        auto rest = parts[1].strip();
-        auto bytes_part = rest.split("\t")[0].replace(" ", "");
-        uint data = parse!uint(bytes_part, 16);
-        d.addr_ = addr;
-        d.data_ = data;
-        t.data_arr ~= d;
-    }
-    return t;
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
-	func actual = get_function("../test/cortex_m_asm.txt", "Reset_Handler");
-	func expected = func(name: "Reset_Handler",
-		   			     instrs: [addr_instr(0x800a18c, "f8dfd034"),
-		   			              addr_instr(0x800a190, "f7f6f89c"),
-		   			              addr_instr(0x800a194,     "480c"),
-		   			              addr_instr(0x800a196,     "490d"),
-		   			              addr_instr(0x800a198,     "4a0d"),
-		   			              addr_instr(0x800a19a,     "2300"),
-		   			              addr_instr(0x800a19c,	    "e002")]);
-	func actual_freertos = get_function("../test/freertos_blink_asm.txt", "Reset_Handler");
-	func expected_freertos = func(name: "Reset_Handler",
-		   			     instrs: [addr_instr(0x8017ce4, "f8dfd034"),
-		   			              addr_instr(0x8017ce8, "f7e8fad8"),
-		   			              addr_instr(0x8017cec,     "480c"),
-		   			              addr_instr(0x8017cee,     "490d"),
-		   			              addr_instr(0x8017cf0,     "4a0d"),
-		   			              addr_instr(0x8017cf2,     "2300"),
-		   			              addr_instr(0x8017cf4,	    "e002")]);
-	assert(actual == expected);
-	assert(actual_freertos == expected_freertos);
-}
-
-// ======================
-//  Get Entry Point Addr
-// ======================
-
-uint get_entry_point_addr(string filename) {
-	if (!filename.canFind("zephyr")) {
-		auto reset_handler = get_function(filename, "Reset_Handler");
-		return reset_handler.instrs[0]._addr;
-	}
-	auto __start = get_function(filename, "__start");
-	return __start.instrs[0]._addr;
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
-	uint actual = get_entry_point_addr("../test/cortex_m_asm.txt");
-	assert(actual == 0x800a18c);
-	uint actual_freertos = get_entry_point_addr("../test/freertos_blink_asm.txt");
-	assert(actual_freertos == 0x8017ce4);
-}
-
-// =======================
-//  Load Init Array Start 
-// =======================
-
-void load_init_array_start(ref memory mem, string filename) {
-    auto file = File(filename, "r");
-    bool foundStart = false;
-    uint val;
-    size_t addr;
-
-    if (filename != "../test/dsp_asm.txt") {
-	    foreach(line; file.byLine()) {
-	        line = line.strip();
-	        if (!foundStart && line.canFind("__init_array_start")) {
-	            auto parts = line.split(" ");
-	            addr = parse!uint(parts[0], 16);
-	            foundStart = true;
-	        } else if (foundStart) {
-	            auto parts = line.split(":");
-	            if (parts.length >= 2) {
-	                auto hexWords = parts[1].strip().split();
-	                if (hexWords.length >= 1) {
-	                    val = parse!uint(hexWords[0], 16);
-	                    break;
-	                }
-	            }
-	        }
-	    }
-	    mem.write_word(addr, val);
-	}
-    foundStart = false;
-    size_t addr_2;
-    foreach(line; file.byLine()) {
-        line = line.strip();
-        if (!foundStart && line.canFind("__frame_dummy_init_array_entry")) {
-            auto parts = line.split(" ");
-            addr_2 = parse!uint(parts[0], 16);
-            foundStart = true;
-        } else if (foundStart) {
-            auto parts = line.split(":");
-            if (parts.length >= 2) {
-                auto hexWords = parts[1].strip().split();
-                if (hexWords.length >= 1) {
-                    val = parse!uint(hexWords[0], 16);
-                    break;
-                }
-            }
-        }
-    }
-    mem.write_word(addr_2, val);
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
-	memory mem;
-	load_init_array_start(mem, "../test/cortex_m_asm.txt");
-	uint val = mem.read_word(0x800a2dc, 0);
-	assert(val == 0x800a1e1, format("Got [0x%04X] instead of 0x800a1e1", val));
-}
-
 string convert_to_string(uint instr) {
 	instr_32 parsed_instr = decode_instr(instr);
 	string res = opcode_strings.get(parsed_instr.op, "unimplemented");
@@ -7108,23 +6388,7 @@ unittest {
     }
 }
 
-void load_uart_string_into_flash(ref memory mem)
-{
-    size_t addr = 0x0800a280; 
-    string msg = "UART test: Hello from STM32!\r\n";
-
-    foreach (c; msg)
-    {
-        mem.write_byte(addr, cast(ubyte)c, 0);
-        addr += 1;
-    }
-
-    mem.write_byte(addr, 0, 0);
-}
-
 string[] table_names = [
-	//"_k_thread_data_led1_id",
-	//"_k_thread_data_led2_id",
 	"rodata",
 	"_static_thread_data_area",
 	"k_heap_area",
@@ -7153,7 +6417,7 @@ string[] table_names = [
   	".init_array"
 ];
 
-void load_data(const ref string filename, ref memory mem) {
+void load_data(mem_t)(const ref string filename, ref mem_t mem) {
 	foreach (t_n; table_names) {
 		table t = get_data(filename, t_n);
 		foreach (item; t.data_arr) {
@@ -7162,7 +6426,9 @@ void load_data(const ref string filename, ref memory mem) {
 	}
 } 
 
-void load_instructions(ref memory mem, addr_instr[] instrs) {
+void load_instructions
+(mem_t)
+(ref mem_t mem, addr_instr[] instrs) {
 	auto f = load_store_log();
     foreach (instr; instrs) {
         if (instr._instr_bytes.length == 8) {
@@ -7177,88 +6443,16 @@ void load_instructions(ref memory mem, addr_instr[] instrs) {
     }
 } 
 
-struct cortex_m_vm {
+struct cortex_m_vm(mem_t) {
 	cortex_m_cpu cpu;
-	memory mem;
+	mem_t mem;
 	addr_instr[] current_program;
 	string[] func_names;
 	st_name_val[] objects;
 
-	void load_program(string filename) {
-		load_uart_string_into_flash(mem);
-		{
-			if (filename == "../test/cortex_m_asm.txt") {
-				foreach (s; bare_metal_func_names) {
-					func f = get_function(filename, s);
-					current_program ~= f.instrs;
-				}
-			} else if (filename == "../test/zephyr_thread_asm.txt") {
-				foreach (s; zephyr_func_names) {
-				    func f = get_function(filename, s);
-				    load_instructions(mem, f.instrs);
-				    current_program ~= f.instrs;
-				}
-			} else if (filename == "../test/freertos_no_task_asm.txt") {
-				foreach (s; freertos_no_task) {
-					func f = get_function(filename, s);
-					current_program ~= f.instrs;
-				}
-			} else if (filename == "../test/freertos_blink_asm.txt") {
-				foreach (s; freertos_func_names) {
-					func f = get_function(filename, s);
-					current_program ~= f.instrs;
-				}
-			} else if (filename == "../test/dsp_asm.txt") {
-				foreach (s; dsp_func_names) {
-					func f = get_function(filename, s);
-					current_program ~= f.instrs;
-				}
-			} else {
-				auto f_s = get_all_functions(filename);
-				foreach (f; f_s) {
-					func_names ~= f.name;
-					current_program ~= f.instrs;
-				}
-			}
-		}
-		
-		uint entry_point = get_entry_point_addr(filename);
-    	cpu.set(reg.pc, entry_point);
-
-    	load_literals(mem, filename);
-    	if (!filename.canFind("zephyr")) {
-    		auto f = load_store_log();
-    		load_init_array_start(mem, filename);
-    		func svc_handler = get_function(filename, "SVC_Handler");
-    		auto svc_addr = svc_handler.instrs[0]._addr;
-    		mem.write_word(0x0800002C, svc_addr);
-    		f.writeln(format("%08X stored to [%08X]", svc_addr, 0x0800002C));
-    		f.flush();
-			func systick_handler = get_function(filename, "SysTick_Handler");
-			auto systick_addr = systick_handler.instrs[0]._addr;
-			mem.write_word(0x0800003C, systick_addr);
-			f.writeln(format("%08X stored to [%08X]", systick_addr, 0x0800003C));
-			f.flush();
-    	} else {
-    		auto f = load_store_log();
-    		func svc_handler = get_function(filename, "z_arm_svc");
-    		auto svc_addr = svc_handler.instrs[0]._addr;
-    		mem.write_word(0x0800002C, svc_addr);
-    		f.writeln(format("%08X stored to [%08X]", svc_addr, 0x0800002C));
-    		f.flush();
-    		func systick_handler = get_function(filename, "sys_clock_isr");
-			auto systick_addr = systick_handler.instrs[0]._addr;
-			mem.write_word(0x0800003C, systick_addr);
-			f.writeln(format("%08X stored to [%08X]", systick_addr, 0x0800003C));
-			f.flush();
-			load_data(filename, mem);
-    	}
-	}
-
 	void execute_next_instr() {
 		auto file = pc_log();
 		file.writeln("PC = 0x", format("%08X", cpu.pc));
-		//file.writeln("GSTATE = 0x", format("%08X", mem.read_word(0x20000588)));
         file.flush();
 		++cpu.tick;
 		if (cpu.tick == 10000) {
@@ -7301,97 +6495,30 @@ struct cortex_m_vm {
 	}
 
 	void run_to(uint addr) {
-		uint last_instr_addr;
 		while (1) {
-			last_instr_addr = cpu.pc;
 			execute_next_instr();
 			if (cpu.pc == addr) {
 				break;
 			}
 		}
-		/*
-		reset();
-		while (1) {
-			if (cpu.pc == last_instr_addr) {
-				break;
-			}
-			execute_next_instr();
-		}
-		*/
 	}
-
-	void reset() {
-		cpu = cortex_m_cpu();
-		mem = memory();
-		load_literals(mem, "../test/cortex_m_asm.txt");
-		uint entry_point = get_entry_point_addr("../test/cortex_m_asm.txt");
-		load_init_array_start(mem, "../test/cortex_m_asm.txt");
-    	cpu.set(reg.pc, entry_point);
-	}
-}
-
-// ===============
-//  Load Literals
-// ===============
-
-void load_literals(ref memory mem, string filename) {
-	File file;
-	try {
-		file = File(filename, "r");
-	} catch (Exception e) {
-		writeln("Error opening file: ", e.msg);
-	}
-    auto lines = file.byLineCopy.array;
-    foreach (i, line; lines) {
-        if (line.canFind(".word")) {
-            auto parts = split(line, ":");
-            auto addr_str = parts[0].strip();
-            string addr_str_clean = addr_str.startsWith("0x") ? addr_str[2..$] : addr_str;
-			uint addr = parse!uint(addr_str_clean, 16);
-			auto rest = parts[1].strip();
-			auto rest_parts = split(rest, "x");
-			auto literal_part = rest_parts[1].strip();
-			uint literal = parse!uint(literal_part, 16);
-            mem.write_word(addr, literal);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
-	memory mem;
-	load_literals(mem, "../test/cortex_m_asm.txt");
-	assert(mem.read_word(0x800a1c4, 0) == 0x20020000, format("Failed to load [0x%04X] into [0x%04X]", 0x20020000, 0x800a1c4));
-	assert(mem.read_word(0x800a1c8, 0) == 0x20000000, format("Failed to load [0x%04X] into [0x%04X]", 0x20000000, 0x800a1c8));
-	assert(mem.read_word(0x800a1cc, 0) == 0x20000560, format("Failed to load [0x%04X] into [0x%04X]", 0x20000560, 0x800a1cc));
-	assert(mem.read_word(0x800a1d0, 0) == 0x0800a2e8, format("Failed to load [0x%04X] into [0x%04X]", 0x0800a2e8, 0x800a1d0));
-	assert(mem.read_word(0x800a1d4, 0) == 0x20000560, format("Failed to load [0x%04X] into [0x%04X]", 0x20000560, 0x800a1d4));
-	assert(mem.read_word(0x800a1d8, 0) == 0x20000958, format("Failed to load [0x%04X] into [0x%04X]", 0x20000958, 0x800a1d8));
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-unittest {
-	memory mem;
-	load_literals(mem, "../test/freertos_blink_asm.txt");
-	assert(mem.read_word(0x8017c10, 0) == 0x20000038, format("Failed to load [0x%04X] into [0x%04X]", 0x20020000, 0x800a1c4));
-	assert(mem.read_word(0x8017d1c, 0) == 0x20020000, format("Failed to load [0x%04X] into [0x%04X]", 0x20000000, 0x800a1c8));
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {	
-    memory mem = memory();
-    cortex_m_cpu cpu = cortex_m_cpu(r3: 1, r4: 2, r5: 3, r6: 4, r7: 5, lr: 6, msp: memory.stack_base);
+    stm32f4_mem mem = stm32f4_mem();
+    cortex_m_cpu cpu = cortex_m_cpu(r3: 1, r4: 2, r5: 3, r6: 4, r7: 5, lr: 6, msp: stm32f4_mem.stack_base);
     instr_16 push = instr_16(op: opcode.push, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7, reg.lr]);
     execute_load_store(push, cpu, mem);
     writeln(cpu.get_sp());
-    writeln(memory.stack_base);
+    writeln(stm32f4_mem.stack_base);
     instr_16 pop1 = instr_16(op: opcode.pop, reg_list: [reg.r3, reg.r4, reg.r5, reg.r6, reg.r7]);
     execute_load_store(pop1, cpu, mem);
     writeln("---------------------------------");
-    writeln(mem.read_word(memory.stack_base-4, 0));
+    writeln(mem.read_word(stm32f4_mem.stack_base-4, 0));
     instr_16 pop2 = instr_16(op: opcode.pop, reg_list: [reg.r3]);
     execute_load_store(pop2, cpu, mem);
     writeln("---------------------------------");
-    writeln(mem.read_word(memory.stack_base-4, 0));
+    writeln(mem.read_word(stm32f4_mem.stack_base-4, 0));
     //assert(cpu.r3 == 1);
 }

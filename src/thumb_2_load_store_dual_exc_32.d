@@ -38,7 +38,10 @@ instr_32 parse_tbb_tbh_32(const uint instr) {
 //  Execute TBB/TBH
 // =================
 
-void execute_tbb_tbh_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void 
+execute_tbb_tbh_32
+(mem_t)
+(const ref instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	//auto f = load_store_log();
 	uint half_words;
 	//const uint rn    = cpu.get(instr.rn);
@@ -87,7 +90,10 @@ instr_32 parse_ldrex_32(uint instr) {
 //  Execute LDREX
 // ===============
 
-void execute_ldrex(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void 
+execute_ldrex
+(mem_t)
+(const ref instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	uint addr = cpu.get(instr.rn);
 	addr += instr.imm;
 	const uint val = mem.read_word(addr, cpu.pc);

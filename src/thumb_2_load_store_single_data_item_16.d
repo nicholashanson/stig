@@ -33,7 +33,10 @@ instr_16 parse_strh_reg(ushort instr) {
 //  Execute STRH(Register)
 // ========================
 
-void execute_strh_reg(const ref instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void 
+execute_strh_reg
+(mem_t)
+(const ref instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   rm     = cpu.get(instr.rm); 
 	const uint   rn     = cpu.get(instr.rn);
 	const uint   rt     = cpu.get(instr.rt);

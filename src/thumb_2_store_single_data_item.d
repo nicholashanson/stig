@@ -47,7 +47,7 @@ enum field_tuples_strb_imm_32_t2 = [Tuple!(opcode, string[])(opcode.strb_imm_32_
 	First Half-Word: [15:4] 111110001000, [3:0] Rn 
 	Second Half-Word: [15:12] Rt, [11:0] imm12
 */
-instr_32 parse_strb_imm_32_t2(uint instr) {
+instr_32 parse_strb_imm_32_t2(const uint instr) {
 	instr_32 res;
 	const ushort imm_12 = cast(ushort)( instr 		 & 0xfff);
 	const ubyte rt 		= cast(ubyte )((instr >> 12) & 0x00f);
@@ -123,7 +123,7 @@ instr_32 parse_strh_reg_32(const uint instr) {
 //  Execute STRH(Register)
 // ========================
 
-void execute_strh_reg_32(const ref instr_32 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_strh_reg_32(mem_t)(const ref instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	const uint   rm     = cpu.get(instr.rm); 
 	const uint   rn     = cpu.get(instr.rn);
 	const uint   rt     = cpu.get(instr.rt);

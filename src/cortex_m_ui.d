@@ -15,6 +15,7 @@ import parse_elf;
 import std.array : replicate;
 import cortex_m_core;
 import load_store_log_;
+import std.datetime;
 
 WINDOW*       instr_pad;
 WINDOW*         reg_pad;
@@ -102,7 +103,7 @@ row_view[] generate_instr_rows(func[] functions) {
     return res;
 }
 
-int color_for_value(uint val, ref cortex_m_vm vm) {
+int color_for_value(vm_t)(uint val, ref vm_t vm) {
     if (val == 0x00000000)
         return 1;
     else if (val >= vm.mem.ram_origin   && val <= vm.mem.ram_origin   + vm.mem.ram_length  )
@@ -114,7 +115,7 @@ int color_for_value(uint val, ref cortex_m_vm vm) {
     return 2;
 }
 
-void draw_screen(cortex_m_vm vm, const ref row_view[] rows, bool key_press) {
+void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     werase(instr_pad);
     static int  start;
     static int    end;
@@ -123,7 +124,7 @@ void draw_screen(cortex_m_vm vm, const ref row_view[] rows, bool key_press) {
     int flag_y    = 1;
     int flag_x    = 1;
 
-    auto print_reg = (string name, reg r, uint val, ref cortex_m_vm vm) {
+    auto print_reg = (string name, reg r, uint val, ref vm_t vm) {
         string reg_name; 
         if (reg_cache[r].val != val) {
             reg_name = vm.mem.get_reg_name(val);
@@ -299,9 +300,9 @@ void draw_screen(cortex_m_vm vm, const ref row_view[] rows, bool key_press) {
 void find_symbols(const string elf_filename, const string sym, bool show_size = false) {
     st_name_val[] vals;
     if (show_size) 
-        vals = get_st_name_val(elf_filename, st_type.all, true, true);
+        vals = get_st_name_val(elf_filename, st_type.all, soc.all, true, true);
     else 
-        vals = get_st_name_val(elf_filename, st_type.all, true);
+        vals = get_st_name_val(elf_filename, st_type.all, soc.all, true);
     st_name_val[] matches;
     foreach (v; vals) {
         if (v.name.canFind(sym)) {
@@ -333,16 +334,116 @@ void get_section_size(const string elf_filename, const string section_name) {
     writeln(format("%s size: %d", section.name, section.data.length));
 }
 
+struct runtime_ctrl {
+    bool     is_playing = false;
+    MonoTime last_time;
+    Duration interval;       
+    MonoTime last_draw;
+    Duration frame_interval; 
+}
+
+void stm32_control_loop(ref runtime_ctrl ctrl, ref cortex_m_vm!stm32f4_mem vm, ref row_view[] rows) {
+    int ch;
+    while (true) {
+        ch = getch();
+
+        if (ch != ERR) {
+            if (ch == 'q') {
+                break;
+            }
+            if (ch == KEY_DOWN) {
+                vm.execute_next_instr();
+            }
+            if (ch == ' ') { 
+                ctrl.is_playing = !ctrl.is_playing;
+            }               
+            if (ch == 'p') {
+                vm.mem.flip_bit(0x40023800, 25);
+            }  
+            if (ch == 'y') {
+                vm.mem.flip_bit(0x40023800, 27);
+            }  
+        }
+
+        auto now = MonoTime.currTime;
+        if (ctrl.is_playing) {
+            auto delta = now - ctrl.last_time; 
+            if (delta >= ctrl.interval) {
+                vm.execute_next_instr();
+                ctrl.last_time = now;
+            }
+        }
+        draw_screen(vm, rows);
+    }
+}
+
+void nrf_control_loop(ref runtime_ctrl ctrl, ref cortex_m_vm!nrf52840_mem vm, ref row_view[] rows) {
+    int ch;
+    while (true) {
+        ch = getch();
+
+        if (ch != ERR) {
+            if (ch == 'q') {
+                break;
+            }
+            if (ch == KEY_DOWN) {
+                vm.execute_next_instr();
+            }
+            if (ch == ' ') { 
+                ctrl.is_playing = !ctrl.is_playing;
+            }             
+        }
+
+        auto now = MonoTime.currTime;
+        if (ctrl.is_playing) {
+            auto delta = now - ctrl.last_time; 
+            if (delta >= ctrl.interval) {
+                vm.execute_next_instr();
+                ctrl.last_time = now;
+            }
+        }
+        draw_screen(vm, rows);
+    }
+}
+
+void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
+    auto f_h = load_store_log();
+    f_h.writeln("Loading program");
+    f_h.flush();
+    auto f_s = get_program_from_elf(target_file_name);
+    vm.cpu.pc = get_elf_entry_point(target_file_name) - 1;
+    if (f_s.length == 0) {
+        f_h.writeln("No functions found");
+        f_h.flush();
+    }
+    foreach (f; f_s) {
+        load_function_into_memory(f, vm.mem);
+        f_h.writeln(f.name, ": ", f.instrs.length);
+        f_h.flush();
+        vm.current_program ~= f.instrs;
+        vm.func_names ~= f.name;
+        f_h.writeln(vm.current_program.length);
+        f_h.flush();
+    }
+    foreach (t; table_names) {
+        load_section_into_memory(target_file_name, t, vm.mem);
+    }
+    vm.objects  = get_st_name_val(target_file_name, st_type.stt_func,   mcu);
+    vm.objects ~= get_st_name_val(target_file_name, st_type.stt_notype, mcu);
+    vm.objects ~= get_st_name_val(target_file_name, st_type.stt_object, mcu);
+}
+
 void main(string[] args) {
-    bool is_playing     =             false;
-    auto last_time      = MonoTime.currTime;       
-    auto interval       =   dur!"msecs"(20);
-    auto last_draw      = MonoTime.currTime;
-    auto frame_interval =   dur!"msecs"(33); 
+    auto ctrl = runtime_ctrl();
+    ctrl.last_time      = MonoTime.currTime;
+    ctrl.interval       =   dur!"msecs"(20);
+    ctrl.last_draw      = MonoTime.currTime;
+    ctrl.frame_interval =   dur!"msecs"(33);
 
     uint   entry_point = 0; 
     string first_arg;
     string target_file_name;
+    string soc_s;
 
     if (args.length > 1) {
         first_arg = args[1];
@@ -352,16 +453,25 @@ void main(string[] args) {
         case "syms"        : find_symbols(args[2], args[3]);       return;
         case "syms_size"   : find_symbols(args[2], args[3], true); return;
         case "section_size": get_section_size(args[2], args[3]);   return;
-        default            :                                       break;
+        default            :                                        break;
     }
 
     target_file_name = first_arg;
 
     if (args.length > 2) {
+        soc_s = args[2];
+    }
+
+    if (soc_s != "nrf" && soc_s != "stm32") {
+        writeln("Unrecognized SoC: ", soc_s);
+        return;
+    }
+
+    if (args.length > 3) {
         try {
-            entry_point = to!uint(args[2], 16);
+            entry_point = to!uint(args[3], 16);
         } catch (ConvException e) {
-            writeln("Invalid entry point: ", args[2]);
+            writeln("Invalid entry point: ", args[3]);
             return;
         }
     }
@@ -407,123 +517,26 @@ void main(string[] args) {
     box(flag_pad,        0, 0);
     box(instr_pad_frame, 0, 0);
 
-    cortex_m_vm vm;
-    if (!target_file_name.canFind("elf")) {
-        vm.load_program(target_file_name);
-    } else {
-        auto f_h = load_store_log();
-        f_h.writeln("Loading program");
-        f_h.flush();
-        auto f_s = get_program_from_elf(target_file_name);
-        vm.cpu.pc = get_elf_entry_point(target_file_name) - 1;
-        if (f_s.length == 0) {
-            f_h.writeln("No functions found");
-            f_h.flush();
-        }
-        foreach (f; f_s) {
-            load_function_into_memory(f, vm.mem);
-            f_h.writeln(f.name, ": ", f.instrs.length);
-            f_h.flush();
-            vm.current_program ~= f.instrs;
-            vm.func_names ~= f.name;
-            f_h.writeln(vm.current_program.length);
-            f_h.flush();
-        }
-        foreach (t; table_names) {
-            load_section_into_memory(target_file_name, t, vm.mem);
-        }
-        vm.objects  = get_st_name_val(target_file_name, st_type.stt_func);
-        vm.objects ~= get_st_name_val(target_file_name, st_type.stt_notype);
-        vm.objects ~= get_st_name_val(target_file_name, st_type.stt_object);
-    }
-
-    auto file_mem = File("mem.txt", "w");
-    for (size_t i = memory.flash_origin; i < memory.flash_origin + memory.flash_length; i += 4) {
-        uint val = vm.mem.read_word(i, 0);
-        if (val != 0) {
-            file_mem.writeln("PC = 0x", format("[%08X]: %08X", i, val));
-        }
-    }
-    file_mem.close();
-
     func[] f_s;
-    if (target_file_name == "../test/cortex_m_asm.txt") {
-        foreach (name; bare_metal_func_names) {
-            func f = get_function(target_file_name, name);
-            f_s ~= f;
-        }
-    } else if (target_file_name == "../test/zephyr_thread_asm.txt") {
-        foreach (name; zephyr_func_names) {
-            func f = get_function(target_file_name, name);
-            f_s ~= f;
-        }
-    } else if (target_file_name == "../test/freertos_no_task_asm.txt") {
-        foreach (name; freertos_no_task) {
-            func f = get_function(target_file_name, name);
-            f_s ~= f;
-        }
-    } else if (target_file_name == "../test/dsp_asm.txt") {
-        foreach (name; dsp_func_names) {
-            func f = get_function(target_file_name, name);
-            f_s ~= f;
-        }
-    } else if (target_file_name == "../test/freertos_blink_asm.txt") {
-        foreach (name; freertos_func_names) {
-            func f = get_function(target_file_name, name);
-            f_s ~= f;
-        }
-    } else if (target_file_name.canFind("elf")) {
-        f_s = get_program_from_elf(target_file_name);
-    } else {
-        foreach (name; vm.func_names) {
-            func f = get_function(target_file_name, name);
-            f_s ~= f;
-        }
-    }
-
+    f_s = get_program_from_elf(target_file_name);
     auto rows = generate_instr_rows(f_s);
 
-    if (entry_point != 0) {
-        vm.run_to(entry_point);
-    }
-
-    bool key_press = false;
-    draw_screen(vm, rows, key_press);
-
-    int ch;
-    while (true) {
-        ch = getch();
-
-        if (ch != ERR) {
-            if (ch == 'q') {
-                break;
-            }
-            if (ch == KEY_DOWN) {
-                vm.execute_next_instr();
-            }
-            if (ch == ' ') { 
-                is_playing = !is_playing;
-            }
-            if (ch == 'b') {
-                padPos = cast(int)(vm.current_program.length + (f_s.length * 2) - LINES);
-            }                   
-            if (ch == 'p') {
-                vm.mem.flip_bit(0x40023800, 25);
-            }  
-            if (ch == 'y') {
-                vm.mem.flip_bit(0x40023800, 27);
-            }  
+    if (soc_s == "nrf") {
+        cortex_m_vm!nrf52840_mem vm;
+        load_elf(vm, soc.nrf, target_file_name);
+        if (entry_point != 0) {
+            vm.run_to(entry_point);
         }
-
-        auto now = MonoTime.currTime;
-        if (is_playing) {
-            auto delta = now - last_time; 
-            if (delta >= interval) {
-                vm.execute_next_instr();
-                last_time = now;
-            }
+        draw_screen(vm, rows);
+        nrf_control_loop(ctrl, vm, rows);
+    } else {
+        cortex_m_vm!stm32f4_mem vm;
+        load_elf(vm, soc.stm32, target_file_name);
+        if (entry_point != 0) {
+            vm.run_to(entry_point);
         }
-        draw_screen(vm, rows, key_press);
+        draw_screen(vm, rows);
+        stm32_control_loop(ctrl, vm, rows);
     }
 
     endwin();

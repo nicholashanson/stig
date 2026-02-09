@@ -32,7 +32,7 @@ enum exception {
 	SysTick_IRQn = 15
 }
 
-void exception_return(ref cortex_m_cpu cpu, ref memory mem, uint exc_return) {
+void exception_return(mem_t)(ref cortex_m_cpu cpu, ref mem_t mem, uint exc_return) {
     bool return_to_thread = (exc_return & (1 << 3)) != 0;
     bool use_psp = (exc_return & (1 << 2)) != 0;
 

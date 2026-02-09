@@ -38,7 +38,7 @@ instr_16 parse_pop(const ushort instr) {
 //  Execute POP MULT REG
 // ======================
 
-void execute_pop(const ref instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_pop(mem_t)(const ref instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = stack_log();
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a < cast(int)b);
@@ -94,7 +94,7 @@ instr_16 parse_push(short instr) {
 //  Execute PUSH MULT REG
 // =======================
 
-void execute_push(instr_16 instr, ref cortex_m_cpu cpu, ref memory mem) {
+void execute_push(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f = stack_log();
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a > cast(int)b);
