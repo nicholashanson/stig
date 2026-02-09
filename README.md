@@ -1,9 +1,3 @@
-I am Stig of the Hexadecimal Dump. Feed me objdump files and I will make them execute.
-
-<div align="center">
-  <img src="assets/logo.png" width="200"><br>
-</div>
-
 # Cortex-M
 The intended goal of this project is to implement a fully-featured soft-core version of a Cortex-M core.
 
