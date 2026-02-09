@@ -1775,9 +1775,9 @@ unittest {
 		test_case(0xb103, instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset:  0)),
 		test_case(0x4718, instr_16(op: opcode.bx,            rm: reg.r3                         )),
 		test_case(0x1a1b, instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0)),
-		test_case(0xb510, instr_16(op: opcode.push, reg_list: [reg.r4, reg.lr]         )),
+		test_case(0xb510, instr_16(op: opcode.push,          reg_list: [reg.r4, reg.lr]         )),
 		test_case(0xb943, instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,			  offset: 16)),
-		test_case(0xbd10, instr_16(op: opcode.pop,  reg_list: [reg.r4, reg.pc]         )),
+		test_case(0xbd10, instr_16(op: opcode.pop,           reg_list: [reg.r4, reg.pc]         )),
 		test_case(0xe7cf, instr_16(op: opcode.b_imm_11,					 		      offset:-98)),
 		test_case(0x469d, instr_16(op: opcode.mov_high_1,    rd: reg.sp,  rm: reg.r3            )),
 		test_case(0x460f, instr_16(op: opcode.mov_lo,        rd: reg.r7,  rm: reg.r1            )),
@@ -4325,22 +4325,18 @@ instr_32 parse_cmp_imm_32(uint instr) {
 
 /*
 	Branches and Miscellaneous Control
-	First Half-Word:
-	[15:4] 111110011011  
-	[3:0] Rn
-	Second Half-Word:
-	[15:12] Rt
-	[11:0] imm12
+	First Half-Word: [15:4] 111110011011, [3:0] Rn
+	Second Half-Word: [15:12] Rt, [11:0] imm12
 */
 instr_32 parse_ldh_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.ldh_32;
-	ubyte imm_12 = cast(ubyte)(instr & 0xfff);
-	ubyte rt = cast(ubyte)((instr >> 12) & 0xf);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	const ubyte imm_12 = cast(ubyte)(instr         & 0xfff);
+	const ubyte rt     = cast(ubyte)((instr >> 12) & 0x00f);
+	const ubyte rn     = cast(ubyte)((instr >> 16) & 0x00f);
+	res.rt  = cast(reg)(rt);
+	res.rn  = cast(reg)(rn);
 	res.imm = imm_12;
-	res.rt = cast(reg)(rt);
-	res.rn = cast(reg)(rn);
 	return res;
 }
 
@@ -4743,7 +4739,7 @@ enum field_tuples_lsr_imm_32 = [Tuple!(opcode, string[])(opcode.lsr_imm_32, ["rd
 instr_32 parse_lsr_imm_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.lsr_imm_32;
-	ubyte rm    = cast(ubyte)(instr & 0xf);
+	ubyte rm    = cast(ubyte)( instr        & 0xf);
 	ubyte imm_2 = cast(ubyte)((instr >>  6) & 0b11);
 	ubyte rd    = cast(ubyte)((instr >>  8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0b111);

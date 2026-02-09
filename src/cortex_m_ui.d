@@ -18,7 +18,7 @@ import load_store_log_;
 
 WINDOW*       instr_pad;
 WINDOW*         reg_pad;
-WINDOW*         flag_pad;
+WINDOW*        flag_pad;
 WINDOW*        stackPad;
 WINDOW* instr_pad_frame;
 int          padPos = 0;

@@ -89,6 +89,51 @@ struct ram_mem_section {
     static enum ram_origin = 0x20000000;
 }
 
+struct sram_1_section {
+    ubyte[368 * 1024] cells; 
+
+    const(ubyte) read_byte(size_t index) const {
+        index -= sram_1_origin;
+        return cells[index];
+    }
+
+    const(ushort) read_half_word(size_t index) {
+        index -= sram_1_origin;
+        ushort res = (cells[index + 1] << 8) | cells[index];
+        return res;
+    }
+
+    const(uint) read_word(size_t index) {
+        index -= sram_1_origin;
+        uint res = (cells[index + 3] << 24) | 
+                   (cells[index + 2] << 16) | 
+                   (cells[index + 1] <<  8) | 
+                    cells[index    ];
+        return res;
+    }
+
+    void write_byte(size_t index, ubyte val) {
+        index -= sram_1_origin;
+        cells[index] = val;
+    }
+
+    void write_half_word(size_t index, ushort val) {
+        index -= sram_1_origin;
+        cells[index + 1] = (val >> 8) & 0xff;
+        cells[index] =      val       & 0xff;
+    }
+
+    void write_word(size_t index, uint val) {
+        index -= sram_1_origin;
+        cells[index + 3] = (val >> 24) & 0xff;
+        cells[index + 2] = (val >> 16) & 0xff;
+        cells[index + 1] = (val >>  8) & 0xff;
+        cells[index] =      val        & 0xff;
+    }
+
+    static enum sram_1_origin = 0x20020000;
+}
+
 __gshared ubyte[1024 * 1024] g_flash;
 
 // ===================
@@ -147,12 +192,15 @@ unittest {
 }
 
 struct memory {
-    ram_mem_section ram;
+    sram_1_section   sram_1;            
+    ram_mem_section     ram;
     flash_mem_section flash;
-    enum flash_origin = 0x8000000;
-    enum ram_origin = 0x20000000;
-    enum flash_length = 1024 * 1024;
-    enum ram_length = 128 * 1024;
+    enum flash_origin  =  0x08000000;
+    enum ram_origin    =  0x20000000;
+    enum sram_1_origin =  0x20020000;
+    enum flash_length  = 1024 * 1024;
+    enum ram_length    =  128 * 1024;
+    enum sram_1_length =  368 * 1024;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t] peripherals = [
         0x4000780C: 0,          // reserved
@@ -168,7 +216,7 @@ struct memory {
         0x40023C00: 0x000083,   // FLASH_ACR 
         // --------------------------------------------------------------------------------------
         // -------------------------------------- USART6 ----------------------------------------
-        0x40011400: 0,          // USART_SR
+        0x40011400: 0xc0,       // USART_SR
         0x40011404: 0,          // USART_DR
         0x40011408: 0,          // USART_BRR
         0x4001140C: 0,          // USART_CR1
@@ -529,8 +577,14 @@ struct memory {
         uint res;
         if (addr == 0x08000000) {
             res = 0x20020000;
-        } else if (addr > ram_origin + ram_length) {
-            res = peripherals[addr];
+        } else if (addr > sram_1_origin + sram_1_length) {
+            if (auto p = addr in peripherals) {
+                res = *p;              
+            } else {
+                throw new Exception("Invalid access");            
+            }
+        } else if (addr >= sram_1_origin) {
+            res = sram_1.read_word(addr);
         } else if (addr >= ram_origin) {
             res = ram.read_word(addr);
         } else {
@@ -586,7 +640,7 @@ struct memory {
     }
 
     void write_word(size_t addr, uint val) {
-        if (addr > ram_origin + ram_length) {
+        if (addr > sram_1_origin + sram_1_length) {
             if (addr == 0x40023808) {
                 uint cfgr = peripherals[addr];
                 cfgr = val;
@@ -596,7 +650,7 @@ struct memory {
                 peripherals[addr] = cfgr;
             } else if (addr == 0x40023874 && val == 0x1) {
                 peripherals[addr] = 0x3;
-            } else if (addr == 0x40011004 || addr == 0x40004404) {
+            } else if (addr == 0x40011004 || addr == 0x40004404 || addr == 0x40011404) {
                 auto f = uart_log();
                 f.write(cast(char)(val & 0xff));
                 f.flush();
@@ -613,6 +667,9 @@ struct memory {
                 peripherals[addr] = val;
             }
             return;
+        }
+        if (addr >= sram_1_origin) {
+            return sram_1.write_word(addr, val);
         }
         if (addr >= ram_origin) {
             return ram.write_word(addr, val);
@@ -660,7 +717,6 @@ struct memory {
 
     uint pop(ref cortex_m_cpu cpu) {
         uint res = ram.read_word(cpu.get_sp());
-        //ram.write_word(cpu.get_sp(), 0);
         inc_sp_word_width(cpu);
         return res;
     }

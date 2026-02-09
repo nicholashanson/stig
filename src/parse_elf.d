@@ -533,7 +533,7 @@ size_t va_to_file_offset(const ref load_segment[] segs, uint va) {
     throw new Exception(format("VA %08X not in any PT_LOAD segment", va));
 }
 
-elf_func get_elf_func(const string elf_file, const string func_name) {
+elf_func get_elf_func(const string elf_file, const string func_name, const uint addr) {
     auto symtab_sec = get_section_by_name(elf_file, ".symtab");
     auto strtab_sec = get_section_by_name(elf_file, ".strtab");
     auto text_sec   = get_section_by_name(elf_file, "text");
@@ -566,7 +566,7 @@ elf_func get_elf_func(const string elf_file, const string func_name) {
         while (end < strdata.length && strdata[end] != 0) end++;
         string name = cast(string) strdata[name_off .. end];
 
-        if(name != func_name)
+        if(name != func_name || sym.st_value != addr)
             continue;
 
         uint func_va = sym.st_value;
@@ -706,10 +706,10 @@ string fetch_instr(ubyte[] b)
     return b.map!(x => format("%02x", x)).join;
 }
 
-func get_function_from_elf(const string elf_file, const string func_name, ref bool[uint] pending_literals) {
+func get_function_from_elf(const string elf_file, const string func_name, const uint addr, ref bool[uint] pending_literals) {
     func res;
     res.name = func_name;
-    auto e_func = get_elf_func(elf_file, func_name);
+    auto e_func = get_elf_func(elf_file, func_name, addr);
     auto literal_offsets = extract_literal_pool(e_func, res, pending_literals);
     uint offset = 0;
     uint addr_offset = 0;
@@ -966,7 +966,7 @@ func[] get_program_from_elf(const string elf_file) {
     func[] res;
     auto f_s = get_st_name_val(elf_file, st_type.stt_func);
     foreach (fn; f_s) {
-        auto f = get_function_from_elf(elf_file, fn.name, pending_literals);
+        auto f = get_function_from_elf(elf_file, fn.name, fn.addr, pending_literals);
         res ~= f; 
     }
     return res;
