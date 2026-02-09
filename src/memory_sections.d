@@ -142,6 +142,92 @@ unittest {
     assert(read_value == 32, "Failed to read word from flash");
 }
 
+enum scb_base = 0xE0000000;
+
+uint[size_t] scb = [
+    // NVIC
+    0xE000E3FC: 0,
+    0xE000ED00: 0,
+    0xe000ed04: 0,
+    0xe000ed14: 0,
+    0xe000ed20: 0,
+    0xe000ed18: 0,
+    0xe000ed1c: 0,
+    0xe000ed24: 0,
+
+    // --------------------------------------- MPU ------------------------------------------
+    0xE000ED90: 0x00000800, // MPU_TYPE(RO): reset value for Cortex M-4
+    0xE000ED94: 0,          // MPU_CTRL(RW)
+                            // enables the MPU
+                            // [2] PRIVDEFENA, [1] HFNMIENA, [0] ENABLE
+                            // PRIVDEFENA: 0 disables the default memory map. Any instruction
+                            //             or data access that does not access a defined region
+                            //             faults
+                            //             1 enables the default memory map as a background region
+                            //             for privileged access
+                            // HFNMIENA: when the ENABLE bit is set to 1, controls whether handlers 
+                            //           executing with priority less than 0 access memory with the 
+                            //           MPU enabled or with the MPU disabled
+    0xE000ED98: 0,          // MPU_RNR(RW) MPU Region Number Register
+                            // selects the region currently accessed by MPU_RBAR and MPU_RASR
+                            // [7:0] REGION
+    0xE000ED9C: 0,          // MPU_RBAR(RW) MPU Region Base Address Register
+                            // [31:5] ADDR, [4] VALID, [3:0] REGION
+                            // ADDR:   Base address of the region
+                            // VALID:  On writes, indicates whether the region to update is specified by 
+                            //         MPU_RNR.REGION, or by the REGION value specified in this write. 
+                            //         When using the REGION value specified by this write, MPU_RNR.REGION 
+                            //         is updated to this value
+                            // REGION: on writes, can specify the number of the region to update
+    0xE000EDA0: 0,          // MPU_RASR(RW) MPU Region Attribute and Size Register
+    // --------------------------------------------------------------------------------------  
+    // ------------------------------------- NVIC IPR ---------------------------------------                        
+    0xE000E400: 0,
+    0xE000E404: 0,
+    0xE000E408: 0,
+    0xE000E40C: 0,
+    0xE000E410: 0,
+    0xE000E414: 0,
+    0xE000E418: 0,
+    0xE000E41C: 0,
+    0xE000E420: 0,
+    0xE000E424: 0,
+    0xE000E428: 0,
+    0xE000E42C: 0,
+    0xE000E430: 0,
+    0xE000E434: 0,
+    0xE000E438: 0,
+    0xE000E43C: 0,
+    0xE000E440: 0,
+    0xE000E444: 0,
+    0xE000E448: 0,
+    0xE000E44C: 0,
+    0xE000E450: 0,
+    0xE000E454: 0,
+    0xE000E458: 0,
+    0xE000E45C: 0,
+    0xE000E460: 0,
+    0xE000E464: 0,
+    // --------------------------------------------------------------------------------------
+    0xE000E3F8: 0,
+    0xE000EF34: 0,
+    // --------------------------------------- SCB ------------------------------------------
+    0xE000ED08: 0x08000000, // VTOR(RW) Vector Table Offset Register
+    0xE000ED0C: 0xFA050000, // AIRCR(RW) Application Interrupt and Reset Control Register 
+    // --------------------------------------------------------------------------------------
+    // ------------------------------------- SysTick ----------------------------------------
+    0xE000E010: 0,          // SYST_CSR(RW) SysTick Control and Status Register
+    0xE000E014: 0,          // SYST_RVR(RW) SysTick Reload Value Register
+    0xE000E018: 0,          // SYST_CVR(RW) SysTick Current Value Register
+    0xE000E01C: 0,          // SYST_CALIB(RW) SysTick Calibration Value Register
+    // --------------------------------------------------------------------------------------
+    0xE000ED88: 0,          // SCB_CPACR
+
+    0xE000E018: 0,
+    0xE0042004: 0           // DBGMCU_CR Debug MCU Configuration Register
+
+];
+
 struct stm32f4_mem {
     enum flash_origin  =  0x08000000;
     enum ram_origin    =  0x20000000;
@@ -154,6 +240,11 @@ struct stm32f4_mem {
     big_mem_section!(flash_origin)    flash;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t] peripherals = [
+        0x40007000: 0x0000C000, // PWR_CR
+        0x40023800: 0x03333083, // RCC_CR, reset val: 0x00000083
+        0x40023804: 0x24003010, // RCC_PLLCFGR
+        0x40023884: 0x20003000, // RCC_PLLI2SCFGR
+
         0x4000780C: 0,          // reserved
         0x40007810: 0,          // reserved
         0x40007814: 0,          // reserved
@@ -274,7 +365,6 @@ struct stm32f4_mem {
         0x40021C20: 0,          // GPIOH_AFRL
         0x40021C24: 0,          // GPIOH_AFRH
         // --------------------------------------------------------------------------------------
-        0xE000ED88: 0,          // SCB_CPACR
         // TIM6
         0x40001000: 0,      
         0x40001004: 0, 
@@ -300,86 +390,6 @@ struct stm32f4_mem {
         0x40004410: 0,
         0x40004414: 0,
         0x40004400: 0xc0,
-        // NVIC
-        0xE000E3FC: 0,
-        0xE000ED00: 0,
-        0x40007000: 0x0000C000, // PWR_CR
-        0x40023800: 0x03333083, // RCC_CR, reset val: 0x00000083
-        0x40023804: 0x24003010, // RCC_PLLCFGR
-        0x40023884: 0x20003000, // RCC_PLLI2SCFGR
-        0xe000ed04: 0,
-        0xe000ed14: 0,
-        0xe000ed20: 0,
-        0xe000ed18: 0,
-        0xe000ed1c: 0,
-        0xe000ed24: 0,
-
-        // --------------------------------------- MPU ------------------------------------------
-        0xE000ED90: 0x00000800, // MPU_TYPE(RO): reset value for Cortex M-4
-        0xE000ED94: 0,          // MPU_CTRL(RW)
-                                // enables the MPU
-                                // [2] PRIVDEFENA, [1] HFNMIENA, [0] ENABLE
-                                // PRIVDEFENA: 0 disables the default memory map. Any instruction
-                                //             or data access that does not access a defined region
-                                //             faults
-                                //             1 enables the default memory map as a background region
-                                //             for privileged access
-                                // HFNMIENA: when the ENABLE bit is set to 1, controls whether handlers 
-                                //           executing with priority less than 0 access memory with the 
-                                //           MPU enabled or with the MPU disabled
-        0xE000ED98: 0,          // MPU_RNR(RW) MPU Region Number Register
-                                // selects the region currently accessed by MPU_RBAR and MPU_RASR
-                                // [7:0] REGION
-        0xE000ED9C: 0,          // MPU_RBAR(RW) MPU Region Base Address Register
-                                // [31:5] ADDR, [4] VALID, [3:0] REGION
-                                // ADDR:   Base address of the region
-                                // VALID:  On writes, indicates whether the region to update is specified by 
-                                //         MPU_RNR.REGION, or by the REGION value specified in this write. 
-                                //         When using the REGION value specified by this write, MPU_RNR.REGION 
-                                //         is updated to this value
-                                // REGION: on writes, can specify the number of the region to update
-        0xE000EDA0: 0,          // MPU_RASR(RW) MPU Region Attribute and Size Register
-        // --------------------------------------------------------------------------------------  
-        // ------------------------------------- NVIC IPR ---------------------------------------                        
-        0xE000E400: 0,
-        0xE000E404: 0,
-        0xE000E408: 0,
-        0xE000E40C: 0,
-        0xE000E410: 0,
-        0xE000E414: 0,
-        0xE000E418: 0,
-        0xE000E41C: 0,
-        0xE000E420: 0,
-        0xE000E424: 0,
-        0xE000E428: 0,
-        0xE000E42C: 0,
-        0xE000E430: 0,
-        0xE000E434: 0,
-        0xE000E438: 0,
-        0xE000E43C: 0,
-        0xE000E440: 0,
-        0xE000E444: 0,
-        0xE000E448: 0,
-        0xE000E44C: 0,
-        0xE000E450: 0,
-        0xE000E454: 0,
-        0xE000E458: 0,
-        0xE000E45C: 0,
-        0xE000E460: 0,
-        0xE000E464: 0,
-        // --------------------------------------------------------------------------------------
-        0xE000E3F8: 0,
-        0xE000EF34: 0,
-        // --------------------------------------- SCB ------------------------------------------
-        0xE000ED08: 0x08000000, // VTOR(RW) Vector Table Offset Register
-        0xE000ED0C: 0xFA050000, // AIRCR(RW) Application Interrupt and Reset Control Register 
-        // --------------------------------------------------------------------------------------
-        // ------------------------------------- SysTick ----------------------------------------
-        0xE000E010: 0,          // SYST_CSR(RW) SysTick Control and Status Register
-        0xE000E014: 0,          // SYST_RVR(RW) SysTick Reload Value Register
-        0xE000E018: 0,          // SYST_CVR(RW) SysTick Current Value Register
-        0xE000E01C: 0,          // SYST_CALIB(RW) SysTick Calibration Value Register
-        // --------------------------------------------------------------------------------------
         0x40026410: 0,
         0x40026424: 0,
         0x40012300: 0,
@@ -392,9 +402,7 @@ struct stm32f4_mem {
         0x40026088: 0,
         0x4002609C: 0,
         0x40007400: 0,
-        0x40011000: 0xc0,
-        0xE000E018: 0,
-        0xE0042004: 0           // DBGMCU_CR Debug MCU Configuration Register
+        0x40011000: 0xc0
     ];
 
     string[size_t] peripheral_names = [
@@ -526,9 +534,13 @@ struct stm32f4_mem {
         f.writeln(format("Attempting to access [%08X]", addr));
         f.flush();
         uint res;
-        if (addr == 0x08000000) {
-            res = 0x20020000;
-        } else if (addr > sram_1_origin + sram_1_length) {
+        if (addr >= scb_base) {
+            if (auto s = addr in scb) {
+                res = *s;              
+            } else {
+                throw new Exception("Invalid access");            
+            }
+        } else if (addr >= sram_1_origin + sram_1_length) {
             if (auto p = addr in peripherals) {
                 res = *p;              
             } else {
@@ -591,7 +603,14 @@ struct stm32f4_mem {
     }
 
     void write_word(size_t addr, uint val) {
-        if (addr > sram_1_origin + sram_1_length) {
+        if (addr >= scb_base) {
+            if (addr in scb) {
+                scb[addr] = val;   
+                return;           
+            } else {
+                throw new Exception("Invalid access");            
+            }
+        } else if (addr >= sram_1_origin + sram_1_length) {
             if (addr == 0x40023808) {
                 uint cfgr = peripherals[addr];
                 cfgr = val;
@@ -678,8 +697,11 @@ struct nrf52840_mem {
     enum ram_origin    =  0x20000000;
     enum flash_length  =  256 * 1024;
     enum ram_length    =  256 * 1024;
+    enum ficr_length   =   16 * 1024;
+    enum ficr_origin   =  0x10000000;
     mem_section!(256, ram_origin)     ram;
     mem_section!(256, flash_origin) flash;
+    mem_section!(16, ficr_origin)    ficr;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t]   peripherals      = null;
     string[size_t] peripheral_names = null; 
@@ -723,8 +745,12 @@ struct nrf52840_mem {
         f.writeln(format("Attempting to access [%08X]", addr));
         f.flush();
         uint res;
-        if (addr == 0x08000000) {
-            res = 0x20020000;
+        if (addr >= scb_base) {
+            if (auto s = addr in scb) {
+                res = *s;              
+            } else {
+                throw new Exception("Invalid access");            
+            }
         } else if (addr > ram_origin + ram_length) {
             if (auto p = addr in peripherals) {
                 res = *p;              
@@ -733,6 +759,8 @@ struct nrf52840_mem {
             }
         } else if (addr >= ram_origin) {
             res = ram.read_word(addr);
+        } else if (addr >= ficr_origin) {
+            res = ficr.read_word(addr);
         } else {
             res = flash.read_word(addr);
         }
@@ -786,7 +814,14 @@ struct nrf52840_mem {
     }
 
     void write_word(size_t addr, uint val) {
-        if (addr > ram_origin + ram_length) {
+        if (addr >= scb_base) {
+            if (addr in scb) {
+                scb[addr] = val;  
+                return;            
+            } else {
+                throw new Exception("Invalid access");            
+            }
+        } else if (addr >= ram_origin + ram_length) {
             if (addr == 0x40023808) {
                 uint cfgr = peripherals[addr];
                 cfgr = val;
@@ -816,6 +851,8 @@ struct nrf52840_mem {
         }
         if (addr >= ram_origin) {
             return ram.write_word(addr, val);
+        } else if (addr >= ficr_origin) {
+            return ficr.write_word(addr, val);
         } else {
             return flash.write_word(addr, val);
         }

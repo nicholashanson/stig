@@ -602,6 +602,7 @@ elf_func get_elf_func(const string elf_file, const string func_name, const uint 
         if (name == "CopyDataInit")         size =  6;
         if (name == "FillZerobss")          size =  4;
         if (name == "register_tm_clones")   size = 36;
+        if (name == "z_arm_bus_fault")      size = 20;
 
         //if(offset_in_text + size > text_data.length)
         //    size = text_data.length - offset_in_text;
