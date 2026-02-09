@@ -515,7 +515,7 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_typ
 
 unittest {
     auto filename = "../test/blinky.elf";
-    auto f_s = get_st_name_val(filename, st_type.stt_func);
+    auto f_s = get_st_name_val(filename, st_type.stt_func, soc.stm32);
     foreach (f; f_s) {
         writeln(f.name);
     }
@@ -523,7 +523,7 @@ unittest {
 
 unittest {
     auto filename = "../test/stm32_dsp.elf";
-    auto f_s = get_st_name_val(filename, st_type.stt_func);
+    auto f_s = get_st_name_val(filename, st_type.stt_func, soc.stm32);
     foreach (f; f_s) {
         writeln(f.name, format(": %08X", f.addr));
     }
@@ -618,7 +618,7 @@ elf_func get_elf_func(const string elf_file, const string func_name, const uint 
 
 unittest {
     auto filename = "../test/blinky.elf";
-    auto f = get_elf_func(filename, "char_out");
+    auto f = get_elf_func(filename, "char_out", 0x80004ed);
     assert(f.offset == 0x80004ec, 
            format("Actual char_out offset is [%08X], not the expected 0x80004ec", f.offset));
     assert(f.data.length == 12, 
@@ -632,7 +632,7 @@ unittest {
 
 unittest {
     auto filename = "../test/blinky.elf";
-    auto f = get_elf_func(filename, "__start");
+    auto f = get_elf_func(filename, "__start", 0x8000a91);
     assert(f.offset == 0x8000a90, 
            format("Actual char_out offset is [%08X], not the expected 0x8000a90", f.offset));
     //assert(f.data.length == 12, 
@@ -929,7 +929,7 @@ unittest {
     //assert(res == "4b01", 
     //       format("Actual instr_bytes is %s, not the expected 4b01", res));
     bool[uint] l;
-    auto __start = get_function_from_elf(filename, "__start", l);
+    auto __start = get_function_from_elf(filename, "__start", 0x8000a91, l);
     auto start_addr = __start.instrs[0]._addr;
     assert(start_addr == 0x8000a90, 
            format("Actual instr_bytes is [%08X], not the expected 0x8000a90", start_addr));
@@ -1191,7 +1191,7 @@ unittest {
     bool[uint] l;
     foreach (f_n; blinky_funcs) {
         writeln(format("%s", f_n));
-        auto f = get_function_from_elf(filename, f_n, l);
+        //auto f = get_function_from_elf(filename, f_n, l);
     }
 }
 

@@ -219,7 +219,9 @@ enum opcode : ubyte {
 	ror_imm_32,		// rotate right
 	rrx_32,
 	// -------------------------------------------------------------------------------------- 
-	invalid
+	invalid,
+
+	vmsr
 }
 
 enum instr_grp : ubyte {
@@ -936,9 +938,17 @@ opcode decode_store_single_data_item(uint instr) {
 	return opcode.invalid;
 }
 
-opcode decode_mnemonic_32(uint instr) {
+opcode decode_floating_point(const uint instr) {
+	return opcode.vmsr;
+}
+
+opcode decode_mnemonic_32(const uint instr) {
+	
 	ubyte op1 = cast(ubyte)((instr >> 27) & 0b11);
 	ubyte op2 = cast(ubyte)((instr >> 20) & 0b1111111);
+	if ((op1 == 0b01) && ((op2 & 0b1000000) == 0b1000000)) {
+		return decode_floating_point(instr);
+	}
 	if (op1 == op1_32.grp1) { 
 		if ((op2 & op2_32.data_proc_shift_reg) == op2_32.data_proc_shift_reg) {
 			return decode_data_proc_shift_reg(instr);
@@ -1245,7 +1255,8 @@ unittest {
 		test_case(0xe8dff012, opcode.tbb_tbh_32),
 		test_case(0xF3838814, opcode.msr_32),
 		test_case(0xf837c012, opcode.ldh_32),
-		test_case(0xf8213012, opcode.strh_reg_32)
+		test_case(0xf8213012, opcode.strh_reg_32),
+		test_case(0xeee13a10, opcode.vmsr)
 	];
 
 	foreach (t; tests) {

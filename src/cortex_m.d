@@ -36,6 +36,7 @@ import thumb_2_load_store_multiple;
 import parse_elf;
 import thumb_2_shift_add_sub_16;
 import load_store_log_;
+import floating_point_ext;
 
 File* pc_log_ptr = null;
 
@@ -325,6 +326,7 @@ enum all_field_tuples =
 	~ field_tuples_uxtb
 	~ field_tuples_uxth_32
 	~ field_tuples_uxth
+	~ field_tuples_vmsr
 	~ field_tuples_rev;
 
 // ======================
@@ -1558,7 +1560,7 @@ string get_operands(string line) {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
-    cortex_m_vm vm;
+    cortex_m_vm!stm32f4_mem vm;
     vm.cpu.set_sp(stm32f4_mem.stack_base);
     vm.mem.push(vm.cpu, 32);
     int val = vm.mem.pop(vm.cpu);
@@ -2320,13 +2322,13 @@ unittest {
 }
 
 auto make_ram_with(size_t index, uint value) {
-    mem_section!(256,stm32f4_mem.ram_origin) r;
+    mem_section!(128,stm32f4_mem.ram_origin) r;
     r.write_word(stm32f4_mem.ram_origin + index, value);
     return r;
 }
 
 auto make_ram_with(size_t[] indices, uint[] values) {
-	mem_section!(256,stm32f4_mem.ram_origin) r;
+	mem_section!(128,stm32f4_mem.ram_origin) r;
 	uint count = 0;
 	foreach (i; indices) {
     	r.write_word(i, values[count]);
@@ -4347,11 +4349,13 @@ instr_32 parse_cmn_imm_32(uint instr) {
 //  Decode Instr
 // ==============
 
-instr_32 decode_instr(uint instr) {
+instr_32 decode_instr(const uint instr) {
 	instr_32 res;
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.vmsr:
+			return parse_vmsr(instr);
 		case opcode.tbb_tbh_32:
 			return parse_tbb_tbh_32(instr);
 		case opcode.eor_imm_32:
@@ -5437,6 +5441,8 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.vmsr:
+			return execute_vmsr(instr, cpu);
 		case opcode.eor_imm_32:
 			return execute_eor_imm_32(instr, cpu);
 		case opcode.eor_reg_32:
@@ -5955,7 +5961,8 @@ string[opcode] opcode_strings = [
 	opcode.umull_32: 	 		   "umull",
 	opcode.ubfx_32: 				"ubfx",
 	opcode.uxtb: 					"uxtb",
-	opcode.uxth: 					"uxth"
+	opcode.uxth: 					"uxth",
+	opcode.vmsr:					"vmsr"
 ];
 
 string get_register_name(reg r) {
@@ -6411,7 +6418,9 @@ string[] table_names = [
 	"k_mutex_area",
 	"k_condvar_area",
   	"net_buf_pool_area",
-  	".init_array"
+  	".init_array",
+  	"entropy_driver_api_area",
+  	"bt_hci_driver_api_area"
 ];
 
 void load_data(mem_t)(const ref string filename, ref mem_t mem) {

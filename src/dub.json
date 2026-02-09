@@ -27,6 +27,7 @@
         "parse_elf.d",
         "thumb_2_shift_add_sub_16.d",
         "thumb_2_load_store_multiple.d",
-        "load_store_log.d"
+        "load_store_log.d",
+        "floating_point_ext.d"
     ]
 }

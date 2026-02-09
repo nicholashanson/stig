@@ -132,13 +132,15 @@ struct big_mem_section(size_t origin) {
     	g_big_mem[index + 1] = (val >>  8) & 0xff;
     	g_big_mem[index    ] =  val        & 0xff;
     }
+
+    enum origin_ = origin; 
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
     big_mem_section!(0x08000000) flash;
-    flash.write_word(flash_mem_section.flash_origin, 32);
-    uint read_value = flash.read_word(flash_mem_section.flash_origin);
+    flash.write_word(flash.origin_, 32);
+    uint read_value = flash.read_word(flash.origin_);
     assert(read_value == 32, "Failed to read word from flash");
 }
 
@@ -522,7 +524,7 @@ struct stm32f4_mem {
     }
 
     unittest {
-        memory mem;
+        stm32f4_mem mem;
         auto reg_name = mem.get_reg_name(0xE000E100);
         assert(reg_name == "NVIC_ISER0", format("reg_name of 0xE000E100 is %s, instead of the expected NVIC_ISER0", reg_name));
         auto zero_case = mem.get_reg_name(0x0);
@@ -695,12 +697,12 @@ struct stm32f4_mem {
 struct nrf52840_mem {     
     enum flash_origin  =  0x00000000;
     enum ram_origin    =  0x20000000;
-    enum flash_length  =  256 * 1024;
+    enum flash_length  =  1024* 1024;
     enum ram_length    =  256 * 1024;
     enum ficr_length   =   16 * 1024;
     enum ficr_origin   =  0x10000000;
     mem_section!(256, ram_origin)     ram;
-    mem_section!(256, flash_origin) flash;
+    big_mem_section!(flash_origin)  flash;
     mem_section!(16, ficr_origin)    ficr;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t]   peripherals      = null;
@@ -733,7 +735,7 @@ struct nrf52840_mem {
     }
 
     unittest {
-        memory mem;
+        stm32f4_mem mem;
         auto reg_name = mem.get_reg_name(0xE000E100);
         assert(reg_name == "NVIC_ISER0", format("reg_name of 0xE000E100 is %s, instead of the expected NVIC_ISER0", reg_name));
         auto zero_case = mem.get_reg_name(0x0);
