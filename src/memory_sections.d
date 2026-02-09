@@ -40,26 +40,26 @@ File* gpio_log() {
     return gpio_log_ptr;
 }
 
-// =================
-//  RAM Mem Section
-// =================
+// =============
+//  MEM SECTION
+// =============
 
-struct ram_mem_section {
-	ubyte[128 * 1024] cells;
+struct mem_section(size_t kb, size_t origin) {
+	ubyte[kb * 1024] cells;
 
     const(ubyte) read_byte(size_t index) const {
-    	index -= ram_origin;
+    	index -= origin;
         return cells[index];
     }
 
     const(ushort) read_half_word(size_t index) {
-    	index -= ram_origin;
+    	index -= origin;
     	ushort res = (cells[index + 1] << 8) | cells[index];
     	return res;
     }
 
     const(uint) read_word(size_t index) {
-    	index -= ram_origin;
+    	index -= origin;
     	uint res = (cells[index + 3] << 24) | 
     	           (cells[index + 2] << 16) | 
     	           (cells[index + 1] <<  8) | 
@@ -67,229 +67,91 @@ struct ram_mem_section {
     	return res;
     }
 
-    void write_byte(size_t index, ubyte val) {
-    	index -= ram_origin;
+    void write_byte(size_t index, const ubyte val) {
+    	index -= origin;
     	cells[index] = val;
     }
 
-    void write_half_word(size_t index, ushort val) {
-    	index -= ram_origin;
+    void write_half_word(size_t index, const ushort val) {
+    	index -= origin;
     	cells[index + 1] = (val >> 8) & 0xff;
     	cells[index] =      val       & 0xff;
     }
 
-    void write_word(size_t index, uint val) {
-    	index -= ram_origin;
+    void write_word(size_t index, const uint val) {
+    	index -= origin;
     	cells[index + 3] = (val >> 24) & 0xff;
     	cells[index + 2] = (val >> 16) & 0xff;
     	cells[index + 1] = (val >>  8) & 0xff;
     	cells[index] =      val        & 0xff;
     }
-
-    static enum ram_origin = 0x20000000;
 }
 
-struct ram_mem_section_2 {
-    ubyte[256 * 1024] cells;
+__gshared ubyte[1024 * 1024] g_big_mem;
 
+// =================
+//  Big Mem Section
+// =================
+
+struct big_mem_section(size_t origin) {
     const(ubyte) read_byte(size_t index) const {
-        index -= ram_origin;
-        return cells[index];
-    }
-
-    const(ushort) read_half_word(size_t index) {
-        index -= ram_origin;
-        ushort res = (cells[index + 1] << 8) | cells[index];
-        return res;
-    }
-
-    const(uint) read_word(size_t index) {
-        index -= ram_origin;
-        uint res = (cells[index + 3] << 24) | 
-                   (cells[index + 2] << 16) | 
-                   (cells[index + 1] <<  8) | 
-                    cells[index    ];
-        return res;
-    }
-
-    void write_byte(size_t index, ubyte val) {
-        index -= ram_origin;
-        cells[index] = val;
-    }
-
-    void write_half_word(size_t index, ushort val) {
-        index -= ram_origin;
-        cells[index + 1] = (val >> 8) & 0xff;
-        cells[index] =      val       & 0xff;
-    }
-
-    void write_word(size_t index, uint val) {
-        index -= ram_origin;
-        cells[index + 3] = (val >> 24) & 0xff;
-        cells[index + 2] = (val >> 16) & 0xff;
-        cells[index + 1] = (val >>  8) & 0xff;
-        cells[index] =      val        & 0xff;
-    }
-
-    static enum ram_origin = 0x20000000;
-}
-
-struct sram_1_section {
-    ubyte[368 * 1024] cells; 
-
-    const(ubyte) read_byte(size_t index) const {
-        index -= sram_1_origin;
-        return cells[index];
-    }
-
-    const(ushort) read_half_word(size_t index) {
-        index -= sram_1_origin;
-        ushort res = (cells[index + 1] << 8) | cells[index];
-        return res;
-    }
-
-    const(uint) read_word(size_t index) {
-        index -= sram_1_origin;
-        uint res = (cells[index + 3] << 24) | 
-                   (cells[index + 2] << 16) | 
-                   (cells[index + 1] <<  8) | 
-                    cells[index    ];
-        return res;
-    }
-
-    void write_byte(size_t index, ubyte val) {
-        index -= sram_1_origin;
-        cells[index] = val;
-    }
-
-    void write_half_word(size_t index, ushort val) {
-        index -= sram_1_origin;
-        cells[index + 1] = (val >> 8) & 0xff;
-        cells[index] =      val       & 0xff;
-    }
-
-    void write_word(size_t index, uint val) {
-        index -= sram_1_origin;
-        cells[index + 3] = (val >> 24) & 0xff;
-        cells[index + 2] = (val >> 16) & 0xff;
-        cells[index + 1] = (val >>  8) & 0xff;
-        cells[index] =      val        & 0xff;
-    }
-
-    static enum sram_1_origin = 0x20020000;
-}
-
-__gshared ubyte[1024 * 1024] g_flash;
-__gshared ubyte[ 256 * 1024] g_flash_2;
-
-// ===================
-//  Flash Mem Section
-// ===================
-
-struct flash_mem_section {
-    const(ubyte) read_byte(size_t index) const {
-    	index -= flash_origin;
-        return g_flash[index];
+    	index -= origin;
+        return g_big_mem[index];
     }
 
     const(ushort) read_half_word(size_t index) const {
-    	index -= flash_origin;
-    	ushort res = (g_flash[index + 1] << 8) | g_flash[index];
+    	index -= origin;
+    	ushort res = (g_big_mem[index + 1] << 8) | g_big_mem[index];
     	return res;
     }
 
-    void write_byte(size_t index, ubyte val) {
-        index -= flash_origin;
-        g_flash[index] = val;
+    void write_byte(size_t index, const ubyte val) {
+        index -= origin;
+        g_big_mem[index] = val;
     }
 
-    void write_half_word(size_t index, ushort val) {
-        index -= flash_origin;
-        g_flash[index + 1] = (val >> 8) & 0xff;
-        g_flash[index] =      val       & 0xff;
+    void write_half_word(size_t index, const ushort val) {
+        index -= origin;
+        g_big_mem[index + 1] = (val >> 8) & 0xff;
+        g_big_mem[index] =      val       & 0xff;
     }
 
     const(uint) read_word(size_t index) const {
-    	index -= flash_origin;
-    	uint res = (g_flash[index + 3] << 24) | 
-    	           (g_flash[index + 2] << 16) | 
-    	           (g_flash[index + 1] <<  8) |  
-    	            g_flash[index];
+    	index -= origin;
+    	uint res = (g_big_mem[index + 3] << 24) | 
+    	           (g_big_mem[index + 2] << 16) | 
+    	           (g_big_mem[index + 1] <<  8) |  
+    	            g_big_mem[index];
     	return res;
     }
 
-    static void write_word(size_t index, uint val) {
-       	index -= flash_origin;
-    	g_flash[index + 3] = (val >> 24) & 0xff;
-    	g_flash[index + 2] = (val >> 16) & 0xff;
-    	g_flash[index + 1] = (val >>  8) & 0xff;
-    	g_flash[index    ] =  val        & 0xff;
+    static void write_word(size_t index, const uint val) {
+       	index -= origin;
+    	g_big_mem[index + 3] = (val >> 24) & 0xff;
+    	g_big_mem[index + 2] = (val >> 16) & 0xff;
+    	g_big_mem[index + 1] = (val >>  8) & 0xff;
+    	g_big_mem[index    ] =  val        & 0xff;
     }
-
-    enum flash_origin = 0x8000000;
-}
-
-struct flash_mem_section_2 {
-    const(ubyte) read_byte(size_t index) const {
-        index -= flash_origin;
-        return g_flash_2[index];
-    }
-
-    const(ushort) read_half_word(size_t index) const {
-        index -= flash_origin;
-        ushort res = (g_flash_2[index + 1] << 8) | g_flash_2[index];
-        return res;
-    }
-
-    void write_byte(size_t index, ubyte val) {
-        index -= flash_origin;
-        g_flash_2[index] = val;
-    }
-
-    void write_half_word(size_t index, ushort val) {
-        index -= flash_origin;
-        g_flash_2[index + 1] = (val >> 8) & 0xff;
-        g_flash_2[index] =      val       & 0xff;
-    }
-
-    const(uint) read_word(size_t index) const {
-        index -= flash_origin;
-        uint res = (g_flash_2[index + 3] << 24) | 
-                   (g_flash_2[index + 2] << 16) | 
-                   (g_flash_2[index + 1] <<  8) |  
-                    g_flash_2[index];
-        return res;
-    }
-
-    static void write_word(size_t index, uint val) {
-        index -= flash_origin;
-        g_flash_2[index + 3] = (val >> 24) & 0xff;
-        g_flash_2[index + 2] = (val >> 16) & 0xff;
-        g_flash_2[index + 1] = (val >>  8) & 0xff;
-        g_flash_2[index    ] =  val        & 0xff;
-    }
-
-    enum flash_origin = 0x0000000;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
-    flash_mem_section flash;
+    big_mem_section!(0x08000000) flash;
     flash.write_word(flash_mem_section.flash_origin, 32);
     uint read_value = flash.read_word(flash_mem_section.flash_origin);
     assert(read_value == 32, "Failed to read word from flash");
 }
 
 struct stm32f4_mem {
-    sram_1_section   sram_1;            
-    ram_mem_section     ram;
-    flash_mem_section flash;
     enum flash_origin  =  0x08000000;
     enum ram_origin    =  0x20000000;
     enum sram_1_origin =  0x20020000;
     enum flash_length  = 1024 * 1024;
     enum ram_length    =  128 * 1024;
     enum sram_1_length =  368 * 1024;
+    mem_section!(368, sram_1_origin) sram_1;            
+    mem_section!(128,    ram_origin)    ram;
+    big_mem_section!(flash_origin)    flash;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t] peripherals = [
         0x4000780C: 0,          // reserved
@@ -812,12 +674,12 @@ struct stm32f4_mem {
 }
 
 struct nrf52840_mem {     
-    ram_mem_section_2     ram;
-    flash_mem_section_2 flash;
     enum flash_origin  =  0x00000000;
     enum ram_origin    =  0x20000000;
     enum flash_length  =  256 * 1024;
     enum ram_length    =  256 * 1024;
+    mem_section!(256, ram_origin)     ram;
+    mem_section!(256, flash_origin) flash;
     static uint stack_base = ram_origin + ram_length;
     uint[size_t]   peripherals      = null;
     string[size_t] peripheral_names = null; 

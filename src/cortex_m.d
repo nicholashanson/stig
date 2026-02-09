@@ -2319,16 +2319,14 @@ unittest {
     }
 }
 
-ram_mem_section make_ram_with(size_t index, uint value)
-{
-    ram_mem_section r;
+auto make_ram_with(size_t index, uint value) {
+    mem_section!(256,stm32f4_mem.ram_origin) r;
     r.write_word(stm32f4_mem.ram_origin + index, value);
     return r;
 }
 
-ram_mem_section make_ram_with(size_t[] indices, uint[] values)
-{
-	ram_mem_section r;
+auto make_ram_with(size_t[] indices, uint[] values) {
+	mem_section!(256,stm32f4_mem.ram_origin) r;
 	uint count = 0;
 	foreach (i; indices) {
     	r.write_word(i, values[count]);
@@ -2337,9 +2335,8 @@ ram_mem_section make_ram_with(size_t[] indices, uint[] values)
     return r;
 }
 
-flash_mem_section make_flash_with(size_t index, uint value)
-{
-    flash_mem_section f;
+auto make_flash_with(size_t index, uint value) {
+    big_mem_section!(stm32f4_mem.flash_origin) f;
     f.write_word(stm32f4_mem.flash_origin + index, value);
     return f;
 }
