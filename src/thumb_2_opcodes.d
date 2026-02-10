@@ -711,7 +711,7 @@ opcode decode_data_proc_shift_reg(uint instr) {
 opcode decode_data_proc_bin_imm(uint instr) {
 	enum ubyte pc = 0xf;
 	ubyte op = cast(ubyte)((instr >> 20) & 0x1f);
-	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
+	ubyte rn = cast(ubyte)((instr >> 16) & 0x0f);
 	switch (op)
 	{
 		case 0b00000: return rn == pc ? opcode.adr_32 : opcode.add_imm_32;

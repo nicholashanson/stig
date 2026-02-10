@@ -168,9 +168,9 @@ struct instr_32 {
 	ubyte 	     shift_n;
 	int 		  offset;
 	reg[] 	    reg_list;
-	uint 		  ls_bit;
+	uint 		     lsb;
 	uint 		   width;
-	uint 		  ms_bit;
+	uint 		     msb;
 	reg 		   rd_hi;
 	reg 		   rd_lo;
 	reg 		    rt_2;

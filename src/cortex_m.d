@@ -2913,8 +2913,8 @@ instr_32 parse_ubfx_32(uint instr) {
 	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
 	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
 	ubyte rn = cast(ubyte)((instr >> 16) & 0xf);
-	uint ls_bit = (imm_3 << 2) | imm_2;
-	res.ls_bit = ls_bit;
+	uint lsb = (imm_3 << 2) | imm_2;
+	res.lsb = lsb;
 	res.width = width + 1;
 	res.rn = cast(reg)(rn);
 	res.rd = cast(reg)(rd);
@@ -3169,15 +3169,58 @@ instr_32 parse_sel_32(uint instr) {
 instr_32 parse_bfc_32(uint instr) {
 	instr_32 res;
 	res.op = opcode.bfc_32;
-	ubyte msb = cast(ubyte)(instr & 0xf);
-	ubyte imm_2 = cast(ubyte)((instr >> 6) & 0x3);
-	ubyte rd = cast(ubyte)((instr >> 8) & 0xf);
-	ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
-	uint ls_bit = (imm_3 << 2) | imm_2;
-	uint ms_bit = msb;
-	res.ls_bit = ls_bit;
+	const ubyte msb   = cast(ubyte)(instr & 0x1f);
+	const ubyte imm_2 = cast(ubyte)((instr >> 6) & 0x3);
+	const ubyte rd    = cast(ubyte)((instr >> 8) & 0xf);
+	const ubyte imm_3 = cast(ubyte)((instr >> 12) & 0x7);
+	const uint  lsb   = (imm_3 << 2) | imm_2;
+	res.lsb = lsb;
+	res.msb = msb;
 	res.rd = cast(reg)(rd);
 	return res;
+}
+
+instr_32 parse_bfi_32(const uint instr) {
+	instr_32 res;
+	res.op = opcode.bfi_32;
+	const ubyte msb    = cast(ubyte)(instr & 0x1f);
+	const ubyte imm_2  = cast(ubyte)((instr >> 6) & 0x3);
+	const ubyte rd     = cast(ubyte)((instr >> 8) & 0xf);
+	const ubyte imm_3  = cast(ubyte)((instr >> 12) & 0x7);
+	const uint  lsb    = (imm_3 << 2) | imm_2;
+	res.msb      = msb;
+	res.lsb      = lsb;
+	res.rd = cast(reg)(rd);
+	return res;
+}
+
+void execute_bfc_32(const instr_32 instr, ref cortex_m_cpu cpu) {
+	const uint lsb  = instr.lsb;
+	const uint msb  = instr.msb;
+	uint       rd   = cpu.get(instr.rd);
+	if (msb >= lsb) {
+        uint width = msb - lsb + 1;
+        uint field_mask = ((1u << width) - 1u) << lsb;
+        rd &= ~field_mask;
+    }
+    cpu.set(instr.rd, rd);
+    cpu.increment_pc(4);
+}
+
+void execute_bfi_32(const instr_32 instr, ref cortex_m_cpu cpu) {
+    const uint lsb   = instr.lsb;
+    const uint width = (instr.msb >= instr.lsb) ? instr.msb - instr.lsb + 1 : 0;
+
+    uint rd = cpu.get(instr.rd);
+    uint rn = cpu.get(instr.rn);
+
+    if (width > 0 && lsb < 32 && (lsb + width) <= 32) {
+        uint field_mask  = ((1u << width) - 1u) << lsb;
+        uint insert_bits = (rn & ((1u << width) - 1u)) << lsb;
+        rd = (rd & ~field_mask) | insert_bits;
+    }
+    cpu.set(instr.rd, rd);
+    cpu.increment_pc(4);
 }
 
 // =====================
@@ -4354,6 +4397,10 @@ instr_32 decode_instr(const uint instr) {
 	auto op = decode_mnemonic_32(instr);
 
 	switch (op) {
+		case opcode.bfc_32:
+			return parse_bfc_32(instr);
+		case opcode.bfi_32:
+			return parse_bfi_32(instr);
 		case opcode.vmsr:
 			return parse_vmsr(instr);
 		case opcode.tbb_tbh_32:
@@ -4537,7 +4584,7 @@ unittest {
 		test_case(0xfbb2f3f3, // udiv	r3, r2, r3
 				  instr_32(op: opcode.udiv_32,    rd: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xf3c20208, // ubfx	r2, r2, #0, #9
-				  instr_32(op: opcode.ubfx_32, 	  rd: reg.r2, rn: reg.r2, ls_bit: 0, width: 9)),
+				  instr_32(op: opcode.ubfx_32, 	  rd: reg.r2, rn: reg.r2, lsb: 0, width: 9)),
 		test_case(0xfb02f303, // mul.w	r3, r2, r3
 			      instr_32(op: opcode.mul_32, 	  rd: reg.r3, rn: reg.r2, rm: reg.r3)),
 		test_case(0xfa22f303, // lsr.w	r3, r2, r3
@@ -4744,10 +4791,10 @@ void execute_udiv_32(instr_32 instr, ref cortex_m_cpu cpu) {
 // ===============
 
 void execute_ubfx_32(instr_32 instr, ref cortex_m_cpu cpu) {
-	int ms_bit = instr.ls_bit + (instr.width - 1);
+	int ms_bit = instr.lsb + (instr.width - 1);
 	int rn = cpu.get(instr.rn);
 	if (ms_bit < 32) {
-		int res = (rn >> instr.ls_bit) & ((1 << instr.width) - 1);
+		int res = (rn >> instr.lsb) & ((1 << instr.width) - 1);
 		cpu.set(instr.rd, res);
 	}
 	cpu.increment_pc(4);
@@ -5226,7 +5273,12 @@ void execute_ldr_reg_32(mem_t)(const instr_32 instr, ref cortex_m_cpu cpu, ref m
 	const uint   rm      = cpu.get(instr.rm);
 	const int    shifted = shift(instr.shift_t, instr.shift_n, rm);
 	const size_t addr    = rn + shifted;
-	const uint   data    = mem.read_word(addr, cpu.pc);
+	uint         data    = mem.read_word(addr, cpu.pc);
+	if (instr.rt == reg.pc) {
+		data &= ~1;
+		cpu.set(instr.rt, data);
+		return;
+	}
 	cpu.set(instr.rt, data);
 	cpu.increment_pc(4);
 }
@@ -5376,9 +5428,14 @@ void execute_ldr_imm_32(mem_t)(const instr_32 instr, ref cortex_m_cpu cpu, ref m
 	size_t     offset_addr = rn;
 	instr.add ? (offset_addr += instr.imm) : (offset_addr -= instr.imm);
 	size_t     addr        = instr.index ? offset_addr : rn;
-	const uint data        = mem.read_word(addr, cpu.pc);
+	uint       data        = mem.read_word(addr, cpu.pc);
 	if (instr.wback) {
 		cpu.set(instr.rn, cast(uint)offset_addr);
+	}
+	if (instr.rt == reg.pc) {
+		data &= ~1;
+		cpu.set(instr.rt, data);
+		return;
 	}
 	cpu.set(instr.rt, data);
 	cpu.increment_pc(4);
@@ -5441,6 +5498,10 @@ void execute_instr(instr_32 instr, ref cortex_m_cpu cpu) {
 	}
 
 	switch (instr.op) {
+		case opcode.bfi_32:
+			return execute_bfi_32(instr, cpu);
+		case opcode.bfc_32:
+			return execute_bfc_32(instr, cpu);
 		case opcode.vmsr:
 			return execute_vmsr(instr, cpu);
 		case opcode.eor_imm_32:
@@ -5669,7 +5730,7 @@ unittest {
 				  cortex_m_cpu(r2: 2, r3: 2),
 				  cortex_m_cpu(pc: 4, r3: 1, r2: 2)),
 		test_case(0xf3c20208, // ubfx	r2, r2, #0, #9
-				  instr_32(op: opcode.ubfx_32, rd: reg.r2, rn: reg.r2, ls_bit: 0, width: 9),
+				  instr_32(op: opcode.ubfx_32, rd: reg.r2, rn: reg.r2, lsb: 0, width: 9),
 				  cortex_m_cpu(r2: 0xffff),
 				  cortex_m_cpu(pc: 4, r2: 0x01ff)),
 		test_case(0xfb02f303, // mul.w	r3, r2, r3
@@ -6284,9 +6345,9 @@ string convert_to_string(uint instr) {
 			ops ~= width;
 		}
 		if (field == "lsb") {
-			string ls_bit = "#";
-			ls_bit ~= parsed_instr.ls_bit.to!string;
-			ops ~= ls_bit;
+			string lsb = "#";
+			lsb ~= parsed_instr.lsb.to!string;
+			ops ~= lsb;
 		}
 		if (field == "reg_list") {
 			auto reg_list_copy = parsed_instr.reg_list;
