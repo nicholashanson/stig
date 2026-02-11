@@ -183,6 +183,24 @@ uint[size_t] scb = [
                             // REGION: on writes, can specify the number of the region to update
     0xE000EDA0: 0,          // MPU_RASR(RW) MPU Region Attribute and Size Register
     // --------------------------------------------------------------------------------------  
+    // ------------------------------------- NVIC ISR ---------------------------------------                        
+    0xE000E400: 0,
+    0xE000E100: 0,
+    0xE000E104: 0,
+    0xE000E108: 0,
+    0xE000E10C: 0,
+    0xE000E110: 0,
+    0xE000E114: 0,
+    0xE000E118: 0,
+    0xE000E11C: 0,
+    0xE000E120: 0,
+    0xE000E124: 0,
+    0xE000E128: 0,
+    0xE000E12C: 0,
+    0xE000E130: 0,
+    0xE000E134: 0,
+    0xE000E138: 0,
+    0xE000E13C: 0,
     // ------------------------------------- NVIC IPR ---------------------------------------                        
     0xE000E400: 0,
     0xE000E404: 0,
@@ -214,8 +232,11 @@ uint[size_t] scb = [
     0xE000E3F8: 0,
     0xE000EF34: 0,
     // --------------------------------------- SCB ------------------------------------------
-    0xE000ED08: 0x08000000, // VTOR(RW) Vector Table Offset Register
+    0xE000ED08: 0, //0x08000000, // VTOR(RW) Vector Table Offset Register
     0xE000ED0C: 0xFA050000, // AIRCR(RW) Application Interrupt and Reset Control Register 
+    0xE000ED10: 0,          // SCR(RW) 0x00000000 
+    0xE000ED28: 0,          // CFSR(RW) 0x00000000
+    0xE000ED2C: 0,          // HFSR(RW) 0x00000000
     // --------------------------------------------------------------------------------------
     // ------------------------------------- SysTick ----------------------------------------
     0xE000E010: 0,          // SYST_CSR(RW) SysTick Control and Status Register
@@ -588,10 +609,15 @@ struct stm32f4_mem {
     }
 
     const(ubyte) read_byte(size_t addr) {
-        if (addr > ram_origin + ram_length) {
+        if (addr > scb_base) {
             if (addr == 0xE000E400) {
                 return 0xf0;
             }
+            size_t word_addr = addr & ~3;
+            uint shift = (addr & 3) * 8;
+            uint val = scb[word_addr];
+            return cast(ubyte)((val >> shift) & 0xff);
+        } else if (addr >= ram_origin + ram_length) {
             size_t word_addr = addr & ~3;
             uint shift = (addr & 3) * 8;
             uint val = peripherals[word_addr];
@@ -654,7 +680,14 @@ struct stm32f4_mem {
         auto f = load_store_log();
         f.writeln(format("Attempting to access [%08X]", addr));
         const ubyte b = cast(ubyte)(val & 0xff);
-        if (addr > ram_origin + ram_length) {
+        if (addr >= scb_base) {
+            size_t word_addr = addr & ~3;
+            uint shift = (addr & 3) * 8;
+
+            uint old = scb[word_addr];
+            uint masked = (old & ~(0xff << shift)) | (b << shift);
+            scb[word_addr] = masked;
+        } else if (addr >= ram_origin + ram_length) {
             size_t word_addr = addr & ~3;
             uint shift = (addr & 3) * 8;
 
@@ -705,8 +738,12 @@ struct nrf52840_mem {
     big_mem_section!(flash_origin)  flash;
     mem_section!(16, ficr_origin)    ficr;
     static uint stack_base = ram_origin + ram_length;
-    uint[size_t]   peripherals      = null;
-    string[size_t] peripheral_names = null; 
+    uint[size_t]   peripherals      = [
+        0x40011504: 0,          // RTC1: COUNTER, Reset 0x00000000 
+    ];
+    string[size_t] peripheral_names = [
+        0x40011504: "RTC1_COUNTER"
+    ]; 
 
     string get_reg_name(const uint reg_addr) {
         const uint ise_base     = 0xE000E100;
@@ -744,7 +781,7 @@ struct nrf52840_mem {
 
     uint read_word(size_t addr, uint pc) {
         auto f = load_store_log();
-        f.writeln(format("Attempting to access [%08X]", addr));
+        f.writeln(format("[%08X]Attempting to access [%08X]", pc, addr));
         f.flush();
         uint res;
         if (addr >= scb_base) {
@@ -789,6 +826,8 @@ struct nrf52840_mem {
 
     void write_half_word(size_t addr, ushort val, uint pc) {
         auto f = load_store_log();
+        f.writeln(format("[%08X]Attempting to access [%08X]", pc, addr));
+        f.flush();
         if (addr >= ram_origin) {
             ram.write_half_word(addr, val);
         } else {
@@ -799,10 +838,16 @@ struct nrf52840_mem {
     }
 
     const(ubyte) read_byte(size_t addr) {
-        if (addr > ram_origin + ram_length) {
+        if (addr >= scb_base) {
             if (addr == 0xE000E400) {
                 return 0xf0;
             }
+            size_t word_addr = addr & ~3;
+            uint shift = (addr & 3) * 8;
+            uint val = scb[word_addr];
+            return cast(ubyte)((val >> shift) & 0xff);
+        }
+        if (addr >= ram_origin + ram_length) {
             size_t word_addr = addr & ~3;
             uint shift = (addr & 3) * 8;
             uint val = peripherals[word_addr];
@@ -816,6 +861,9 @@ struct nrf52840_mem {
     }
 
     void write_word(size_t addr, uint val) {
+        auto f = load_store_log();
+        f.writeln(format("Attempting to access [%08X]", addr));
+        f.flush();
         if (addr >= scb_base) {
             if (addr in scb) {
                 scb[addr] = val;  
@@ -824,47 +872,31 @@ struct nrf52840_mem {
                 throw new Exception("Invalid access");            
             }
         } else if (addr >= ram_origin + ram_length) {
-            if (addr == 0x40023808) {
-                uint cfgr = peripherals[addr];
-                cfgr = val;
-                uint sw = val & 0x3;
-                cfgr &= ~(0x3 << 2);
-                cfgr |= (sw << 2);
-                peripherals[addr] = cfgr;
-            } else if (addr == 0x40023874 && val == 0x1) {
-                peripherals[addr] = 0x3;
-            } else if (addr == 0x40011004 || addr == 0x40004404 || addr == 0x40011404) {
-                auto f = uart_log();
-                f.write(cast(char)(val & 0xff));
-                f.flush();
-            } else if (addr == 0x40020018) { 
-                auto f = gpio_log();
-                if (val & (1 << 5)) {
-                    f.write("GPIOA5 toggled on\n");
-                }
-                if (val & (1 << (5 + 16))) {
-                    f.write("GPIOA5 toggled off\n");
-                }
-                f.flush();
-            } else {
-                peripherals[addr] = val;
-            }
-            return;
+            peripherals[addr] = val;
         }
-        if (addr >= ram_origin) {
-            return ram.write_word(addr, val);
+        else if (addr >= ram_origin) {
+            ram.write_word(addr, val);
         } else if (addr >= ficr_origin) {
-            return ficr.write_word(addr, val);
+            ficr.write_word(addr, val);
         } else {
-            return flash.write_word(addr, val);
+            flash.write_word(addr, val);
         }
+        f.writeln(format("%08X stored to [%08X]", val, addr));
+        f.flush();
     }
 
     void write_byte(const size_t addr, const uint val, const uint pc) {
         auto f = load_store_log();
-        f.writeln(format("Attempting to access [%08X]", addr));
+        f.writeln(format("[%08X]Attempting to access [%08X]", pc, addr));
         const ubyte b = cast(ubyte)(val & 0xff);
-        if (addr > ram_origin + ram_length) {
+        if (addr >= scb_base) {
+            size_t word_addr = addr & ~3;
+            uint shift = (addr & 3) * 8;
+
+            uint old = scb[word_addr];
+            uint masked = (old & ~(0xff << shift)) | (b << shift);
+            scb[word_addr] = masked;
+        } else if (addr >= ram_origin + ram_length) {
             size_t word_addr = addr & ~3;
             uint shift = (addr & 3) * 8;
 

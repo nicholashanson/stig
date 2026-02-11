@@ -71,9 +71,10 @@ struct addr_instr {
 }
 
 struct func {
-    string name;
-    addr_instr[] instrs;
-    uint[uint] literal_pool;
+    string 				name;
+    addr_instr[]  	  instrs;
+    uint[uint]  literal_pool;
+    byte_table[] byte_tables;
 }
 
 struct imm {
@@ -1633,7 +1634,8 @@ void execute_str_imm(mem_t)(instr_16 str_imm_instr, ref cortex_m_cpu cpu, ref me
 	uint rt = cpu.get(str_imm_instr.rt);
 	uint rn = cpu.get(str_imm_instr.rn);
 	size_t addr = rn + str_imm_instr.imm;
-	f.writeln(format("Attempting to access [%08X]", addr));
+	f.writeln(format("[%08X]Attempting to access [%08X]", cpu.pc, addr));
+	f.flush();
 	mem.write_word(addr, rt);
 	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, rt, addr));
 	f.flush();
@@ -1811,7 +1813,10 @@ void execute_svc(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	cpu.set(reg.pc, pc);
 }
 
-void execute_syc_tick(mem_t)(ref cortex_m_cpu cpu, ref mem_t mem) {
+void 
+execute_syc_tick
+(mem_t)
+(ref cortex_m_cpu cpu, ref mem_t mem) {
 	if (cpu.current_exception == exception.thread_mode) {
 		auto f = stack_log();
 		f.writeln("Pushing in SysTick");
@@ -1833,9 +1838,11 @@ void execute_syc_tick(mem_t)(ref cortex_m_cpu cpu, ref mem_t mem) {
 	auto f_h = load_store_log();
 	cpu.current_exception = exception.SysTick_IRQn;
 	cpu.npriv = false;
-	cpu.lr = cpu.sp_sel ? 0xfffffffd : 0xfffffff9; 
+	cpu.lr = cpu.sp_sel ? 0xffff_fffd : 0xffff_fff9; 
 	cpu.sp_sel = false;
-	uint sys_tick_addr = mem.flash_origin + 4 * exception.SysTick_IRQn;
+	uint vtor_raw = mem.read_word(0xE000ED08, cpu.pc);
+	uint vector_base = vtor_raw & 0xFFFFFF80;
+	uint sys_tick_addr = vector_base + 4 * exception.SysTick_IRQn;
 	uint pc = mem.read_word(sys_tick_addr, cpu.pc);
 	pc &= ~0x3;
 	f_h.writeln(format("[%08X] loaded from [%08X]", pc, sys_tick_addr));
@@ -5071,7 +5078,10 @@ void execute_strex(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 //  Execute STR(Immediate)
 // ========================
 
-void execute_str_imm_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
+void 
+execute_str_imm_32
+(mem_t)
+(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
 	size_t offset_addr; 
 	uint rn = cpu.get(instr.rn);
 	auto f = load_store_log();
@@ -5082,7 +5092,7 @@ void execute_str_imm_32(mem_t)(instr_32 instr, ref cortex_m_cpu cpu, ref mem_t m
 	}
 	size_t addr = instr.index ? offset_addr : rn;
 	int data = cpu.get(instr.rt);
-	f.writeln(format("Attempting to access [%08X]", addr));
+	f.writeln(format("[%08X]Attempting to access [%08X]", cpu.pc, addr));
 	mem.write_word(addr, data);
 	f.writeln(format("%08X: %08X stored to [%08X]", cpu.pc, data, addr));
 	f.flush();
@@ -6014,6 +6024,7 @@ string[opcode] opcode_strings = [
 	opcode.sub_reg_32: 	 		   "sub.w",
 	opcode.sxtb: 					"sxtb",
 	opcode.svc: 					 "svc",
+	opcode.tbb_tbh_32:				 "tbh",
 	opcode.tst: 					 "tst",
 	opcode.tst_imm_32: 	 		   "tst.w",
 	opcode.sub_sp: 					 "sub",
@@ -6023,6 +6034,7 @@ string[opcode] opcode_strings = [
 	opcode.ubfx_32: 				"ubfx",
 	opcode.uxtb: 					"uxtb",
 	opcode.uxth: 					"uxth",
+	opcode.uxth_32:                 "uxth",
 	opcode.vmsr:					"vmsr"
 ];
 
@@ -6523,7 +6535,7 @@ struct cortex_m_vm(mem_t) {
         file.flush();
 		++cpu.tick;
 		if (cpu.tick == 10000) {
-			execute_syc_tick(cpu, mem);
+			//execute_syc_tick(cpu, mem);
 			cpu.tick = 0;
 			return;
 		}

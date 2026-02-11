@@ -9,6 +9,8 @@ import memory_sections;
 import thumb_2_opcodes;
 import cortex_m;
 
+import load_store_log_;
+
 enum elf_class {
     elf_32 = 1,
     elf_64 = 2
@@ -67,6 +69,11 @@ alias read_fn(T) = T function(const(ubyte)[] data, size_t offset);
 
 ushort read_ul_16(const(ubyte)[] data, size_t offset) {
     auto v = data[offset] | (data[offset + 1] << 8);
+    return cast(ushort)v;
+}
+
+ushort read_ub_16(const(ubyte)[] data, size_t offset) {
+    auto v = data[offset + 1] | (data[offset] << 8);
     return cast(ushort)v;
 }
 
@@ -304,6 +311,9 @@ void load_section_into_memory(mem_t)(const ref string filename, const string sec
     auto section = get_section_by_name(filename, section_name);
     if (section.data.length == 0)
         return;
+    auto f = load_store_log();
+    f.writeln(format("Loading %s of size %d into memory", section.name, section.data.length));
+    f.flush();
     auto segments = get_load_segments(filename);
     uint addr = file_offset_to_addr(section.file_offset, segments);
     foreach (b; section.data) {
@@ -738,8 +748,15 @@ func get_function_from_elf(const string elf_file, const string func_name, const 
     return res; 
 }
 
+struct byte_table {
+    uint        offset;
+    uint          addr;
+    ubyte[]       data;
+}
+
 bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] pending_literals) {
     uint[] toRemove;
+
     bool[uint] words_to_remove;
     bool[uint] literal_offsets;
     auto data = e_func.data;
@@ -758,6 +775,8 @@ bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] 
     foreach (l; toRemove) {
         pending_literals.remove(l);
     }
+    uint cmp_instr_size;
+    uint branch_instr_size;
     while (offset + 2 <= data.length) {
         if (offset in words_to_remove) {
             offset += 4;
@@ -789,6 +808,27 @@ bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] 
                     writeln("Added %08X to pending literals", lit_offset);
                 }
             }
+            if (decode_mnemonic_32(instr) == opcode.tbb_tbh_32) {
+                auto parsed_instr = decode_instr(instr);
+                bool is_tbh = parsed_instr.is_tbh;
+                uint cmp_offset = offset - branch_instr_size - cmp_instr_size;
+                uint cmp_imm;
+                if (cmp_instr_size == 2) {
+                    auto cmp_instr = read_ul_16(data, cmp_offset);
+                    cmp_imm = decode_instr(cmp_instr).imm;  
+                } else { 
+                    auto cmp_instr = read_ul_32(data, cmp_offset);
+                    cmp_imm = decode_instr(cmp_instr).imm; 
+                }
+                uint entries     = cmp_imm + 1;
+                uint raw_size    = is_tbh ? entries * 2 : entries;
+                uint padded_size = (raw_size & 1) ? raw_size + 1 : raw_size;
+                f.byte_tables ~= byte_table(
+                    offset + 4,
+                    e_func.offset + offset + 4,
+                    data[(offset + 4) .. (offset + 4 + padded_size)]
+                );
+            }
         } else if (len == 2) {
             if (decode_mnemonic(first_hw) == opcode.ldr_pool) {
                 auto parsed_instr = decode_instr(first_hw);
@@ -808,17 +848,42 @@ bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] 
             }
         }
         offset += len;
+        cmp_instr_size = branch_instr_size;
+        branch_instr_size = len;
     }
-    auto keys = words_to_remove.keys;
-    keys.sort;
+    uint[uint] widths;
+    foreach (w; words_to_remove.keys) {
+        widths[w] = 4;  
+    }
+    foreach (table; f.byte_tables) {;
+        widths[table.offset] = cast(uint)table.data.length;
+    }
+    auto keys = widths.keys;
+    keys.sort;      
     keys.reverse;
     foreach (w; keys) {
-        if (w + 4 <= data.length) {
-            data = data[0 .. w] ~ data[w + 4 .. $];
+        uint width = widths[w];
+        if (w + width <= data.length) {
+            data = data[0 .. w] ~ data[w + width .. $];
         }
     }
     e_func.data = data;
     return literal_offsets;
+}
+
+unittest {
+    auto e_func = get_elf_func("../test/blinky.elf", "__l_vfprintf", 0x80028ED);
+    assert(e_func.data.length == 1268, format("Func is %d and not 1268", e_func.data.length));
+    func f;
+    bool[uint] l;
+    extract_literal_pool(e_func, f, l);
+    assert(l.length == 0, "Literal pool for __l_vfprintf is not empty");
+    assert(f.byte_tables.length == 2, format("Number of byte tables found is %d and not 2", f.byte_tables.length));
+    writeln(format("%08X", f.byte_tables[0].addr));
+    writeln(format("first size: %d", f.byte_tables[0].data.length));
+    writeln(format("%08X", f.byte_tables[1].addr));
+    writeln(format("second size: %d", f.byte_tables[1].data.length));
+    assert(f.byte_tables[0].data.length == 18, format("First bytes table length is %d and not 18", f.byte_tables[0].data.length));
 }
 
 unittest {
@@ -935,7 +1000,10 @@ unittest {
            format("Actual instr_bytes is [%08X], not the expected 0x8000a90", start_addr));
 }
 
-void load_function_into_memory(mem_t)(const string elf_file, const string func_name, ref mem_t mem) {
+void 
+load_function_into_memory
+(mem_t)
+(const string elf_file, const string func_name, ref mem_t mem) {
     func f = get_function(elf_file, func_name);
     foreach (i; f.instrs) {
         if (i._instr_bytes.length == 4) {
@@ -950,7 +1018,10 @@ void load_function_into_memory(mem_t)(const string elf_file, const string func_n
     }
 }
 
-void load_function_into_memory(mem_t)(func f, ref mem_t mem) {
+void 
+load_function_into_memory
+(mem_t)
+(func f, ref mem_t mem) {
     foreach (i; f.instrs) {
         if (i._instr_bytes.length == 4) {
             mem.write_half_word(i._addr, i._in_16, 0);
@@ -961,6 +1032,32 @@ void load_function_into_memory(mem_t)(func f, ref mem_t mem) {
     }
     foreach (addr, value; f.literal_pool) {
         mem.write_word(addr, value);
+    }
+    foreach (t; f.byte_tables) {
+        uint offset = 0;
+        auto data   = t.data;
+        uint addr   = t.addr;
+
+    
+        while (offset + 4 <= data.length) {
+            uint val = cast(uint)(
+                 data[offset]            |
+                (data[offset + 1] <<  8) |
+                (data[offset + 2] << 16) |
+                (data[offset + 3] << 24)
+            );
+            mem.write_word(addr, val);
+            offset += 4;
+            addr   += 4;
+        }
+
+        if (offset + 2 <= data.length) {
+            ushort val = cast(ushort)(data[offset] | (data[offset + 1] << 8));
+            mem.write_half_word(addr, val, 0);
+            offset += 2;
+            addr   += 2;
+        }
+        enforce(offset == data.length, "Table size not aligned to 2 bytes!");
     }
 }
 
