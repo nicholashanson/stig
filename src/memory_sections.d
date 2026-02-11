@@ -40,6 +40,33 @@ File* gpio_log() {
     return gpio_log_ptr;
 }
 
+enum ise_base     = 0xE000E100;
+enum ise_top      = 0xE000E13C;
+enum ice_base     = 0xE000E180;
+enum ice_top      = 0xE000E1BC;
+enum isp_base     = 0xE000E200;
+enum isp_top      = 0xE000E23C;
+enum iab_base     = 0xE000E300;
+enum iab_top      = 0xE000E33C;
+enum ipr_base     = 0xE000E400;
+enum ipr_top      = 0xE000E5EC;
+
+string get_scb_reg_name(const uint reg_addr) { 
+    if (reg_addr >= ipr_base && reg_addr <= ipr_top) {
+        return format("NVIC_IPR%d", (reg_addr - ipr_base) / 4);
+    } 
+    if (reg_addr >= ise_base && reg_addr <= ise_top) {
+        return format("NVIC_ISER%d", (reg_addr - ise_base) / 4);
+    }
+    if (reg_addr >= ice_base && reg_addr <= ice_top) {
+        return format("NVIC_ICER%d", (reg_addr - ice_base) / 4);
+    }  
+    if (reg_addr >= isp_base && reg_addr <= isp_top) {
+        return format("NVIC_ISPR%d", (reg_addr - isp_base) / 4);
+    }
+    return "";
+}  
+
 // =============
 //  MEM SECTION
 // =============
@@ -519,28 +546,8 @@ struct stm32f4_mem {
     ]; 
 
     string get_reg_name(const uint reg_addr) {
-        const uint ise_base     = 0xE000E100;
-        const uint ise_top      = 0xE000E13C;
-        const uint ice_base     = 0xE000E180;
-        const uint ice_top      = 0xE000E1BC;
-        const uint isp_base     = 0xE000E200;
-        const uint isp_top      = 0xE000E23C;
-        const uint iab_base     = 0xE000E300;
-        const uint iab_top      = 0xE000E33C;
-        const uint ipr_base     = 0xE000E400;
-        const uint ipr_top      = 0xE000E5EC;
-        if (reg_addr >= ipr_base && reg_addr <= ipr_top) {
-            return format("NVIC_IPR%d", (reg_addr - ipr_base) / 4);
-        } 
-        if (reg_addr >= ise_base && reg_addr <= ise_top) {
-            return format("NVIC_ISER%d", (reg_addr - ise_base) / 4);
-        }
-        if (reg_addr >= ice_base && reg_addr <= ice_top) {
-            return format("NVIC_ICER%d", (reg_addr - ice_base) / 4);
-        }  
-        if (reg_addr >= isp_base && reg_addr <= isp_top) {
-            return format("NVIC_ISPR%d", (reg_addr - isp_base) / 4);
-        }  
+        auto s = get_scb_reg_name(reg_addr);
+        if (s != "") return s;
         return peripheral_names.get(reg_addr, "");
     }
 
@@ -746,28 +753,8 @@ struct nrf52840_mem {
     ]; 
 
     string get_reg_name(const uint reg_addr) {
-        const uint ise_base     = 0xE000E100;
-        const uint ise_top      = 0xE000E13C;
-        const uint ice_base     = 0xE000E180;
-        const uint ice_top      = 0xE000E1BC;
-        const uint isp_base     = 0xE000E200;
-        const uint isp_top      = 0xE000E23C;
-        const uint iab_base     = 0xE000E300;
-        const uint iab_top      = 0xE000E33C;
-        const uint ipr_base     = 0xE000E400;
-        const uint ipr_top      = 0xE000E5EC;
-        if (reg_addr >= ipr_base && reg_addr <= ipr_top) {
-            return format("NVIC_IPR%d", (reg_addr - ipr_base) / 4);
-        } 
-        if (reg_addr >= ise_base && reg_addr <= ise_top) {
-            return format("NVIC_ISER%d", (reg_addr - ise_base) / 4);
-        }
-        if (reg_addr >= ice_base && reg_addr <= ice_top) {
-            return format("NVIC_ICER%d", (reg_addr - ice_base) / 4);
-        }  
-        if (reg_addr >= isp_base && reg_addr <= isp_top) {
-            return format("NVIC_ISPR%d", (reg_addr - isp_base) / 4);
-        }  
+        auto s = get_scb_reg_name(reg_addr);
+        if (s != "") return s;
         return peripheral_names.get(reg_addr, "");
     }
 
