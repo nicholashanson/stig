@@ -99,9 +99,7 @@ execute_pop_t2
 		vm.set_reg(r, val);
 	}
 	if (regs.back == reg.pc) {
-		uint pc = cpu.get(reg.pc);
-		pc &= ~0b1;
-		vm.set_reg(reg.pc, pc);
+		vm.clear_thumb_bit();
 	}
 }
 // ---------------------------------------------------------------------------------------
