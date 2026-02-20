@@ -1,0 +1,526 @@
+import std.typecons : Tuple;
+
+import thumb_2_opcodes;
+import thumb_2_instrs;
+import cortex_m_core;
+
+// ***************************************************************************************
+// *									   TST 											 *
+// ***************************************************************************************
+
+// ===========
+//  Parse TST 
+// ===========
+
+enum field_tuples_tst_reg_t1 = [Tuple!(opcode, string[])(opcode.tst_reg_t1, ["rn","rm"])];
+// TST<c> <Rn>,<Rm>
+// [15:6] 0100001000, [5:3] Rm, [2:0] Rn
+instr_16 parse_tst_t1(short instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+					rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =============
+//  Execute TST
+// =============
+
+void 
+execute_tst_reg_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	immutable  rn  = vm.get_reg(instr.rn);
+	immutable  rm  = vm.get_reg(instr.rm);
+	const uint res = rm & rm;
+	vm.set_z(res);
+	vm.set_n(res);
+	// APSR.C = carry;
+	// APSR.V unchanged
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   ADC 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse ADC(Register)
+// =====================
+
+enum field_tuples_adc_reg_t1 = [Tuple!(opcode, string[])(opcode.adc_reg_t1, ["rd","rm"])];
+// ADC <Rdn>,<Rm>
+// [15:6] 0100000101, [5:3] Rm, [2:0] Rdn  
+instr_16 parse_adc_reg_t1(const ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+		            rd: cast(reg)slice(instr, 0, 3), 
+		            rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute ADC(Register)
+// =======================
+
+void 
+execute_adc_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable rn  = vm.get_reg(instr.rn);
+	immutable rm  = vm.get_reg(instr.rm);
+	// (result, carry, overflow) = AddWithCarry(R[n], shifted, APSR.C);
+	immutable res = add_with_carry(rn, rm, vm.get_c()); 
+	if (!vm.in_it_block()) {
+		vm.set_z(res);	// APSR.N = result<31>;
+		vm.set_n(res);	// APSR.Z = IsZeroBit(result);
+		// APSR.C = carry;
+		// APSR.V = overflow;
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   AND 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse AND(Register)
+// =====================
+
+enum field_tuples_and_reg_t1 = [Tuple!(opcode, string[])(opcode.and_reg_t1, ["rd","rm"])];
+// AND <Rdn>,<Rm>
+// [15:6] 0100000000, [5:3] Rm, [2:0] Rdn
+instr_16 parse_and_reg_t1(ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+					rd: cast(reg)slice(instr, 0, 3), 
+					rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute AND(Register)
+// =======================
+
+void 
+execute_and_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable  rn  = cast(int)vm.get_reg(instr.rn);
+	immutable  rm  = cast(int)vm.get_reg(instr.rm);
+	const uint res = rn & rm;
+	if (!vm.in_it_block()) {
+		vm.set_z(res);
+		vm.set_n(res);
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   BIC 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse BIC(Register)
+// =====================
+
+enum field_tuples_bic_reg_t1 = [Tuple!(opcode, string[])(opcode.bic_reg_t1, ["rd","rn"])];
+// [15:6] 0100001110, [5:3] Rm, [2:0] Rdn
+instr_16 parse_bic_reg_t1(const ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+					rd: cast(reg)slice(instr, 0, 3), 
+					rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute BIC(Register)
+// =======================
+
+void 
+execute_bic_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable  rm  = vm.get_reg(instr.rm);
+	immutable  rn  = vm.get_reg(instr.rn);
+	const uint res = rm & ~rn;
+	if (!vm.in_it_block()) {
+		vm.set_z(res);
+		vm.set_n(res);
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   CMP 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse CMP(Register)
+// =====================
+
+enum field_tuples_cmp_reg_t1 = [Tuple!(opcode, string[])(opcode.cmp_reg_t1, ["rn","rm"])];
+// CMP <Rn>,<Rm>
+// [15:6] 0100001010, [5:3] Rm, [2:0] Rn
+instr_16 parse_cmp_reg_t1(const ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+					rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =====================
+//  Parse CMP(Register)
+// =====================
+
+enum field_tuples_cmp_reg_t2 = [Tuple!(opcode, string[])(opcode.cmp_reg_t2, ["rn","rm"])];
+// CMP <Rn>,<Rm>
+// [15:8] 01000101, [7] N, [6:3] Rm, [2:0] Rn
+instr_16 parse_cmp_reg_t2(const ushort instr) {
+	auto rn = slice(instr, 0, 3);
+	auto n  = slice(instr, 7, 1);
+	if (n) 
+		rn |= 0b1000; 
+	return instr_16(rm: cast(reg)slice(instr, 3, 4), rn: cast(reg)rn);
+}
+
+// =======================
+//  Execute CMP(Register)
+// =======================
+
+void 
+execute_cmp_reg_t1
+(vm_t)   
+(const instr_16 instr, ref vm_t vm) {
+	execute_cmp_reg(instr, vm);
+}
+
+void 
+execute_cmp_reg_t2
+(vm_t)   
+(const instr_16 instr, ref vm_t vm) {
+	execute_cmp_reg(instr, vm);
+}
+
+void 
+execute_cmp_reg
+(vm_t)   
+(const instr_16 instr, ref vm_t vm) {
+	immutable rm  = vm.get_reg(instr.rm);
+	immutable rn  = vm.get_reg(instr.rn);
+	immutable res = add_with_carry(rm, ~rn, true);
+	vm.set_z(res.result);
+	vm.set_n(res.result);
+	vm.set_c(res.carry);;
+	vm.set_v(res.overflow);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *                                       EOR                                           *
+// ***************************************************************************************
+
+// =====================
+//  Parse EOR(Register)
+// =====================
+
+enum field_tuples_eor_reg_t1 = [Tuple!(opcode, string[])(opcode.eor_reg_t1, ["rd","rn"])];
+// EOR <Rdn>,<Rm>
+// [15:6] 0100000001, [5:3] Rm, [2:0] Rdn
+instr_16 parse_eor_reg(ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), rd: cast(reg)slice(instr, 0, 3), rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute EOR(Register)
+// =======================
+
+void 
+execute_eor_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable  rm  = vm.get_reg(instr.rm);
+	immutable  rn  = vm.get_reg(instr.rn);
+	const uint res = rm & ~rn;
+	if (!vm.in_it_block()) {
+		vm.set_z(res);
+		vm.set_n(res);
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *                                       LSL                                           *
+// ***************************************************************************************
+
+// =====================
+//  Parse LSL(Register)
+// =====================
+
+enum field_tuples_lsl_reg_t1 = [Tuple!(opcode, string[])(opcode.lsl_reg_t1, ["rd","rm"])];
+// LSL <Rdn>,<Rm>
+// [15:6] 0100000010, [5:3] Rm, [2:0] Rdn  
+instr_16 parse_lsl_reg_t1(const ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+		            rd: cast(reg)slice(instr, 0, 3), 
+		            rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute LSL(Register)
+// =======================
+
+void 
+execute_lsl_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable  shift = vm.get_reg(instr.rm);
+	immutable  rn    = vm.get_reg(instr.rn);
+	const uint res   = rn << shift;
+	if (!vm.in_it_block()) {
+		vm.set_z(res);
+		vm.set_n(res);
+		if (shift != 0) {
+        	bool carry = (rn << (32 - shift)) & 1;
+        	vm.set_c(carry);
+    	}
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   LSR 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse LSR(Register)
+// =====================
+
+enum field_tuples_lsr_reg_t1 = [Tuple!(opcode, string[])(opcode.lsr_reg_t1, ["rd","rm"])];
+// LSR <Rdn>,<Rm>
+// [15:6] 0100000011, [5:3] Rm, [2:0] Rdn  
+instr_16 parse_lsr_reg_t1(const ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), rd: cast(reg)slice(instr, 0, 3), rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute LSR(Register)
+// =======================
+
+void 
+execute_lsr_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable  shift = vm.get_reg(instr.rm);
+	immutable  rn    = vm.get_reg(instr.rn);
+	const uint res   = rn >> shift;
+	if (!vm.in_it_block()) {
+		vm.set_z(res);
+		vm.set_n(res);
+		if (shift != 0) {
+        	bool carry = (rn >> (shift - 1)) & 1;
+    		vm.set_c(carry);
+    	}
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   ASR 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse ASR(Register)
+// =====================
+
+enum field_tuples_asr_reg_t1 = [Tuple!(opcode, string[])(opcode.asr_reg_t1, ["rd","rm"])];
+// LSR <Rdn>,<Rm>
+// [15:6] 0100000100, [5:3] Rm, [2:0] Rdn  
+instr_16 parse_asr_reg_t1(const ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+		            rd: cast(reg)slice(instr, 0, 3), 
+		            rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute ASR(Register)
+// =======================
+
+void 
+execute_asr_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable shift = vm.get_reg(instr.rm);
+	immutable rn_u  = vm.get_reg(instr.rn);
+	const int rn    = cast(int)(rn_u);
+	uint res;
+    if (shift >= 32) {
+        res = (rn < 0) ? 0xFFFF_FFFF : 0;
+        if (!vm.in_it_block()) {
+            vm.set_c(rn < 0);
+        }
+    } else {
+        res = cast(uint)(rn >> shift);
+        if (!vm.in_it_block() && shift != 0) {
+            bool carry = (rn_u >> (shift - 1)) & 1;
+            vm.set_c(carry);
+        }
+    }
+
+    if (!vm.in_it_block()) {
+        vm.set_z(res);
+        vm.set_n(res);
+    }
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   MVN 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse MVN(Register) 
+// =====================
+
+enum field_tuples_mvn_reg_t1 = [Tuple!(opcode, string[])(opcode.mvn_reg_t1, ["rd","rm"])];
+// MVN <Rd>,<Rm>
+// [15:6] 0100001111, [5:3] Rm, [2:0] Rd
+instr_16 parse_mvn_reg_t1(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3), rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute MVN(Register)
+// =======================
+
+void 
+execute_mvn_reg_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	int rm  = vm.get_reg(instr.rm);
+	int res = ~rm;
+	if (instr.set_flags) {
+		vm.set_z(res);			// APSR.Z = IsZeroBit(result);
+		vm.set_n(res);			// APSR.N = result<31>;
+		// APSR.C = carry;
+		// APSR.V unchanged
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// =====================
+//  Parse MOV(Register)
+// =====================
+
+enum field_tuples_mov_reg_t2 = [Tuple!(opcode, string[])(opcode.mov_reg_t2, ["rd","rm"])];
+// MOV <Rd>,<Rm>
+// [15:6] 0000000000, [7] D, [5:3] Rm, [2:0] Rd  
+instr_16 parse_mov_reg_t2(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+					rm: cast(reg)slice(instr, 3, 4));
+}
+
+// =====================
+//  Parse MOV(Register)
+// =====================
+
+void
+execute_mov_reg_t2
+(vm_t)
+(const instr_16 instr, vm_t vm) {
+	immutable res = vm.get_reg(instr.rm);
+	vm.set_reg(instr.rd, res);
+	// setflags = TRUE;
+	vm.set_n(res);	// APSR.N = result<31>;
+	vm.set_z(res);	// APSR.Z = IsZeroBit(result);
+	// APSR.C unchanged
+	// APSR.V unchanged
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   MUL 											 *
+// ***************************************************************************************
+
+// ===========
+//  Parse MUL
+// ===========
+
+enum field_tuples_mul_t1 = [Tuple!(opcode, string[])(opcode.mul_t1, ["rd","rn"])];
+// MUL <Rdm>,<Rn>,<Rdm>
+// [15:6] 0100001101, [5:3] Rn, [2:0] Rdm
+instr_16 parse_mul_t1(const ushort instr) {
+	return instr_16(rm: cast(reg)slice(instr, 0, 3), 
+					rd: cast(reg)slice(instr, 0, 3), 
+					rn: cast(reg)slice(instr, 3, 3));
+}
+
+// =============
+//  Execute MUL
+// =============
+
+void 
+execute_mul_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable  rm  = vm.get_reg(instr.rm);
+	immutable  rn  = vm.get_reg(instr.rn);
+	const uint res = rm * rn;
+	if (!vm.in_it_block()) {
+		vm.set_z(res);
+		vm.set_n(res);
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   ORR 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse ORR(Register)
+// =====================
+
+enum field_tuples_orr_reg_t1 = [Tuple!(opcode, string[])(opcode.orr_reg_t1, ["rd","rm"])];
+// ORR <Rdn>,<Rm>
+// [15:6] 0100001100, [5:3] Rm, [2:0] Rdn
+instr_16 parse_orr_reg_t1(const ushort instr) {
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+		            rd: cast(reg)slice(instr, 0, 3), 
+		            rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =======================
+//  Execute ORR(Register)
+// =======================
+
+void 
+execute_orr_reg_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	immutable  rn  = vm.get_reg(instr.rn);
+	immutable  rm  = vm.get_reg(instr.rm);
+	const uint res = rn | rm;
+	if (instr.set_flags) {
+		vm.set_z(res);
+		vm.set_n(res);
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// RSBS <Rd>,<Rn>,#0 Outside IT block.
+// RSB<c> <Rd>,<Rn>,#0 Inside IT block.
+instr_16 parse_rsb_imm_t1(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+		  			rn: cast(reg)slice(instr, 3, 3));
+} 
+
+//(result, carry, overflow) = AddWithCarry(NOT(R[n]), imm32, ‘1’);
+//R[d] = result;
+//if setflags then
+//APSR.N = result<31>;
+//APSR.Z = IsZeroBit(result);
+//APSR.C = carry;
+//APSR.V = overflow;

@@ -1,0 +1,210 @@
+// ***************************************************************************************
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *			                  Data Processing (Register)	    					 *    
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// ***************************************************************************************
+
+import std.typecons : Tuple;
+
+import thumb_2_opcodes;
+import thumb_2_instrs;
+import cortex_m_core;
+
+void 
+execute_shift_instr
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {
+	immutable  rm  	   = vm.get_reg(instr.rm);
+	// shift_n = UInt(R[m]<7:0>);
+	const uint shift_n = rm & 0xff;
+	// (result, carry) = Shift_C(R[n], SRType_LSL, shift_n, APSR.C);
+	immutable res 	   = shift_c(rm, instr.shift_t, instr.shift_n, vm.get_c());
+	if (!vm.in_it_block()) {
+		vm.set_c(res.carry);	// APSR.C = carry;
+		vm.set_n(res.result);	// APSR.Z = IsZeroBit(result);
+		vm.set_z(res.result);	// APSR.N = result<31>;	
+		// APSR.V unchanged
+	}
+}
+// ---------------------------------------------------------------------------------------
+
+instr_32 parse_data_proc_reg_shift_rot(const uint instr) {
+	return instr_32(rm: 	   cast(reg )slice(instr,  0, 4), 
+					rd: 	   cast(reg )slice(instr,  8, 4),
+					rn: 	   cast(reg )slice(instr, 16, 4), 
+					set_flags: cast(bool)slice(instr, 20, 1));
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  ASR 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse ASR(Register)
+// =====================
+
+enum field_tuples_asr_reg_t2 = [Tuple!(opcode, string[])(opcode.asr_reg_t2, ["rd","rn","rm"])];
+// ASR <Rd>, <Rn>, <Rm>
+// First Half-Word: [15:5] 11111010010, [4] S, [3:0] Rn
+// Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
+instr_32 parse_asr_reg_t2(const uint instr) {
+	return parse_data_proc_reg_shift_rot(instr);
+}
+
+// =======================
+//  Execute ASR(Register)
+// =======================
+
+void 
+execute_asr_reg_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_shift_instr(instr, vm);	
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  UXTH 											 *
+// ***************************************************************************************
+
+// ============
+//  Parse UXTH
+// ============
+
+enum field_tuples_uxth_t2 = [Tuple!(opcode, string[])(opcode.uxth_t2, ["rd","rm","imm"])];
+// UXTH.W <Rd>,<Rm>{,<rotation>}
+// First Half-Word: [15:5] 11111010010, [4] S, [3:0] Rn
+// Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
+instr_32 parse_uxth_t2(const uint instr) {
+	return instr_32(rm:  cast(reg)slice(instr, 0, 4), 
+				    imm: slice(instr, 4, 2) << 3,
+				    rd:  cast(reg)slice(instr, 8, 4));
+}
+
+// ==============
+//  Execute UXTH
+// ==============
+
+void 
+execute_uxth_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	immutable rm       = vm.get_reg(instr.rm);
+	const uint rotated = rotr(rm, instr.imm);
+	vm.set_reg(instr.rd, rotated);	
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									LSL 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse LSL(Register)
+// =====================
+
+enum field_tuples_lsl_reg_t2 = [Tuple!(opcode, string[])(opcode.lsl_reg_t2, ["rd","rn","rm"])];
+// First Half-Word: [15:5] 11111010000, [4] S, [3:0] Rn 
+// Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000, [3:0] Rm
+instr_32 parse_lsl_reg_t2(const uint instr) {
+	return parse_data_proc_reg_shift_rot(instr);
+}
+
+// =======================
+//  Execute LSL(Register)
+// =======================
+
+void 
+execute_lsl_reg_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_shift_instr(instr, vm);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									 LSR 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse LSR(Register)
+// =====================
+
+enum field_tuples_lsr_reg_t2 = [Tuple!(opcode, string[])(opcode.lsr_reg_t2, ["rd","rn","rm"])];
+// First Half-Word: [15:5] 11111010001, [4] S, [3:0] Rn 
+// Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000, [3:0] Rm
+instr_32 parse_lsr_reg_t2(const uint instr) {
+	return parse_data_proc_reg_shift_rot(instr);
+}
+
+// =======================
+//  Execute LSR(Register)
+// =======================
+
+void 
+execute_lsr_reg_t2
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {
+	execute_shift_instr(instr, vm);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  UADD8 										 *
+// ***************************************************************************************
+// Unsigned Add 8 performs four unsigned 8-bit integer additions, and writes the results 
+// to the destination register. It sets the APSR.GE bits according to the results of the 
+// additions.
+
+// =============
+//  Parse UADD8
+// =============
+
+enum field_tuples_uadd8_t1 = [Tuple!(opcode, string[])(opcode.uadd8_t1, ["rd","rn","rm"])];
+// UADD8<c> <Rd>,<Rn>,<Rm>
+// [15:4] 111110101000 [3:0] Rn
+// [15:12] 1111, [11:8] Rd, [7:4] 0100, [3:0] Rm
+instr_32 parse_uadd8_t1(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr,  0, 4),
+		            rd: cast(reg)slice(instr,  8, 4),
+		            rn: cast(reg)slice(instr, 16, 4));
+}
+
+// ===============
+//  Execute UADD8
+// ===============
+
+void 
+execute_uadd8_t1
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {
+	int rn = vm.get_reg(instr.rn);
+	int rm = vm.get_reg(instr.rm);
+	// sum4 = UInt(R[n]<31:24>) + UInt(R[m]<31:24>);
+	int sum4 = ((rn >> 24) & 0xff) + ((rm >> 24) & 0xff); 
+	// sum3 = UInt(R[n]<23:16>) + UInt(R[m]<23:16>);
+	int sum3 = ((rn >> 16) & 0xff) + ((rm >> 16) & 0xff);
+	// sum2 = UInt(R[n]<15:8>) + UInt(R[m]<15:8>);
+	int sum2 = ((rn >>  8) & 0xff) + ((rm >>  8) & 0xff);
+	// sum1 = UInt(R[n]<7:0>) + UInt(R[m]<7:0>);
+	int sum1 = ((rn      ) & 0xff) + ((rm      ) & 0xff);
+	int res  = ((sum4 & 0xff) << 24) |
+      		   ((sum3 & 0xff) << 16) |
+      		   ((sum2 & 0xff) << 8)  |
+      		   ( sum1 & 0xff);
+	vm.cpu.ge0 = sum1 >= 0x100 ? true : false;
+	vm.cpu.ge1 = sum2 >= 0x100 ? true : false;
+	vm.cpu.ge2 = sum3 >= 0x100 ? true : false;
+	vm.cpu.ge3 = sum4 >= 0x100 ? true : false;
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
