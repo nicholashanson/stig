@@ -1,3 +1,17 @@
+// ***************************************************************************************
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *			            Miscellaneous 16-Bit Instructions	    					 *    
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// *									    											 *
+// ***************************************************************************************
+
 import std.typecons : Tuple;
 import std.algorithm;
 import std.format;
@@ -9,128 +23,403 @@ import thumb_2_instrs;
 import cortex_m_core;
 import memory_sections;
 
-// ----------------------------------------- POP -----------------------------------------
+// ***************************************************************************************
+// *								 IF THEN 											 *
+// ***************************************************************************************
 
-// ====================
-//  Parse Pop Mult Reg
-// ====================
+// ===============
+//  Parse IF THEN
+// ===============
 
-enum field_tuples_pop = [Tuple!(opcode, string[])(opcode.pop, ["reg_list"])];
-/*
-	Miscellaneous 16-bit Instructions
-	POP <registers>
-	[15:9] 1011110, [8] P, [7:0] register_list  
-*/
-instr_16 parse_pop(const ushort instr) {
-	instr_16 res;
-	const ubyte p        = cast(ubyte)((instr >> 8) & 0x01);
-	const ubyte reg_mask = cast(ubyte)( instr       & 0xff);
-	foreach (i; 0 .. 8)
-    	if (reg_mask & (1 << i))
-        	res.reg_list ~= cast(reg)i;
-	if (p) {
-		res.reg_list ~= reg.pc; // registers = P:'0000000':register_list;
-	}
-	return res;
+enum field_tuples_if_then_t1 = [Tuple!(opcode, string[])(opcode.if_then_t1, ["condition"])];
+// IT{x{y{z}}} <firstcond>
+// [15:8] 10111111, [7:4] firstcond, [3:0] mask  
+instr_16 parse_if_then_t1(const ushort instr) {
+	return instr_16(mask:       cast(ubyte)slice(instr, 0, 4),
+					first_cond: cast(ubyte)slice(instr, 4, 4));
 }
 
-// ======================
-//  Execute POP MULT REG
-// ======================
+// =================
+//  Execute IF THEN
+// =================
 
-void execute_pop(mem_t)(const ref instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
-	auto f = stack_log();
+void 
+execute_if_then_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	immutable mask 		  	  = instr.mask;
+	immutable first_cond  	  = instr.first_cond;
+	immutable cond 		  	  = cast(condition)(first_cond);
+	immutable first_cond_mask = cast(ubyte)((first_cond << 4) | mask);
+	xyz it_block = get_xyz(first_cond_mask);
+	vm.cpu.it_block = it_block;
+	vm.cpu.init_it_block_stack(cond);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *								       REV 											 *
+// ***************************************************************************************
+// Byte-Reverse Word reverses the byte order in a 32-bit register.
+
+// ===========
+//  Parse REV
+// ===========
+
+enum field_tuples_rev_t1 = [Tuple!(opcode, string[])(opcode.rev_t1, ["rd","rm"])];
+// REV<c> <Rd>,<Rm>
+// [15:6] 1011101000, [5:3] Rm, [2:0] Rd
+instr_16 parse_rev_t1(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+					rm: cast(reg)slice(instr, 3, 3));
+}
+
+// =============
+//  Execute REV
+// =============
+
+void 
+execute_rev_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	immutable rm = vm.get_reg(instr.rm);
+	const uint res = ((rm << 24) & 0xff00_0000) |
+		      		 ((rm <<  8) & 0x00ff_0000) |
+			  		 ((rm >>  8) & 0x0000_ff00) |
+			  		 ((rm >> 24) & 0x0000_00ff);
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *					                   CBNZ 										 *
+// ***************************************************************************************
+
+// ============
+//  Parse CBNZ
+// ============
+
+enum field_tuples_cbnz_t1 = [Tuple!(opcode, string[])(opcode.cbnz_t1, ["rn", "label"])];
+// CBNZ <Rn>,<label>
+// [15:12] 1011, [11] op, [10] 0, [9] i, [8] 1, [7:3] imm5, [2:0] Rn  
+instr_16 parse_cbnz_t1(const ushort instr) {
+	immutable  i     = slice(instr, 9, 1);
+	immutable  imm_5 = slice(instr, 3, 5);
+	const uint imm   = (i << 6) | (imm_5 << 1);
+	return instr_16(rn:     cast(reg)slice(instr, 0, 3),
+					offset: imm);
+}
+
+// ==============
+//  Execute CBNZ
+// ==============
+
+void 
+execute_cbnz_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	if (vm.get_reg(instr.rn) != 0) {
+		int pc = vm.get_reg(reg.pc);
+		pc += instr.offset;
+		pc += 4;
+		vm.set_reg(reg.pc, pc);
+	} 
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   CBZ 											 *
+// ***************************************************************************************
+
+// ===========
+//  Parse CBZ
+// ===========
+
+enum field_tuples_cbz_t1 = [Tuple!(opcode, string[])(opcode.cbz_t1, ["rn", "label"])];
+// CBZ <Rn>,<label>
+// [15:12] 1011, [11] op, [10] 0, [9] i, [8] 1, [7:3] imm5, [2:0] Rn  
+instr_16 parse_cbz_t1(const ushort instr) {
+	immutable  i     = slice(instr, 9, 1);
+	immutable  imm_5 = slice(instr, 3, 5);
+	const uint imm   = (i << 6) | (imm_5 << 1);
+	return instr_16(rn:     cast(reg)slice(instr, 0, 3),
+					offset: imm);
+}
+
+// =============
+//  Execute CBZ
+// =============
+
+void 
+execute_cbz_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	immutable rn = vm.get_reg(instr.rn);
+	if (rn == 0) {
+		auto pc = vm.get_pc();
+		pc += instr.offset;
+		pc += 4;
+		vm.set_reg(reg.pc, pc);
+	} 
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *							           CPS 											 *
+// ***************************************************************************************
+// Change Processor State changes one or more of the special-purpose register PRIMASK and 
+// FAULTMASK values.
+
+// ===========
+//  Parse CPS
+// ===========
+
+enum field_tuples_cps_t1 = [Tuple!(opcode, string[])(opcode.cps_t1, ["effect", "iflags"])];
+// CPS<effect> <iflags>
+// [15:5] 10110110011, [4] im, [3:2] 00, [1] I, [0] F
+instr_16 parse_cps_t1(const ushort instr) {
+	return instr_16(enable:      !cast(bool)slice(instr, 4, 1),
+					affect_pri:   cast(bool)slice(instr, 1, 1),
+					affect_fault: cast(bool)slice(instr, 0, 1));
+}
+
+// =============
+//  Execute CPS
+// =============
+
+void 
+execute_cps_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	immutable enable 	   = instr.enable;
+	immutable affect_pri   = instr.affect_pri;
+	immutable affect_fault = instr.affect_fault;
+	if (enable) {
+		// if affectPRI then PRIMASK<0> = ‘0’;
+		if (affect_pri) 
+			vm.cpu.pri_mask 	= false;
+		// if affectFAULT then FAULTMASK<0> = ‘0’;
+		if (affect_fault) 
+			vm.cpu.fault_mask 	= false;
+	}
+	if (!enable) {
+		// if affectPRI then PRIMASK<0> = ‘1’;
+		if (affect_pri) 
+			vm.cpu.pri_mask 	= true;
+		// if affectFAULT && ExecutionPriority() > -1 then FAULTMASK<0> = ‘1’;
+		if (affect_fault) 
+			vm.cpu.fault_mask 	= true;
+	}
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   POP 											 *
+// ***************************************************************************************
+// Pop Multiple Registers loads a subset, or possibly all, of the general-purpose 
+// registers R0-R12 and the PC or the LR from the stack.
+
+// If the registers loaded include the PC, the word loaded for the PC is treated as a 
+// branch address or an exception return value (*).
+
+// ===========
+//  Parse POP
+// ===========
+
+enum field_tuples_pop_t1 = [Tuple!(opcode, string[])(opcode.pop_t1, ["reg_list"])];
+// POP <registers>
+// [15:9] 1011110, [8] P, [7:0] register_list  
+instr_16 parse_pop_t1(const ushort instr) {
+	instr_16 res;
+	immutable p        = slice(instr, 8, 1);
+	immutable reg_mask = slice(instr, 0, 8);
+	reg[]	  reg_list;
+	foreach (i; 0 .. 8)
+    	if (reg_mask & (1 << i))
+        	reg_list ~= cast(reg)i;
+	if (p) 
+		reg_list ~= reg.pc; // registers = P:'0000000':register_list;
+	return instr_16(reg_list: reg_list);
+}
+
+// =============
+//  Execute POP
+// =============
+
+void 
+execute_pop_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a < cast(int)b);
-	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
-	f.writeln(format("Popping from %s at [%08X]", stack_s, cpu.pc));
 	foreach (r; regs) {
-		uint addr = cpu.get_sp();
-		int val = mem.pop(cpu);
-		cpu.set(r, val);
-		f.writeln(format("%s: [%08X] popped from [%08X]", r.to!string, cpu.get(r), addr));
-		f.flush();
+		immutable val = vm.pop();
+		vm.set_reg(r, val);
 	}
 	if (regs.back == reg.pc) {
-		if ((cpu.pc & 0xff00_0000) == 0xff00_0000) {
-	        exception_return(cpu, mem, cpu.pc);
+		if ((vm.get_pc() & 0xff00_0000) == 0xff00_0000) { // (*)
+	        exception_return(vm);
 	        return;
 	    }
-		uint pc = cpu.get(reg.pc);
+		uint pc = vm.get_reg(reg.pc);
 		pc &= ~0b1;
-		cpu.set(reg.pc, pc);
-	} else {
-		cpu.increment_pc(2);
+		vm.set_reg(reg.pc, pc);
 	}
 } 
 // ---------------------------------------------------------------------------------------
 
-// ---------------------------------------- PUSH -----------------------------------------
+// ***************************************************************************************
+// *										 PUSH 										 *
+// ***************************************************************************************
+// Push Multiple Registers stores a subset, or possibly all, of the general-purpose 
+// registers R0-R12 and the LR to the stack.
 
-// =====================
-//  Parse Push Mult Reg
-// =====================
+// ============
+//  Parse PUSH
+// ============
 
-enum field_tuples_push = [Tuple!(opcode, string[])(opcode.push, ["reg_list"])];
-/*
-	Miscellaneous 16-bit Instructions
-	PUSH <registers>
-	[15:9] 1011010, [8] M, [7:0] register_list  
-*/
-instr_16 parse_push(short instr) {
-	instr_16 res;
-	const ubyte m        = cast(ubyte)((instr >> 8) & 0x01);
-	const ubyte reg_mask = cast(ubyte)( instr       & 0xff);
+enum field_tuples_push_t1 = [Tuple!(opcode, string[])(opcode.push_t1, ["reg_list"])];
+// PUSH <registers>
+// [15:9] 1011010, [8] M, [7:0] register_list  
+instr_16 parse_push_t1(const ushort instr) {
+	immutable m        = slice(instr, 8, 1);
+	immutable reg_mask = slice(instr, 0, 8);
+	reg[]     reg_list;
 	foreach (i; 0 .. 8)
     	if (reg_mask & (1 << i))
-        	res.reg_list ~= cast(reg)i;
-	if (m) {
-		res.reg_list ~= reg.lr; // registers = '0':M:'000000':register_list;
-	}
-	return res;
+        	reg_list ~= cast(reg)i;
+	if (m) 
+		reg_list ~= reg.lr; // registers = '0':M:'000000':register_list;
+	return instr_16(reg_list: reg_list);
 }
 
-// =======================
-//  Execute PUSH MULT REG
-// =======================
+// ==============
+//  Execute PUSH
+// ==============
 
-void execute_push(mem_t)(instr_16 instr, ref cortex_m_cpu cpu, ref mem_t mem) {
-	auto f = stack_log();
+void 
+execute_push_t1
+(vm_t)
+(instr_16 instr, ref vm_t vm) {
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a > cast(int)b);
-	string stack_s = cpu.sp_sel ? "PSP" : "MSP";
-	f.writeln(format("Pushing to %s at [%08X]", stack_s, cpu.pc));
 	foreach (r; regs) {
-		mem.push(cpu, cpu.get(r));
-		f.writeln(format("%s: [%08X] pushed to [%08X]", r.to!string, cpu.get(r), cpu.get_sp()));
-		f.flush();
+		vm.push(r);	
 	}
-	cpu.increment_pc(2);
 } 
 // ---------------------------------------------------------------------------------------
 
-// ---------------------------------------- SXTB -----------------------------------------
+// ***************************************************************************************
+// *									   SXTB 										 *
+// ***************************************************************************************
+// Signed Extend Byte extracts an 8-bit value from a register, sign extends it to 32 bits, 
+// and writes the result to the destination register. You can specify a rotation by 0, 8, 
+// 16, or 24 bits before extracting the 8-bit value.
 
-enum field_tuples_sxtb = [Tuple!(opcode, string[])(opcode.sxtb, ["rd","rm"])];
-/*
-	Miscellaneous 16-bit Instructions
-	SXTB <Rd>,<Rm>
-	[15:6] 1011001001, [5:3] Rm, [2:0] Rd  
-*/
-instr_16 parse_sxtb(const ushort instr) {
-	instr_16 res;
-	res.op   = opcode.sxtb;
-	const ubyte rd = cast(ubyte)( instr       & 0x7);
-	const ubyte rm = cast(ubyte)((instr >> 3) & 0x7);
-	res.rd   = cast(reg)(rd);
-	res.rm   = cast(reg)(rm);
-	return res;
+// ============
+//  Parse SXTB
+// ============
+
+enum field_tuples_sxtb_t1 = [Tuple!(opcode, string[])(opcode.sxtb_t1, ["rd","rm"])];
+// SXTB <Rd>,<Rm>
+// [15:6] 1011001001, [5:3] Rm, [2:0] Rd  
+instr_16 parse_sxtb_t1(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+					rm: cast(reg)slice(instr, 3, 3));
 }
 
-void execute_sxtb(const ref instr_16 instr, ref cortex_m_cpu cpu) {
-	const uint rm  = cpu.get(instr.rm);
-	const uint res = (rm & 0xff);
-	cpu.set(instr.rd, res);
-	cpu.increment_pc(2);
+// ==============
+//  Execute SXTB
+// ==============
+
+void 
+execute_sxtb_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable rm  = vm.get_reg(instr.rm);
+	immutable res = cast(int)(cast(byte)rm);
+	vm.set_reg(instr.rd, res);
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   UXTB 										 *
+// ***************************************************************************************
+// Unsigned Extend Byte extracts an 8-bit value from a register, zero extends it to 32 
+// bits, and writes the result to the destination register. You can specify a rotation by 
+// 0, 8, 16, or 24 bits before extracting the 8-bit value.
+
+// ============
+//  Parse UXTB
+// ============
+
+enum field_tuples_uxtb_t1 = [Tuple!(opcode, string[])(opcode.uxtb_t1, ["rd","rm"])];
+// UXTB <Rd>,<Rm>
+// [15:6] 1011001011, [5:3] Rm, [2:0] Rd  
+instr_16 parse_uxtb(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+					rm: cast(reg)slice(instr, 3, 3));
+}
+
+// ==============
+//  Execute UXTB
+// ==============
+
+void 
+execute_uxtb_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	immutable  rm  = vm.get_reg(instr.rm);
+	const uint res = rm & 0xff;
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   UXTH 										 *
+// ***************************************************************************************
+// Unsigned Extend Halfword extracts a 16-bit value from a register, zero extends it to 
+// 32 bits, and writes the result to the destination register. You can specify a rotation 
+// by 0, 8, 16, or 24 bits before extracting the 16-bit value.
+
+// ============
+//  Parse UXTH
+// ============
+
+enum field_tuples_uxth_t1 = [Tuple!(opcode, string[])(opcode.uxth_t1, ["rd","rm"])];
+// UXTB <Rd>,<Rm>
+// [15:6] 1011001011, [5:3] Rm, [2:0] Rd  
+instr_16 parse_uxth_t1(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+					rm: cast(reg)slice(instr, 3, 3));
+}
+
+// ==============
+//  Execute UXTH
+// ==============
+
+void 
+execute_uxth_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	immutable  rm  = vm.get_reg(instr.rm);
+	// R[d] = ZeroExtend(rotated<15:0>, 32);
+	const uint res = rm & 0xffff;
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ===========
+//  Parse NOP
+// ===========
+
+enum field_tuples_nop_t1 = [Tuple!(opcode, string[])(opcode.nop_t1, [])];
+
+instr_16 parse_nop_t1(short instr) {
+	return instr_16();
+}
+
+void
+execute_nop_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {}
