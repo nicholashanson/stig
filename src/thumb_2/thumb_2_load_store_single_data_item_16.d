@@ -439,3 +439,46 @@ execute_ldrsb_imm_t1
 	byte val = cast(byte)vm.read_byte(addr);
 	vm.set_reg(instr.rt, cast(int)val);	
 }
+
+// ***************************************************************************************
+// *									  LDRSB 										 *
+// ***************************************************************************************
+// Load Register Signed Byte (register) calculates an address from a base register value 
+// and an offset register value, loads a byte from memory, sign-extends it to form a 
+// 32-bit word, and writes it to a register. The offset register value can be shifted left 
+// by 0, 1, 2, or 3 bits.
+
+// ==========================
+//  Executre LDRSB(Register)
+// ==========================
+
+// LDRSB<c> <Rt>,[<Rn>,<Rm>]
+instr_16 parse_ldrsb_reg_t1(const ushort instr) {
+	// index = TRUE; add = TRUE; wback = FALSE;
+	return instr_16(rt: cast(reg)slice(instr, 0, 3),
+					rn: cast(reg)slice(instr, 3, 3),
+					rm: cast(reg)slice(instr, 6, 3),
+					index: true, add: true);
+}
+
+// ==========================
+//  Executre LDRSB(Register)
+// ==========================
+
+void
+execute_ldrsb_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	// if ConditionPassed() then
+	// EncodingSpecificOperations();
+	immutable    rm   		 = vm.get_reg(instr.rm);
+	// offset = Shift(R[m], shift_t, shift_n, APSR.C);
+	// offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+	const size_t offset_addr = instr.add   ? rn + rm     : rn - rm;  
+	// address = if index then offset_addr else R[n];
+	const size_t addr 		 = instr.index ? offset_addr : rn;
+	// R[t] = SignExtend(MemU[address,1], 32);
+	immutable    data 		 = cast(int)cast(byte)vm.read_byte(addr);
+	vm.set_reg(instr.rt, data);
+}
+// ---------------------------------------------------------------------------------------
