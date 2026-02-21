@@ -21,18 +21,20 @@ import cortex_m_core;
 void 
 execute_shift_instr
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable  rm  	   = vm.get_reg(instr.rm);
+	immutable  rn      = vm.get_reg(instr.rn);
 	// shift_n = UInt(R[m]<7:0>);
 	const uint shift_n = rm & 0xff;
 	// (result, carry) = Shift_C(R[n], SRType_LSL, shift_n, APSR.C);
-	immutable res 	   = shift_c(rm, instr.shift_t, instr.shift_n, vm.get_c());
-	if (!vm.in_it_block()) {
+	immutable res 	   = shift_c(rn, instr.shift_t, shift_n, vm.get_c());
+	if (instr.set_flags) {
 		vm.set_c(res.carry);	// APSR.C = carry;
 		vm.set_n(res.result);	// APSR.Z = IsZeroBit(result);
 		vm.set_z(res.result);	// APSR.N = result<31>;	
 		// APSR.V unchanged
 	}
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -153,7 +155,7 @@ instr_32 parse_lsr_reg_t2(const uint instr) {
 void 
 execute_lsr_reg_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
 // ---------------------------------------------------------------------------------------
@@ -208,3 +210,5 @@ execute_uadd8_t1
 	vm.set_reg(instr.rd, res);
 }
 // ---------------------------------------------------------------------------------------
+
+
