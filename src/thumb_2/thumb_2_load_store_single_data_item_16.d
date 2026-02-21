@@ -103,8 +103,8 @@ enum field_tuples_ldrh_imm_t1 = [Tuple!(opcode, string[])(opcode.ldrh_imm_t1, ["
 // [15:11] 10001, [10:6] imm5, [5:3] Rn, [2:0] Rt
 instr_16 parse_ldrh_imm_t1(const ushort instr) {
 	return instr_16(rt:  cast(reg)slice(instr, 0, 3),
-	            rn:  cast(reg)slice(instr, 3, 3),
-	            imm: slice(instr, 6, 5) << 1);
+	            	rn:  cast(reg)slice(instr, 3, 3),
+	            	imm: slice(instr, 6, 5) << 1);
 }
 
 // =========================
@@ -120,6 +120,51 @@ execute_ldrh_imm_t1
 	size_t addr    = rn + instr.imm;
 	immutable data = vm.read_half_word(addr);
 	vm.set_reg(instr.rt, cast(uint)data);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *										 LDRH 										 *
+// ***************************************************************************************
+// Load Register Halfword (register) calculates an address from a base register value and 
+// an offset register value, loads a halfword from memory, zero-extends it to form a 
+// 32-bit word, and writes it to a register. The offset register value can be shifted left 
+// by 0, 1, 2, or 3 bits.
+
+// ======================
+//  Parse LDRH(Register)
+// ======================
+
+// LDRH<c> <Rt>,[<Rn>,<Rm>]
+instr_16 parse_ldrh_reg_t1(const ushort instr) {
+	return instr_16(rt: cast(reg)slice(instr, 0, 3),
+	            	rn: cast(reg)slice(instr, 3, 3),
+	            	rm: cast(reg)slice(instr, 6, 3),
+	            	index: true, index: true);
+	// index = TRUE; add = TRUE; wback = FALSE;
+}
+
+// ========================
+//  Execute LDRH(Register)
+// ========================
+
+void 
+execute_ldrh_reg_t1
+(vm_t)
+(const instr_16 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// offset = Shift(R[m], shift_t, shift_n, APSR.C);
+	immutable rm 			 = vm.get_reg(instr.rm);
+	immutable rn 			 = vm.get_reg(instr.rn);
+	// offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+	const size_t offset_addr = instr.add   ? rn + rm     : rn - rm;
+	// address = if index then offset_addr else R[n];\
+	const size_t addr 		 = instr.index ? offset_addr : rn;
+	// data = MemU[address,2];
+	immutable data 			 = vm.read_half_word(addr);
+	// if wback then R[n] = offset_addr;
+	// R[t] = ZeroExtend(data, 32);
+	vm.set_reg(instr.rt, data);
 }
 // ---------------------------------------------------------------------------------------
 
