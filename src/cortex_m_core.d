@@ -1,66 +1,93 @@
 import std.container;
 import std.conv;
 import std.format;
+import std.traits : isIntegral;
 
 import memory_sections;
 import thumb_2_misc_16;
 import thumb_2_instrs;
 import thumb_2_opcodes;
 
+bool test_unsigned_neg(const uint v) {
+	return (v & 0x8000_0000) != 0;
+}
+
 enum special_reg : ubyte {
-	APSR = 			0b00000000,
-	IAPSR =         0b00000001,
-	EAPSR =			0b00000010,
-	XPSR = 			0b00000011,
-	IPSR = 			0b00000101,
-	EPSR = 			0b00000110,
-	IEPSR =			0b00000111,
-	MSP =			0b00001000,
-	PSP =   		0b00001001,
-	PRIMASK = 	    0b00010000,
-	BASEPRI = 		0b00010001,
-	BASEPRI_MAX =	0b00010010,
-	FAULTMASK =	    0b00010011,
-	CONTROL =		0b00010100
+	APSR        = 0b00000000,
+	IAPSR       = 0b00000001,
+	EAPSR       = 0b00000010,
+	XPSR        = 0b00000011,
+	IPSR        = 0b00000101,
+	EPSR        = 0b00000110,
+	IEPSR       = 0b00000111,
+	MSP 		= 0b00001000,
+	PSP         = 0b00001001,
+	PRIMASK     = 0b00010000,
+	BASEPRI 	= 0b00010001,
+	BASEPRI_MAX = 0b00010010,
+	FAULTMASK   = 0b00010011,
+	CONTROL     = 0b00010100
 }
 
 // ------------------------------------- Exception -------------------------------------- 
 
+// ===========
+//  EXECUTION
+// ===========
+
 enum exception {
 	thread_mode,
-	SVC_IRQn = 11,
-	SysTick_IRQn = 15
+	svc_irqn = 11,
+	systick_irqn = 15
 }
 
-void exception_return(mem_t)(ref cortex_m_cpu cpu, ref mem_t mem, uint exc_return) {
+reg[] hardware_saved_frame = [reg.r0, reg.r1, reg.r2, reg.r3, reg.r12, reg.lr, reg.pc /*, XPSR */];
+
+// ==================
+//  EXCEPTION RETURN
+// ==================
+
+void 
+exception_return
+(vm_t)
+(ref vm_t vm, const uint exc_return) {
     bool return_to_thread = (exc_return & (1 << 3)) != 0;
-    bool use_psp = (exc_return & (1 << 2)) != 0;
-
-    cpu.sp_sel = use_psp;
-
-    auto f = stack_log();
-	instr_16 pop_instr = instr_16(op: opcode.pop, 
-	                              reg_list: [reg.r0, 
-	                                         reg.r1, 
-	                                         reg.r2, 
-	                                         reg.r3, 
-	                                         reg.r12, 
-	                                         reg.lr, 
-	                                         reg.pc]);
-	execute_pop(pop_instr, cpu, mem);
-	uint addr_xpsr = cpu.get_sp();
-	cpu.set_xpsr(mem.pop(cpu));
-    f.writeln(format("xpsr: [%08X] popped from [%08X]", cpu.get_xpsr(), addr_xpsr));
-	f.flush();
-    cpu.pc &= ~1;
-
+    bool use_psp 		  = (exc_return & (1 << 2)) != 0;
+    vm.set_sp_sel(use_psp);
+	auto pop_instr = instr_16(op: opcode.pop_t1, reg_list: hardware_saved_frame);
+	execute_pop_t1(pop_instr, vm);
+	vm.set_xpsr(vm.pop());
+    vm.clear_thumb_bit();
     if (return_to_thread)
         cpu.current_exception = exception.thread_mode;
-
     if (return_to_thread)
         cpu.npriv = false;
 }
 
+// ==================
+//  EXECUTE SYS TICK
+// ==================
+
+void 
+execute_sys_tick
+(vm_t)
+(ref vm_t vm) {
+	if (vm.get_current_exception() == exception.thread_mode) {
+		vm.push(vm.get_xpsr());
+		auto push_instr = instr_16(op: opcode.push_t1, reg_list: hardware_saved_frame);
+		execute_push_t1(push_instr, vm);
+	}
+	vm.set_current_exception(exception.systick_irqn);
+	vm.set_npriv(false);
+	vm.set_reg(reg.lr, vm.get_sp_sel() ? 0xffff_fffd : 0xffff_fff9); 
+	vm.set_sp_sel(false);
+	uint vtor_raw = vm.read_word(0xE000_ED08);
+	uint vector_base = vtor_raw & 0xFFFF_FF80;
+	uint systick_addr = vector_base + 4 * exception.systick_irqn;
+	immutable pc = vm.read_word(systick_addr);
+	vm.set_reg(reg.pc, pc);
+	vm.align_pc();
+}
 // --------------------------------------------------------------------------------------
 
 // ------------------------------------- Condition --------------------------------------
@@ -176,7 +203,6 @@ xyz get_xyz(ubyte first_cond_mask) {
 	}
 	return xyz.none;
 }
-
 // --------------------------------------------------------------------------------------
 
 enum reg : ubyte {
@@ -217,6 +243,13 @@ enum xyz {
 	eee
 }
 
+enum flag {
+  	z, 
+  	c, 
+  	n,
+  	v
+}
+
 // ==============
 //  CORTEX M CPU
 // ==============
@@ -224,33 +257,58 @@ enum xyz {
 struct cortex_m_cpu {
 
 	// ------------------------------ General-Purpose Registers ----------------------------- 
-	uint r0;
-	uint r1;
-	uint r2;
-	uint r3;
-	uint r4;
-	uint r5;
-	uint r6;
-	uint r7;
-	uint r8;
-	uint r9;
-	uint r10;
-	uint r11;
-	uint r12;
+	uint[16] core_registers;
 
-	uint sp;	// stack pointer
-	uint lr;	// link register
-	uint pc;	// program counter
+	// =========
+	//  GET REG
+	// =========
+
+	uint get_reg(const reg r) const {
+		if (r == reg.sp) 
+			return get_sp();
+		return core_registers[r];
+	}
+
+	// =========
+	//  SET REG
+	// =========
+
+	void set_reg(const reg r, const uint val) {
+		if (r == reg.sp)		
+			set_sp(val);
+		else 
+			core_registers[r] = val;
+	}
 
 	// ==============
 	//  INCREMENT PC
 	// ==============
 
 	void increment_pc(int val) {
-		pc += val;
+		core_registers[reg.pc] += val;
+	}
+
+	uint get_pc() const {
+		return core_registers[reg.pc];
+	}
+
+	void clear_thumb_bit() {
+		core_registers[reg.pc] &= ~1;
+	}
+
+	void align_pc() {
+		core_registers[reg.pc] &= 0x3;
+	}
+
+	uint get_tick() const {
+		return tick;
+	}
+
+	void inc_tick() {
+		tick++;
 	}
 	// -------------------------------------------------------------------------------------- 
-
+	uint tick;
 	// ------------------------------------ Stack Pointer ----------------------------------- 
 	bool sp_sel;	// stack pointer select
 	uint msp;		// main stack pointer
@@ -260,7 +318,7 @@ struct cortex_m_cpu {
 	//  GET SP
 	// ========
 
-	uint get_sp() {
+	uint get_sp() const {
 	    return sp_sel ? psp : msp;
 	}
 
@@ -286,6 +344,41 @@ struct cortex_m_cpu {
 	bool ge2;
 	bool ge3;
 	exception current_exception;
+
+	// ---------------------------------------- Flags ---------------------------------------
+	bool get_c() const {
+		return c;
+	}
+
+	void set_c(const bool v) {
+		c = v;
+	}
+
+	void set_v(const bool v_) {
+		v = v_;
+	}
+
+	void set_n(const uint v) {
+		n = test_unsigned_neg(v);
+	}
+
+	void set_n(const int v) {
+		n = (v < 0);
+	}
+
+	void set_z(t)(t v) if (isIntegral!t) {
+    	z = (v == 0);
+	}
+
+	void set_flag(flag f, bool i) {
+		final switch (f) {
+			case flag.z: z = i; break;
+			case flag.n: n = i; break;
+			case flag.v: v = i; break;
+			case flag.c: c = i; break;
+		}
+	}
+	// -------------------------------------------------------------------------------------- 
 
 	// ==========
 	//  GET XPSR
@@ -419,100 +512,5 @@ struct cortex_m_cpu {
 	bool pri_mask;
 	ubyte basepri;
 	// --------------------------------------------------------------------------------------
-
-	int tick;
-	
-	uint get(reg r) {
-		switch (r) {
-			case reg.r0:
-				return r0;
-			case reg.r1:
-				return r1;
-			case reg.r2:
-				return r2;
-			case reg.r3:
-				return r3;
-			case reg.r4:
-				return r4;
-			case reg.r5: 
-				return r5;
-			case reg.r6:
-				return r6;
-			case reg.r7:
-				return r7;
-			case reg.r8: 
-				return r8;
-			case reg.r9:
-				return r9;
-			case reg.r10:
-				return r10;
-			case reg.r11:
-				return r11;
-			case reg.r12:
-				return r12;
-			case reg.pc:
-				return pc;
-			case reg.lr:
-				return lr;
-			case reg.sp:
-				return get_sp();
-			default:
-				return r3;
-		}
-	}
-
-	void set(reg r, int val) {
-		switch (r) {
-			case reg.r0:
-				r0 = cast(uint)(val);
-				return;
-			case reg.r1:
-				r1 = cast(uint)(val);
-				return;
-			case reg.r2:
-				r2 = cast(uint)(val);
-				return;
-			case reg.r3:
-				r3 = cast(uint)(val);
-				return;
-			case reg.r4:
-				r4 = cast(uint)(val);
-				return;
-			case reg.r5: 
-				r5 = cast(uint)(val);
-				return;
-			case reg.r6:
-				r6 = cast(uint)(val);
-				return;
-			case reg.r7:
-				r7 = cast(uint)(val);
-				return;
-			case reg.r8:
-				r8 = cast(uint)(val);
-				return;
-			case reg.r9:
-				r9 = cast(uint)(val);
-				return;
-			case reg.r10:
-				r10 = cast(uint)(val);
-				return;
-			case reg.r11:
-				r11 = cast(uint)(val);
-				return;
-			case reg.r12:
-				r12 = cast(uint)(val);
-				return;
-			case reg.pc:
-				pc = cast(uint)(val);
-				return;
-			case reg.lr:
-				lr = cast(uint)(val);
-				return;
-			case reg.sp:
-				set_sp(cast(uint)(val));
-				return;
-			default:
-				return;
-		}
-	}
 }
+
