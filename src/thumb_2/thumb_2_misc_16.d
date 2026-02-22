@@ -413,7 +413,7 @@ execute_uxth_t1
 
 enum field_tuples_nop_t1 = [Tuple!(opcode, string[])(opcode.nop_t1, [])];
 
-instr_16 parse_nop_t1(short instr) {
+instr_16 parse_nop_t1(const ushort instr) {
 	return instr_16();
 }
 
@@ -421,3 +421,117 @@ void
 execute_nop_t1
 (vm_t)
 (const instr_16 instr, ref vm_t vm) {}
+
+// ***************************************************************************************
+// *									   SXTH 										 *
+// ***************************************************************************************
+
+// ============
+//  Parse SXTH
+// ============
+
+// SXTH<c> <Rd>,<Rm>
+instr_16 parse_sxth_t1(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+			        rm: cast(reg)slice(instr, 3, 3));
+}
+
+// ==============
+//  Execute SXTH
+// ==============
+
+void 
+execute_sxth_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable rm  = vm.get_reg(instr.rm);
+	// rotated = ROR(R[m], rotation);
+	// R[d] = SignExtend(rotated<15:0>, 32);
+	immutable res = cast(int)cast(short)rm;
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   REV16										 *
+// ***************************************************************************************	
+// Byte-Reverse Packed Halfword reverses the byte order in each 16-bit halfword of a 
+// 32-bit register.
+
+// =============
+//  Parse REV16
+// =============
+
+// REV16<c> <Rd>,<Rm>
+instr_16 parse_rev16_t1(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+					rm: cast(reg)slice(instr, 3, 3));
+}
+
+// ===============
+//  Execute REV16
+// ===============
+
+void 
+execute_rev16_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable rm = vm.get_reg(instr.rm);
+	// bits(32) result;
+	// result<31:24> = R[m]<23:16>;
+	// result<23:16> = R[m]<31:24>;
+	// result<15:8> = R[m]<7:0>;
+	// result<7:0> = R[m]<15:8>;
+	const uint res = ((rm >> 8) & 0x00ff_0000) |
+					 ((rm << 8) & 0xff00_0000) |
+					 ((rm >> 8) & 0x0000_00ff) |
+					 ((rm << 8) & 0x0000_ff00);
+	// R[d] = result;
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									REVSH										     *
+// ***************************************************************************************
+// Byte-Reverse Signed Halfword reverses the byte order in the lower 16-bit halfword of a 
+// 32-bit register, and sign extends the result to 32 bits.
+
+// REVSH<c> <Rd>,<Rm>
+instr_16 parse_revsh_t1(const uint instr) {
+	return instr_16(rm: cast(reg)slice(instr, 0, 3),
+				    rd: cast(reg)slice(instr, 3, 3));
+}
+
+void 
+execute_revsh_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable rm  = vm.get_reg(instr.rm);
+	// bits(32) result;
+	// result<31:8> = SignExtend(R[m]<7:0>, 24);
+	// result<7:0> = R[m]<15:8>;
+	immutable res = cast(int)((res << 8) & 0x0000_ff00) | ((res >> 8) & 0x0000_00ff);
+	// R[d] = result;
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   BKPT 										 *
+// ***************************************************************************************
+
+// BKPT #<imm8>
+instr_16 parse_bkpt_t1(const ushort instr) {
+	// imm32 = ZeroExtend(imm8, 32);
+	// imm32 is for assembly/disassembly only and is ignored by hardware.
+	return instr_16(imm: slice(instr, 0, 8));
+}
+
+void 
+execute_bkpt_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	// BKPTInstrDebugEvent();
+}
+// ---------------------------------------------------------------------------------------

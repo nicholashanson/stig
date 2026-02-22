@@ -137,7 +137,8 @@ instr_32 parse_add_imm_t4(const uint instr) {
     immutable  imm_8 = slice(instr,  0, 8);
     immutable  imm_3 = slice(instr, 12, 3);
     immutable  i     = slice(instr, 26, 1);
-    const uint imm   = (i << 11) | (imm_3 << 8) | imm_8; // imm32 = ZeroExtend(i:imm3:imm8, 32);
+    // imm32 = ZeroExtend(i:imm3:imm8, 32);
+    const uint imm   = (i << 11) | (imm_3 << 8) | imm_8; 
     return instr_32(rd:  cast(reg )slice(instr,  8, 4),
                     rn:  cast(reg )slice(instr, 16, 4),
                     imm: imm);
@@ -199,7 +200,9 @@ void
 execute_ubfx_t1
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
-    const uint msb = instr.lsb + instr.widthm1;
+    const uint msb     = instr.lsb + instr.widthm1;
+    const uint lsb     = instr.lsb;
+    const uint widthm1 = instr.widthm1;
     immutable  rn  = vm.get_reg(instr.rn);
     if (msb < 32) {
         immutable res = slice(rn, lsb, widthm1 + 1);

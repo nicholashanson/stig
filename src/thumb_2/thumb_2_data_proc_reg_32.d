@@ -30,8 +30,8 @@ execute_shift_instr
 	immutable res 	   = shift_c(rn, instr.shift_t, shift_n, vm.get_c());
 	if (instr.set_flags) {
 		vm.set_c(res.carry);	// APSR.C = carry;
-		vm.set_n(res.result);	// APSR.Z = IsZeroBit(result);
-		vm.set_z(res.result);	// APSR.N = result<31>;	
+		vm.set_z(res.result);	// APSR.Z = IsZeroBit(result);
+		vm.set_n(res.result);	// APSR.N = result<31>;	
 		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res.result);

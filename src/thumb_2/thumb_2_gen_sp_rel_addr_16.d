@@ -53,9 +53,23 @@ instr_16 parse_add_sp_t2(const ushort instr) {
 // ================
 
 void 
+execute_add_sp_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	execute_add_sp(instr, vm);
+}
+
+void 
+execute_add_sp_t2
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	execute_add_sp(instr, vm);
+}
+
+void 
 execute_add_sp
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable  sp  = vm.get_sp();
 	const uint res = sp + instr.imm;
 	vm.set_reg(instr.rd, res);

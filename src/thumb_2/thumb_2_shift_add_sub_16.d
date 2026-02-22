@@ -203,7 +203,7 @@ execute_add_imm
 		vm.set_c(res.carry);
 		vm.set_v(res.overflow);
 	}
-	vm.set_reg(instr.rd, res);
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 

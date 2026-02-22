@@ -14,6 +14,7 @@
 
 import std.typecons : Tuple;
 import std.format   : format;
+import std.conv;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
@@ -50,6 +51,14 @@ execute_mov_reg_t1
 	immutable res = vm.get_reg(instr.rm);
 	vm.set_reg(instr.rd, res);
 	// setflags = FALSE;
+}
+
+// =================================
+//  Convert MOV(Register) to String
+// =================================
+
+string convert_mov_reg_t1_to_string(const ref instr_16 instr) {
+	return format("mov %s, %s", instr.rd.to!string, instr.rm.to!string);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -89,6 +98,14 @@ execute_add_reg_t2
 	vm.set_reg(instr.rd, res); 
 	// setflags = FALSE;
 }
+
+// =================================
+//  Execute ADD(Register) to String
+// =================================
+
+string convert_add_reg_t2_to_string(const ref instr_16 instr) {
+	return format("add %s, %s", instr.rd.to!string, instr.rm.to!string);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -123,8 +140,16 @@ execute_blx_t1
 (const instr_16 instr, ref vm_t vm) {
 	immutable  rm = vm.get_reg(instr.rm);
 	vm.set_reg(reg.lr, vm.get_pc() + 2);
-	vm.set_reg(reg.pc, target);
+	vm.set_reg(reg.pc, rm);
 	vm.clear_thumb_bit();
+}
+
+// =================================
+//  Execute BLX(Register) to String
+// =================================
+
+string convert_blx_t1_to_string(const ref instr_16 instr) {
+	return format("blx %s", instr.rm.to!string);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -164,8 +189,15 @@ execute_bx_t1
         exception_return(vm, rm);
         return;
     }
-    immutable v = vm.get_reg(instr.rm);
-	vm.set_reg(reg.pc, v);
+	vm.set_reg(reg.pc, rm);
 	vm.clear_thumb_bit();
+}
+
+// ======================
+//  Convert BX to String
+// ======================
+
+string convert_bx_t1_to_string(const ref instr_16 instr) {
+	return format("bx %s", instr.rm.to!string);
 }
 // ---------------------------------------------------------------------------------------

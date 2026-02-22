@@ -98,9 +98,8 @@ execute_pop_t2
 		immutable val = vm.pop();
 		vm.set_reg(r, val);
 	}
-	if (regs.back == reg.pc) {
+	if (regs.back == reg.pc) 
 		vm.clear_thumb_bit();
-	}
 }
 // ---------------------------------------------------------------------------------------
 

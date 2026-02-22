@@ -173,3 +173,118 @@ execute_ldrsb_imm
 		vm.set_reg(instr.rn, offset_addr);  
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  LDRSB 										 *
+// ***************************************************************************************
+// LDRSB<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
+
+
+
+
+
+
+
+
+
+void execute_ldrexh_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_pop_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_push_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_stmb_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldmb_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_clrex_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_wfe_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_wfi_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_sev_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_dbg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_teq_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_cmn_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_cmp_reg_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_mvn_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_orn_reg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_rsb_reg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_adr_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_adr_imm_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_movt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_sbfx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_mov_reg_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_ror_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_rrx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_uxtb_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_sxth_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_sxtb_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_sxtab_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_sxtah_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_uxtah_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_sxtab16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_sxtb16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_uxtab16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uxtb16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_uxtab_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_ror_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_qadd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qdadd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qdsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_rev_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_rev16_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_sdiv_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_ldrt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_ldrh_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrh_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrh_imm_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrh_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_ldrht_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_ldrsh_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsh_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsh_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsh_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsht_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsh_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsh_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_ldrb_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrbt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrb_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_ldrsb_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsbt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsb_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_pld_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_pld_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_pld_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_pld_reg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_strb_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_strh_imm_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+
+void execute_invalid(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_vmsr_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

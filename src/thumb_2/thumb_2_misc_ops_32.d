@@ -133,3 +133,29 @@ execute_sel_t1
 	vm.set_reg(instr.rd, res);
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									REVSH										     *
+// ***************************************************************************************
+// Byte-Reverse Signed Halfword reverses the byte order in the lower 16-bit halfword of a 
+// 32-bit register, and sign extends the result to 32 bits.
+
+// REVSH<c>.W <Rd>,<Rm>
+instr_32 parse_revsh_t2(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr, 0, 4),
+				    rd: cast(reg)slice(instr, 8, 4));
+}
+
+void 
+execute_revsh_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	immutable rm  = vm.get_reg(instr.rm);
+	// bits(32) result;
+	// result<31:8> = SignExtend(R[m]<7:0>, 24);
+	// result<7:0> = R[m]<15:8>;
+	immutable res = cast(int)((res << 8) & 0x0000_ff00) | ((res >> 8) & 0x0000_00ff);
+	// R[d] = result;
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------

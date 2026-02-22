@@ -223,7 +223,9 @@ enum field_tuples_eor_reg_t1 = [Tuple!(opcode, string[])(opcode.eor_reg_t1, ["rd
 // EOR <Rdn>,<Rm>
 // [15:6] 0100000001, [5:3] Rm, [2:0] Rdn
 instr_16 parse_eor_reg(ushort instr) {
-	return instr_16(rn: cast(reg)slice(instr, 0, 3), rd: cast(reg)slice(instr, 0, 3), rm: cast(reg)slice(instr, 3, 3));
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+		            rd: cast(reg)slice(instr, 0, 3), 
+		            rm: cast(reg)slice(instr, 3, 3));
 }
 
 // =======================
@@ -297,7 +299,9 @@ enum field_tuples_lsr_reg_t1 = [Tuple!(opcode, string[])(opcode.lsr_reg_t1, ["rd
 // LSR <Rdn>,<Rm>
 // [15:6] 0100000011, [5:3] Rm, [2:0] Rdn  
 instr_16 parse_lsr_reg_t1(const ushort instr) {
-	return instr_16(rn: cast(reg)slice(instr, 0, 3), rd: cast(reg)slice(instr, 0, 3), rm: cast(reg)slice(instr, 3, 3));
+	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
+		            rd: cast(reg)slice(instr, 0, 3), 
+		            rm: cast(reg)slice(instr, 3, 3));
 }
 
 // =======================
@@ -498,7 +502,7 @@ instr_16 parse_orr_reg_t1(const ushort instr) {
 void 
 execute_orr_reg_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable  rn  = vm.get_reg(instr.rn);
 	immutable  rm  = vm.get_reg(instr.rm);
 	const uint res = rn | rm;
@@ -510,17 +514,78 @@ execute_orr_reg_t1
 }
 // ---------------------------------------------------------------------------------------
 
+// ***************************************************************************************
+// *									   RSB 											 *
+// ***************************************************************************************
+
 // RSBS <Rd>,<Rn>,#0 Outside IT block.
 // RSB<c> <Rd>,<Rn>,#0 Inside IT block.
 instr_16 parse_rsb_imm_t1(const ushort instr) {
 	return instr_16(rd: cast(reg)slice(instr, 0, 3),
 		  			rn: cast(reg)slice(instr, 3, 3));
-} 
+}
 
-//(result, carry, overflow) = AddWithCarry(NOT(R[n]), imm32, ‘1’);
-//R[d] = result;
-//if setflags then
-//APSR.N = result<31>;
-//APSR.Z = IsZeroBit(result);
-//APSR.C = carry;
-//APSR.V = overflow;
+void 
+execute_rsb_imm_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable rn  = vm.get_reg(intr.rn);
+	immutable imm = instr.imm;
+	// (result, carry, overflow) = AddWithCarry(NOT(R[n]), imm32, ‘1’);
+	immutable res = add_with_carry(~rn, imm, true);
+	if (!vm.in_it_block()) {
+		vm.set_n(res.result);	// APSR.N = result<31>;
+		vm.set_z(res.result);	// APSR.Z = IsZeroBit(result);
+		vm.set_c(res.carry);	// APSR.C = carry;
+		vm.set_v(res.overflow);	// APSR.V = overflow;
+	}
+	vm.set_reg(instr.rd, res.result);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   SBC											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse SBC(Register)
+// =====================
+
+// SBCS <Rdn>,<Rm> Outside IT block.
+// SBC<c> <Rdn>,<Rm> Inside IT block
+instr_16 parse_sbc_reg_t1(const ushort instr) {
+	return instr_16(rd: cast(reg)slice(instr, 0, 3),
+					rn: cast(reg)slice(instr, 0, 3),
+					rm: cast(reg)slice(instr, 3, 6));
+}
+
+// =======================
+//  Execute SBC(Register)
+// =======================
+
+void 
+execute_sbc_reg_t1
+(vm_t)
+(const ref instr_16 instr, vm_t vm) {
+	immutable rn = vm.get_reg(instr.rn);
+	immutable rm = vm.get_reg(instr.rm);
+	// shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+	// (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), APSR.C);
+	immutable res = add_with_carry(rn, ~rm, vm.get_c());
+	if (!vm.in_it_block()) {
+		vm.set_n(res.result);		// APSR.N = result<31>;
+		vm.set_z(res.result);		// APSR.Z = IsZeroBit(result);
+		vm.set_c(res.carry);		// APSR.C = carry;
+		vm.set_v(res.overflow);		// APSR.V = overflow;
+	}
+	vm.set_reg(instr.rd, res);
+}
+// ---------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+

@@ -112,7 +112,7 @@ bool get_shifter_carry(uint val, shift_type t, uint n, bool c) {
 // ---------------------------------------------------------------------------------------
 
 struct add_with_carry_result {
-	bool carry_out;
+	bool carry;
 	bool overflow;
 	uint result;
 }
@@ -123,9 +123,9 @@ add_with_carry_result add_with_carry(const uint x, const uint y, bool carry_in) 
 	uint  result       = cast(uint)unsigned_sum;
 	bool  carry_out    = unsigned_sum != cast(ulong)result;
 	bool  overflow 	   = cast(long)cast(int)result != signed_sum;
-	return add_with_carry_result(carry_out: carry_out,
-		                         overflow:  overflow,
-		                         result:    result);
+	return add_with_carry_result(carry:    carry_out,
+		                         overflow: overflow,
+		                         result:   result);
 } 
 // ---------------------------------------------------------------------------------------
 
@@ -217,6 +217,8 @@ struct instr_16 {
 	bool   	   enable;
 	bool   affect_pri;
 	bool affect_fault;
+	bool		index;
+	bool		  add;
 }
 // ---------------------------------------------------------------------------------------
 

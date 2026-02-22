@@ -14,6 +14,7 @@
 
 import std.typecons : Tuple;
 import std.format   : format;
+import std.stdio;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
@@ -92,6 +93,7 @@ void
 execute_mul_t2
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
+	writeln("mul_t2 called");
 	const int op1 = vm.get_reg(instr.rn);
 	const int op2 = vm.get_reg(instr.rm);
 	const int res = op1 * op2;

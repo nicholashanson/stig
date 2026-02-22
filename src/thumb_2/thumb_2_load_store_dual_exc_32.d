@@ -99,6 +99,38 @@ execute_ldrex_t1
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
+// *									LDREXB 											 *
+// ***************************************************************************************
+
+// ==============
+//  Parse LDREXB
+// ==============
+
+// LDREXB<c> <Rt>, [<Rn>]
+instr_32 parse_ldrexb_t1(const uint instr) {
+	return instr_32(rt:  cast(reg )slice(instr, 12, 4),
+				    rn:  cast(reg )slice(instr, 16, 4)); 
+}
+
+// ================
+//  Execute LDREXB
+// ================
+
+void 
+execute_ldrexb_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// address = R[n];
+	const size_t addr = vm.get_reg(instr.rn);
+	// SetExclusiveMonitors(address,1);
+	// R[t] = ZeroExtend(MemA[address,1], 32);
+	immutable data    = vm.read_byte(addr);
+	vm.set_reg(instr.rt, data);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
 // *					                   STRD 										 *
 // ***************************************************************************************
 // Store Register Dual (immediate) calculates an address from a base register value and an 
@@ -173,12 +205,91 @@ instr_32 parse_strex_t1(const uint instr) {
 void 
 execute_strex_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable target = vm.get_reg(instr.rt);
 	size_t addr 	 = vm.get_reg(instr.rn);
 	addr += instr.imm;
 	vm.write_word(addr, target);
 	vm.set_reg(instr.rd, 0);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									STREXB 											 *
+// ***************************************************************************************
+// Store Register Exclusive Byte derives an address from a base register value, and stores 
+// a byte from a register to memory if the executing processor has exclusive access to the 
+// memory addressed.
+
+// ==============
+//  Parse STREXB
+// ==============
+
+// STREXB<c> <Rd>,<Rt>,[<Rn>]
+instr_32 parse_strexb_t1(const uint instr) {
+	return instr_32(rd: cast(reg)slice(instr,  0, 4),
+				    rt: cast(reg)slice(instr, 12, 4),
+				    rn: cast(reg)slice(instr, 16, 4)); 
+}
+
+// ================
+//  Execute STREXB
+// ================
+
+void 
+execute_strexb_t1
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// address = R[n];
+	immutable rn   = vm.get_reg(instr.rn);
+	// if ExclusiveMonitorsPass(address,1) then
+	// MemA[address,1] = R[t];
+	// R[d] = 0;
+	vm.write_byte(rn, cast(ubyte)rn);
+	vm.set_reg(instr.rd, 0);
+	// else
+	// R[d] = 1;
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									STREXH  										 *
+// ***************************************************************************************
+// Store Register Exclusive Halfword derives an address from a base register value, and 
+// stores a halfword from a register to memory if the executing processor has exclusive 
+// access to the memory addressed.
+
+// ==============
+//  Parse STREXH
+// ==============
+
+// STREXH<c> <Rd>,<Rt>,[<Rn>]
+instr_32 parse_strexh_t1(const uint instr) {
+	return instr_32(rd: cast(reg)slice(instr,  0, 4),
+				    rt: cast(reg)slice(instr, 12, 4),
+				    rn: cast(reg)slice(instr, 16, 4)); 
+}
+
+// ================
+//  Execute STREXH
+// ================
+
+void 
+execute_strexh_t1
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// address = R[n];
+	immutable rn = vm.get_reg(instr.rn);
+	immutable rt = vm.get_reg(instr.rt);
+	// if ExclusiveMonitorsPass(address,2) then
+	// MemA[address,2] = R[t];
+	vm.write_half_word(rn, cast(ushort)rt);
+	// R[d] = 0;
+	vm.set_reg(instr.rd, 0);
+	// else
+	// R[d] = 1;
 }
 // ---------------------------------------------------------------------------------------
 

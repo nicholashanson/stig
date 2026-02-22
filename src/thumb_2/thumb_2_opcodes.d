@@ -88,10 +88,8 @@ enum opcode : ubyte {
 	ldrh_imm_t1,
 	str_imm_t2,
 	ldr_imm_t2,
-
 	// load from pool
 	ldr_lit_t1,
-
 	//--------------------------------------------------------------------------------------
 	// dual or excusive
 	strex_t1,

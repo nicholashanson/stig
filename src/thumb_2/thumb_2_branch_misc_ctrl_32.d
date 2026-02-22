@@ -190,6 +190,19 @@ instr_32 parse_b_t4(const uint instr) {
 		imm_32 |= 0xfe00_0000;
 	return instr_32(offset: imm_32);
 }
+
+// ===========
+//  Execute B
+// ===========
+
+void 
+execute_b_t4
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {
+	auto pc = vm.get_pc();
+	pc += instr.offset + 4;
+	vm.set_reg(reg.pc, pc);
+}
 // ---------------------------------------------------------------------------------------
 
 // =========
@@ -332,5 +345,65 @@ execute_dsb_t1
 
 string convert_dsb_t1_to_string(const ref instr_32 instr) {
 	return "dsb";
+}
+// --------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   DMB 											 *
+// ***************************************************************************************
+
+// ===========
+//  Parse DMB
+// ===========
+
+instr_32 parse_dmb_t1(uint instr) {
+	return instr_32();
+}
+
+// =============
+//  Execute DMB
+// =============
+
+void 
+execute_dmb_t1
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {}
+
+// =======================
+//  Convert DSB to String
+// =======================
+
+string convert_dmb_t1_to_string(const ref instr_32 instr) {
+	return "dmb";
+}
+// --------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									 YIELD 											 *
+// ***************************************************************************************
+
+// =============
+//  Parse YIELD
+// =============
+
+instr_32 parse_yield_t2(uint instr) {
+	return instr_32();
+}
+
+// =============
+//  Execute DSB
+// =============
+
+void 
+execute_yield_t2
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {}
+
+// =======================
+//  Convert DSB to String
+// =======================
+
+string convert_yield_t2_to_string(const ref instr_32 instr) {
+	return "yield";
 }
 // --------------------------------------------------------------------------------------

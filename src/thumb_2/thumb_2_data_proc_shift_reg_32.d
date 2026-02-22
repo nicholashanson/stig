@@ -98,13 +98,13 @@ instr_32 parse_adc_reg_t2(const uint instr) {
 void 
 execute_adc_reg_t2
 (vm_t)
-(const instr_32 instr, ref cortex_m_vm vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable  rm      = vm.get_reg(instr.rm);
 	immutable  rn      = vm.get_reg(instr.rn);
 	// shifted = Shift(R[m], shift_t, shift_n, APSR.C);
 	immutable  shifted = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
 	// (result, carry, overflow) = AddWithCarry(R[n], shifted, APSR.C);
-	immutable res     = add_with_carry(rn, shifted, vm.get_c());
+	immutable res      = add_with_carry(rn, shifted, vm.get_c());
 	if (instr.set_flags) {
 		vm.set_n(res.result);		// APSR.N = result<31>;
 		vm.set_z(res.result);		// APSR.Z = IsZeroBit(result);
@@ -225,14 +225,14 @@ execute_sbc_reg_t2
 	// shifted = Shift(R[m], shift_t, shift_n, APSR.C);
 	immutable shifted = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
 	// (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), APSR.C);
-	immutable res     = add_with_carry(rm, ~shifted, vm.get_c());
+	immutable res     = add_with_carry(rn, ~shifted, vm.get_c());
 	if (instr.set_flags) {
 		vm.set_n(res.result);		// APSR.N = result<31>;
     	vm.set_z(res.result);		// APSR.Z = IsZeroBit(result);
     	vm.set_v(res.overflow);		// APSR.V = overflow;
     	vm.set_c(res.carry);		// APSR.C = carry;
 	}
-	vm.set_reg(instr.rd, res);
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -537,4 +537,50 @@ execute_sub_reg_t2
 		vm.set_n(res.result);
 		vm.set_z(res.result);
 	}
+	vm.set_reg(instr.rd, res.result);
 }
+
+
+// ***************************************************************************************
+// * 									   TEQ 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse TEQ(Register)
+// =====================
+
+// TEQ<c> <Rn>,<Rm>{,<shift>}
+instr_32 parse_teq_reg_t1(const uint instr) {
+	immutable type    = cast(ubyte)slice(instr,  4, 2);
+	immutable imm_2   = slice(instr,  6, 2);
+	immutable imm_3   = slice(instr, 12, 3);
+	immutable imm_5   = cast(ubyte)((imm_3 << 2) | imm_2);
+	immutable shift_t = get_shift_type(type, imm_5);
+	return instr_32(rm: 	   cast(reg)slice(instr,  0, 4),
+		            rn:        cast(reg)slice(instr, 16, 4),
+		            shift_t:   shift_t,
+		            shift_n:   shift_t == shift_type.rrx ? 1 : imm_5,
+		            set_flags: cast(bool)slice(instr, 20, 1));
+}
+
+// =======================
+//  Execute TEQ(Register)
+// =======================
+
+void 
+execute_teq_reg_t1
+(vm_t)
+(const instr_32 instr, ref vm_t vm) {
+	// if ConditionPassed() then
+    // EncodingSpecificOperations();
+    immutable rm 		= vm.get_reg(instr.rm);
+	// (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+	immutable shift_res = shift_c(rm, instr.shift_t, instr.shift_n, vm.get_c());
+	// result = R[n] EOR shifted;
+	const uint res 		= rn ^ shift_res.result;
+	vm.set_n(res); 				// APSR.N = result<31>;
+	vm.set_z(res); 				// APSR.Z = IsZeroBit(result);
+	vm.set_c(shift_res.carry);	// APSR.C = carry;
+	// APSR.V unchanged	
+}
+// ---------------------------------------------------------------------------------------
