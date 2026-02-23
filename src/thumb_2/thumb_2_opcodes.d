@@ -746,8 +746,12 @@ opcode decode_load_half_word(const uint instr) {
 		return opcode.ldrsht_t1;
 	if (((op1 == 0b10) && ((op2 & 0b100100) == 0b100100) && (rn != pc) && (rt != pc)) |
 		((op1 == 0b10) && ((op2 & 0b111100) == 0b110000) && (rn != pc) && (rt != pc)) |
-		((op1 == 0b11) && (rn != pc) && (rt != pc))) 
-		return opcode.ldrsh_imm_t2;
+		((op1 == 0b11) && (rn != pc) && (rt != pc))) {
+		if (slice(instr, 20, 4) == 0xb)
+			return opcode.ldrsh_imm_t1;
+		else
+			return opcode.ldrsh_imm_t2;
+	}
 	return opcode.invalid;
 }
 
@@ -1141,7 +1145,6 @@ unittest {
 		test_case(0xe8533f00,    opcode.ldrex_t1),
 		test_case(0xe8412300,    opcode.strex_t1),
 		test_case(0xfb0e7711,      opcode.mls_t1),
-		test_case(0xf9b4500c,opcode.ldrsh_imm_t2),
 		test_case(0xea1c0f0e,  opcode.tst_reg_t2),
 		test_case(0xea010808,  opcode.and_reg_t2),
 		test_case(0xea23030c,  opcode.bic_reg_t2),
@@ -1209,7 +1212,8 @@ unittest {
 		test_case(0xe8dff012,  opcode.tbb_tbh_t1),
 		test_case(0xF3838814,      opcode.msr_t1),
 		test_case(0xf8213012, opcode.strh_reg_t2),
-		test_case(0xeee13a10,     opcode.vmsr_t1)
+		test_case(0xeee13a10,     opcode.vmsr_t1),
+		test_case(0xf9b4500c,opcode.ldrsh_imm_t1)
 	];
 
 	foreach (t; tests) {
