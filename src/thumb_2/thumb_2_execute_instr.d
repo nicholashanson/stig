@@ -424,6 +424,11 @@ unittest {
           test_vm(cpu: make_cpu(tuple(reg.lr, 7), tuple(reg.r12, 9))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.lr, 16), tuple(reg.r12, 9)))),
 
+     test_case(0x458c, 
+          instr_16(op: opcode.cmp_reg_t2,    rn: reg.r12, rm: reg.r1),
+          test_vm(),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(flag.z, true), tuple(flag.c, true)))),
+
     //test_case(0x4652, 
     //        instr_16(op: opcode.mov_reg_t2,    rd: reg.r2,  rm: reg.r10),
     //        test_vm(cpu: make_cpu(tuple(reg.r2, 1), tuple(reg.r10, 3))),
@@ -435,10 +440,7 @@ unittest {
             cortex_m_cpu(r2: 1, r10: 3),
             cortex_m_cpu(r2: 3, r10: 3))
 
-    test_case(0x458c, 
-            instr_16(op: opcode.cmp_high_1,    rn: reg.r12, rm: reg.r1),
-            cortex_m_cpu(r3: 0, r0: 0),
-            cortex_m_cpu(pc: 2, z: true, n: false, c: true, v: false)),
+   
     
     
     
