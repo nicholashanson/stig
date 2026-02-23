@@ -379,12 +379,12 @@ unittest {
           instr_16(op: opcode.add_imm_t1,     rd: reg.r3,  rn: reg.r7, imm: 4),
           test_vm(cpu: make_cpu(tuple(reg.r3, 3), tuple(reg.r7, 4))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r3, 8), tuple(reg.r7, 4)))),
-    
-     /*
     test_case(0x4413, 
-          instr_16(op: opcode.add_lo_reg,    rd: reg.r3,  rn: reg.r3, rm: reg.r2),
-          cortex_m_cpu(r3: 3, r2: 2),
-          cortex_m_cpu(pc: 2, r3: 5, r2: 2)),
+          instr_16(op: opcode.add_reg_t1,     rd: reg.r3,  rn: reg.r3, rm: reg.r2),
+          test_vm(cpu: make_cpu(tuple(reg.r3, 3), tuple(reg.r2, 2))),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r3, 5), tuple(reg.r2, 2)))),
+     /*
+
     test_case(0x409a, 
             instr_16(op: opcode.lsl_reg,       rd: reg.r2,  rn: reg.r2, rm: reg.r3),
             cortex_m_cpu(r2: 0b0101, r3: 1),
