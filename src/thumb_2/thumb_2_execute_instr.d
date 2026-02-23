@@ -119,6 +119,23 @@ string cpu_diff(const ref cortex_m_cpu a, const ref cortex_m_cpu b)
     return buf.data;
 }
 
+string mem_diff(const ref tiny_mem a, const ref tiny_mem  b)
+{
+    auto buf = appender!string();
+
+    // -------- Registers --------
+    foreach (i; 0 .. 10)
+    {
+        auto va = a.read_word(i);
+        auto vb = b.read_word(i);
+
+        if (va != vb)
+            buf ~= format("%d : 0x%08X vs 0x%08X\n", i, va, vb);
+    }
+
+    return buf.data;
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 cortex_m_cpu make_cpu(T...)(T args)
@@ -314,13 +331,18 @@ unittest {
               tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r1, 2))),
               tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r1, 2), tuple(reg.pc, 4u)),
                       mem: make_mem(tuple(2, 0xffffffee)))),
+    test_case(0xe9c72300, // strd   r2, r3, [r7]
+              instr_32(op: opcode.strd_imm_t1, rt: reg.r2, rt_2: reg.r3, rn: reg.r7),
+              tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r3, 0xffffffff), tuple(reg.r7, 4))),
+              tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r3, 0xffffffff), tuple(reg.r7, 4), tuple(reg.pc, 4u)),
+                      mem: make_mem(tuple(4, 0xffffffee), tuple(8, 0xffffffff)))),
   ];
 
   foreach (t; tests) {
       execute_instr(t.instr, t.before);
       assert(
           t.before == t.expected,
-          format("Failed for instruction 0x%08X: %s", t.instr_bytes, cpu_diff(t.before.cpu, t.expected.cpu))
+          format("Failed for instruction 0x%08X:\n %s\n %s", t.instr_bytes, cpu_diff(t.before.cpu, t.expected.cpu), mem_diff(t.before.mem, t.expected.mem))
       );
   }
 }
