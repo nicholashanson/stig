@@ -303,6 +303,12 @@ unittest {
               tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r1, 10),         tuple(reg.r3, 4))),
               tiny_vm(cpu: make_cpu(tuple(reg.pc,         4u), tuple(reg.r2, 0xffffffee), tuple(reg.r1, 10), tuple(reg.r3, 4)),
                       mem: make_mem(tuple(26, 0xffffffee)))),
+    test_case(0xe8533f00, // ldrex  r3, [r3]
+              instr_32(op: opcode.ldrex_t1, rt: reg.r3, rn: reg.r3),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 2)),
+                      mem: make_mem(tuple(2, 0xffffffee))),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 0xffffffee), tuple(reg.pc, 4u)),
+                      mem: make_mem(tuple(2, 0xffffffee)))),
   ];
 
   foreach (t; tests) {
