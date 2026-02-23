@@ -136,6 +136,18 @@ cortex_m_cpu make_cpu(T...)(T args)
     return cpu;
 }
 
+tiny_mem make_mem(T...)(T args)
+{
+    tiny_mem mem;
+
+    foreach (arg; args)
+    {
+        mem.write_word(arg[0], arg[1]);
+    }
+
+    return mem;
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
     struct test_case {
@@ -270,7 +282,39 @@ unittest {
             format("Failed for instruction 0x%08X: %s", t.instr_bytes, cpu_diff(t.before.cpu, t.expected.cpu))
         );
     }
+
+        
+
+
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+  struct test_case {
+    uint instr_bytes;
+    instr_32 instr;
+    tiny_vm before;
+    tiny_vm expected;
+  }
+
+  test_case[] tests = [
+    test_case(0xf8412023, // str.w  r2, [r1, r3, lsl #2]
+              instr_32(op: opcode.str_reg_t2, rt: reg.r2, rn: reg.r1, rm: reg.r3, shift_t: shift_type.lsl, shift_n: 2),
+              tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r1, 10),         tuple(reg.r3, 4))),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc,         4u), tuple(reg.r2, 0xffffffee), tuple(reg.r1, 10), tuple(reg.r3, 4)),
+                      mem: make_mem(tuple(26, 0xffffffee)))),
+  ];
+
+  foreach (t; tests) {
+      execute_instr(t.instr, t.before);
+      assert(
+          t.before == t.expected,
+          format("Failed for instruction 0x%08X: %s", t.instr_bytes, cpu_diff(t.before.cpu, t.expected.cpu))
+      );
+  }
+}
+
+
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
