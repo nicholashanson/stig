@@ -364,19 +364,23 @@ unittest {
           instr_16(op: opcode.blx_t1,           rm: reg.r3),
           test_vm(cpu: make_cpu(tuple(reg.pc, 10), tuple(reg.r3, 20))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 20), tuple(reg.lr, 12), tuple(reg.r3, 20)))),
-    /*
-    test_case(0xaf00, 
-            instr_16(op: opcode.add_sp_t1,        rd: reg.r7,         imm: 0),
-            cortex_m_cpu(msp: 10, r7: 20),
-          cortex_m_cpu(pc: 2, msp: 10, r7: 10)),
-    test_case(0xb092, 
-            instr_16(op: opcode.sub_sp,                 imm: 72),
-            cortex_m_cpu(msp: 90),
-          cortex_m_cpu(pc: 2, msp: 18)),
+    //test_case(0xaf00, 
+    //      instr_16(op: opcode.add_sp_t1,        rd: reg.r7,         imm: 0),
+     //     cortex_m_cpu(msp: 10, r7: 20),
+      //    cortex_m_cpu(pc: 2, msp: 10, r7: 10)),
+       
+    //test_case(0xb092, 
+     //       instr_16(op: opcode.sub_sp,                 imm: 72),
+      //      cortex_m_cpu(msp: 90),
+       //   cortex_m_cpu(pc: 2, msp: 18)),
+
+    
     test_case(0x1d3b, 
-            instr_16(op: opcode.add_imm_3,     rd: reg.r3,  rn: reg.r7, imm: 4),
-            cortex_m_cpu(r3: 3, r7: 4),
-          cortex_m_cpu(pc: 2, r3: 8, r7: 4, c: true)),
+          instr_16(op: opcode.add_imm_t1,     rd: reg.r3,  rn: reg.r7, imm: 4),
+          test_vm(cpu: make_cpu(tuple(reg.r3, 3), tuple(reg.r7, 4))),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r3, 8), tuple(reg.r7, 4)))),
+    
+     /*
     test_case(0x4413, 
           instr_16(op: opcode.add_lo_reg,    rd: reg.r3,  rn: reg.r3, rm: reg.r2),
           cortex_m_cpu(r3: 3, r2: 2),
