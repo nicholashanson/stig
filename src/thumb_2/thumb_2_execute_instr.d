@@ -349,18 +349,20 @@ unittest {
                       mem: make_mem(tuple(10, 0x000000ee))),
               tiny_vm(cpu: make_cpu(tuple(reg.r3, 0xffffffee), tuple(reg.r7, 3), tuple(reg.pc, 4)),
                       mem: make_mem(tuple(10, 0x000000ee)))),
-
+    test_case(0xe8bd4008, 
+              instr_32(op: opcode.pop_t2, reg_list: [reg.r3, reg.lr]),
+              tiny_vm(cpu: make_cpu(tuple(reg.sp, tiny_mem.stack_base - 8)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-4, 0xffffffff), 
+                                    tuple(tiny_mem.stack_base-8, 0xffffffee))),
+              tiny_vm(cpu: make_cpu(tuple(reg.sp, tiny_mem.stack_base), tuple(reg.pc, 4), tuple(reg.r3, 0xffffffee),
+                                    tuple(reg.lr, 0xffffffff)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-4, 0xffffffff), 
+                                    tuple(tiny_mem.stack_base-8, 0xffffffee)))),
 
            /*
 
 
-        test_case(0xe8bd4008, 
-                  instr_32(op: opcode.pop_32, reg_list: [reg.r3, reg.lr]),
-                  cortex_m_cpu(msp: memory.stack_base - 8),
-                  cortex_m_cpu(pc: 4, msp: memory.stack_base, r3: 0xffffffee, lr: 0xffffffff),
-                  memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
-                                            [0xffffffff, 0xffffffee])),
-                  memory()),
+        
         
         test_case(0xe92d4fb0, // stmdb  sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
                   instr_32(op: opcode.push_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr]),
