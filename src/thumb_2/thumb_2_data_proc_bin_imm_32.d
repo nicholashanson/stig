@@ -237,7 +237,7 @@ instr_32 parse_sub_imm_t4(const uint instr) {
 void 
 execute_sub_imm_t4
 (vm_t)
-(const instr_32 instr, ref vm_t cpu) {
+(const ref instr_32 instr, ref vm_t vm) {
     immutable rn  = vm.get_reg(instr.rn);
     immutable imm = instr.imm;
     // (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), ‘1’);

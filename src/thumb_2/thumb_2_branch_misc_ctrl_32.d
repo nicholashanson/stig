@@ -103,6 +103,10 @@ execute_msr_t1
 	}
 }
 
+// =======================
+//  Convert MSR to String
+// =======================
+
 string convert_msr_t1_to_string(const ref instr_32 instr) {
 	return format("msr %s, %s", instr.spec_reg.to!string, instr.rn.to!string);
 }
@@ -198,7 +202,7 @@ instr_32 parse_b_t4(const uint instr) {
 void 
 execute_b_t4
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	auto pc = vm.get_pc();
 	pc += instr.offset + 4;
 	vm.set_reg(reg.pc, pc);
@@ -235,7 +239,7 @@ instr_32 parse_b_t3(const uint instr) {
 void 
 execute_b_t3
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	if (condition_is_met(instr.cond, vm.cpu)) {
 		int pc = vm.get_pc();
 		pc += instr.offset + 4;
@@ -273,7 +277,7 @@ instr_32 parse_nop_t2(uint instr) {
 void 
 execute_nop_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {}
+(const ref instr_32 instr, ref vm_t vm) {}
 
 // =======================
 //  Convert NOP to String
@@ -305,7 +309,7 @@ instr_32 parse_isb_t1(uint instr) {
 void 
 execute_isb_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {}
+(const ref instr_32 instr, ref vm_t vm) {}
 
 // =======================
 //  Convert ISB to String
@@ -337,7 +341,7 @@ instr_32 parse_dsb_t1(uint instr) {
 void 
 execute_dsb_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {}
+(const ref instr_32 instr, ref vm_t vm) {}
 
 // =======================
 //  Convert DSB to String
@@ -367,7 +371,7 @@ instr_32 parse_dmb_t1(uint instr) {
 void 
 execute_dmb_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {}
+(const ref instr_32 instr, ref vm_t vm) {}
 
 // =======================
 //  Convert DSB to String
@@ -397,7 +401,7 @@ instr_32 parse_yield_t2(uint instr) {
 void 
 execute_yield_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {}
+(const ref instr_32 instr, ref vm_t vm) {}
 
 // =======================
 //  Convert DSB to String

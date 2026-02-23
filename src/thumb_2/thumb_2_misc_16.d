@@ -258,7 +258,7 @@ execute_pop_t1
 	}
 	if (regs.back == reg.pc) {
 		if ((vm.get_pc() & 0xff00_0000) == 0xff00_0000) { // (*)
-	        exception_return(vm);
+	        exception_return(vm, vm.get_pc());
 	        return;
 	    }
 		vm.clear_thumb_bit();
@@ -511,7 +511,7 @@ execute_revsh_t1
 	// bits(32) result;
 	// result<31:8> = SignExtend(R[m]<7:0>, 24);
 	// result<7:0> = R[m]<15:8>;
-	immutable res = cast(int)((res << 8) & 0x0000_ff00) | ((res >> 8) & 0x0000_00ff);
+	immutable res = cast(int)((rm << 8) & 0x0000_ff00) | ((rm >> 8) & 0x0000_00ff);
 	// R[d] = result;
 	vm.set_reg(instr.rd, res);
 }

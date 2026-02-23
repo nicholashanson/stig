@@ -4,6 +4,7 @@ import std.conv;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
+import thumb_2_misc_16;
 import cortex_m_core;
 
 // ***************************************************************************************
@@ -37,13 +38,16 @@ execute_svc_t1
 	vm.increment_pc(2);
 	if (vm.get_current_exception() == exception.thread_mode) {
 		vm.push(vm.get_xpsr());
-		immutable push_instr = instr_16(op: opcode.push_t1, reg_list: hardware_saved_frame);
+		auto push_instr = instr_16(op:       opcode.push_t1, 
+			                       reg_list: hardware_saved_frame);
 		execute_push_t1(push_instr, vm);
 	}
 	vm.set_current_exception(exception.svc_irqn);
 	vm.set_npriv(false);
 	vm.set_reg(reg.lr, 0xffff_fffd);
-	immutable pc = mem.read_word(mem.flash_origin + 4 * exception.svc_irqn);
+	immutable  vtor_raw    = vm.read_word(0xE000_ED08);
+	const uint vector_base = vtor_raw & 0xFFFF_FF80;
+	immutable pc = vm.read_word(vector_base + 4 * exception.svc_irqn);
 	vm.set_reg(reg.pc, pc);
 }
 
@@ -80,7 +84,7 @@ instr_16 parse_b_t1(const ushort instr) {
 void 
 execute_b_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	if (condition_is_met(instr.cond, vm.cpu)) {
 		auto pc = vm.get_reg(reg.pc);
 		pc += instr.offset + 4;

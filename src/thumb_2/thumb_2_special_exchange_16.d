@@ -95,7 +95,7 @@ execute_add_reg_t2
 	immutable rm  = vm.get_reg(instr.rm);
 	// (result, carry, overflow) = AddWithCarry(R[n], shifted, ‘0’);
 	immutable res = add_with_carry(rn, rm, false);
-	vm.set_reg(instr.rd, res); 
+	vm.set_reg(instr.rd, res.result); 
 	// setflags = FALSE;
 }
 

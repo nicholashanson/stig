@@ -103,16 +103,16 @@ void
 execute_mov_imm_t2
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
-	immutable imm = instr.unexpanded_imm;
+	immutable imm        = instr.unexpanded_imm;
 	// (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
-	immutable expand_res = thumb_expand_imm_c(imm, vm.get_c());
+	immutable expand_res = thumb_expand_imm_c(cast(ushort)imm, vm.get_c());
 	if (instr.set_flags) {
-		vm.set_n(expend_res.imm); 	// APSR.N = result<31>;
-		vm.set_z(expend_res.imm); 	// APSR.Z = IsZeroBit(result);
+		vm.set_n(expand_res.imm); 	// APSR.N = result<31>;
+		vm.set_z(expand_res.imm); 	// APSR.Z = IsZeroBit(result);
 		vm.set_c(expand_res.carry);	// APSR.C = carry;
 		// APSR.V unchanged
 	}
-	vm.set_reg(instr.rd, expend_res.imm);
+	vm.set_reg(instr.rd, expand_res.imm);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -153,7 +153,7 @@ execute_adc_imm_t1
 		vm.set_c(res.carry);
         vm.set_v(res.overflow);
 	}
-	vm.set_reg(instr.rd, res);
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -229,7 +229,7 @@ execute_eor_imm_t1
 	immutable  imm 		  = instr.unexpanded_imm;
 	immutable  rn  		  = vm.get_reg(instr.rn);
 	// (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
-	immutable  expand_res = thumb_expand_imm_c(instr.imm, vm.get_c());
+	immutable  expand_res = thumb_expand_imm_c(cast(ushort)instr.imm, vm.get_c());
     const uint res 		  = rn ^ expand_res.imm;
 	if (!vm.in_it_block()) {
 		vm.set_z(res);
@@ -275,13 +275,13 @@ execute_mvn_imm_t1
 (const ref instr_32 instr, ref vm_t vm) {
 	immutable  imm 		  = instr.unexpanded_imm;
 	// (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
-	immutable  expand_res = thumb_expand_imm_c(imm, vm.get_c()); 
+	immutable  expand_res = thumb_expand_imm_c(cast(ushort)imm, vm.get_c()); 
 	// result = NOT(imm32);
 	const uint res 		  = ~expand_res.imm;
 	if (instr.set_flags) {
 		vm.set_z(res);					// APSR.Z = IsZeroBit(result);
 		vm.set_n(res);					// APSR.N = result<31>;
-		vm.set_c(expend_res.carry);		// APSR.C = carry;
+		vm.set_c(expand_res.carry);		// APSR.C = carry;
 		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
@@ -447,7 +447,7 @@ execute_cmp_imm_t2
 	// (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), ‘1’);
 	immutable res = add_with_carry(rn, ~imm, true);
 	vm.set_z(res.result);			// APSR.Z = IsZeroBit(result);
-	vm,set_n(res.result);			// APSR.N = result<31>; 
+	vm.set_n(res.result);			// APSR.N = result<31>; 
 	vm.set_c(res.carry);			// APSR.C = carry;
 	vm.set_v(res.overflow);			// APSR.V = overflow;
 }
@@ -606,7 +606,7 @@ execute_tst_imm_t1
 	immutable  rn  		  = vm.get_reg(instr.rn);
 	immutable  imm 		  = instr.unexpanded_imm;
 	// (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
-	immutable  expand_res = thumb_expand_imm_c(imm, vm.get_c());
+	immutable  expand_res = thumb_expand_imm_c(cast(ushort)imm, vm.get_c());
 	// result = R[n] AND imm32;
 	const uint res 		  = rn & expand_res.imm; 
 	vm.set_n(res); 					// APSR.N = result<31>;

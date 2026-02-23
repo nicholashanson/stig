@@ -154,7 +154,7 @@ execute_revsh_t2
 	// bits(32) result;
 	// result<31:8> = SignExtend(R[m]<7:0>, 24);
 	// result<7:0> = R[m]<15:8>;
-	immutable res = cast(int)((res << 8) & 0x0000_ff00) | ((res >> 8) & 0x0000_00ff);
+	immutable res = cast(int)((rm << 8) & 0x0000_ff00) | ((rm >> 8) & 0x0000_00ff);
 	// R[d] = result;
 	vm.set_reg(instr.rd, res);
 }

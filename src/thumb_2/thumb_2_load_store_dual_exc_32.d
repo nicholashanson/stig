@@ -164,7 +164,7 @@ instr_32 parse_strd_imm_t1(const uint instr) {
 void 
 execute_strd_imm_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	size_t offset;
 	immutable index = vm.get_reg(instr.rn);
 	offset = instr.add ? index + instr.imm : index - instr.imm;
@@ -173,7 +173,7 @@ execute_strd_imm_t1
 	vm.write_word(offset, data1);
 	vm.write_word(offset + 4, data2);
 	if (instr.wback) 
-		vm.set_reg(instr.rn, offset);
+		vm.set_reg(instr.rn, cast(uint)offset);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -328,7 +328,7 @@ instr_32 parse_ldrd_imm_t1(const uint instr) {
 void 
 execute_ldrd_imm_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	size_t       offset_addr;
 	const uint   rn    = vm.get_reg(instr.rn);
 	offset_addr        = instr.add   ? rn + instr.imm : rn - instr.imm;
@@ -338,6 +338,6 @@ execute_ldrd_imm_t1
 	vm.set_reg(instr.rt,   data1);
 	vm.set_reg(instr.rt_2, data2);
 	if (instr.wback) 
-		vn.set_reg(instr.rn, cast(uint)offset_addr);
+		vm.set_reg(instr.rn, cast(uint)offset_addr);
 }
 // ---------------------------------------------------------------------------------------

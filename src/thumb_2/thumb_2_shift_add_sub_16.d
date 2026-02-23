@@ -25,13 +25,14 @@ execute_shift_instr
 (vm_t)
 (const instr_16 instr, ref vm_t vm) {
 	immutable rm  = vm.get_reg(instr.rm);
-	immutable res = shift_c(instr.shift_t, instr.imm, rm, vm.get_c());
+	immutable res = shift_c(rm, instr.shift_t, instr.imm, vm.get_c());
 	if (!vm.in_it_block()) {
 		vm.set_c(res.carry);
 		vm.set_n(res.result);
 		vm.set_z(res.result);
 		// APSR.V unchanged
 	}
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -136,7 +137,7 @@ execute_sub_reg_t1
 		vm.set_c(res.carry);
 		vm.set_v(res.overflow);
 	}
-	vm.set_reg(instr.rd, res);
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -236,7 +237,7 @@ execute_add_reg_t1
 	immutable rm  = vm.get_reg(instr.rm);
 	// (result, carry, overflow) = AddWithCarry(R[n], shifted, ‘0’);
 	immutable res = add_with_carry(rn, rm, false);
-	vm.set_reg(instr.rd, res); 
+	vm.set_reg(instr.rd, res.result); 
 	if (instr.rd == reg.pc)  // setflags is always FALSE here
 		return;
 	if (!vm.in_it_block()) { 
@@ -260,9 +261,10 @@ enum field_tuples_asr_imm_t1 = [Tuple!(opcode, string[])(opcode.asr_imm_t1, ["rm
 // ASR <Rd>,<Rm>,#<imm5>
 // [15:11] 00010, [10:6] imm5, [5:3] Rm, [2:0] Rd  
 instr_16 parse_asr_imm_t1(const ushort instr) {
-	return instr_16(rd:  cast(reg)slice(instr, 0, 3),
-					rm:  cast(reg)slice(instr, 3, 3),
-					imm: slice(instr, 6, 5));
+	return instr_16(rd:  	 cast(reg)slice(instr, 0, 3),
+					rm:  	 cast(reg)slice(instr, 3, 3),
+					imm:     slice(instr, 6, 5),
+					shift_t: shift_type.asr);
 }
 
 // ========================
@@ -289,9 +291,10 @@ enum field_tuples_lsl_imm_t1 = [Tuple!(opcode, string[])(opcode.lsl_imm_t1, ["rd
 // LSL <Rd>,<Rm>,#<imm5>
 // [15:11] 00000, [10:6] imm5, [5:3] Rm, [2:0] Rd
 instr_16 parse_lsl_imm_t1(const ushort instr) {
-	return instr_16(rd:  cast(reg)slice(instr, 0, 3),
-					rm:  cast(reg)slice(instr, 3, 3),
-					imm: slice(instr, 6, 5));
+	return instr_16(rd:  	 cast(reg)slice(instr, 0, 3),
+					rm:  	 cast(reg)slice(instr, 3, 3),
+					imm:     slice(instr, 6, 5),
+					shift_t: shift_type.lsl);
 }
 
 // ========================
@@ -318,9 +321,10 @@ enum field_tuples_lsr_imm_t1 = [Tuple!(opcode, string[])(opcode.lsr_imm_t1, ["rd
 // LSR <Rd>,<Rm>,#<imm5>
 // [15:11] 00001, [10:6] imm5, [5:3] Rm, [2:0] Rd
 instr_16 parse_lsr_imm_t1(const ushort instr) {
-	return instr_16(rd:  cast(reg)slice(instr, 0, 3),
-					rm:  cast(reg)slice(instr, 3, 3),
-					imm: slice(instr, 6, 5));
+	return instr_16(rd:  	 cast(reg)slice(instr, 0, 3),
+					rm:  	 cast(reg)slice(instr, 3, 3),
+					imm:     slice(instr, 6, 5),
+					shift_t: shift_type.lsr);
 }
 
 // ========================
@@ -399,6 +403,7 @@ execute_sub_imm
 		vm.set_v(res.overflow);
 		vm.set_z(res.result);
 	}
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 

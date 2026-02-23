@@ -68,12 +68,12 @@ execute_adc_reg_t1
 	// (result, carry, overflow) = AddWithCarry(R[n], shifted, APSR.C);
 	immutable res = add_with_carry(rn, rm, vm.get_c()); 
 	if (!vm.in_it_block()) {
-		vm.set_z(res);	// APSR.N = result<31>;
-		vm.set_n(res);	// APSR.Z = IsZeroBit(result);
+		vm.set_z(res.result);	// APSR.N = result<31>;
+		vm.set_n(res.result);	// APSR.Z = IsZeroBit(result);
 		// APSR.C = carry;
 		// APSR.V = overflow;
 	}
-	vm.set_reg(instr.rd, res);
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -529,7 +529,7 @@ void
 execute_rsb_imm_t1
 (vm_t)
 (const ref instr_16 instr, ref vm_t vm) {
-	immutable rn  = vm.get_reg(intr.rn);
+	immutable rn  = vm.get_reg(instr.rn);
 	immutable imm = instr.imm;
 	// (result, carry, overflow) = AddWithCarry(NOT(R[n]), imm32, ‘1’);
 	immutable res = add_with_carry(~rn, imm, true);
@@ -578,7 +578,7 @@ execute_sbc_reg_t1
 		vm.set_c(res.carry);		// APSR.C = carry;
 		vm.set_v(res.overflow);		// APSR.V = overflow;
 	}
-	vm.set_reg(instr.rd, res);
+	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
 

@@ -39,10 +39,10 @@ instr_16 parse_ldr_lit_t1(const ushort instr) {
 void 
 execute_ldr_lit_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	uint base 		= vm.get_reg(reg.pc) + 4;
 	base     	   &= ~0x3;   
 	const uint addr = base + instr.imm;
-	const uint data = mem.read_word(addr);
+	const uint data = vm.read_word(addr);
 	vm.set_reg(instr.rt, data);
 }

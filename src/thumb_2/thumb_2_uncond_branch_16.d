@@ -41,7 +41,7 @@ instr_16 parse_b_t2(const ushort instr) {
 void 
 execute_b_t2
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	auto pc = vm.get_reg(reg.pc);
 	pc += instr.offset + 4;
 	vm.set_reg(reg.pc, pc);

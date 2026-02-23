@@ -3,6 +3,15 @@ import std.conv    : to, ConvException, parse;
 import thumb_2_opcodes;
 import cortex_m_core;
 
+string get_reg_name(const reg r) {
+	switch (r) {
+		case reg.r10: return "sl";
+		case reg.r11: return "fp";
+		case reg.r12: return "ip";
+		default     : return r.to!string;
+	}
+}
+
 // ---------------------------------------- Shift ----------------------------------------
 enum shift_type : ubyte {
 	lsl,
@@ -201,24 +210,25 @@ uint thumb_expand_imm(ushort imm_12) {
 
 // --------------------------------------- INSTR 16 --------------------------------------
 struct instr_16 {
-	opcode 		   op;
-	reg 		   rd;
-	reg 		   rm;
-	reg 		   rn;
-	reg 		   rt;
-	uint 	   	  imm;
-	int 	   offset;
-	int   	 imm_long;
-	condition 	 cond;
-	reg[] 	 reg_list;
-	bool  	set_flags;
-	ubyte  first_cond;
-	ubyte 		 mask;
-	bool   	   enable;
-	bool   affect_pri;
-	bool affect_fault;
-	bool		index;
-	bool		  add;
+	opcode 		    op;
+	reg 		    rd;
+	reg 		    rm;
+	reg 		    rn;
+	reg 		    rt;
+	uint 	   	   imm;
+	int 	    offset;
+	int   	  imm_long;
+	condition 	  cond;
+	reg[] 	  reg_list;
+	bool  	 set_flags;
+	ubyte   first_cond;
+	ubyte 	   	  mask;
+	bool   	    enable;
+	bool    affect_pri;
+	bool  affect_fault;
+	bool		 index;
+	bool		   add;
+	shift_type shift_t;
 }
 // ---------------------------------------------------------------------------------------
 

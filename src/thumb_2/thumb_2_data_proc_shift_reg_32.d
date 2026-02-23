@@ -12,6 +12,7 @@
 // *									    											 *
 // ***************************************************************************************
 
+import std.format;
 import std.typecons : Tuple;
 
 import thumb_2_opcodes;
@@ -180,9 +181,9 @@ execute_eor_reg_t2
 	immutable  rm        = vm.get_reg(instr.rm);
 	immutable  rn        = vm.get_reg(instr.rn);
 	// (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
-	immutable  shift_res = shift_c(rm, instr.shift_t, instr.shift_n, vm.get_v()); 
+	immutable  shift_res = shift_c(rm, instr.shift_t, instr.shift_n, vm.get_c()); 
 	// result = R[n] EOR shifted;
-	const uint res       = rn ^ shifted;
+	const uint res       = rn ^ shift_res.result;
 	if (instr.set_flags) {
 		vm.set_n(res);				// APSR.N = result<31>;
     	vm.set_z(res);				// APSR.Z = IsZeroBit(result);
@@ -351,6 +352,16 @@ execute_orn_reg_t2
 		// APSR.V unchanged
 	}
 }
+
+// =================================
+//  Convert ORN(Register) to String
+// =================================
+
+string convert_orn_reg_t2_to_string(const ref instr_32 instr) {
+	return format("orn%s %s, %s, %s", instr.set_flags ? "s" : "", get_reg_name(instr.rd), 
+																  get_reg_name(instr.rn), 
+																  get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -403,7 +414,7 @@ execute_shift_instr
 (const ref instr_32 instr, ref vm_t vm) {
 	immutable rm        = vm.get_reg(instr.rm);
 	// (result, carry) = Shift_C(R[m], SRType_ASR, shift_n, APSR.C);
-	immutable shift_res = shift_c(rm, instr.shift_t, instr,shift_n, vm.get_c());
+	immutable shift_res = shift_c(rm, instr.shift_t, instr.shift_n, vm.get_c());
 	if (instr.set_flags) {
 		vm.set_c(shift_res.carry);		// APSR.C = carry;
 		vm.set_z(shift_res.result);		// APSR.Z = IsZeroBit(result);
@@ -574,6 +585,7 @@ execute_teq_reg_t1
 	// if ConditionPassed() then
     // EncodingSpecificOperations();
     immutable rm 		= vm.get_reg(instr.rm);
+    immutable rn 		= vm.get_reg(instr.rn);
 	// (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
 	immutable shift_res = shift_c(rm, instr.shift_t, instr.shift_n, vm.get_c());
 	// result = R[n] EOR shifted;

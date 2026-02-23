@@ -118,10 +118,10 @@ instr_32 parse_ldr_reg_t2(const uint instr) {
 void 
 execute_ldr_reg_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable    rn      = vm.get_reg(instr.rn);
 	immutable    rm      = vm.get_reg(instr.rm);
-	const int    shifted = shift(instr.shift_t, instr.shift_n, rm);
+	const int    shifted = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
 	const size_t addr    = rn + shifted;
 	uint         data    = vm.read_word(addr);
 	if (instr.rt == reg.pc)

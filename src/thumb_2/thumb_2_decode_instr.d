@@ -116,55 +116,55 @@ unittest {
 	}
 
 	test_case[] tests = [
-		test_case(0x1d3b, instr_16(op: opcode.add_imm_t1, rd: reg.r3,  rn: reg.r7, imm: 	4)),	// adds	r3, r7, #4
-		test_case(0x3730, instr_16(op: opcode.add_imm_t2, rd: reg.r7,  rn: reg.r7, imm:    48)),	// adds	r1, r2, r2
-		test_case(0xaf00, instr_16(op: opcode.add_sp_t1,  rd: reg.r7, 			   imm: 	0)),	// add	r7, sp, #0
-		test_case(0x1891, instr_16(op: opcode.add_reg_t1, rd: reg.r1,  rn: reg.r2, rm: reg.r2)),	// adds	r1, r2, r2
-		test_case(0x44e6, instr_16(op: opcode.add_reg_t2, rd: reg.lr,  rn: reg.lr, rm:reg.r12)),	// add	lr, ip
-		test_case(0xa201, instr_16(op: opcode.adr_t1,     rd: reg.r2,  			   imm: 	4)),	// add	r2, pc, #4
-		test_case(0x4013, instr_16(op: opcode.and_reg_t1, rd: reg.r3,  rn: reg.r3, rm: reg.r2)),	// ands	r3, r2
-		test_case(0x10b6, instr_16(op: opcode.asr_imm_t1, rd: reg.r6,  rm: reg.r6, imm:     2)),	// asrs	r6, r6, #2
-		test_case(0xd002, instr_16(op: opcode.b_t1,       cond: condition.eq,      offset:  4)),	// beq.n
-		test_case(0xd3f9, instr_16(op: opcode.b_t1,		  cond: condition.cc,	   offset:-14)),
-		test_case(0xe7cf, instr_16(op: opcode.b_t2,					 		       offset:-98)),
-		test_case(0x4798, instr_16(op: opcode.blx_t1,     rm: reg.r3                         )),
-		test_case(0x4718, instr_16(op: opcode.bx_t1,      rm: reg.r3                         )),
-		test_case(0xb943, instr_16(op: opcode.cbnz_t1,    rn: reg.r3,			   offset: 16)),
-		test_case(0xb103, instr_16(op: opcode.cbz_t1,     rn: reg.r3,              offset:  0)),
-		test_case(0x2b00, instr_16(op: opcode.cmp_imm_t1, rn: reg.r3,              imm:     0)),
-		test_case(0x4283, instr_16(op: opcode.cmp_reg_t1, rn: reg.r3,  rm: reg.r0 			 )),
-		test_case(0x458c, instr_16(op: opcode.cmp_reg_t2, rn: reg.r12, rm: reg.r1            )),
-		test_case(0x4572, instr_16(op: opcode.cmp_reg_t2, rn: reg.r2,  rm: reg.lr            )),
-		test_case(0x68fb, instr_16(op: opcode.ldr_imm_t1, rt: reg.r3,  rn: reg.r7, imm:    12)), 	// ldr	r3, [r7, #12]
-		test_case(0x4803, instr_16(op: opcode.ldr_lit_t1, rt: reg.r0,              imm:    12)),
-		test_case(0x58fb, instr_16(op: opcode.ldr_reg_t1, rt: reg.r3,  rn: reg.r7, rm: reg.r3)),
-		test_case(0x781a, instr_16(op: opcode.ldrb_imm_t1,rt: reg.r2,  rn: reg.r3, imm: 	0)), 	// ldrb	r2, [r3, #0]
-		test_case(0x5cd3, instr_16(op: opcode.ldrb_reg_t1,rt: reg.r3,  rn: reg.r2, rm: reg.r3)),
-		test_case(0x88fb, instr_16(op: opcode.ldrh_imm_t1,rt: reg.r3,  rn: reg.r7, imm: 	6)),
-		test_case(0x00d9, instr_16(op: opcode.lsl_imm_t1, rd : reg.r1, rm: reg.r3, imm: 	3)),
-		test_case(0x409a, instr_16(op: opcode.lsl_reg_t1, rd: reg.r2,  rn: reg.r2, rm: reg.r3)),
-		test_case(0x099b, instr_16(op: opcode.lsr_imm_t1, rd: reg.r3,  rm: reg.r3, imm: 	6)),
-		test_case(0x40da, instr_16(op: opcode.lsr_reg_t1, rd: reg.r2,  rn: reg.r2, rm: reg.r3)),
-		test_case(0x2300, instr_16(op: opcode.mov_imm_t1, rd: reg.r3,              imm: 	0)), 	// movs	r3, #0
-		test_case(0x43db, instr_16(op: opcode.mvn_reg_t1, rd: reg.r3,  rm: reg.r3 			 )),
-		test_case(0x4241, instr_16(op: opcode.rsb_imm_t1, rd: reg.r1,  rn: reg.r0            )), 	// negs	r1, r0
-		test_case(0xbd10, instr_16(op: opcode.pop_t1,     reg_list: [reg.r4, reg.pc]         )),
-		test_case(0xb510, instr_16(op: opcode.push_t1,    reg_list: [reg.r4, reg.lr]         )),
-		test_case(0x608b, instr_16(op: opcode.str_imm_t1, rt: reg.r3,  rn: reg.r1, imm: 	8)),
-		test_case(0x50c4, instr_16(op: opcode.str_reg_t1, rt: reg.r4,  rn: reg.r0, rm: reg.r3)),
-		test_case(0x9300, instr_16(op: opcode.str_imm_t2, rt: reg.r3,			   imm:     0)),
-		test_case(0x701a, instr_16(op: opcode.strb_imm_t1,rt: reg.r2,  rn: reg.r3, imm: 	0)),
-		test_case(0x80fb, instr_16(op: opcode.strh_imm_t1,rt: reg.r3,  rn: reg.r7, imm: 	6)),
-		test_case(0x1e54, instr_16(op: opcode.sub_imm_t1, rd: reg.r4,  rn: reg.r2, imm:     1)),
-		test_case(0x3902, instr_16(op: opcode.sub_imm_t2, rd: reg.r1,  rn: reg.r1, imm: 	2)),
-		test_case(0x1a1b, instr_16(op: opcode.sub_reg_t1, rd: reg.r3,  rn: reg.r3, rm: reg.r0)),
-		test_case(0x4313, instr_16(op: opcode.orr_reg_t1, rd: reg.r3,  rn: reg.r3, rm: reg.r2)),
-		test_case(0x469d, instr_16(op: opcode.mov_reg_t1, rd: reg.sp,  rm: reg.r3            )),
-		test_case(0x460f, instr_16(op: opcode.mov_reg_t1, rd: reg.r7,  rm: reg.r1            )),
-		test_case(0xb092, instr_16(op: opcode.sub_sp_t1,		    			   imm:    72)),
-		test_case(0x4413, instr_16(op: opcode.add_reg_t2, rd: reg.r3,  rn: reg.r3, rm: reg.r2)),
-		test_case(0x4652, instr_16(op: opcode.mov_reg_t1, rd: reg.r2,  rm: reg.r10           )), 	// mov	r2, sl
-		test_case(0x4463, instr_16(op: opcode.add_reg_t2, rd: reg.r3,  rn: reg.r3, rm:reg.r12))		// mov	r3, ip
+		test_case(0x1d3b, instr_16(op: opcode.add_imm_t1, rd: reg.r3,  rn: reg.r7,                           imm: 	  4)),	// adds	r3, r7, #4
+		test_case(0x3730, instr_16(op: opcode.add_imm_t2, rd: reg.r7,  rn: reg.r7,                           imm:    48)),	// adds	r1, r2, r2
+		test_case(0xaf00, instr_16(op: opcode.add_sp_t1,  rd: reg.r7, 			                             imm: 	  0)),	// add	r7, sp, #0
+		test_case(0x1891, instr_16(op: opcode.add_reg_t1, rd: reg.r1,  rn: reg.r2,                           rm: reg.r2)),	// adds	r1, r2, r2
+		test_case(0x44e6, instr_16(op: opcode.add_reg_t2, rd: reg.lr,  rn: reg.lr,                           rm:reg.r12)),	// add	lr, ip
+		test_case(0xa201, instr_16(op: opcode.adr_t1,     rd: reg.r2,  			                             imm: 	  4)),	// add	r2, pc, #4
+		test_case(0x4013, instr_16(op: opcode.and_reg_t1, rd: reg.r3,  rn: reg.r3,                           rm: reg.r2)),	// ands	r3, r2
+		test_case(0x10b6, instr_16(op: opcode.asr_imm_t1, rd: reg.r6,  rm: reg.r6,  shift_t: shift_type.asr, imm:     2)),	// asrs	r6, r6, #2
+		test_case(0xd002, instr_16(op: opcode.b_t1,       cond: condition.eq,                                offset:  4)),	// beq.n
+		test_case(0xd3f9, instr_16(op: opcode.b_t1,		  cond: condition.cc,	                             offset:-14)),
+		test_case(0xe7cf, instr_16(op: opcode.b_t2,					 		                                 offset:-98)),
+		test_case(0x4798, instr_16(op: opcode.blx_t1,     rm: reg.r3                                                   )),
+		test_case(0x4718, instr_16(op: opcode.bx_t1,      rm: reg.r3                                                   )),
+		test_case(0xb943, instr_16(op: opcode.cbnz_t1,    rn: reg.r3,			                             offset: 16)),
+		test_case(0xb103, instr_16(op: opcode.cbz_t1,     rn: reg.r3,                                        offset:  0)),
+		test_case(0x2b00, instr_16(op: opcode.cmp_imm_t1, rn: reg.r3,                                        imm:     0)),
+		test_case(0x4283, instr_16(op: opcode.cmp_reg_t1, rn: reg.r3,  rm: reg.r0 			                           )),
+		test_case(0x458c, instr_16(op: opcode.cmp_reg_t2, rn: reg.r12, rm: reg.r1                                      )),
+		test_case(0x4572, instr_16(op: opcode.cmp_reg_t2, rn: reg.r2,  rm: reg.lr                                      )),
+		test_case(0x68fb, instr_16(op: opcode.ldr_imm_t1, rt: reg.r3,  rn: reg.r7,                           imm:    12)), 	// ldr	r3, [r7, #12]
+		test_case(0x4803, instr_16(op: opcode.ldr_lit_t1, rt: reg.r0,                                        imm:    12)),
+		test_case(0x58fb, instr_16(op: opcode.ldr_reg_t1, rt: reg.r3,  rn: reg.r7,                           rm: reg.r3)),
+		test_case(0x781a, instr_16(op: opcode.ldrb_imm_t1,rt: reg.r2,  rn: reg.r3,                           imm: 	  0)), 	// ldrb	r2, [r3, #0]
+		test_case(0x5cd3, instr_16(op: opcode.ldrb_reg_t1,rt: reg.r3,  rn: reg.r2,                           rm: reg.r3)),
+		test_case(0x88fb, instr_16(op: opcode.ldrh_imm_t1,rt: reg.r3,  rn: reg.r7,                           imm: 	  6)),
+		test_case(0x00d9, instr_16(op: opcode.lsl_imm_t1, rd : reg.r1, rm: reg.r3,  shift_t: shift_type.lsl, imm: 	  3)),
+		test_case(0x409a, instr_16(op: opcode.lsl_reg_t1, rd: reg.r2,  rn: reg.r2,  						 rm: reg.r3)),
+		test_case(0x099b, instr_16(op: opcode.lsr_imm_t1, rd: reg.r3,  rm: reg.r3,  shift_t: shift_type.lsr, imm: 	  6)),
+		test_case(0x40da, instr_16(op: opcode.lsr_reg_t1, rd: reg.r2,  rn: reg.r2,                           rm: reg.r3)),
+		test_case(0x2300, instr_16(op: opcode.mov_imm_t1, rd: reg.r3,                                        imm: 	  0)), 	// movs	r3, #0
+		test_case(0x43db, instr_16(op: opcode.mvn_reg_t1, rd: reg.r3,  rm: reg.r3 			                  		   )),
+		test_case(0x4241, instr_16(op: opcode.rsb_imm_t1, rd: reg.r1,  rn: reg.r0                            		   )), 	// negs	r1, r0
+		test_case(0xbd10, instr_16(op: opcode.pop_t1,     reg_list: [reg.r4, reg.pc]                         		   )),
+		test_case(0xb510, instr_16(op: opcode.push_t1,    reg_list: [reg.r4, reg.lr]                         		   )),
+		test_case(0x608b, instr_16(op: opcode.str_imm_t1, rt: reg.r3,  rn: reg.r1,                           imm: 	  8)),
+		test_case(0x50c4, instr_16(op: opcode.str_reg_t1, rt: reg.r4,  rn: reg.r0,                           rm: reg.r3)),
+		test_case(0x9300, instr_16(op: opcode.str_imm_t2, rt: reg.r3,			                             imm:     0)),
+		test_case(0x701a, instr_16(op: opcode.strb_imm_t1,rt: reg.r2,  rn: reg.r3,                           imm: 	  0)),
+		test_case(0x80fb, instr_16(op: opcode.strh_imm_t1,rt: reg.r3,  rn: reg.r7,                           imm: 	  6)),
+		test_case(0x1e54, instr_16(op: opcode.sub_imm_t1, rd: reg.r4,  rn: reg.r2,                           imm:     1)),
+		test_case(0x3902, instr_16(op: opcode.sub_imm_t2, rd: reg.r1,  rn: reg.r1,                           imm: 	  2)),
+		test_case(0x1a1b, instr_16(op: opcode.sub_reg_t1, rd: reg.r3,  rn: reg.r3,                           rm: reg.r0)),
+		test_case(0x4313, instr_16(op: opcode.orr_reg_t1, rd: reg.r3,  rn: reg.r3,                           rm: reg.r2)),
+		test_case(0x469d, instr_16(op: opcode.mov_reg_t1, rd: reg.sp,  rm: reg.r3                            		   )),
+		test_case(0x460f, instr_16(op: opcode.mov_reg_t1, rd: reg.r7,  rm: reg.r1                            		   )),
+		test_case(0xb092, instr_16(op: opcode.sub_sp_t1,		    			                             imm:    72)),
+		test_case(0x4413, instr_16(op: opcode.add_reg_t2, rd: reg.r3,  rn: reg.r3,                           rm: reg.r2)),
+		test_case(0x4652, instr_16(op: opcode.mov_reg_t1, rd: reg.r2,  rm: reg.r10                           		   )), 	// mov	r2, sl
+		test_case(0x4463, instr_16(op: opcode.add_reg_t2, rd: reg.r3,  rn: reg.r3,                           rm:reg.r12))	// mov	r3, ip
 	];
 
 	string fields(const ref instr_16 a, const ref instr_16 b) {

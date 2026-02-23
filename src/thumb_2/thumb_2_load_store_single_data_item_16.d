@@ -81,12 +81,12 @@ instr_16 parse_ldrb_imm_t1(const ushort instr) {
 void 
 execute_ldrb_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
-	immutable rt = vm.get_reg(instr.rt);
-	immutable rn = vm.get_reg(instr.rn);
-	size_t addr  = rn + instr.imm;
-	auto data = mem.read_byte(addr);
-	cpu.set(ldrb_imm_instr.rt, cast(uint)data);
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable rt   = vm.get_reg(instr.rt);
+	immutable rn   = vm.get_reg(instr.rn);
+	size_t addr    = rn + instr.imm;
+	immutable data = vm.read_byte(addr);
+	vm.set_reg(instr.rt, cast(uint)data);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -196,7 +196,7 @@ execute_strh_reg_t1
 	immutable    rt     = vm.get_reg(instr.rt);
 	const size_t addr   = rn + rm;	
 	const uint   target = (rt & 0xffff);
-	mem.write_half_word(addr, cast(ushort)target);
+	vm.write_half_word(addr, cast(ushort)target);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -228,7 +228,7 @@ execute_strb_reg_t1
 	immutable    rm   = vm.get_reg(instr.rm);
 	const size_t addr = rn + rm;
 	const uint   data = rt & 0xff;
-	mem.write_byte(addr, data);
+	vm.write_byte(addr, data);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -288,10 +288,10 @@ instr_16 parse_ldr_imm_t1(const ushort instr) {
 void 
 execute_ldr_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
-	immutable    rn   = cpu.get(instr.rn);
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable    rn   = vm.get_reg(instr.rn);
 	const size_t addr = rn + instr.imm;
-	immutable    data = mem.read_word(addr);
+	immutable    data = vm.read_word(addr);
 	vm.set_reg(instr.rt, data);
 }
 // ---------------------------------------------------------------------------------------
@@ -320,13 +320,13 @@ instr_16 parse_strh_imm_t1(short instr) {
 void 
 execute_strh_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable    rt     = vm.get_reg(instr.rt);
 	immutable    rn     = vm.get_reg(instr.rn);
 	const size_t addr   = rn + instr.imm;
 	auto         target = vm.read_word(addr);
 	target = (target & 0xffff_0000) | rt;  
-	mem.write_half_word(addr, cast(ushort)target);
+	vm.write_half_word(addr, cast(ushort)target);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -379,10 +379,10 @@ instr_16 parse_ldr_imm_t2(const ushort instr) {
 void 
 execute_ldr_imm_t2
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
-	immutable    sp   = cpu.get_sp();
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable    sp   = vm.get_sp();
 	const size_t addr = sp + instr.imm;
-	immutable    data = mem.read_word(addr);
+	immutable    data = vm.read_word(addr);
 	vm.set_reg(instr.rt, data);
 }
 // ---------------------------------------------------------------------------------------
@@ -403,8 +403,8 @@ instr_16 parse_str_imm_t2(const ushort instr) {
 void 
 execute_str_imm_t2
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
-	immutable rt      = cpu.get(instr.rt);
+(const ref instr_16 instr, ref vm_t vm) {
+	immutable rt      = vm.get_reg(instr.rt);
 	const size_t addr = vm.get_sp() + instr.imm;
 	vm.write_word(addr, rt);
 }
@@ -436,7 +436,7 @@ execute_str_reg_t1(vm_t)
 	immutable    rm   = vm.get_reg(instr.rm);
 	const size_t addr = rn + rm;
 	immutable    data = vm.get_reg(instr.rt);
-	mem.write_word(addr, data);
+	vm.write_word(addr, data);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -463,27 +463,13 @@ void
 execute_ldrb_reg_t1
 (vm_t)
 (const instr_16 instr, ref vm_t vm) {
-	immutable rn   = cpu.get(instr.rn);
-	immutable rm   = cpu.get(instr.rm);
+	immutable rn   = vm.get_reg(instr.rn);
+	immutable rm   = vm.get_reg(instr.rm);
 	size_t addr    = rn + rm;
 	immutable data = vm.read_byte(addr);
 	vm.set_reg(instr.rt, cast(uint)data);
 }
 // ---------------------------------------------------------------------------------------
-
-
-// ================
-//  Executre LDRSB
-// ================
-
-void 
-execute_ldrsb_imm_t1
-(vm_t)
-(const instr_32 instr, ref vm_t vm) {
-	size_t addr = vm.get_reg(instr.rn) + instr.imm;
-	byte val = cast(byte)vm.read_byte(addr);
-	vm.set_reg(instr.rt, cast(int)val);	
-}
 
 // ***************************************************************************************
 // *									  LDRSB 										 *
@@ -517,6 +503,7 @@ execute_ldrsb_reg_t1
 	// if ConditionPassed() then
 	// EncodingSpecificOperations();
 	immutable    rm   		 = vm.get_reg(instr.rm);
+	immutable    rn          = vm.get_reg(instr.rn);
 	// offset = Shift(R[m], shift_t, shift_n, APSR.C);
 	// offset_addr = if add then (R[n] + offset) else (R[n] - offset);
 	const size_t offset_addr = instr.add   ? rn + rm     : rn - rm;  
@@ -560,6 +547,7 @@ execute_ldrsh_reg_t1
 	// if ConditionPassed() then
 	// EncodingSpecificOperations();
 	immutable    rm   		 = vm.get_reg(instr.rm);
+	immutable    rn  		 = vm.get_reg(instr.rn);
 	// offset = Shift(R[m], shift_t, shift_n, APSR.C);
 	// offset_addr = if add then (R[n] + offset) else (R[n] - offset);
 	const size_t offset_addr = instr.add   ? rn + rm     : rn - rm;  

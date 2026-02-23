@@ -12,6 +12,7 @@
 // *									    											 *
 // ***************************************************************************************
 
+import std.array;
 import std.algorithm;
 import std.format   : format;
 import std.typecons : Tuple;
@@ -121,12 +122,12 @@ instr_32 parse_stm_t2(const uint instr) {
 void 
 execute_stm_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a > cast(int)b);
 	uint rn   = vm.get_reg(instr.rn);
 	foreach (r; regs) {
-		uint data = cpu.get(r);
+		uint data = vm.get_reg(r);
 		vm.write_word(rn, data);
 		rn += 4;
 	}
@@ -162,7 +163,7 @@ execute_push_t2
 	auto regs = instr.reg_list.dup;
 	regs.sort!((a,b) => cast(int)a > cast(int)b);
 	foreach (r; regs) {
-		vm.push(cpu, cpu.get(r));
+		vm.push(vm.get_reg(r));
 	}
 }
 // ---------------------------------------------------------------------------------------

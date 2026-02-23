@@ -149,9 +149,9 @@ execute_strb_imm
 	size_t       offset_addr;
 	offset_addr       = instr.add   ? rn + instr.imm : rn - instr.imm;
 	const size_t addr = instr.index ? offset_addr    : rn;
-	uint         data = cpu.get_reg(instr.rt);
+	uint         data = vm.get_reg(instr.rt);
 	data              = (data & 0xff);
-	vm.write_byte(addr, data);
+	vm.write_byte(addr, cast(ubyte)data);
 	if (instr.wback) 
 		vm.set_reg(instr.rn, cast(uint)offset_addr);
 }
@@ -190,7 +190,7 @@ execute_strh_reg_t2
 	immutable rm        = vm.get_reg(instr.rm); 
 	immutable rn        = vm.get_reg(instr.rn);
 	immutable rt        = vm.get_reg(instr.rt);
-	const size_t offset = shift(instr.shift_t, instr.shift_n, rm);	
+	const size_t offset = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());	
 	const size_t addr   = rn + offset;
 	const uint   target = (rt & 0xffff);
 	vm.write_half_word(addr, cast(ushort)target);
@@ -255,9 +255,9 @@ instr_32 parse_str_reg_t2(const uint instr) {
 void 
 execute_str_reg_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable rm      = vm.get_reg(instr.rm);
-	const int offset  = shift(rm, instr.shift_t, instr.shift_n);
+	const int offset  = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
 	const size_t addr = vm.get_reg(instr.rn) + offset;
 	immutable data    = vm.get_reg(instr.rt);
 	vm.write_word(addr, data);
