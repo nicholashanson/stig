@@ -125,7 +125,7 @@ string mem_diff(const ref tiny_mem a, const ref tiny_mem  b)
     auto buf = appender!string();
 
     // -------- Registers --------
-    foreach (i; 0 .. 10)
+    foreach (i; 0 .. 1020)
     {
         auto va = a.read_word(i);
         auto vb = b.read_word(i);
@@ -300,10 +300,6 @@ unittest {
             format("Failed for instruction 0x%08X: %s", t.instr_bytes, cpu_diff(t.before.cpu, t.expected.cpu))
         );
     }
-
-        
-
-
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -364,25 +360,27 @@ unittest {
                       mem: make_mem(tuple(52, tiny_mem.stack_base))),
               tiny_vm(cpu: make_cpu(tuple(reg.pc, 4), tuple(reg.sp, tiny_mem.stack_base)),
                       mem: make_mem(tuple(52, tiny_mem.stack_base)))),
-
-           /*
-
-
-        
-        
-        test_case(0xe92d4fb0, // stmdb  sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
-                  instr_32(op: opcode.push_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr]),
-                  cortex_m_cpu(sp: memory.stack_base, r4: 1, r5: 2, r7: 3, r8: 4, r9: 5, r10: 6, r11: 7, lr: 8),
-                  cortex_m_cpu(sp: memory.stack_base-8, r4: 1, r5: 2, r7: 3, r8: 4, r9: 5, r10: 6, r11: 7, lr: 8),
-                  memory(),
-                  memory(ram: make_ram_with([memory.stack_base,memory.stack_base-1,memory.stack_base-2,memory.stack_base-3,
-                                             memory.stack_base-4,memory.stack_base-5,memory.stack_base-6,memory.stack_base-7],
-                                            [1,2,3,4,5,6,7,8]))),
-        
-
-        
-        
-        */
+    test_case(0xe92d4fb0, // stmdb  sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
+              instr_32(op: opcode.push_t2, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr]),
+              tiny_vm(cpu: make_cpu(tuple(reg.sp,   tiny_mem.stack_base), 
+                                    tuple(reg.r4,  1), tuple(reg. r5, 2), 
+                                    tuple(reg.r7,  3), tuple(reg. r8, 4), 
+                                    tuple(reg.r9,  5), tuple(reg.r10, 6), 
+                                    tuple(reg.r11, 7), tuple(reg. lr, 8))),
+              tiny_vm(cpu: make_cpu(tuple(reg.sp, tiny_mem.stack_base-(8*4)), 
+                                    tuple(reg.r4,  1), tuple(reg. r5, 2), 
+                                    tuple(reg.r7,  3), tuple(reg. r8, 4), 
+                                    tuple(reg.r9,  5), tuple(reg.r10, 6), 
+                                    tuple(reg.r11, 7), tuple(reg. lr, 8),
+                                    tuple(reg.pc,  4)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-4,      8), 
+                                    tuple(tiny_mem.stack_base-8,      7), 
+                                    tuple(tiny_mem.stack_base-12,     6), 
+                                    tuple(tiny_mem.stack_base-16,     5), 
+                                    tuple(tiny_mem.stack_base-20,     4), 
+                                    tuple(tiny_mem.stack_base-24,     3), 
+                                    tuple(tiny_mem.stack_base-28,     2), 
+                                    tuple(tiny_mem.stack_base-32,     1))))
   ];
 
   foreach (t; tests) {
@@ -393,8 +391,6 @@ unittest {
       );
   }
 }
-
-
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {

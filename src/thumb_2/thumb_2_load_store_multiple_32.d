@@ -159,7 +159,7 @@ instr_32 parse_push_t2(const uint instr) {
 void 
 execute_push_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	auto regs = instr.reg_list.dup;
 	regs.sort!((a,b) => cast(int)a > cast(int)b);
 	foreach (r; regs) {
