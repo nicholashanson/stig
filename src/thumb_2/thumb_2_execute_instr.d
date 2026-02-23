@@ -309,6 +309,11 @@ unittest {
                       mem: make_mem(tuple(2, 0xffffffee))),
               tiny_vm(cpu: make_cpu(tuple(reg.r3, 0xffffffee), tuple(reg.pc, 4u)),
                       mem: make_mem(tuple(2, 0xffffffee)))),
+    test_case(0xe8412300, // strex  r3, r2, [r1]
+              instr_32(op: opcode.strex_t1, rd: reg.r3, rt: reg.r2, rn: reg.r1),
+              tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r1, 2))),
+              tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r1, 2), tuple(reg.pc, 4u)),
+                      mem: make_mem(tuple(2, 0xffffffee)))),
   ];
 
   foreach (t; tests) {
