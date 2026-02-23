@@ -337,14 +337,18 @@ unittest {
               tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r3, 0xffffffff), tuple(reg.r7, 4))),
               tiny_vm(cpu: make_cpu(tuple(reg.r2, 0xffffffee), tuple(reg.r3, 0xffffffff), tuple(reg.r7, 4), tuple(reg.pc, 4u)),
                       mem: make_mem(tuple(4, 0xffffffee), tuple(8, 0xffffffff)))),
-
-
     test_case(0xf9b4500c, // ldrsh.w    r5, [r4, #12]
               instr_32(op: opcode.ldrsh_imm_t1, rt: reg.r5, rn: reg.r4, index: true, add: true, imm: 12),
               tiny_vm(cpu: make_cpu(tuple(reg.r4, 8)),
                       mem: make_mem(tuple(20, 2))),
               tiny_vm(cpu: make_cpu(tuple(reg.r5, 2), tuple(reg.r4, 8), tuple(reg.pc, 4)),
                       mem: make_mem(tuple(20, 2)))),
+    test_case(0xf9973007, // ldrsb.w    r3, [r7, #7]
+              instr_32(op: opcode.ldrsb_imm_t1, rt: reg.r3, rn: reg.r7, index: true, add: true, imm: 7),
+              tiny_vm(cpu: make_cpu(tuple(reg.r7, 3)),
+                      mem: make_mem(tuple(10, 0x000000ee))),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 0xffffffee), tuple(reg.r7, 3), tuple(reg.pc, 4)),
+                      mem: make_mem(tuple(10, 0x000000ee)))),
 
 
            /*
@@ -357,12 +361,7 @@ unittest {
                   memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
                                             [0xffffffff, 0xffffffee])),
                   memory()),
-        test_case(0xf9973007, // ldrsb.w    r3, [r7, #7]
-                  instr_32(op: opcode.ldrsb_32, rt: reg.r3, rn: reg.r7, imm: 7),
-                  cortex_m_cpu(r7: 3),
-                  cortex_m_cpu(r3: 0xee, r7: 3),
-                  memory(ram: make_ram_with(10, 0xffffffee)),
-                  memory(ram: make_ram_with(10, 0xffffffee))),
+        
         test_case(0xe92d4fb0, // stmdb  sp!, {r4, r5, r7, r8, r9, sl, fp, lr}
                   instr_32(op: opcode.push_32, reg_list: [reg.r4, reg.r5, reg.r7, reg.r8, reg.r9, reg.r10, reg.r11, reg.lr]),
                   cortex_m_cpu(sp: memory.stack_base, r4: 1, r5: 2, r7: 3, r8: 4, r9: 5, r10: 6, r11: 7, lr: 8),
