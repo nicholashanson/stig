@@ -386,7 +386,10 @@ unittest {
             instr_16(op: opcode.lsl_reg_t1,       rd: reg.r2,  rn: reg.r2, rm: reg.r3),
             test_vm(cpu: make_cpu(tuple(reg.r2, 0b0101), tuple(reg.r3,       1))),
             test_vm(cpu: make_cpu(tuple(reg.pc,      2), tuple(reg.r2, 0b1010), tuple(reg.r3, 1)))),
-
+    test_case(0xe001,
+          instr_16(op: opcode.b_t2,   offset: 2),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 0x800a1b0))),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 0x800a1b6))))
          /*
     test_case(0x40da, 
             instr_16(op: opcode.lsr_reg,       rd: reg.r2,  rn: reg.r2, rm: reg.r3),
@@ -436,10 +439,7 @@ unittest {
           instr_16(op: opcode.b_cond,      cond: condition.cc, offset: -14),
           cortex_m_cpu(pc: 0x800a1a8),
           cortex_m_cpu(pc: 0x800a19e)),
-    test_case(0xe001,
-          instr_16(op: opcode.b_imm_11,   offset: 2),
-          cortex_m_cpu(pc: 0x800a1b0),
-          cortex_m_cpu(pc: 0x800a1b6))
+    
     */ ];
 
     foreach (t; tests) {
