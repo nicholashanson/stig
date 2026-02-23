@@ -431,7 +431,7 @@ instr_16 parse_mov_reg_t2(const ushort instr) {
 void
 execute_mov_reg_t2
 (vm_t)
-(const instr_16 instr, vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable res = vm.get_reg(instr.rm);
 	vm.set_reg(instr.rd, res);
 	// setflags = TRUE;
