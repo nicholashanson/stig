@@ -335,11 +335,12 @@ unittest {
           instr_16(op: opcode.b_t1,             cond: condition.eq,      offset: 4),
           test_vm(cpu: make_cpu(tuple(reg.pc, 10), tuple(flag.z, true))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 18), tuple(flag.z, true)))),
-                 /*
     test_case(0xb103, 
-            instr_16(op: opcode.cmp_br_z,      rn: reg.r3,              offset: 0),
-            cortex_m_cpu(r3: 0, pc: 10),
-          cortex_m_cpu(r3: 0, pc: 14)),
+          instr_16(op: opcode.cbz_t1,           rn: reg.r3,              offset: 0),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 10))),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 14)))),
+
+                     /*
     test_case(0x1a1b, 
           instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0),
           cortex_m_cpu(r3: 10, r0: 3),
