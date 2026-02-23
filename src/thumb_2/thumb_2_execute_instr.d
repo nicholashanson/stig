@@ -358,6 +358,12 @@ unittest {
                                     tuple(reg.lr, 0xffffffff)),
                       mem: make_mem(tuple(tiny_mem.stack_base-4, 0xffffffff), 
                                     tuple(tiny_mem.stack_base-8, 0xffffffee)))),
+    test_case(0xf8dfd034, 
+              instr_32(op: opcode.ldr_imm_t3, rt: reg.sp, rn: reg.pc, add: true, index: true, imm: 52),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc, 0)),
+                      mem: make_mem(tuple(52, tiny_mem.stack_base))),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc, 4), tuple(reg.sp, tiny_mem.stack_base)),
+                      mem: make_mem(tuple(52, tiny_mem.stack_base)))),
 
            /*
 
@@ -375,12 +381,7 @@ unittest {
         
 
         
-        test_case(0xf8dfd034, 
-                  instr_32(op: opcode.ldr_imm_32, rt: reg.sp, rn: reg.pc, imm: 52),
-                  cortex_m_cpu(pc: 0x800a18c),
-                  cortex_m_cpu(pc: 0x800a190, sp: memory.stack_base),
-                  memory(),
-                  memory())
+        
         */
   ];
 
