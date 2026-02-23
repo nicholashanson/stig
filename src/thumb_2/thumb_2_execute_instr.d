@@ -419,6 +419,11 @@ unittest {
           instr_16(op: opcode.add_reg_t2,     rd: reg.r3,  rn: reg.r3, rm: reg.r12),
           test_vm(cpu: make_cpu(tuple(reg.r3, 3), tuple(reg.r12, 4))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r3,  7), tuple(reg.r12, 4)))),
+    test_case(0x44e6, 
+          instr_16(op: opcode.add_reg_t2,     rd: reg.lr,  rn: reg.lr, rm: reg.r12),
+          test_vm(cpu: make_cpu(tuple(reg.lr, 7), tuple(reg.r12, 9))),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.lr, 16), tuple(reg.r12, 9)))),
+
     //test_case(0x4652, 
     //        instr_16(op: opcode.mov_reg_t2,    rd: reg.r2,  rm: reg.r10),
     //        test_vm(cpu: make_cpu(tuple(reg.r2, 1), tuple(reg.r10, 3))),
@@ -436,10 +441,7 @@ unittest {
             cortex_m_cpu(pc: 2, z: true, n: false, c: true, v: false)),
     
     
-    test_case(0x44e6, 
-            instr_16(op: opcode.add_high_reg_2,rd: reg.lr,  rn: reg.lr, rm: reg.r12),
-            cortex_m_cpu(lr:  7, r12: 9),
-            cortex_m_cpu(pc: 2, lr: 16, r12: 9)),
+    
 
     test_case(0x4241, 
             instr_16(op: opcode.negs,      rd: reg.r1,  rn: reg.r0),
