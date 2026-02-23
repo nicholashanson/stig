@@ -340,11 +340,13 @@ unittest {
           test_vm(cpu: make_cpu(tuple(reg.pc, 10))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 14)))),
 
-                     /*
+          
     test_case(0x1a1b, 
-          instr_16(op: opcode.sub_reg,       rd: reg.r3,  rn: reg.r3, rm: reg.r0),
-          cortex_m_cpu(r3: 10, r0: 3),
-          cortex_m_cpu(pc: 2, r3: 7,  r0: 3)),
+          instr_16(op: opcode.sub_reg_t1,       rd: reg.r3,  rn: reg.r3, rm: reg.r0),
+          test_vm(cpu: make_cpu(tuple(reg.r3, 10), tuple(reg.r0, 3))),
+          test_vm(cpu: make_cpu(tuple(reg.pc,  2), tuple(reg.r3, 7), tuple(reg.r0, 3), tuple(flag.c, true)))),
+
+               /*
     test_case(0xb943, 
             instr_16(op: opcode.cmp_br_nz,     rn: reg.r3,        offset: 8),
             cortex_m_cpu(pc: 10, r3: 1),
