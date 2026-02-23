@@ -146,9 +146,8 @@ unittest {
     }
 
     test_case[] tests = [
-        test_case(0xeb0101a3, // add.w  r1, r1, r3, asr #2
-                  instr_32(op: opcode.add_reg_t3, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2),
-                  test_vm(cpu: make_cpu(tuple(reg.r1, 0b011), tuple(reg.r3, 0b1100))),
+        test_case(0xeb0101a3, instr_32(op: opcode.add_reg_t3, rd: reg.r1, rn: reg.r1, rm: reg.r3, shift_t: shift_type.asr, shift_n: 2), // add.w  r1, r1, r3, asr #2
+                  test_vm(cpu: make_cpu(tuple(reg.r1, 0b011), tuple(reg.r3, 0b1100))                                                 ),
                   test_vm(cpu: make_cpu(tuple(reg.r1, 0b110), tuple(reg.r3, 0b1100), tuple(reg.pc, 4u)))),
         test_case(0xea010808, // and.w  r8, r1, r8 
                   instr_32(op: opcode.and_reg_t2, rd: reg.r8, rn: reg.r1, rm: reg.r8),
@@ -383,12 +382,12 @@ unittest {
           instr_16(op: opcode.add_reg_t1,     rd: reg.r3,  rn: reg.r3, rm: reg.r2),
           test_vm(cpu: make_cpu(tuple(reg.r3, 3), tuple(reg.r2, 2))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r3, 5), tuple(reg.r2, 2)))),
-     /*
-
     test_case(0x409a, 
-            instr_16(op: opcode.lsl_reg,       rd: reg.r2,  rn: reg.r2, rm: reg.r3),
-            cortex_m_cpu(r2: 0b0101, r3: 1),
-            cortex_m_cpu(pc: 2, r2: 0b1010, r3: 1)),
+            instr_16(op: opcode.lsl_reg_t1,       rd: reg.r2,  rn: reg.r2, rm: reg.r3),
+            test_vm(cpu: make_cpu(tuple(reg.r2, 0b0101), tuple(reg.r3,       1))),
+            test_vm(cpu: make_cpu(tuple(reg.pc,      2), tuple(reg.r2, 0b1010), tuple(reg.r3, 1)))),
+
+         /*
     test_case(0x40da, 
             instr_16(op: opcode.lsr_reg,       rd: reg.r2,  rn: reg.r2, rm: reg.r3),
             cortex_m_cpu(r2: 0b1010, r3: 1),
