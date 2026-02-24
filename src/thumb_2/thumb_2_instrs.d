@@ -1,8 +1,22 @@
 import std.format;
 import std.conv    : to, ConvException, parse;
+import std.array;
+import std.algorithm;
 
 import thumb_2_opcodes;
 import cortex_m_core;
+
+string get_reg_list_string(const ref reg[] reg_list) {
+	return reg_list.map!(r => r.to!string).join(", ");
+}
+
+string get_imm_string(const uint imm) {
+ 	return format(", #%d", imm);
+}
+
+string get_it_block_string(const condition cond) {
+	return cond != condition.none ? cond.to!string : "s";
+}
 
 string get_condition_string(const condition cond) {
 	return cond != condition.none ? cond.to!string : "";

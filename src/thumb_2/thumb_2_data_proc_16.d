@@ -1,3 +1,4 @@
+import std.format;
 import std.typecons : Tuple;
 
 import thumb_2_opcodes;
@@ -12,7 +13,6 @@ import cortex_m_core;
 //  Parse TST 
 // ===========
 
-enum field_tuples_tst_reg_t1 = [Tuple!(opcode, string[])(opcode.tst_reg_t1, ["rn","rm"])];
 // TST<c> <Rn>,<Rm>
 // [15:6] 0100001000, [5:3] Rm, [2:0] Rn
 instr_16 parse_tst_t1(short instr) {
@@ -46,8 +46,8 @@ execute_tst_reg_t1
 //  Parse ADC(Register)
 // =====================
 
-enum field_tuples_adc_reg_t1 = [Tuple!(opcode, string[])(opcode.adc_reg_t1, ["rd","rm"])];
-// ADC <Rdn>,<Rm>
+// ADCS <Rdn>,<Rm>
+// ADC<c> <Rdn>,<Rm>
 // [15:6] 0100000101, [5:3] Rm, [2:0] Rdn  
 instr_16 parse_adc_reg_t1(const ushort instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
@@ -75,6 +75,14 @@ execute_adc_reg_t1
 	}
 	vm.set_reg(instr.rd, res.result);
 }
+
+// ADCS <Rdn>,<Rm>
+// ADC<c> <Rdn>,<Rm>
+string convert_adc_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("adc%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -85,8 +93,8 @@ execute_adc_reg_t1
 //  Parse AND(Register)
 // =====================
 
-enum field_tuples_and_reg_t1 = [Tuple!(opcode, string[])(opcode.and_reg_t1, ["rd","rm"])];
-// AND <Rdn>,<Rm>
+// ANDS <Rdn>,<Rm>
+// AND<c> <Rdn>,<Rm>
 // [15:6] 0100000000, [5:3] Rm, [2:0] Rdn
 instr_16 parse_and_reg_t1(ushort instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
@@ -110,6 +118,12 @@ execute_and_reg_t1
 		vm.set_n(res);
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_and_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("and%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -156,8 +170,7 @@ execute_bic_reg_t1
 //  Parse CMP(Register)
 // =====================
 
-enum field_tuples_cmp_reg_t1 = [Tuple!(opcode, string[])(opcode.cmp_reg_t1, ["rn","rm"])];
-// CMP <Rn>,<Rm>
+// CMP<c> <Rn>,<Rm>
 // [15:6] 0100001010, [5:3] Rm, [2:0] Rn
 instr_16 parse_cmp_reg_t1(const ushort instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
@@ -168,8 +181,7 @@ instr_16 parse_cmp_reg_t1(const ushort instr) {
 //  Parse CMP(Register)
 // =====================
 
-enum field_tuples_cmp_reg_t2 = [Tuple!(opcode, string[])(opcode.cmp_reg_t2, ["rn","rm"])];
-// CMP <Rn>,<Rm>
+// CMP<c> <Rn>,<Rm>
 // [15:8] 01000101, [7] N, [6:3] Rm, [2:0] Rn
 instr_16 parse_cmp_reg_t2(const ushort instr) {
 	auto rn = slice(instr, 0, 3);
@@ -208,6 +220,20 @@ execute_cmp_reg
 	vm.set_n(res.result);
 	vm.set_c(res.carry);;
 	vm.set_v(res.overflow);
+}
+
+string convert_cmp_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return convert_cmp_reg_to_string(instr, cond);
+}
+
+string convert_cmp_reg_t2_to_string(const ref instr_16 instr, const condition cond) {
+	return convert_cmp_reg_to_string(instr, cond);
+}
+
+string convert_cmp_reg_to_string(const ref instr_16 instr, const condition cond) {
+	return format("cmp%s %s, %s", get_condition_string(cond),
+								  get_reg_name(instr.rn),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -255,8 +281,8 @@ execute_eor_reg_t1
 //  Parse LSL(Register)
 // =====================
 
-enum field_tuples_lsl_reg_t1 = [Tuple!(opcode, string[])(opcode.lsl_reg_t1, ["rd","rm"])];
-// LSL <Rdn>,<Rm>
+// LSLS <Rdn>,<Rm>
+// LSL<c> <Rdn>,<Rm>
 // [15:6] 0100000010, [5:3] Rm, [2:0] Rdn  
 instr_16 parse_lsl_reg_t1(const ushort instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
@@ -284,6 +310,12 @@ execute_lsl_reg_t1
     	}
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_lsl_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("lsl%s %s, %s", get_it_block_string(cond), 
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -324,6 +356,12 @@ execute_lsr_reg_t1
     	}
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_lsr_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("lsr%s %s, %s", get_it_block_string(cond), 
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -385,11 +423,12 @@ execute_asr_reg_t1
 //  Parse MVN(Register) 
 // =====================
 
-enum field_tuples_mvn_reg_t1 = [Tuple!(opcode, string[])(opcode.mvn_reg_t1, ["rd","rm"])];
-// MVN <Rd>,<Rm>
+// MVNS <Rd>,<Rm>
+// MVN<c> <Rd>,<Rm>
 // [15:6] 0100001111, [5:3] Rm, [2:0] Rd
 instr_16 parse_mvn_reg_t1(const ushort instr) {
-	return instr_16(rd: cast(reg)slice(instr, 0, 3), rm: cast(reg)slice(instr, 3, 3));
+	return instr_16(rd: cast(reg)slice(instr, 0, 3), 
+		            rm: cast(reg)slice(instr, 3, 3));
 }
 
 // =======================
@@ -400,8 +439,8 @@ void
 execute_mvn_reg_t1
 (vm_t)
 (const instr_16 instr, ref vm_t vm) {
-	int rm  = vm.get_reg(instr.rm);
-	int res = ~rm;
+	immutable  rm  = vm.get_reg(instr.rm);
+	const uint res = ~rm;
 	if (instr.set_flags) {
 		vm.set_z(res);			// APSR.Z = IsZeroBit(result);
 		vm.set_n(res);			// APSR.N = result<31>;
@@ -409,6 +448,14 @@ execute_mvn_reg_t1
 		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+// MVNS <Rd>,<Rm>
+// MVN<c> <Rd>,<Rm>
+string convert_mvn_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("mvn%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -487,7 +534,8 @@ execute_mul_t1
 // =====================
 
 enum field_tuples_orr_reg_t1 = [Tuple!(opcode, string[])(opcode.orr_reg_t1, ["rd","rm"])];
-// ORR <Rdn>,<Rm>
+// ORRS <Rdn>,<Rm>
+// ORR<c> <Rdn>,<Rm>
 // [15:6] 0100001100, [5:3] Rm, [2:0] Rdn
 instr_16 parse_orr_reg_t1(const ushort instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
@@ -512,11 +560,23 @@ execute_orr_reg_t1
 	}
 	vm.set_reg(instr.rd, res);
 }
+
+// ORRS <Rdn>,<Rm>
+// ORR<c> <Rdn>,<Rm>
+string convert_orr_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("orr%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
 // *									   RSB 											 *
 // ***************************************************************************************
+
+// ======================
+//  Parse RSB(Immediate) 
+// ======================
 
 // RSBS <Rd>,<Rn>,#0 Outside IT block.
 // RSB<c> <Rd>,<Rn>,#0 Inside IT block.
@@ -524,6 +584,10 @@ instr_16 parse_rsb_imm_t1(const ushort instr) {
 	return instr_16(rd: cast(reg)slice(instr, 0, 3),
 		  			rn: cast(reg)slice(instr, 3, 3));
 }
+
+// ========================
+//  Execute RSB(Immediate) 
+// ========================
 
 void 
 execute_rsb_imm_t1
@@ -540,6 +604,16 @@ execute_rsb_imm_t1
 		vm.set_v(res.overflow);	// APSR.V = overflow;
 	}
 	vm.set_reg(instr.rd, res.result);
+}
+
+// ==================================
+//  Convert RSB(Immediate) to String
+// ==================================
+
+string convert_rsb_imm_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("neg%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rn));
 }
 // ---------------------------------------------------------------------------------------
 

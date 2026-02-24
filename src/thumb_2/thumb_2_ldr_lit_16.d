@@ -24,11 +24,10 @@ import memory_sections;
 //  Parse LDR(Literal)
 // ====================
 
-enum field_tuples_ldr_lit_t1 = [Tuple!(opcode, string[])(opcode.ldr_lit_t1, ["rt","pc","imm"])];
-// LDR <Rt>,<label>
+// LDR<c><q> <Rt>, [PC, #+/-<imm>]
 // [15:11] 01001,[10:8] Rm, [7:0] imm8
 instr_16 parse_ldr_lit_t1(const ushort instr) {
-	return instr_16(rt: cast(reg)slice(instr, 8, 3), 
+	return instr_16(rt:  cast(reg)slice(instr, 8, 3), 
 		            imm: slice(instr, 0, 8) << 2);
 }
 
@@ -46,3 +45,11 @@ execute_ldr_lit_t1
 	const uint data = vm.read_word(addr);
 	vm.set_reg(instr.rt, data);
 }
+
+// LDR<c><q> <Rt>, [PC, #+/-<imm>]
+string convert_ldr_lit_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("ldr%s %s, [pc, #%d]", get_condition_string(cond),
+										 get_reg_name(instr.rt),
+										 instr.imm);
+}
+

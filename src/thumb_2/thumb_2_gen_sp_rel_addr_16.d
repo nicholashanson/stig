@@ -30,8 +30,7 @@ import memory_sections;
 //  Parse ADD(SP Plus Immediate)
 // ==============================
 
-enum field_tuples_add_sp_t1 = [Tuple!(opcode, string[])(opcode.add_sp_t1, ["rd","sp","imm"])];
-// ADD <Rd>,SP,#<imm8>
+// ADD<c> <Rd>,SP,#<imm8>
 // [15:11] 10101, [10:8] Rd, [7:0] imm8
 instr_16 parse_add_sp_t1(const ushort instr) {
 	return instr_16(imm: slice(instr, 0, 8) << 2, 
@@ -42,7 +41,6 @@ instr_16 parse_add_sp_t1(const ushort instr) {
 //  Parse ADD(SP Plus Immediate)
 // ==============================
 
-enum field_tuples_add_sp_t2 = [Tuple!(opcode, string[])(opcode.add_sp_t2, ["sp","imm"])];
 // ADD<c> SP,SP,#<imm7>
 instr_16 parse_add_sp_t2(const ushort instr) {
 	return instr_16(imm: slice(instr, 0, 7) << 2);
@@ -73,5 +71,17 @@ execute_add_sp
 	immutable  sp  = vm.get_sp();
 	const uint res = sp + instr.imm;
 	vm.set_reg(instr.rd, res);
+}
+
+// ADD<c> <Rd>,SP,#<imm8>
+string convert_add_sp_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("add%s %s, sp, #%d", get_condition_string(cond),
+									   get_reg_name(instr.rd),
+									   instr.imm);
+}
+
+// ADD<c> SP,SP,#<imm7>
+string convert_add_sp_t2_to_string(const ref instr_16 instr, const condition cond) {
+	return format("add%s sp, #%d", get_condition_string(cond), instr.imm);
 }
 // ---------------------------------------------------------------------------------------

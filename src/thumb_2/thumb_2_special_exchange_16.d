@@ -28,8 +28,7 @@ import cortex_m_core;
 //  Parse MOV(Register)
 // =====================
 
-enum field_tuples_mov_reg_t1 = [Tuple!(opcode, string[])(opcode.mov_reg_t1, ["rd","rm"])];
-// MOV <Rd>,<Rm>
+// MOV<c> <Rd>,<Rm>
 // [15:8] 01000110, [7] D, [6:3] Rm, [2:0] Rd  
 instr_16 parse_mov_reg_t1(const ushort instr) {
 	auto rd = slice(instr, 0, 3);
@@ -57,8 +56,11 @@ execute_mov_reg_t1
 //  Convert MOV(Register) to String
 // =================================
 
-string convert_mov_reg_t1_to_string(const ref instr_16 instr) {
-	return format("mov %s, %s", instr.rd.to!string, instr.rm.to!string);
+// MOV<c> <Rd>,<Rm>
+string convert_mov_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("mov%s %s, %s", get_condition_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -103,8 +105,12 @@ execute_add_reg_t2
 //  Execute ADD(Register) to String
 // =================================
 
-string convert_add_reg_t2_to_string(const ref instr_16 instr) {
-	return format("add %s, %s", instr.rd.to!string, instr.rm.to!string);
+// ADD<c> <Rdn>,<Rm>
+string convert_add_reg_t2_to_string(const ref instr_16 instr, const condition cond) {
+	return format("add%s %s, %s", get_condition_string(cond), 
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
+
 }
 // ---------------------------------------------------------------------------------------
 

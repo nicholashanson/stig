@@ -44,7 +44,6 @@ execute_shift_instr
 //  Parse SUB(SP Minus Immediate)
 // ===============================
 
-enum field_tuples_sub_sp_t1 = [Tuple!(opcode, string[])(opcode.sub_sp_t1, ["sp","imm"])];
 // SUB SP,SP,#<imm7>
 // [15:7] 101100001, [6:0] imm7  
 instr_16 parse_sub_sp_t1(short instr) {
@@ -65,6 +64,12 @@ execute_sub_sp_t1
 	res -= instr.imm;
 	vm.set_reg(reg.sp, res);
 }
+
+// SUB<c> SP,SP,#<imm7>
+string convert_sub_sp_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("sub%s sp, #%d", get_condition_string(cond), 
+								   instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -75,8 +80,7 @@ execute_sub_sp_t1
 //  Parse CMP(Immediate)
 // ======================
 
-enum field_tuples_cmp_imm_t1 = [Tuple!(opcode, string[])(opcode.cmp_imm_t1, ["rn","imm"])];
-// CMP <Rn>,#<imm8>
+// CMP<c> <Rn>,#<imm8>
 // [15:11] 00101, [10:8] Rn, [7:0] imm8  
 instr_16 parse_cmp_imm_t1(const ushort instr) {
 	return instr_16(imm: slice(instr, 0, 8), // imm32 = ZeroExtend(imm8, 32); 
@@ -100,6 +104,16 @@ execute_cmp_imm_t1
 	vm.set_c(res.carry);
 	vm.set_v(res.overflow);
 }
+
+// ==================================
+//  Execute CMP(Immediate) to String
+// ==================================
+
+string convert_cmp_imm_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("cmp%s %s, #%d", get_condition_string(cond),
+								   get_reg_name(instr.rn),
+								   instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -110,8 +124,8 @@ execute_cmp_imm_t1
 //  Parse SUB(Register)
 // =====================
 
-enum field_tuples_sub_reg_t1 = [Tuple!(opcode, string[])(opcode.sub_reg_t1, ["rd","rn","rm"])];
-// SUB <Rd>,<Rn>,<Rm>
+// SUBS <Rd>,<Rn>,<Rm>
+// SUB<c> <Rd>,<Rn>,<Rm>
 // [15:9] 0001101, [8:6] Rm, [5:3] Rn, [2:0] Rd  
 instr_16 parse_sub_reg_t1(const ushort instr) {
 	return instr_16(rd: cast(reg)slice(instr, 0, 3),
@@ -139,6 +153,15 @@ execute_sub_reg_t1
 	}
 	vm.set_reg(instr.rd, res.result);
 }
+
+// SUBS <Rd>,<Rn>,<Rm>
+// SUB<c> <Rd>,<Rn>,<Rm>
+string convert_sub_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("sub%s %s, %s, %s", get_it_block_string(cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -149,8 +172,8 @@ execute_sub_reg_t1
 //  Parse ADD(Immediate)
 // ======================
 
-enum field_tuples_add_imm_t1 = [Tuple!(opcode, string[])(opcode.add_imm_t1, ["rd","rn","imm"])];
-// ADD <Rd>,<Rn>,#<imm3>
+// ADDS <Rd>,<Rn>,#<imm3>
+// ADD<c> <Rd>,<Rn>,#<imm3>
 // [15:9] 0001110, [8:6] imm3, [5:3] Rn, [2:0] Rd
 instr_16 parse_add_imm_t1(const ushort instr) {
 	return instr_16(rd:  cast(reg)slice(instr, 0, 3),
@@ -162,8 +185,8 @@ instr_16 parse_add_imm_t1(const ushort instr) {
 //  Parse ADD(Immediate)
 // ======================
 
-enum field_tuples_add_imm_t2 = [Tuple!(opcode, string[])(opcode.add_imm_t2, ["rn","imm"])];
-// ADD <Rd>,<Rn>,#<imm3>
+// ADDS <Rdn>,#<imm8>
+// ADD<c> <Rdn>,#<imm8>
 // [15:11] 00110, [10:8] Rdn, [7:0] imm8
 instr_16 parse_add_imm_t2(const ushort instr) {
 	immutable rdn = cast(reg)slice(instr, 8, 3);
@@ -206,6 +229,19 @@ execute_add_imm
 	}
 	vm.set_reg(instr.rd, res.result);
 }
+
+string convert_add_imm_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("add%s %s, %s, #%d", get_it_block_string(cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rn),
+									   instr.imm);
+}
+
+string convert_add_imm_t2_to_string(const ref instr_16 instr, const condition cond) {
+	return format("add%s %s, #%d", get_it_block_string(cond),
+								   get_reg_name(instr.rd),
+								   instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -216,8 +252,8 @@ execute_add_imm
 //  Parse ADD(Register)
 // =====================
 
-enum field_tuples_add_reg_t1 = [Tuple!(opcode, string[])(opcode.add_reg_t1, ["rd","rn","rm"])];
-// ADD <Rd>,<Rn>,<Rm>
+// ADDS <Rd>,<Rn>,<Rm>
+// ADD<c> <Rd>,<Rn>,<Rm>
 // [15:9] 0001100, [8:6] Rm, [5:3] Rn, [2:0] Rd
 instr_16 parse_add_reg_t1(const ushort instr) {
 	return instr_16(rd: cast(reg)slice(instr, 0, 3),
@@ -247,6 +283,13 @@ execute_add_reg_t1
         vm.set_v(res.overflow);			// APSR.V = overflow;
 	}
 }
+
+string convert_add_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("add%s %s, %s, %s", get_it_block_string(cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -257,8 +300,8 @@ execute_add_reg_t1
 //  Parse ASR(Immediate)
 // ======================
 
-enum field_tuples_asr_imm_t1 = [Tuple!(opcode, string[])(opcode.asr_imm_t1, ["rm","rd","imm"])];
-// ASR <Rd>,<Rm>,#<imm5>
+// ASRS <Rd>,<Rm>,#<imm5>			Outside IT block.
+// ASR<c> <Rd>,<Rm>,#<imm5>			Inside IT block.
 // [15:11] 00010, [10:6] imm5, [5:3] Rm, [2:0] Rd  
 instr_16 parse_asr_imm_t1(const ushort instr) {
 	return instr_16(rd:  	 cast(reg)slice(instr, 0, 3),
@@ -268,7 +311,7 @@ instr_16 parse_asr_imm_t1(const ushort instr) {
 }
 
 // ========================
-//  Execute ASR(Immediate);
+//  Execute ASR(Immediate)
 // ========================
 
 void 
@@ -276,6 +319,17 @@ execute_asr_imm_t1
 (vm_t)
 (const instr_16 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
+}
+
+// ==================================
+//  Convert ASR(Immediate) to String
+// ==================================
+
+string convert_asr_imm_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("asr%s %s, %s, #%d", get_it_block_string(cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rm),
+									   instr.imm);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -287,8 +341,8 @@ execute_asr_imm_t1
 //  Parse LSL(Immediate)
 // ======================
 
-enum field_tuples_lsl_imm_t1 = [Tuple!(opcode, string[])(opcode.lsl_imm_t1, ["rd","rm","imm"])];
-// LSL <Rd>,<Rm>,#<imm5>
+// LSLS <Rd>,<Rm>,#<imm5>
+// LSL<c> <Rd>,<Rm>,#<imm5>
 // [15:11] 00000, [10:6] imm5, [5:3] Rm, [2:0] Rd
 instr_16 parse_lsl_imm_t1(const ushort instr) {
 	return instr_16(rd:  	 cast(reg)slice(instr, 0, 3),
@@ -307,6 +361,17 @@ execute_lsl_imm_t1
 (const instr_16 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
+
+// ==================================
+//  Convert LSL(Immediate) to String 
+// ==================================
+
+string convert_lsl_imm_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("lsl%s %s, %s, #%d", get_it_block_string(cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rm),
+									   instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -317,7 +382,6 @@ execute_lsl_imm_t1
 //  Parse LSR(Immediate)
 // ======================
 
-enum field_tuples_lsr_imm_t1 = [Tuple!(opcode, string[])(opcode.lsr_imm_t1, ["rd","rm","imm"])];
 // LSR <Rd>,<Rm>,#<imm5>
 // [15:11] 00001, [10:6] imm5, [5:3] Rm, [2:0] Rd
 instr_16 parse_lsr_imm_t1(const ushort instr) {
@@ -337,6 +401,17 @@ execute_lsr_imm_t1
 (const instr_16 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
+
+// ==================================
+//  Convert LSR(Immediate) to String 
+// ==================================
+
+string convert_lsr_imm_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("lsr%s %s, %s, #%d", get_it_block_string(cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rm),
+									   instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -347,7 +422,6 @@ execute_lsr_imm_t1
 //  Parse SUB(Immediate)
 // ======================
 
-enum field_tuples_sub_imm_t1 = [Tuple!(opcode, string[])(opcode.sub_imm_t1, ["rd","rn","imm"])];
 // SUB <Rd>,<Rn>,#<imm3>
 // [15:9] 0001111, [8:6] imm3, [5:3] Rn, [2:0] Rd
 instr_16 parse_sub_imm_t1(const ushort instr) {
@@ -361,8 +435,8 @@ instr_16 parse_sub_imm_t1(const ushort instr) {
 //  Parse SUB(Immediate)
 // ======================
 
-enum field_tuples_sub_imm_t2 = [Tuple!(opcode, string[])(opcode.sub_imm_t2, ["rd","imm"])];
-// SUB <Rd>,<Rn>,#<imm8>
+// SUBS <Rdn>,#<imm8>
+//SUB<c> <Rdn>,#<imm8>
 // [15:9] 0001111, [8:6] imm3, [5:3] Rn, [2:0] Rd
 instr_16 parse_sub_imm_t2(const ushort instr) {
 	return instr_16(rd:  cast(reg)slice(instr, 8, 3),
@@ -405,6 +479,19 @@ execute_sub_imm
 	}
 	vm.set_reg(instr.rd, res.result);
 }
+
+string convert_sub_imm_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("sub%s %s, %s, #%d", get_it_block_string(cond),
+								       get_reg_name(instr.rd),
+								       get_reg_name(instr.rn),
+								       instr.imm);
+}
+
+string convert_sub_imm_t2_to_string(const ref instr_16 instr, const condition cond) {
+	return format("sub%s %s, #%d", get_it_block_string(cond),
+								   get_reg_name(instr.rd),
+								   instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -415,8 +502,8 @@ execute_sub_imm
 //  Parse MOV(Immediate)
 // ======================
 
-enum field_tuples_mov_imm_t1 = [Tuple!(opcode, string[])(opcode.mov_imm_t1, ["rd","imm"])];
-// MOVS <Rd>,#<imm8> 
+// MOVS <Rd>,#<imm8>
+// MOV<c> <Rd>,#<imm8>
 // [15:11] 00100, [10:8] Rd, [7:0] imm8
 instr_16 parse_mov_imm_t1(const ushort instr) {
 	return instr_16(rd:  cast(reg)slice(instr, 8, 3),
@@ -439,5 +526,11 @@ execute_mov_imm_t1
 		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_mov_imm_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("mov%s %s, #%d", get_it_block_string(cond),
+								   get_reg_name(instr.rd),
+								   instr.imm);
 }
 // ---------------------------------------------------------------------------------------

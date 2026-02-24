@@ -51,9 +51,33 @@ execute_if_then_t1
 	immutable first_cond  	  = instr.first_cond;
 	immutable cond 		  	  = cast(condition)(first_cond);
 	immutable first_cond_mask = cast(ubyte)((first_cond << 4) | mask);
-	xyz it_block = get_xyz(first_cond_mask);
+	xyz it_block 			  = get_xyz(first_cond_mask);
 	vm.cpu.it_block = it_block;
 	vm.cpu.init_it_block_stack(cond);
+}
+
+// ==============
+//  GET IT BLOCK
+// ==============
+
+string get_it_block(const ref instr_16 instr) {
+	string res;
+	ubyte  mask 		   = instr.mask;
+	ubyte  first_cond      = instr.first_cond;
+	ubyte  first_cond_mask = cast(ubyte)((first_cond << 4) | mask);
+	xyz it_block 		   = get_xyz(first_cond_mask);
+	if (it_block != xyz.none) 
+		res ~= it_block.to!string;
+	return res;
+}
+
+// ============================
+//  Execute IF THHEN TO STRING
+// ============================
+
+string convert_if_then_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("it%s %s", get_it_block(instr),             
+		 					 (cast(condition)instr.first_cond).to!string);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -264,6 +288,10 @@ execute_pop_t1
 		vm.clear_thumb_bit();
 	}
 } 
+
+string convert_pop_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("pop {%s}", get_reg_list_string(instr.reg_list));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -276,7 +304,6 @@ execute_pop_t1
 //  Parse PUSH
 // ============
 
-enum field_tuples_push_t1 = [Tuple!(opcode, string[])(opcode.push_t1, ["reg_list"])];
 // PUSH <registers>
 // [15:9] 1011010, [8] M, [7:0] register_list  
 instr_16 parse_push_t1(const ushort instr) {
@@ -305,6 +332,10 @@ execute_push_t1
 		vm.push(r);	
 	}
 } 
+
+string convert_push_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("push {%s}", get_reg_list_string(instr.reg_list));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -351,8 +382,7 @@ execute_sxtb_t1
 //  Parse UXTB
 // ============
 
-enum field_tuples_uxtb_t1 = [Tuple!(opcode, string[])(opcode.uxtb_t1, ["rd","rm"])];
-// UXTB <Rd>,<Rm>
+// UXTB<c> <Rd>,<Rm>
 // [15:6] 1011001011, [5:3] Rm, [2:0] Rd  
 instr_16 parse_uxtb_t1(const ushort instr) {
 	return instr_16(rd: cast(reg)slice(instr, 0, 3),
@@ -371,6 +401,13 @@ execute_uxtb_t1
 	const uint res = rm & 0xff;
 	vm.set_reg(instr.rd, res);
 }
+
+// UXTB<c> <Rd>,<Rm>
+string convert_uxtb_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("uxtb%s %s, %s", get_condition_string(cond),
+								   get_reg_name(instr.rd),
+								   get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -385,7 +422,7 @@ execute_uxtb_t1
 // ============
 
 enum field_tuples_uxth_t1 = [Tuple!(opcode, string[])(opcode.uxth_t1, ["rd","rm"])];
-// UXTB <Rd>,<Rm>
+// UXTH<c> <Rd>,<Rm>
 // [15:6] 1011001011, [5:3] Rm, [2:0] Rd  
 instr_16 parse_uxth_t1(const ushort instr) {
 	return instr_16(rd: cast(reg)slice(instr, 0, 3),
@@ -404,6 +441,13 @@ execute_uxth_t1
 	// R[d] = ZeroExtend(rotated<15:0>, 32);
 	const uint res = rm & 0xffff;
 	vm.set_reg(instr.rd, res);
+}
+
+// UXTH<c> <Rd>,<Rm>
+string convert_uxth_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("uxth%s %s, %s", get_condition_string(cond),
+								   get_reg_name(instr.rd),
+								   get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

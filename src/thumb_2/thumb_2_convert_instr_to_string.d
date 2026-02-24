@@ -71,6 +71,114 @@ string convert_instr_to_string(T1,T2)(T1 instr, const condition cond)
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
 	struct test_case {
+		ushort instr;
+		string expected;
+		condition cond = condition.none;
+	}
+
+	test_case[] tests = [
+		test_case(0x2b00, 					"cmp r3, #0"),
+		test_case(0x10b6, 			   "asrs r6, r6, #2"),
+		test_case(0x3730, 				  "adds r7, #48"),
+		test_case(0x4013, 				   "ands r3, r2"),
+		test_case(0x2300, 				   "movs r3, #0"),		
+		test_case(0x3902, 				   "subs r1, #2"),
+		test_case(0x00d9, 			   "lsls r1, r3, #3"),
+		test_case(0x099b, 			   "lsrs r3, r3, #6"),
+		test_case(0x4313, 				   "orrs r3, r2"),
+		test_case(0x43db, 				   "mvns r3, r3"),
+		test_case(0x4283, 					"cmp r3, r0"),
+		test_case(0x1a1b, 			   "subs r3, r3, r0"),
+		test_case(0x469d, 					"mov sp, r3"),		
+		test_case(0x460f, 					"mov r7, r1"),
+		test_case(0xaf00, 			    "add r7, sp, #0"),
+		test_case(0xb092, 				   "sub sp, #72"),
+		test_case(0x1d3b, 			   "adds r3, r7, #4"),
+		test_case(0x4413, 					"add r3, r2"),
+		test_case(0x409a, 				   "lsls r2, r3"),
+		test_case(0x40da, 				   "lsrs r2, r3"),	
+		test_case(0xa201, 				"add r2, pc, #4"),
+		test_case(0x4652, 				    "mov r2, sl"),
+		test_case(0x9300, 			  "str r3, [sp, #0]"),
+		test_case(0x1891, 			   "adds r1, r2, r2"),
+		test_case(0x458c, 					"cmp ip, r1"),
+		test_case(0x4463, 					"add r3, ip"),		
+		test_case(0x1e54, 			   "subs r4, r2, #1"),
+		test_case(0x44e6, 				    "add lr, ip"),
+		test_case(0x4572, 					"cmp r2, lr"),
+		test_case(0x4241,  				   "negs r1, r0"),
+		test_case(0x608b, 			  "str r3, [r1, #8]"),
+		test_case(0x80fb, 			 "strh r3, [r7, #6]"),
+		test_case(0x88fb, 			 "ldrh r3, [r7, #6]"),
+		test_case(0x781a, 			 "ldrb r2, [r3, #0]"),
+		test_case(0x701a, 			 "strb r2, [r3, #0]"),
+		test_case(0x68fb, 			 "ldr r3, [r7, #12]"),
+		test_case(0x4803, 			 "ldr r0, [pc, #12]"),
+		test_case(0xb510, 				 "push {r4, lr}"),
+		test_case(0xbd10, 			 	  "pop {r4, pc}"),
+		test_case(0x5cd3, 			 "ldrb r3, [r2, r3]"),
+		test_case(0x58fb, 			  "ldr r3, [r7, r3]"),
+		test_case(0x50c4, 			  "str r4, [r0, r3]"),
+		test_case(0xb2db, 				   "uxtb r3, r3"),
+		test_case(0x415b, 				   "adcs r3, r3"),
+		test_case(0xbf08, 						 "it eq"),
+		test_case(0xbf1c, 						"itt ne"),
+		test_case(0x9d08, 			 "ldr r5, [sp, #32]"),
+		test_case(0xb083, 				   "sub sp, #12"),
+		test_case(0xb0c0, 			      "sub sp, #256"),
+		test_case(0xb580, 				 "push {r7, lr}"),
+		test_case(0xb082, 					"sub sp, #8"),
+		test_case(0xaf00, 				"add r7, sp, #0"),
+		test_case(0x6078, 			  "str r0, [r7, #4]"),
+		test_case(0x687b, 			  "ldr r3, [r7, #4]"),
+		test_case(0x2b00, 				    "cmp r3, #0"),
+		test_case(0x2301, 				   "movs r3, #1"),
+		test_case(0x687b, 			  "ldr r3, [r7, #4]"),
+		test_case(0x9301, 			  "str r3, [sp, #4]"),
+        test_case(0xb480, 					 "push {r7}"),
+        test_case(0xb083, 				   "sub sp, #12"),
+        test_case(0xaf00, 				"add r7, sp, #0"),
+        test_case(0x2300, 		     	   "movs r3, #0"),
+        test_case(0x607b,             "str r3, [r7, #4]"),
+        test_case(0x4b0f,            "ldr r3, [pc, #60]"),
+        test_case(0x6c5b,            "ldr r3, [r3, #68]"),
+        test_case(0x4a0e,            "ldr r2, [pc, #56]"),
+        test_case(0x6453,            "str r3, [r2, #68]"),
+        test_case(0x4b0c,            "ldr r3, [pc, #48]"),
+        test_case(0x6c5b,            "ldr r3, [r3, #68]"),
+        test_case(0x607b,             "str r3, [r7, #4]"),
+        test_case(0x687b,             "ldr r3, [r7, #4]"),
+        test_case(0x2300,                  "movs r3, #0"),
+        test_case(0x603b,             "str r3, [r7, #0]"),
+        test_case(0x4b08,            "ldr r3, [pc, #32]"),
+        test_case(0x6c1b,            "ldr r3, [r3, #64]"),
+        test_case(0x4a07,            "ldr r2, [pc, #28]"),
+        test_case(0x6413,            "str r3, [r2, #64]"),
+        test_case(0x4b05,            "ldr r3, [pc, #20]"),
+        test_case(0x6c1b,            "ldr r3, [r3, #64]"),
+        test_case(0x603b,             "str r3, [r7, #0]"),
+        test_case(0x683b,             "ldr r3, [r7, #0]"),
+        test_case(0x370c,           	  "adds r7, #12"),
+        test_case(0x46bd,                   "mov sp, r7"),
+        test_case(0xbc80, 					  "pop {r7}"), 
+        test_case(0xbdf8, "pop {r3, r4, r5, r6, r7, pc}"),
+ 		test_case(0xdf02, 						 "svc 2"),
+        test_case(0xb2a4, 				   "uxth r4, r4"),
+	];
+
+
+	foreach (t; tests) {
+		string actual = convert_instr_to_string!(ushort,instr_16)(t.instr, t.cond);
+		assert(
+		    actual == t.expected,
+		    format("Failed for instruction [0x%04X], got '%s'", t.instr, actual)
+		);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+	struct test_case {
 		uint instr;
 		string expected;
 		condition cond = condition.none;

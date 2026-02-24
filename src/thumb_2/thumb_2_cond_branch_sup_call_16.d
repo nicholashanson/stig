@@ -16,7 +16,6 @@ import cortex_m_core;
 //  Parse SVC
 // ===========
 
-enum field_tuples_svc_t1 = [Tuple!(opcode, string[])(opcode.svc_t1, ["imm"])];
 // SVC<c> #<imm8>
 // [15:8] 11011111, [7:0] imm8
 instr_16 parse_svc_t1(const ushort instr) {
@@ -56,8 +55,9 @@ execute_svc_t1
 // =======================
 
 // SVC<c> #<imm8>
-string convert_svc_t1_to_string(const ref instr_32 instr) {
-	return format("svc %d", instr.imm);
+string convert_svc_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("svc%s %d", get_condition_string(cond), 
+							  instr.imm);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -69,7 +69,6 @@ string convert_svc_t1_to_string(const ref instr_32 instr) {
 //  Parse B
 // =========
 
-enum field_tuples_b_t1 = [Tuple!(opcode, string[])(opcode.b_t1, ["label"])];
 // B<c> <label>
 // [15:12] 1101, [11:8] cond, [7:0] imm8
 instr_16 parse_b_t1(const ushort instr) {
