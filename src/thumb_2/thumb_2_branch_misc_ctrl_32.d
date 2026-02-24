@@ -107,8 +107,10 @@ execute_msr_t1
 //  Convert MSR to String
 // =======================
 
-string convert_msr_t1_to_string(const ref instr_32 instr) {
-	return format("msr %s, %s", instr.spec_reg.to!string, instr.rn.to!string);
+string convert_msr_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("msr%s %s, %s", cond != condition.none ? cond.to!string : "",
+								  instr.spec_reg.to!string, 
+								  get_reg_name(instr.rn));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -168,8 +170,10 @@ execute_mrs_t1
 // =======================
 
 // MRS<c> <Rd>,<spec_reg>
-string convert_mrs_t1_to_string(const ref instr_32 instr) {
-	return format("mrs %s, %s", instr.rd.to!string, instr.spec_reg.to!string);
+string convert_mrs_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mrs%s %s, %s", cond != condition.none ? cond.to!string : "", 
+								  get_reg_name(instr.rd),
+								  instr.spec_reg.to!string);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -323,8 +327,6 @@ string convert_isb_t1_to_string(const ref instr_32 instr) {
 // ***************************************************************************************
 // *									   DSB 											 *
 // ***************************************************************************************
-
-enum field_tuples_dsb_t1 = [Tuple!(opcode, string[])(opcode.dsb_t1, [])];
 
 // ===========
 //  Parse DSB

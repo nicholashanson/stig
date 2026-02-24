@@ -12,12 +12,17 @@
 // *									    											 *
 // ***************************************************************************************
 
+import std.conv;
 import std.format;
 import std.typecons : Tuple;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
+
+string get_shift_string(const ref instr_32 instr) {
+	return instr.shift_n != 0 ? format(", %s %d", instr.shift_t, instr.shift_n) : "";
+}
 
 instr_32 parse_data_proc_shift_reg(const uint instr) {
 	immutable type    = cast(ubyte)slice(instr,  4, 2);
@@ -113,6 +118,15 @@ execute_adc_reg_t2
     	vm.set_v(res.overflow);		// APSR.V = overflow;
 	}
 	vm.set_reg(instr.rd, res.result);
+}
+
+// ADC.W <Rd>,<Rn>,<Rm>{,<shift>}
+string convert_adc_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("adc%s.w %s, %s, %s%s", add_suffix(instr, cond),
+										  get_reg_name(instr.rd), 
+								    	  get_reg_name(instr.rn), 
+								    	  get_reg_name(instr.rm),
+								    	  get_shift_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -235,6 +249,15 @@ execute_sbc_reg_t2
 	}
 	vm.set_reg(instr.rd, res.result);
 }
+
+// SBC{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
+string convert_sbc_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sbc%s.w %s, %s, %s%s", add_suffix(instr, cond),
+										  get_reg_name(instr.rd),
+										  get_reg_name(instr.rn),
+										  get_reg_name(instr.rm),
+										  get_shift_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -315,6 +338,13 @@ execute_bic_reg_t2
 	}
 	vm.set_reg(instr.rd, res);
 }
+
+// BIC{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
+string convert_bic_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("bic%s.w %s, %s, %s%s", add_suffix(instr, cond), get_reg_name(instr.rd),
+										  get_reg_name(instr.rn),  get_reg_name(instr.rm),
+										  get_shift_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -326,7 +356,7 @@ execute_bic_reg_t2
 // =====================
 
 // ORN{S}<c> <Rd>,<Rn>,<Rm>{,<shift>}
-instr_32 parse_orn_reg_t2(const uint instr) {
+instr_32 parse_orn_reg_t1(const uint instr) {
 	return parse_data_proc_shift_reg(instr);
 }
 
@@ -335,7 +365,7 @@ instr_32 parse_orn_reg_t2(const uint instr) {
 // =======================
 
 void 
-execute_orn_reg_t2
+execute_orn_reg_t1
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
 	immutable  rm 		 = vm.get_reg(instr.rm);
@@ -357,10 +387,12 @@ execute_orn_reg_t2
 //  Convert ORN(Register) to String
 // =================================
 
-string convert_orn_reg_t2_to_string(const ref instr_32 instr) {
-	return format("orn%s %s, %s, %s", instr.set_flags ? "s" : "", get_reg_name(instr.rd), 
-																  get_reg_name(instr.rn), 
-																  get_reg_name(instr.rm));
+string convert_orn_reg_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("orn%s %s, %s, %s%s", add_suffix(instr, cond), 
+									    get_reg_name(instr.rd), 
+									  	get_reg_name(instr.rn), 
+									    get_reg_name(instr.rm),
+									    get_shift_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -522,15 +554,14 @@ execute_lsr_imm_t2
 }
 // ---------------------------------------------------------------------------------------
 
-
 // ===========
 //  Parse SUB
 // ===========
 
-enum field_tuples_sub_reg_t2 = [Tuple!(opcode, string[])(opcode.sub_reg_t2, ["rd","rn","rm","shift"])];
+// SUB{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
 // First Half-Word: [15:5] 11101011101, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type, [3:0] Rm
-instr_32 parse_sub_reg_t2(uint instr) {
+instr_32 parse_sub_reg_t2(const uint instr) {
 	return parse_data_proc_shift_reg(instr);
 }
 
@@ -551,6 +582,13 @@ execute_sub_reg_t2
 	vm.set_reg(instr.rd, res.result);
 }
 
+// SUB{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
+string convert_sub_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sub%s.w %s, %s, %s%s", add_suffix(instr, cond), get_reg_name(instr.rd),
+										  get_reg_name(instr.rn), get_reg_name(instr.rm),
+										  get_shift_string(instr));
+}
+// ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
 // * 									   TEQ 											 *

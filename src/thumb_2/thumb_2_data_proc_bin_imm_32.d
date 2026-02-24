@@ -12,6 +12,8 @@
 // *                                                                                     *
 // ***************************************************************************************
 
+import std.conv;
+import std.format;
 import std.typecons : Tuple;
 
 import thumb_2_opcodes;
@@ -31,7 +33,7 @@ instr_32 parse_mov_imm_t3(const uint instr) {
     immutable  imm_4 = slice(instr, 16, 4);
     immutable  imm_3 = slice(instr, 12, 3);
     immutable  i     = slice(instr, 26, 1);
-    const uint imm   = (imm_4 << 12) | (i << 11) | (imm_3 << 9) | imm_8;
+    const uint imm   = (imm_4 << 12) | (i << 11) | (imm_3 << 8) | imm_8;
     return instr_32(rd:  cast(reg )slice(instr,  8, 4),
                     imm: imm);
 }
@@ -41,6 +43,10 @@ execute_mov_imm_t3
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
     vm.set_reg(instr.rd, instr.imm);
+}
+
+string convert_mov_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
+    return format("mov%s.w %s, #%d", get_condition_string(cond), get_reg_name(instr.rd), instr.imm);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -82,6 +88,12 @@ execute_bfc_t1
         res &= ~field_mask;
     }
     vm.set_reg(instr.rd, res);
+}
+
+string convert_bfc_t1_to_string(const ref instr_32 instr, const condition cond) {
+    return format("bfc%s %s, #%d, #%d", cond != condition.none ? cond.to!string : "", 
+                                        get_reg_name(instr.rd),
+                                        instr.lsb, instr.msb - instr.lsb + 1);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -203,11 +215,16 @@ execute_ubfx_t1
     const uint msb     = instr.lsb + instr.widthm1;
     const uint lsb     = instr.lsb;
     const uint widthm1 = instr.widthm1;
-    immutable  rn  = vm.get_reg(instr.rn);
+    immutable  rn      = vm.get_reg(instr.rn);
     if (msb < 32) {
         immutable res = slice(rn, lsb, widthm1 + 1);
         vm.set_reg(instr.rd, res);
     }
+}
+
+string convert_ubfx_t1_to_string(const ref instr_32 instr, const condition cond) {
+    return format("ubfx %s, %s, #%d, #%d", get_reg_name(instr.rd), get_reg_name(instr.rn),
+                                           instr.lsb, instr.widthm1 + 1);
 }
 // ---------------------------------------------------------------------------------------
 

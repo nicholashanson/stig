@@ -138,7 +138,6 @@ execute_ldr_reg_t2
 //  Parse LDR(Literal)
 // ====================
 
-enum field_tuples_ldr_lit_t2 = [Tuple!(opcode, string[])(opcode.ldr_lit_t2, ["rt","pc","imm"])];
 // LDR<c>.W <Rt>,[PC,#-0]
 // First Half-Word: [15:8] 11111000, [7] U, [6:0] 1011111
 // Second Half-Word: [15:12] Rt, [11:0] imm12
@@ -163,5 +162,11 @@ execute_ldr_lit_t2
 	immutable data = vm.read_word(addr);
 	immutable pc   = vm.get_pc();
 	vm.set_reg(instr.rt, data);
+}
+
+// LDR<c>.W <Rt>,[PC,#-0]
+string convert_ldr_lit_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldr%s.w %s, [pc, #%s%d]", get_condition_string(cond), get_reg_name(instr.rt),
+										     instr.add ? "" : "-", instr.imm);
 }
 // ---------------------------------------------------------------------------------------

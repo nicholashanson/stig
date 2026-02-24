@@ -92,6 +92,14 @@ execute_ldrb_imm
 	if (instr.wback)
 		vm.set_reg(instr.rn, offset_addr);  
 }
+
+// LDRB<c>.W <Rt>,[<Rn>{,#<imm12>}]
+string convert_ldrb_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrb%s.w %s, [%s%s]", get_condition_string(cond),
+										 get_reg_name(instr.rt),
+									     get_reg_name(instr.rn),
+									     instr.imm != 0 ? format(", #%d", instr.imm) : "");
+}
 // ---------------------------------------------------------------------------------------
 
 
@@ -106,8 +114,7 @@ execute_ldrb_imm
 //  Parse LDRSB(Immediate)
 // ========================
 
-enum field_tuples_ldrsb_imm_t1 = [Tuple!(opcode, string[])(opcode.ldrsb_imm_t1, ["rt","rn", "imm"])];
-// LDRSB <Rt>,[<Rn>,#<imm12>]
+// LDRSB<c> <Rt>,[<Rn>,#<imm12>]
 // First Half-Word: [15:4] 111110011001, [3:0] Rn
 // Second Half-Word: [15:12] Rt,[11:0] imm12
 instr_32 parse_ldrsb_imm_t1(const uint instr) {
@@ -124,7 +131,6 @@ instr_32 parse_ldrsb_imm_t1(const uint instr) {
 //  Parse LDRSB(Immediate)
 // ========================
 
-enum field_tuples_ldrsb_imm_t2 = [Tuple!(opcode, string[])(opcode.ldrsb_imm_t2, ["rt","rn","imm"])];
 // LDRSB<c> <Rt>,[<Rn>,#-<imm8>]
 // LDRSB<c> <Rt>,[<Rn>],#+/-<imm8>
 // LDRSB<c> <Rt>,[<Rn>,#+/-<imm8>]!
@@ -172,6 +178,23 @@ execute_ldrsb_imm
 	if (instr.wback)
 		vm.set_reg(instr.rn, offset_addr);  
 }
+
+// LDRSB<c> <Rt>,[<Rn>,#<imm12>]
+string convert_ldrsb_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrsb.w%s %s, [%s, #%d]", get_condition_string(cond), 
+									         get_reg_name(instr.rt),
+									         get_reg_name(instr.rn),
+									         instr.imm);
+}
+
+// LDRSB<c> <Rt>,[<Rn>,#-<imm8>]
+// LDRSB<c> <Rt>,[<Rn>],#+/-<imm8>
+// LDRSB<c> <Rt>,[<Rn>,#+/-<imm8>]!
+string convert_ldrsb_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrsb%s %s, %s", get_condition_string(cond), 
+									get_reg_name(instr.rt),
+									get_addr_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -201,7 +224,6 @@ void execute_teq_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_cmn_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_cmp_reg_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_mvn_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_orn_reg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_rsb_reg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_adr_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_adr_imm_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

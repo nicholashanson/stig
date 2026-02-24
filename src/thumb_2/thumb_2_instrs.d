@@ -1,7 +1,16 @@
+import std.format;
 import std.conv    : to, ConvException, parse;
 
 import thumb_2_opcodes;
 import cortex_m_core;
+
+string get_condition_string(const condition cond) {
+	return cond != condition.none ? cond.to!string : "";
+}
+
+string add_suffix(const ref instr_32 instr, const condition cond) {
+	return (instr.set_flags ? "s" : "") ~ (cond != condition.none ? cond.to!string : "");
+}
 
 string get_reg_name(const reg r) {
 	switch (r) {
@@ -10,6 +19,26 @@ string get_reg_name(const reg r) {
 		case reg.r12: return "ip";
 		default     : return r.to!string;
 	}
+}
+
+string get_addr_string(const ref instr_32 instr) {
+    string sign = instr.add ? "+" : "-";
+    string imm  = format("#%s%d", sign, instr.imm);
+    string rn   = get_reg_name(instr.rn);
+    if (instr.index && !instr.wback) {
+        // [Rn {, #+/-imm}]
+        if (instr.imm == 0)
+            return format("[%s]", rn);
+        else
+            return format("[%s, %s]", rn, imm);
+    } else if (instr.index && instr.wback) {
+        // [Rn, #+/-imm]!
+        return format("[%s, %s]!", rn, imm);
+    } else if (!instr.index && instr.wback) {
+        // [Rn], #+/-imm
+        return format("[%s], %s", rn, imm);
+    }
+    return "<invalid>";
 }
 
 // ---------------------------------------- Shift ----------------------------------------

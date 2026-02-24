@@ -13,6 +13,7 @@
 // ***************************************************************************************
 
 import std.array;
+import std.conv;
 import std.algorithm;
 import std.format   : format;
 import std.typecons : Tuple;
@@ -102,6 +103,12 @@ execute_pop_t2
 	if (regs.back == reg.pc) 
 		vm.clear_thumb_bit();
 }
+
+// ldmia.w sp!, {r3, r4, r5, r6, r7, r8, r9, pc}
+string convert_pop_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldmia.w sp!, {%s}", instr.reg_list.map!(r => r.to!string).join(", "));
+}
+
 // ---------------------------------------------------------------------------------------
 
 instr_32 parse_stm_t2(const uint instr) {

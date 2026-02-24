@@ -27,13 +27,12 @@ import cortex_m_core;
 //  Parse STR(Immediate)
 // ======================
 
-enum field_tuples_str_imm_t3 = [Tuple!(opcode, string[])(opcode.str_imm_t3, ["rt","rn","imm"])];
 // First Half-Word: [15:4] 111110000100, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [5:4] imm2, [3:0] Rm
 instr_32 parse_str_imm_t3(const uint instr) {
-	return instr_32(rt:  cast(reg)slice(instr, 12,  4), 
-					rn:  cast(reg)slice(instr, 16,  4),
-					imm: cast(reg)slice(instr,  0, 12),
+	return instr_32(rt:    cast(reg)slice(instr, 12,  4), 
+					rn:    cast(reg)slice(instr, 16,  4),
+					imm:   slice(instr,  0, 12),
 					index: true, add: true);
 }
 
@@ -41,7 +40,6 @@ instr_32 parse_str_imm_t3(const uint instr) {
 //  Parse STR(Immediate)
 // ======================
 
-enum field_tuples_str_imm_t4 = [Tuple!(opcode, string[])(opcode.str_imm_t4, ["rt","rn","imm"])];
 // First Half-Word: [15:4] 111110000100, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [11] 1, [10] P, [9] U, [8] W, [7:0] imm8
 instr_32 parse_str_imm_t4(const uint instr) {
@@ -84,6 +82,14 @@ execute_str_imm
 	if (instr.wback) 
 		vm.set_reg(instr.rn, cast(uint)offset_addr);
 }
+
+// STR<c>.W <Rt>,[<Rn>,#<imm12>]
+string convert_str_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("str%s.w %s, [%s, #%d]", get_condition_string(cond),
+										   get_reg_name(instr.rt),
+										   get_reg_name(instr.rn),
+										   instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -94,7 +100,6 @@ execute_str_imm
 //  Parse STRB(Immediate)
 // =======================
 
-enum field_tuples_strb_imm_t2 = [Tuple!(opcode, string[])(opcode.strb_imm_t2, ["rt","rn","imm"])];
 // STRB<c>.W <Rt>,[<Rn>,#<imm12>]
 // First Half-Word: [15:4] 111110001000, [3:0] Rn 
 // Second Half-Word: [15:12] Rt, [11:0] imm12
@@ -154,6 +159,13 @@ execute_strb_imm
 	vm.write_byte(addr, cast(ubyte)data);
 	if (instr.wback) 
 		vm.set_reg(instr.rn, cast(uint)offset_addr);
+}
+
+string convert_strb_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("strb%s.w %s, [%s, #%d]", get_condition_string(cond),
+											get_reg_name(instr.rt),
+											get_reg_name(instr.rn),
+											instr.imm);
 }
 // ---------------------------------------------------------------------------------------
 

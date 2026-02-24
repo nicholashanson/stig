@@ -68,7 +68,7 @@ execute_smull_t1
 //  Parse UDIV
 // ============
 
-enum field_tuples_udiv_t1 = [Tuple!(opcode, string[])(opcode.udiv_t1, ["rd","rn","rm"])];
+// UDIV<c> <Rd>,<Rn>,<Rm>
 // First Half-Word: [15:4] 11110111011, [3:0] Rn
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 1111, [3:0] Rm 
 instr_32 parse_udiv_t1(const uint instr) {
@@ -92,6 +92,14 @@ execute_udiv_t1
 	const uint res = vm.get_reg(instr.rn) / vm.get_reg(instr.rm);
 	vm.set_reg(instr.rd, res);
 }
+
+// UDIV<c> <Rd>,<Rn>,<Rm>
+string convert_udiv_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("udiv%s %s, %s, %s", get_condition_string(cond), 
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rn),
+									   get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -101,6 +109,7 @@ execute_udiv_t1
 // result.
 
 enum field_tuples_umull_t1 = [Tuple!(opcode, string[])(opcode.umull_t1, ["rd_lo","rd_hi","rn","rm"])];
+// UMULL<c> <RdLo>,<RdHi>,<Rn>,<Rm>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 01110, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8
 instr_32 parse_umull_t1(const uint instr) {
@@ -123,5 +132,13 @@ execute_umull_t1
         cast(ulong)(vm.get_reg(instr.rm));
     vm.set_reg(instr.rd_lo, cast(uint)res);
     vm.set_reg(instr.rd_hi, cast(uint)(res >> 32));
+}
+
+string convert_umull_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("umull%s %s, %s, %s, %s", get_condition_string(cond),
+											get_reg_name(instr.rd_lo),
+											get_reg_name(instr.rd_hi),
+											get_reg_name(instr.rn),
+											get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------

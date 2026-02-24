@@ -12,6 +12,8 @@
 // *									    											 *
 // ***************************************************************************************
 
+import std.conv;
+import std.format;
 import std.typecons : Tuple;
 
 import thumb_2_opcodes;
@@ -72,6 +74,14 @@ execute_asr_reg_t2
 (const ref instr_32 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);	
 }
+
+// ASR{S}<c>.W <Rd>,<Rn>,<Rm>
+string convert_asr_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("asr%s.w %s, %s, %s", add_suffix(instr, cond), 
+										get_reg_name(instr.rd),
+										get_reg_name(instr.rn),
+										get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -104,6 +114,10 @@ execute_uxth_t2
 	const uint rotated = rotr(rm, instr.imm);
 	vm.set_reg(instr.rd, rotated);	
 }
+
+string convert_uxth_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("uxth.w %s, %s", get_reg_name(instr.rd), get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -114,7 +128,7 @@ execute_uxth_t2
 //  Parse LSL(Register)
 // =====================
 
-enum field_tuples_lsl_reg_t2 = [Tuple!(opcode, string[])(opcode.lsl_reg_t2, ["rd","rn","rm"])];
+// // LSL{S}<c>.W <Rd>,<Rn>,<Rm>
 // First Half-Word: [15:5] 11111010000, [4] S, [3:0] Rn 
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000, [3:0] Rm
 instr_32 parse_lsl_reg_t2(const uint instr) {
@@ -131,6 +145,14 @@ execute_lsl_reg_t2
 (const ref instr_32 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
+
+// LSL{S}<c>.W <Rd>,<Rn>,<Rm>
+string convert_lsl_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("lsl%s.w %s, %s, %s", add_suffix(instr, cond),
+										get_reg_name(instr.rd),
+										get_reg_name(instr.rn),
+										get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -141,7 +163,6 @@ execute_lsl_reg_t2
 //  Parse LSR(Register)
 // =====================
 
-enum field_tuples_lsr_reg_t2 = [Tuple!(opcode, string[])(opcode.lsr_reg_t2, ["rd","rn","rm"])];
 // First Half-Word: [15:5] 11111010001, [4] S, [3:0] Rn 
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000, [3:0] Rm
 instr_32 parse_lsr_reg_t2(const uint instr) {
@@ -158,6 +179,14 @@ execute_lsr_reg_t2
 (const ref instr_32 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
+
+// LSR{S}<c>.W <Rd>,<Rn>,<Rm>
+string convert_lsr_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("lsr%s.w %s, %s, %s", add_suffix(instr, cond),
+										get_reg_name(instr.rd),
+										get_reg_name(instr.rn),
+										get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -171,7 +200,6 @@ execute_lsr_reg_t2
 //  Parse UADD8
 // =============
 
-enum field_tuples_uadd8_t1 = [Tuple!(opcode, string[])(opcode.uadd8_t1, ["rd","rn","rm"])];
 // UADD8<c> <Rd>,<Rn>,<Rm>
 // [15:4] 111110101000 [3:0] Rn
 // [15:12] 1111, [11:8] Rd, [7:4] 0100, [3:0] Rm
@@ -188,7 +216,7 @@ instr_32 parse_uadd8_t1(const uint instr) {
 void 
 execute_uadd8_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	int rn = vm.get_reg(instr.rn);
 	int rm = vm.get_reg(instr.rm);
 	// sum4 = UInt(R[n]<31:24>) + UInt(R[m]<31:24>);
@@ -208,6 +236,11 @@ execute_uadd8_t1
 	vm.cpu.ge2 = sum3 >= 0x100 ? true : false;
 	vm.cpu.ge3 = sum4 >= 0x100 ? true : false;
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_uadd8_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return "uadd8" ~ get_condition_string(cond) ~ " " ~ get_reg_name(instr.rd) ~ ", "
+		~ get_reg_name(instr.rn) ~ ", " ~ get_reg_name(instr.rm); 
 }
 // ---------------------------------------------------------------------------------------
 

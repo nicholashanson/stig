@@ -170,10 +170,17 @@ execute_strd_imm_t1
 	offset = instr.add ? index + instr.imm : index - instr.imm;
 	immutable data1 = vm.get_reg(instr.rt);
 	immutable data2 = vm.get_reg(instr.rt_2);
-	vm.write_word(offset, data1);
+	vm.write_word(offset,     data1);
 	vm.write_word(offset + 4, data2);
 	if (instr.wback) 
 		vm.set_reg(instr.rn, cast(uint)offset);
+}
+
+string convert_strd_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("strd%s %s, %s, %s", get_condition_string(cond), 
+									   get_reg_name(instr.rt),
+									   get_reg_name(instr.rt_2),
+									   get_addr_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 

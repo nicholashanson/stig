@@ -12,14 +12,13 @@
 // *									    											 *
 // ***************************************************************************************
 
+import std.conv;
 import std.typecons : Tuple;
 import std.format   : format;
-import std.stdio;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
-import memory_sections;
 
 // ***************************************************************************************
 // *									  MLA 											 *
@@ -32,7 +31,6 @@ import memory_sections;
 //  Parse MLA
 // ===========
 
-enum field_tuples_mla_t1 = [Tuple!(opcode, string[])(opcode.mla_t1, ["rd","rn","rm","ra"])];
 // MLA<c> <Rd>,<Rn>,<Rm>,<Ra>
 // First Half-Word: [15:4] 111110110000, [3:0] Rn
 // Second Half-Word: [15:12] Ra, [11:8] Rd, [7:4] 0000, [3:0] Rm
@@ -57,6 +55,15 @@ execute_mla_t1
 	const int res    = op1 * op2 + addend;
 	// setflags = FALSE;
 	vm.set_reg(instr.rd, res);
+}
+
+// MLA<c> <Rd>,<Rn>,<Rm>,<Ra>
+string convert_mla_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mla%s %s, %s, %s, %s", cond != condition.none ? cond.to!string : "",
+										  get_reg_name(instr.rd), 
+										  get_reg_name(instr.rn), 
+										  get_reg_name(instr.rm), 
+										  get_reg_name(instr.ra));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -93,12 +100,20 @@ void
 execute_mul_t2
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
-	writeln("mul_t2 called");
 	const int op1 = vm.get_reg(instr.rn);
 	const int op2 = vm.get_reg(instr.rm);
 	const int res = op1 * op2;
 	// setflags = FALSE;
 	vm.set_reg(instr.rd, res);
+}
+
+// =======================
+//  Convert MUL to String
+// =======================
+
+string convert_mul_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return "mul.w" ~ get_condition_string(cond) ~ " " ~ get_reg_name(instr.rd) ~ ", " 
+		~ get_reg_name(instr.rn) ~ ", " ~ get_reg_name(instr.rm); 
 }
 // ---------------------------------------------------------------------------------------
 
@@ -138,5 +153,13 @@ execute_mls_t1
 	const int addend = vm.get_reg(instr.ra);
 	const int res    = addend - op1 * op2;
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_mls_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mls%s %s, %s, %s, %s", cond != condition.none ? cond.to!string : "",
+										  get_reg_name(instr.rd),
+										  get_reg_name(instr.rn),
+										  get_reg_name(instr.rm),
+										  get_reg_name(instr.ra));
 }
 // ---------------------------------------------------------------------------------------

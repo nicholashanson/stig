@@ -12,13 +12,12 @@
 // *									    											 *
 // ***************************************************************************************
 
+import std.format;
 import std.typecons : Tuple;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
-
-import std.stdio;
 
 instr_32 parse_data_proc_mod_imm(const uint instr) {
 	immutable imm_8  = slice(instr,  0, 8);
@@ -114,6 +113,10 @@ execute_mov_imm_t2
 	}
 	vm.set_reg(instr.rd, expand_res.imm);
 }
+
+string convert_mov_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mov%s.w %s, #%d", add_suffix(instr, cond), get_reg_name(instr.rd), instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -196,6 +199,14 @@ execute_and_imm_t1
 	}
 	vm.set_reg(instr.rd, res);
 }
+
+// AND{S}<c> <Rd>,<Rn>,#<const>
+string convert_and_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("and%s.w %s, %s, #%d", add_suffix(instr, cond),
+									     get_reg_name(instr.rd),
+									     get_reg_name(instr.rn),
+									     instr.imm);
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -251,7 +262,7 @@ execute_eor_imm_t1
 //  Parse MVN(Immediate)
 // ======================
 
-enum field_tuples_mvn_imm_t1 = [Tuple!(opcode, string[])(opcode.mvn_imm_t1, ["rd","imm"])];
+// MVN{S}<c> <Rd>,#<const>
 // First Half-Word: [15:5] 11101011010, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type, [3:0] Rm
 instr_32 parse_mvn_imm_t1(const uint instr) {
@@ -285,6 +296,11 @@ execute_mvn_imm_t1
 		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+// MVN{S}<c> <Rd>,#<const>
+string convert_mvn_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mvn%s.w %s, #%d", add_suffix(instr, cond), get_reg_name(instr.rd), instr.imm);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -413,6 +429,14 @@ execute_orr_imm_t1
 	}
 	vm.set_reg(instr.rd, res);
 }
+
+// ORR{S}<c> <Rd>,<Rn>,#<const>
+string convert_orr_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("orr%s.w %s, %s, #%d", add_suffix(instr, cond),
+										 get_reg_name(instr.rd),
+										 get_reg_name(instr.rn),
+										 instr.imm);  
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -502,7 +526,6 @@ execute_cmn_imm_t1
 //  Parse BIC(Immediate)
 // ======================
 
-enum field_tuples_bic_imm_t1 = [Tuple!(opcode, string[])(opcode.bic_imm_t1, ["rd","rn","imm"])];
 // BIC{S}<c> <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 00001, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8 
@@ -531,6 +554,13 @@ execute_bic_imm_t1
 		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_bic_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("bic%s.w %s, %s, #%d", add_suffix(instr, cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rn),
+									   instr.imm);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -573,6 +603,11 @@ execute_rsb_imm_t2
 		vm.set_v(res.overflow);		// APSR.V = overflow;
 	}
 	vm.set_reg(instr.rd, res.result);
+}
+
+string convert_rsb_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("rsb%s %s, %s, #%d", add_suffix(instr, cond), get_reg_name(instr.rd),
+									   get_reg_name(instr.rn), instr.imm);
 }
 // ---------------------------------------------------------------------------------------
 
@@ -627,7 +662,6 @@ execute_tst_imm_t1
 //  Parse SUB(Immediate)
 // ======================
 
-enum field_tuples_sub_imm_t3 = [Tuple!(opcode, string[])(opcode.sub_imm_t3, ["rd","rn","imm"])];
 // SUB{S}<c>.W <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 01101, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8 
@@ -654,5 +688,13 @@ execute_sub_imm_t3
 		vm.set_v(res.overflow);		  // APSR.V = overflow;
 	}
 	vm.set_reg(instr.rd, res.result);
+}
+
+// SUB{S}<c>.W <Rd>,<Rn>,#<const>
+string convert_sub_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sub%s.w %s, %s, #%d", add_suffix(instr, cond), 
+										 get_reg_name(instr.rd), 
+										 get_reg_name(instr.rn), 
+										 instr.imm);
 }
 // ---------------------------------------------------------------------------------------
