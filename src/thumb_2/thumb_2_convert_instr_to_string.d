@@ -170,7 +170,8 @@ unittest {
         test_case(0x4042,      			   "eors r2, r0"),
         test_case(0xb208,      			   "sxth r0, r1"),
         test_case(0xc303,      	   "stmia r3!, {r0, r1}"),
-        test_case(0xcc03,      	   "ldmia r4!, {r0, r1}")
+        test_case(0xcc03,      	   "ldmia r4!, {r0, r1}"),
+        test_case(0x41b9,      			   "sbcs r1, r7")
 	]; 
 
 	foreach (t; tests) {

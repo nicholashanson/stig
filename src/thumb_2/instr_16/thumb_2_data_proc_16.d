@@ -642,7 +642,7 @@ string convert_rsb_imm_t1_to_string(const ref instr_16 instr, const condition co
 instr_16 parse_sbc_reg_t1(const ushort instr) {
 	return instr_16(rd: cast(reg)slice(instr, 0, 3),
 					rn: cast(reg)slice(instr, 0, 3),
-					rm: cast(reg)slice(instr, 3, 6));
+					rm: cast(reg)slice(instr, 3, 3));
 }
 
 // =======================
@@ -665,6 +665,12 @@ execute_sbc_reg_t1
 		vm.set_v(res.overflow);		// APSR.V = overflow;
 	}
 	vm.set_reg(instr.rd, res.result);
+}
+
+string convert_sbc_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("sbc%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

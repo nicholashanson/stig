@@ -303,6 +303,7 @@ opcode decode_data_proc(const ushort instr) {
 		case 0b1101: return opcode.mul_t1;
 		case 0b1110: return opcode.bic_reg_t1;
 		case 0b1111: return opcode.mvn_reg_t1;
+		case 0b0110: return opcode.sbc_reg_t1;
 		default    : break; 
 	}
     return opcode.invalid;
