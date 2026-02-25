@@ -28,7 +28,6 @@ import memory_sections;
 //  Parse LDRB(Immediate)
 // =======================
 
-enum field_tuples_ldrb_imm_t2 = [Tuple!(opcode, string[])(opcode.ldrb_imm_t2, ["rt","rn","imm"])];
 // LDRB<c>.W <Rt>,[<Rn>{,#<imm12>}]
 // First Half-Word: [15:4] 111110001001, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [10] P, [9] U, [8] W, [7:0] imm8
@@ -46,7 +45,6 @@ instr_32 parse_ldrb_imm_t2(const uint instr) {
 //  Parse LDRB(Immediate)
 // =======================
 
-enum field_tuples_ldrb_imm_t3 = [Tuple!(opcode, string[])(opcode.ldrb_imm_t3, ["rt","rn","imm"])];
 // LDRB<c> <Rt>,[<Rn>,#-<imm8>]
 // LDRB<c> <Rt>,[<Rn>],#+/-<imm8>
 // LDRB<c> <Rt>,[<Rn>,#+/-<imm8>]!
@@ -99,6 +97,15 @@ string convert_ldrb_imm_t2_to_string(const ref instr_32 instr, const condition c
 										 get_reg_name(instr.rt),
 									     get_reg_name(instr.rn),
 									     instr.imm != 0 ? format(", #%d", instr.imm) : "");
+}
+
+// LDRB<c> <Rt>,[<Rn>,#-<imm8>]
+// LDRB<c> <Rt>,[<Rn>],#+/-<imm8>
+// LDRB<c> <Rt>,[<Rn>,#+/-<imm8>]!
+string convert_ldrb_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrb%s.w %s, %s", get_condition_string(cond),
+										 get_reg_name(instr.rt),
+									     get_addr_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -271,7 +278,7 @@ void execute_sxtab16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_sxtb16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_uxtab16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_uxtb16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_uxtab_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
 void execute_ror_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qadd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qdadd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
@@ -279,7 +286,6 @@ void execute_qsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qdsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_rev_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_rev16_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_sdiv_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrh_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrh_imm_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

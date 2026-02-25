@@ -64,7 +64,7 @@ string convert_instr_to_string(T1,T2)(T1 instr, const condition cond = condition
                 }
                 else
                 {
-                	assert(0, format("Opcode unhandled: %s", op.to!string));
+                	assert(0, format("Opcode unhandled: %s, %08X", op.to!string, instr));
                 }
         }
     }
@@ -172,7 +172,14 @@ unittest {
         test_case(0xb208,      			   "sxth r0, r1"),
         test_case(0xc303,      	   "stmia r3!, {r0, r1}"),
         test_case(0xcc03,      	   "ldmia r4!, {r0, r1}"),
-        test_case(0x41b9,      			   "sbcs r1, r7")
+        test_case(0x41b9,      			   "sbcs r1, r7"),
+        test_case(0x5b1b,   		 "ldrh r3, [r3, r4]"),
+        test_case(0x549d,      		 "strb r5, [r3, r2]"),
+        test_case(0x4108,      			   "asrs r0, r1"),
+        test_case(0xba2e,      				"rev r6, r5"),
+        test_case(0x53dd,     		 "strh r5, [r3, r7]"),
+        test_case(0xb661,      				   "cpsie f"),
+        test_case(0xb248,    			   "sxtb r0, r1")
 	]; 
 
 	foreach (t; tests) {
@@ -265,7 +272,41 @@ unittest {
 		test_case(0xea5f0030, 								"movs.w r0, r0, rrx"),
 		test_case(0xfbc50106, 	  						  "smlal r0, r1, r5, r6"),
 		test_case(0xfb14340a, 							 "smlabb r4, r4, sl, r3"),
-		test_case(0xfa09f686, 								  "sxtah r6, r9, r6")
+		test_case(0xfa09f686, 								  "sxtah r6, r9, r6"),
+		test_case(0xfa52f080, 								  "uxtab r0, r2, r0"),
+		test_case(0xf8a42090, 							 "strh.w r2, [r4, #144]"),
+		test_case(0xf5b37ffa, 									"cmp.w r3, #500"),
+		test_case(0xf8423f10, 						      "str.w r3, [r2, #16]!"),
+		test_case(0xe92d4ff0,  "stmdb sp!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}"),
+		test_case(0xeb030384, 						  "add.w r3, r3, r4, lsl #2"),
+		test_case(0xf10009bc, 								"add.w r9, r0, #188"),
+		test_case(0xf8115b08, 							   "ldrb.w r5, [r1], #8"),
+		test_case(0xf3bf8f6f, 											"isb sy"),
+		test_case(0xe9d20300, 								 "ldrd r0, r3, [r2]"),
+		test_case(0xf0110f40, 									 "tst.w r1, #64"),
+		test_case(0xf8521023, 					    "ldr.w r1, [r2, r3, lsl #2]"),
+		test_case(0xf85deb04, 							    "ldr.w lr, [sp], #4"),
+		test_case(0xf36c0000, 								"bfi r0, ip, #0, #1"),
+		test_case(0xf8248032, 	 				   "strh.w r8, [r4, r2, lsl #3]"),
+		test_case(0xfab0f080, 										"clz r0, r0"),
+		test_case(0xf1720200, 								 "sbcs.w r2, r2, #0"),
+		test_case(0xf8021b02, 							   "strb.w r1, [r2], #2"),
+		test_case(0xe894000f, 					  "ldmia.w r4, {r0, r1, r2, r3}"),
+		test_case(0xf1100f78, 									"cmn.w r0, #120"),
+		test_case(0xe8dff003, 									  "tbb [pc, r3]"),
+		test_case(0xfa94f5a4, 									   "rbit r5, r4"),
+		test_case(0xea07070a, 								  "and.w r7, r7, sl"),
+		test_case(0xea4f0887,							  "mov.w r8, r7, lsl #2"),
+		test_case(0xf8482003, 								"str.w r2, [r8, r3]"),
+		test_case(0xf4843380, 							  "eor.w r3, r4, #65536"),
+		test_case(0xf1440400, 								  "adc.w r4, r4, #0"),
+		test_case(0xea8212d3, 					      "eor.w r2, r2, r3, lsr #7"),
+		test_case(0xea4f0555, 							  "mov.w r5, r5, lsr #1"),
+		test_case(0xf063037f, 								  "orn r3, r3, #127"),
+		test_case(0xea4f0e62, 							  "mov.w lr, r2, asr #1"),
+		test_case(0xea940f05,  										"teq r4, r5"),
+		test_case(0xf20733e7, 								 "addw r3, r7, #999"),
+		test_case(0xea190f03, 									  "tst.w r9, r3")
 	];
 
 	foreach (t; tests) {

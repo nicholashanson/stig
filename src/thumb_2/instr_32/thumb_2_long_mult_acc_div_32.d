@@ -276,5 +276,47 @@ string convert_smlal_t1_to_string(const ref instr_32 instr, const condition cond
 											get_reg_name(instr.rn),
 											get_reg_name(instr.rm));
 }
-
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  SDIV 											 *
+// ***************************************************************************************
+
+// SDIV<c> <Rd>,<Rn>,<Rm>
+instr_32 parse_sdiv_t1(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr,  0, 4),
+					rd:	cast(reg)slice(instr,  8, 4),
+					rn: cast(reg)slice(instr, 16, 4));
+}
+
+void 
+execute_sdiv_t1 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	const int rm = vm.get_reg(instr.rm);
+	const int rn = vm.get_reg(instr.rn);
+	int res;
+	// if SInt(R[m]) == 0 then
+	if (rm == 0) {
+		// if IntegerZeroDivideTrappingEnabled() then
+		//     GenerateIntegerZeroDivide();
+		// else
+		//     result = 0;
+		res = 0;
+	// else
+	} else {
+		// result = RoundTowardsZero(SInt(R[n]) / SInt(R[m]));
+		res = rn / rm;
+	}    
+	// R[d] = result<31:0>;
+	vm.set_reg(instr.rd, cast(uint)res);
+}
+
+// SDIV<c> <Rd>,<Rn>,<Rm>
+string convert_sdiv_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sdiv%s %s, %s, %s", get_condition_string(cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rn),
+									   get_reg_name(instr.rm));
+}

@@ -90,4 +90,8 @@ execute_b_t1
 		vm.set_reg(reg.pc, pc);
 	} 
 }
+
+string convert_b_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("b%s <label>", get_condition_string(instr.cond));
+}
 // ---------------------------------------------------------------------------------------

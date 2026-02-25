@@ -272,7 +272,7 @@ struct byte_table {
 // --------------------------------------- Strings ---------------------------------------
 
 string get_reg_list_string(const ref reg[] reg_list) {
-	return reg_list.map!(r => r.to!string).join(", ");
+	return reg_list.map!(r => get_reg_name(r)).join(", ");
 }
 
 string get_imm_string(const uint imm) {

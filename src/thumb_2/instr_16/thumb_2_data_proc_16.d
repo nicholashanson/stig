@@ -339,7 +339,6 @@ string convert_lsl_reg_t1_to_string(const ref instr_16 instr, const condition co
 //  Parse LSR(Register)
 // =====================
 
-enum field_tuples_lsr_reg_t1 = [Tuple!(opcode, string[])(opcode.lsr_reg_t1, ["rd","rm"])];
 // LSR <Rdn>,<Rm>
 // [15:6] 0100000011, [5:3] Rm, [2:0] Rdn  
 instr_16 parse_lsr_reg_t1(const ushort instr) {
@@ -384,9 +383,8 @@ string convert_lsr_reg_t1_to_string(const ref instr_16 instr, const condition co
 // =====================
 //  Parse ASR(Register)
 // =====================
-
-enum field_tuples_asr_reg_t1 = [Tuple!(opcode, string[])(opcode.asr_reg_t1, ["rd","rm"])];
-// LSR <Rdn>,<Rm>
+// ASRS <Rdn>,<Rm>
+// ASR<c> <Rdn>,<Rm> 
 // [15:6] 0100000100, [5:3] Rm, [2:0] Rdn  
 instr_16 parse_asr_reg_t1(const ushort instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
@@ -424,6 +422,14 @@ execute_asr_reg_t1
         vm.set_n(res);
     }
 	vm.set_reg(instr.rd, res);
+}
+
+// ASRS <Rdn>,<Rm>
+// ASR<c> <Rdn>,<Rm> 
+string convert_asr_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("asr%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -509,8 +515,8 @@ execute_mov_reg_t2
 //  Parse MUL
 // ===========
 
-enum field_tuples_mul_t1 = [Tuple!(opcode, string[])(opcode.mul_t1, ["rd","rn"])];
-// MUL <Rdm>,<Rn>,<Rdm>
+// MULS <Rdm>,<Rn>,<Rdm> 
+// MUL<c> <Rdm>,<Rn>,<Rdm>
 // [15:6] 0100001101, [5:3] Rn, [2:0] Rdm
 instr_16 parse_mul_t1(const ushort instr) {
 	return instr_16(rm: cast(reg)slice(instr, 0, 3), 
@@ -534,6 +540,15 @@ execute_mul_t1
 		vm.set_n(res);
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+// MULS <Rdm>,<Rn>,<Rdm>
+// MUL<c> <Rdm>,<Rn>,<Rdm>
+string convert_mul_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("mul%s %s, %s, %s", get_it_block_string(cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

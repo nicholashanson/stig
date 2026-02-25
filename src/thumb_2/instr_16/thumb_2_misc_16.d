@@ -111,6 +111,12 @@ execute_rev_t1
 			  		 ((rm >> 24) & 0x0000_00ff);
 	vm.set_reg(instr.rd, res);
 }
+
+string convert_rev_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("rev%s %s, %s", get_condition_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -145,6 +151,10 @@ execute_cbnz_t1
 		pc += 4;
 		vm.set_reg(reg.pc, pc);
 	} 
+}
+
+string convert_cbnz_t1_to_string(const instr_16 instr, const condition cond) {
+	return format("cbnz %s, <label>", get_reg_name(instr.rn));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -182,6 +192,10 @@ execute_cbz_t1
 		pc += 4;
 		vm.set_reg(reg.pc, pc);
 	} 
+}
+
+string convert_cbz_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("cbz %s, <label>", get_reg_name(instr.rn));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -230,6 +244,13 @@ execute_cps_t1
 		if (affect_fault) 
 			vm.cpu.fault_mask 	= true;
 	}
+}
+
+// CPS<effect> <iflags>
+string convert_cps_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("cps%s %s%s", instr.enable       ? "ie" : "id",
+							    instr.affect_pri   ?  "i" : "",
+							    instr.affect_fault ?  "f" : "");
 }
 // ---------------------------------------------------------------------------------------
 
@@ -344,7 +365,7 @@ string convert_push_t1_to_string(const ref instr_16 instr, const condition cond)
 //  Parse SXTB
 // ============
 
-// SXTB <Rd>,<Rm>
+// SXTB<c> <Rd>,<Rm>
 // [15:6] 1011001001, [5:3] Rm, [2:0] Rd  
 instr_16 parse_sxtb_t1(const ushort instr) {
 	return instr_16(rd: cast(reg)slice(instr, 0, 3),
@@ -362,6 +383,13 @@ execute_sxtb_t1
 	immutable rm  = vm.get_reg(instr.rm);
 	immutable res = cast(int)(cast(byte)rm);
 	vm.set_reg(instr.rd, res);
+}
+
+// SXTB<c> <Rd>,<Rm>
+string convert_sxtb_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("sxtb%s %s, %s", get_condition_string(cond),
+								   get_reg_name(instr.rd),
+								   get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -457,6 +485,9 @@ execute_nop_t1
 (vm_t)
 (const instr_16 instr, ref vm_t vm) {}
 
+string convert_nop_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return "nop";
+}
 // ***************************************************************************************
 // *									   SXTH 										 *
 // ***************************************************************************************

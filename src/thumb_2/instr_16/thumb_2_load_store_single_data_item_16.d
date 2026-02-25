@@ -187,6 +187,14 @@ execute_ldrh_reg_t1
 	// R[t] = ZeroExtend(data, 32);
 	vm.set_reg(instr.rt, data);
 }
+
+// LDRH<c> <Rt>,[<Rn>,<Rm>]
+string convert_ldrh_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("ldrh%s %s, [%s, %s]", get_condition_string(cond),
+										 get_reg_name(instr.rt),
+										 get_reg_name(instr.rn),
+										 get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -197,7 +205,7 @@ execute_ldrh_reg_t1
 //  Parse STRH(Register)
 // ======================
 
-// STRH <Rt>,[<Rn>,<Rm>]
+// STRH<c> <Rt>,[<Rn>,<Rm>]
 // [15:9] 0101001, [8:6] Rm, [5:3] Rn, [2:0] Rt
 instr_16 parse_strh_reg_t1(const ushort instr) {
 	return parse_load_store_reg(instr);
@@ -218,6 +226,14 @@ execute_strh_reg_t1
 	const uint   target = (rt & 0xffff);
 	vm.write_half_word(addr, cast(ushort)target);
 }
+
+// STRH<c> <Rt>,[<Rn>,<Rm>]
+string convert_strh_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("strh%s %s, [%s, %s]", get_condition_string(cond),
+										 get_reg_name(instr.rt),
+										 get_reg_name(instr.rn),
+										 get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -228,7 +244,7 @@ execute_strh_reg_t1
 //  Parse STRRB(Register)
 // =======================
 
-// STRB <Rt>,[<Rn>{,#<imm5>}]
+// STRB<c> <Rt>,[<Rn>,<Rm>]
 // [15:11] 01110, [10:6] imm5, [5:3] Rn, [2:0] Rt
 instr_16 parse_strb_reg_t1(short instr) {
 	return parse_load_store_reg(instr);
@@ -248,6 +264,14 @@ execute_strb_reg_t1
 	const size_t addr = rn + rm;
 	const uint   data = rt & 0xff;
 	vm.write_byte(addr, data);
+}
+
+// STRB<c> <Rt>,[<Rn>,<Rm>]
+string convert_strb_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("strb%s %s, [%s, %s]", get_condition_string(cond),
+										 get_reg_name(instr.rt),
+										 get_reg_name(instr.rn),
+										 get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

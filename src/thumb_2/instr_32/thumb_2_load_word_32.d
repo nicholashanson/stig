@@ -27,7 +27,6 @@ import cortex_m_core;
 //  Parse LDR(Immediate)
 // ======================
 
-enum field_tuples_ldr_imm_t3 = [Tuple!(opcode, string[])(opcode.ldr_imm_t3, ["rt","rn","imm"])];
 // First Half-Word: [15:4] 111110001101, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [11:0] imm12
 instr_32 parse_ldr_imm_t3(const uint instr) {
@@ -42,7 +41,9 @@ instr_32 parse_ldr_imm_t3(const uint instr) {
 //  Parse LDR(Immediate)
 // ======================
 
-enum field_tuples_ldr_imm_t4 = [Tuple!(opcode, string[])(opcode.ldr_imm_t4, ["rt","rn","imm"])];
+// LDR<c> <Rt>,[<Rn>,#-<imm8>]
+// LDR<c> <Rt>,[<Rn>],#+/-<imm8>
+// LDR<c> <Rt>,[<Rn>,#+/-<imm8>]!
 // First Half-Word: [15:4] 111110000101, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [10] P, [9] U, [8] W, [7:0] imm8
 instr_32 parse_ldr_imm_t4(const uint instr) {
@@ -76,18 +77,33 @@ void
 execute_ldr_imm
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
-	immutable rn          = vm.get_reg(instr.rn);
-	size_t    offset_addr = rn;
-
-	instr.add ? (offset_addr += instr.imm) : (offset_addr -= instr.imm);
-	
-	const size_t addr     = instr.index ? offset_addr : rn;
-	uint         data     = vm.read_word(addr);
+	immutable    rn          = vm.get_reg(instr.rn);
+	immutable    imm         = instr.imm;
+	const size_t offset_addr = instr.add   ? rn + imm    : rn - imm;
+	const size_t addr        = instr.index ? offset_addr : rn;
+	uint         data        = vm.read_word(addr);
 	if (instr.wback)
 		vm.set_reg(instr.rn, cast(uint)offset_addr);
 	if (instr.rt == reg.pc) 
 		data &= ~1;
 	vm.set_reg(instr.rt, data);
+}
+
+// LDR<c>.W <Rt>,[<Rn>{,#<imm12>}]
+string convert_ldr_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldr%s.w %s, [%s%s]", get_condition_string(cond),
+										get_reg_name(instr.rt),
+										get_reg_name(instr.rn),
+										get_imm_string(instr.imm));
+}
+
+// LDR<c> <Rt>,[<Rn>,#-<imm8>]
+// LDR<c> <Rt>,[<Rn>],#+/-<imm8>
+// LDR<c> <Rt>,[<Rn>,#+/-<imm8>]!
+string convert_ldr_imm_t4_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldr%s.w %s, %s", get_condition_string(cond),
+								    get_reg_name(instr.rt),
+								    get_addr_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -99,7 +115,6 @@ execute_ldr_imm
 //  Parse LDR(Register)
 // =====================
 
-enum field_tuples_ldr_reg_t2 = [Tuple!(opcode, string[])(opcode.ldr_reg_t2, ["rt","rn","rm"])];
 // LDR<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
 // First Half-Word:	[15:4] 111110000101, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [11:6] 000000, [5:4] imm2, [3:0] Rm 
@@ -127,6 +142,15 @@ execute_ldr_reg_t2
 	if (instr.rt == reg.pc)
 		data &= ~1;
 	vm.set_reg(instr.rt, data);
+}
+
+// LDR<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
+string convert_ldr_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldr%s.w %s, [%s, %s%s]", get_condition_string(cond),
+											get_reg_name(instr.rt),
+											get_reg_name(instr.rn),
+											get_reg_name(instr.rm),
+											get_shift_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 

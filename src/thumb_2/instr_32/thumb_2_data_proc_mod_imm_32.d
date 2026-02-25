@@ -72,6 +72,14 @@ execute_add_imm_t3
  	}
  	vm.set_reg(instr.rd, res.result);
 }
+
+// ADD{S}<c>.W <Rd>,<Rn>,#<const>
+string convert_add_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("add%s.w %s, %s%s", get_condition_string(cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rn),
+									  get_imm_string(instr.imm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -154,6 +162,14 @@ execute_adc_imm_t1
         vm.set_v(res.overflow);
 	}
 	vm.set_reg(instr.rd, res.result);
+}
+
+// ADC{S}<c> <Rd>,<Rn>,#<const>
+string convert_adc_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("adc%s.w %s, %s%s", add_suffix(instr, cond),
+									  get_reg_name(instr.rd),
+								 	  get_reg_name(instr.rn),
+									  get_imm_string(instr.imm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -244,6 +260,14 @@ execute_eor_imm_t1
 		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+// EOR{S}<c> <Rd>,<Rn>,#<const>
+string convert_eor_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("eor%s.w %s, %s%s", add_suffix(instr, cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rn),
+								 	  get_imm_string(instr.imm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -340,6 +364,13 @@ execute_orn_imm_t1
 	}
 	vm.set_reg(instr.rd, res);
 }
+
+string convert_orn_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("orn%s %s, %s%s", add_suffix(instr, cond),
+									get_reg_name(instr.rd),
+									get_reg_name(instr.rn),
+									get_imm_string(instr.imm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -378,6 +409,14 @@ execute_sbc_imm_t1
 		vm.set_v(res.overflow);
 	}
 	vm.set_reg(instr.rd, res.result);
+}
+
+// SBC{S}<c> <Rd>,<Rn>,#<const>
+string convert_sbc_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sbc%s.w %s, %s%s", add_suffix(instr, cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rn),
+									  get_imm_string(instr.imm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -466,6 +505,13 @@ execute_cmp_imm_t2
 	vm.set_c(res.carry);			// APSR.C = carry;
 	vm.set_v(res.overflow);			// APSR.V = overflow;
 }
+
+// CMP<c>.W <Rn>,#<const>
+string convert_cmp_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("cmp%s.w %s%s", get_condition_string(cond),
+								  get_reg_name(instr.rn),
+								  get_imm_string(instr.imm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -502,6 +548,13 @@ execute_cmn_imm_t1
 	vm.set_z(res.result); 	// APSR.Z = IsZeroBit(result);
 	vm.set_c(res.carry);	// APSR.C = carry;
 	vm.set_v(res.overflow); // APSR.V = overflow;
+}
+
+// CMN<c> <Rn>,#<const>
+string convert_cmn_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("cmn%s.w %s%s", get_condition_string(cond),
+		  						  get_reg_name(instr.rn),
+		  						  get_imm_string(instr.imm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -636,6 +689,13 @@ execute_tst_imm_t1
 	vm.set_z(res);					// APSR.Z = IsZeroBit(result);
 	vm.set_c(expand_res.carry);		// APSR.C = carry;
 	// APSR.V unchanged
+}
+
+// TST<c> <Rn>,#<const>
+string convert_tst_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("tst%s.w %s%s", get_condition_string(cond),
+								  get_reg_name(instr.rn),
+								  get_imm_string(instr.imm));
 }
 // ---------------------------------------------------------------------------------------
 

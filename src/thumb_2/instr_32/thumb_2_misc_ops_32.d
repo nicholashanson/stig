@@ -28,7 +28,6 @@ import cortex_m_core;
 //  Parse RBIT
 // ============
 
-enum field_tuples_rbit_t2 = [Tuple!(opcode, string[])(opcode.rbit_t2, ["rd","rm"])];
 // RBIT<c> <Rd>,<Rm>
 // First Half-Word: [15:4] 111110101001, [3:0] Rm
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 1010, [3:0] Rm
@@ -53,6 +52,13 @@ execute_rbit_t2
         v >>= 1;
     }
 	vm.set_reg(instr.rd, res);
+}
+
+// RBIT<c> <Rd>,<Rm>
+string convert_rbit_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("rbit%s %s, %s", get_condition_string(cond),
+								   get_reg_name(instr.rd),
+								   get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -98,6 +104,12 @@ execute_clz_t1
    	vm.set_reg(instr.rd, count);
 }
 
+// CLZ<c> <Rd>,<Rm>
+string convert_clz_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("clz%s %s, %s", get_condition_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
+}
 // ***************************************************************************************
 // *									  SEL 											 *
 // ***************************************************************************************

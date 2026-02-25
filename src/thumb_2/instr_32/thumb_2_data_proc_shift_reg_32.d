@@ -43,7 +43,6 @@ instr_32 parse_data_proc_shift_reg(const uint instr) {
 //  Parse ADD(Register)
 // =====================
 
-enum field_tuples_add_reg_t3 = [Tuple!(opcode, string[])(opcode.add_reg_t3, ["rd","rn","rm","shift"])];
 // ADD{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
 // First Half-Word: [15:5] 1110101000, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type, [3:0] Rm
@@ -75,6 +74,15 @@ execute_add_reg_t3
     	vm.set_v(res.overflow);
 	}
 }
+
+// ADD{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
+string convert_add_reg_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("add%s.w %s, %s, %s%s", add_suffix(instr, cond),
+										  get_reg_name(instr.rd), 
+								    	  get_reg_name(instr.rn), 
+								    	  get_reg_name(instr.rm),
+								    	  get_shift_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -85,7 +93,6 @@ execute_add_reg_t3
 //  Parse ADC(Register)
 // =====================
 
-enum field_tuples_adc_reg_t2 = [Tuple!(opcode, string[])(opcode.adc_reg_t2, ["rd","rn","rm","shift"])];
 // ADC.W <Rd>,<Rn>,<Rm>{,<shift>}
 // First Half-Word: [15:5] 11101011010, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type, [3:0] Rm
@@ -134,7 +141,6 @@ string convert_adc_reg_t2_to_string(const ref instr_32 instr, const condition co
 //  Parse AND(Register)
 // =====================
 
-enum field_tuples_and_reg_t2 = [Tuple!(opcode, string[])(opcode.and_reg_t2, ["rd","rn","rm","shift"])];
 // AND.W <Rd>,<Rn>,<Rm>{,<shift>}
 // First Half-Word: [15:5] 11101010000, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type, [3:0] Rm
@@ -162,6 +168,15 @@ execute_and_reg_t2
 	}
 	vm.set_reg(instr.rd, res);
 }
+
+// AND{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
+string convert_and_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("and%s.w %s, %s, %s%s", add_suffix(instr, cond),
+										  get_reg_name(instr.rd),
+										  get_reg_name(instr.rn),
+										  get_reg_name(instr.rm),
+										  get_shift_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -172,7 +187,6 @@ execute_and_reg_t2
 //  Parse EOR(Register)
 // =====================
 
-enum field_tuples_eor_reg_t2 = [Tuple!(opcode, string[])(opcode.eor_reg_t2, ["rd","rn","rm","shift"])];
 // EOR{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
 // First Half-Word: [15:5] 11101010100, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd. [7:6] imm2, [5:4] type, [3:0] Rm
@@ -201,6 +215,14 @@ execute_eor_reg_t2
     	// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_eor_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("eor%s.w %s, %s, %s%s", add_suffix(instr, cond),
+										  get_reg_name(instr.rd),
+										  get_reg_name(instr.rn),
+										  get_reg_name(instr.rm),
+										  get_shift_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -264,7 +286,6 @@ string convert_sbc_reg_t2_to_string(const ref instr_32 instr, const condition co
 //  Parse ORR(Register)
 // =====================
 
-enum field_tuples_orr_reg_t2 = [Tuple!(opcode, string[])(opcode.orr_reg_t2, ["rd","rn","rm","shift"])];
 // ORR{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
 // First Half-Word: [15:5] 11101010010, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type, [3:0] Rm
@@ -294,6 +315,14 @@ execute_orr_reg_t2
 	}
 	vm.set_reg(instr.rd, res);
 }
+
+string convert_orr_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("orr%s.w %s, %s, %s%s", add_suffix(instr, cond),
+						     			  get_reg_name(instr.rd),
+						     			  get_reg_name(instr.rn),
+						    	 		  get_reg_name(instr.rm),
+						    			  get_shift_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -304,7 +333,6 @@ execute_orr_reg_t2
 //  Parse BIC(Register)
 // =====================
 
-enum field_tuples_bic_reg_t2 = [Tuple!(opcode, string[])(opcode.bic_reg_t2, ["rd","rn","rm"])];
 // BIC{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
 // First Half-Word: [15:5] 11101010001, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type. [3:0] Rm
@@ -434,6 +462,14 @@ execute_tst_reg_t2
 	vm.set_c(shift_res.carry);	// APSR.C = carry;
 	// APSR.V unchanged
 }
+
+// TST<c>.W <Rn>,<Rm>{,<shift>}
+string convert_tst_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("tst%s.w %s, %s%s", get_condition_string(cond),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm),
+									  get_shift_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 void 
@@ -461,7 +497,6 @@ execute_shift_instr
 //  Parse ASR(Immediate)
 // ======================
 
-enum field_tuples_asr_imm_t2 = [Tuple!(opcode, string[])(opcode.asr_imm_t2, ["rd","rm","imm"])];
 // ASR{S}<c>.W <Rd>,<Rm>,#<imm5>
 // First Half-Word: [15:0] 11101010010, [4] S, [3:0] 1111 
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] 10, [3:0] Rm
@@ -485,6 +520,14 @@ execute_asr_imm_t2
 (const instr_32 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
+
+// ASR{S}<c>.W <Rd>,<Rm>,#<imm5>
+string convert_asr_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mov%s.w %s, %s%s", add_suffix(instr, cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rm),
+									  get_shift_string(instr));
+} 
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -515,6 +558,14 @@ execute_lsl_imm_t2
 (const instr_32 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
+
+// LSL{S}<c>.W <Rd>,<Rm>,#<imm5>
+string convert_lsl_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mov%s.w %s, %s%s", add_suffix(instr, cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rm),
+									  get_shift_string(instr));
+} 
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -534,7 +585,7 @@ instr_32 parse_lsr_imm_t2(const uint instr) {
 	immutable imm_5  = (imm_3 <<  2) | imm_2;
 	return instr_32(rm: 	 cast(reg)slice(instr,  0, 4), 
 					rd: 	 cast(reg)slice(instr,  8, 4),
-					imm:     imm_5, 
+					shift_n: imm_5, 
 					shift_t: shift_type.lsr);
 }
 
@@ -548,6 +599,14 @@ execute_lsr_imm_t2
 (const instr_32 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
+
+// LSR{S}<c>.W <Rd>,<Rm>,#<imm5>
+string convert_lsr_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mov%s.w %s, %s%s", add_suffix(instr, cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rm),
+									  get_shift_string(instr));
+} 
 // ---------------------------------------------------------------------------------------
 
 // ===========
@@ -628,6 +687,14 @@ execute_teq_reg_t1
 	vm.set_z(res); 				// APSR.Z = IsZeroBit(result);
 	vm.set_c(shift_res.carry);	// APSR.C = carry;
 	// APSR.V unchanged	
+}
+
+// TEQ<c> <Rn>,<Rm>{,<shift>}
+string convert_teq_reg_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("teq%s %s, %s%s", get_condition_string(cond),
+									get_reg_name(instr.rn),
+									get_reg_name(instr.rm),
+									get_shift_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 

@@ -40,6 +40,9 @@ instr_32 parse_str_imm_t3(const uint instr) {
 //  Parse STR(Immediate)
 // ======================
 
+// STRH<c> <Rt>,[<Rn>,#-<imm8>]
+// STRH<c> <Rt>,[<Rn>],#+/-<imm8>
+// STRH<c> <Rt>,[<Rn>,#+/-<imm8>]!
 // First Half-Word: [15:4] 111110000100, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [11] 1, [10] P, [9] U, [8] W, [7:0] imm8
 instr_32 parse_str_imm_t4(const uint instr) {
@@ -90,6 +93,15 @@ string convert_str_imm_t3_to_string(const ref instr_32 instr, const condition co
 										   get_reg_name(instr.rn),
 										   instr.imm);
 }
+
+// STR<c> <Rt>,[<Rn>,#-<imm8>]
+// STR<c> <Rt>,[<Rn>],#+/-<imm8>
+// STR<c> <Rt>,[<Rn>,#+/-<imm8>]!
+string convert_str_imm_t4_to_string(const ref instr_32 instr, const condition cond) {
+	return format("str%s.w %s, %s", get_condition_string(cond),
+								    get_reg_name(instr.rt),
+								    get_addr_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -115,8 +127,9 @@ instr_32 parse_strb_imm_t2(const uint instr) {
 //  Parse STRB(Immediate)
 // =======================
 
-enum field_tuples_strb_imm_t3 = [Tuple!(opcode, string[])(opcode.strb_imm_t3, ["rt","rn","imm"])];
-// STRB<c>.W <Rt>,[<Rn>,#<imm12>]
+// STRB<c> <Rt>,[<Rn>,#-<imm8>]
+// STRB<c> <Rt>,[<Rn>],#+/-<imm8>
+// STRB<c> <Rt>,[<Rn>,#+/-<imm8>]!
 // First Half-Word:[15:4] 111110001000, [3:0] Rn 
 // Second Half-Word: [15:12] Rt, [11:0] imm12
 instr_32 parse_strb_imm_t3(uint instr) {
@@ -150,12 +163,11 @@ void
 execute_strb_imm
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
-	immutable    rn   = vm.get_reg(instr.rn);
-	size_t       offset_addr;
-	offset_addr       = instr.add   ? rn + instr.imm : rn - instr.imm;
-	const size_t addr = instr.index ? offset_addr    : rn;
-	uint         data = vm.get_reg(instr.rt);
-	data              = (data & 0xff);
+	immutable    rn          = vm.get_reg(instr.rn);
+	immutable    imm         = instr.imm;
+	const size_t offset_addr = instr.add   ? rn + imm    : rn - imm;
+	const size_t addr        = instr.index ? offset_addr : rn;
+	uint         data        = vm.get_reg(instr.rt) & 0xff;
 	vm.write_byte(addr, cast(ubyte)data);
 	if (instr.wback) 
 		vm.set_reg(instr.rn, cast(uint)offset_addr);
@@ -167,6 +179,15 @@ string convert_strb_imm_t2_to_string(const ref instr_32 instr, const condition c
 											get_reg_name(instr.rn),
 											instr.imm);
 }
+
+// STRB<c> <Rt>,[<Rn>,#-<imm8>]
+// STRB<c> <Rt>,[<Rn>],#+/-<imm8>
+// STRB<c> <Rt>,[<Rn>,#+/-<imm8>]!
+string convert_strb_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("strb%s.w %s, %s", get_condition_string(cond),
+									 get_reg_name(instr.rt),
+									 get_addr_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -177,7 +198,6 @@ string convert_strb_imm_t2_to_string(const ref instr_32 instr, const condition c
 //  Parse STRH(Register)
 // ======================
 
-enum field_tuples_strh_reg_t2 = [Tuple!(opcode, string[])(opcode.strh_reg_t2, ["rt","rn","rm"])];
 // STRH<c> <Rt>,[<Rn>,<Rm>]
 // First Half-Word: [15:4] 111110000010, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [5:4] imm2, [3:0] Rm
@@ -207,12 +227,22 @@ execute_strh_reg_t2
 	const uint   target = (rt & 0xffff);
 	vm.write_half_word(addr, cast(ushort)target);
 }
+
+// STRH<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
+string convert_strh_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("strh%s.w %s, [%s, %s%s]", get_condition_string(cond),
+									         get_reg_name(instr.rt),
+									         get_reg_name(instr.rn),
+									         get_reg_name(instr.rm),
+									         get_shift_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
 // *					                   STRH 										 *
 // ***************************************************************************************
 
+// STRH<c>.W <Rt>,[<Rn>{,#<imm12>}]
 // First Half-Word: [15:4] 111110000100, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [5:4] imm2, [3:0] Rm
 instr_32 parse_strh_imm_t2(const uint instr) {
@@ -252,14 +282,13 @@ execute_strh_imm_t3
 void 
 execute_strh_imm
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
-	size_t offset_addr; 
-	immutable rn 	  = vm.get_reg(instr.rn);
-	immutable rt 	  = vm.get_reg(instr.rt);
-	immutable imm     = instr.imm;
-	offset_addr  	  = instr.add   ? rn + imm    : rn - imm;
-	const size_t addr = instr.index ? offset_addr : rn;
-	const ushort data = cast(ushort)(rt & 0xffff);
+(const instr_32 instr, ref vm_t vm) { 
+	immutable rn 	  		 = vm.get_reg(instr.rn);
+	immutable rt 	  		 = vm.get_reg(instr.rt);
+	immutable imm     		 = instr.imm;
+	const size_t offset_addr = instr.add   ? rn + imm    : rn - imm;
+	const size_t addr        = instr.index ? offset_addr : rn;
+	const ushort data 		 = cast(ushort)(rt & 0xffff);
 	vm.write_half_word(addr, data);
 	if (instr.wback) 
 		vm.set_reg(instr.rn, cast(uint)offset_addr);
@@ -269,6 +298,13 @@ string convert_strh_imm_t3_to_string(const ref instr_32 instr, const condition c
 	return format("strh%s.w %s, %s", get_condition_string(cond),
 								     get_reg_name(instr.rt),
 								     get_addr_string(instr));
+}
+
+string convert_strh_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("strh%s.w %s, [%s%s]", get_condition_string(cond),
+								         get_reg_name(instr.rt),
+								         get_reg_name(instr.rn),
+								         instr.imm != 0 ? get_imm_string(instr.imm) : "");
 }
 // ---------------------------------------------------------------------------------------
 
@@ -280,7 +316,7 @@ string convert_strh_imm_t3_to_string(const ref instr_32 instr, const condition c
 //  Parse STR(Register)
 // =====================
 
-enum field_tuples_str_reg_t2 = [Tuple!(opcode, string[])(opcode.str_reg_t2, ["rt","rn","rm","imm"])];
+// STR<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
 // First Half-Word: [15:4] 111110000100, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [5:4] imm2, [3:0] Rm
 instr_32 parse_str_reg_t2(const uint instr) {
@@ -304,6 +340,15 @@ execute_str_reg_t2
 	const size_t addr = vm.get_reg(instr.rn) + offset;
 	immutable data    = vm.get_reg(instr.rt);
 	vm.write_word(addr, data);
+}
+
+// STR<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
+string convert_str_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("str%s.w %s, [%s, %s%s]", get_condition_string(cond),
+											get_reg_name(instr.rt),
+											get_reg_name(instr.rn),
+											get_reg_name(instr.rm),
+											get_shift_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -345,3 +390,4 @@ string convert_strb_reg_t2_to_string(const ref instr_32 instr, const condition c
 											 get_reg_name(instr.rm),
 											 get_shift_string(instr));
 }
+// ---------------------------------------------------------------------------------------

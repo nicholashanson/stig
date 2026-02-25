@@ -45,4 +45,8 @@ execute_b_t2
 	pc += instr.offset + 4;
 	vm.set_reg(reg.pc, pc);
 }
+
+string convert_b_t2_to_string(const ref instr_16 instr, const condition cond) {
+	return "b <label>";
+}
 // ---------------------------------------------------------------------------------------

@@ -72,7 +72,6 @@ string convert_mov_reg_t1_to_string(const ref instr_16 instr, const condition co
 //  Parse ADD(Register)
 // =====================
 
-enum field_tuples_add_reg_t2 = [Tuple!(opcode, string[])(opcode.add_reg_t2, ["rd","rm"])];
 // ADD <Rdn>,<Rm>
 // [15:8] 01000100, [7] DN, [6:3] Rm, [2:0] Rdn
 instr_16 parse_add_reg_t2(short instr) {
@@ -129,7 +128,6 @@ string convert_add_reg_t2_to_string(const ref instr_16 instr, const condition co
 //  Parse BLX(Register)
 // =====================
 
-enum field_tuples_blx_t1 = [Tuple!(opcode, string[])(opcode.blx_t1, ["rm"])];
 // BLX <Rm>
 // [15:8] 010001111, [6:3] Rm, [2:0] 000
 instr_16 parse_blx_t1(const ushort instr) {
@@ -154,7 +152,7 @@ execute_blx_t1
 //  Execute BLX(Register) to String
 // =================================
 
-string convert_blx_t1_to_string(const ref instr_16 instr) {
+string convert_blx_t1_to_string(const ref instr_16 instr, const condition cond) {
 	return format("blx %s", instr.rm.to!string);
 }
 // ---------------------------------------------------------------------------------------
@@ -203,7 +201,7 @@ execute_bx_t1
 //  Convert BX to String
 // ======================
 
-string convert_bx_t1_to_string(const ref instr_16 instr) {
-	return format("bx %s", instr.rm.to!string);
+string convert_bx_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("bx %s", get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------

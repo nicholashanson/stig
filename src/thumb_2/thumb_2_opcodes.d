@@ -1103,6 +1103,8 @@ opcode decode_mnemonic(const uint instr) {
 				return opcode.umaal_t1;
 			if ((_op1 == 0b100) && (_op2 == 0))
 				return opcode.smlal_t1;
+			if ((_op1 == 0b001) && (_op2 == 0b1111))
+				return opcode.sdiv_t1;
 		}
 		// Multiply, multiply accumulate, and absolute difference
 		if ((op2 & op2_32.mult) == 0b0110000) 

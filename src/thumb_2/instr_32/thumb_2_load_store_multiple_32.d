@@ -38,6 +38,7 @@ import memory_sections;
 //  Parse LMDIA
 // =============
 
+// LDM<c>.W <Rn>{!},<registers>
 instr_32 parse_ldm_t2(const uint instr) {
 	immutable reg_mask = slice(instr, 0, 16);
 	reg[] reg_list;
@@ -68,17 +69,25 @@ execute_ldm_t2
 	if (instr.wback) 
 		vm.set_reg(instr.rn, rn);
 }
+
+// LDM<c>.W <Rn>{!},<registers>
+string convert_ldm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldmia%s.w %s%s, {%s}", get_condition_string(cond),
+									      get_reg_name(instr.rn),
+									      instr.wback ? "!": "",
+									      get_reg_list_string(instr.reg_list));
+}
 // ---------------------------------------------------------------------------------------
 
 // ===========
 //  Parse POP
 // ===========
 
-enum field_tuples_pop_t2 = [Tuple!(opcode, string[])(opcode.pop_t2, ["reg_list"])];
 // First Half-Word: [15:6] 1110100010, [5] W, [4] 1, [3:0] Rn
 // Second Half-Word: [15] P, [14] M, [13] 0, [12:0] register_list 
-instr_32 parse_pop_t2(uint instr) {
-	immutable reg_mask = slice(instr, 0, 16); // registers = ‘0’:M:’000000’:register_list;
+instr_32 parse_pop_t2(const uint instr) {
+	// registers = ‘0’:M:’000000’:register_list;
+	immutable reg_mask = slice(instr, 0, 16); 
 	reg[] reg_list;
 	foreach (i; 0 .. 16)
     	if (reg_mask & (1 << i))
@@ -180,6 +189,12 @@ execute_push_t2
 	foreach (r; regs) {
 		vm.push(vm.get_reg(r));
 	}
+}
+
+// STMDB<c><q> SP!, <registers>
+string convert_push_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("stmdb%s sp!, {%s}", get_condition_string(cond),
+									   get_reg_list_string(instr.reg_list));
 }
 // ---------------------------------------------------------------------------------------
 

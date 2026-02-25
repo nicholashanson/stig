@@ -36,7 +36,6 @@ import cortex_m_core;
 //  Parse TBB/TBH
 // ===============
 
-enum field_tuples_tbb_tbh_t1 = [Tuple!(opcode, string[])(opcode.tbb_tbh_t1, ["rn","rm"])];
 // TBB [<Rn>,<Rm>]
 // TBH [<Rn>,<Rm>,LSL #1]
 // First Half-Word: [15:5] 11101010100, [4] S, [3:0] Rn
@@ -57,11 +56,21 @@ execute_tbb_tbh_t1
 (const ref instr_32 instr, ref vm_t vm) {
 	uint half_words;
 	//const uint rn = cpu.get(instr.rn);
-	immutable  rm   = vm.get_reg(instr.rm);
+	immutable  rm   =  vm.get_reg(instr.rm);
 	const uint base = (vm.get_pc() + 4) & ~3;
 	const uint addr = base + (instr.is_tbh ? (rm << 1) : rm);
 	half_words = instr.is_tbh ? vm.read_half_word(addr) : vm.read_byte(addr);
 	vm.increment_pc(2 * half_words);
+}
+
+// TBB<c> [<Rn>,<Rm>] 
+// TBH<c> [<Rn>,<Rm>,LSL #1]
+string convert_tbb_tbh_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return instr.is_tbh ?
+		format("tbh%s [%s, %s, lsl, #1]", get_condition_string(cond), get_reg_name(instr.rn),
+																      get_reg_name(instr.rm)) :
+		format("tbb%s [%s, %s]", 		  get_condition_string(cond), get_reg_name(instr.rn), 
+																	  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -73,8 +82,7 @@ execute_tbb_tbh_t1
 //  Parse LDREX
 // =============
 
-enum field_tuples_ldrex_t1 = [Tuple!(opcode, string[])(opcode.ldrex_t1, ["rt","rn","imm"])];
-// LDREX <Rt>,[<Rn>{,#<imm8>}]
+// LDREX<c> <Rt>,[<Rn>{,#<imm8>}]
 // First Half-Word: [15:4] 111010000101, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [11:8] 1111, [7:0] imm8
 instr_32 parse_ldrex_t1(const uint instr) {
@@ -95,6 +103,13 @@ execute_ldrex_t1
 	addr += instr.imm;
 	immutable val = vm.read_word(addr);
 	vm.set_reg(instr.rt, val);
+}
+
+// LDREX<c> <Rt>,[<Rn>{,#<imm8>}]
+string convert_ldrex_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrex%s %s, [%s%s]", get_reg_name(instr.rt),
+										get_reg_name(instr.rn),
+										instr.imm != 0 ? get_imm_string(instr.imm) : "");
 }
 // ---------------------------------------------------------------------------------------
 
@@ -219,6 +234,15 @@ execute_strex_t1
 	vm.write_word(addr, target);
 	vm.set_reg(instr.rd, 0);
 }
+
+// STREX<c> <Rd>,<Rt>,[<Rn>{,#<imm8>}]
+string convert_strex_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("strex%s %s, %s, [%s%s]", get_condition_string(cond),
+											get_reg_name(instr.rd),
+											get_reg_name(instr.rt),
+											get_reg_name(instr.rn),
+											instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -311,7 +335,6 @@ execute_strexh_t1
 //  Parse LDRD(Immediate)
 // =======================
 
-enum field_tuples_ldrd_imm_t1 = [Tuple!(opcode, string[])(opcode.ldrd_imm_t1, ["rt","rt2","rn","imm"])];
 // LDRD<c> <Rt>,<Rt2>,[<Rn>{,#+/-<imm8>}]
 // LDRD<c> <Rt>,<Rt2>,[<Rn>],#+/-<imm8>
 // LDRD<c> <Rt>,<Rt2>,[<Rn>,#+/-<imm8>]!
@@ -346,5 +369,15 @@ execute_ldrd_imm_t1
 	vm.set_reg(instr.rt_2, data2);
 	if (instr.wback) 
 		vm.set_reg(instr.rn, cast(uint)offset_addr);
+}
+
+// LDRD<c> <Rt>,<Rt2>,[<Rn>{,#+/-<imm8>}]
+// LDRD<c> <Rt>,<Rt2>,[<Rn>],#+/-<imm8>
+// LDRD<c> <Rt>,<Rt2>,[<Rn>,#+/-<imm8>]!
+string convert_ldrd_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrd%s %s, %s, %s", get_condition_string(cond),
+									   get_reg_name(instr.rt),
+									   get_reg_name(instr.rt_2),
+									   get_addr_string(instr));
 }
 // ---------------------------------------------------------------------------------------

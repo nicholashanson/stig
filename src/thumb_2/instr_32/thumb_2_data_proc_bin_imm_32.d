@@ -104,12 +104,16 @@ string convert_bfc_t1_to_string(const ref instr_32 instr, const condition cond) 
 //  Parse BFI
 // ===========
 
+// BFI<c> <Rd>,<Rn>,#<lsb>,#<width>
+// [15:4] 111100110110, [3:0] Rn
+// [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5] 0, [4:0] msb
 instr_32 parse_bfi_t1(const uint instr) {
     immutable imm_2 = slice(instr,  6, 2);
     immutable imm_3 = slice(instr, 12, 3);
     return instr_32(msb: slice(instr,  0, 5),
                     lsb: (imm_3 << 2) | imm_2,
-                    rd:  cast(reg)slice(instr, 8, 4));
+                    rd:  cast(reg)slice(instr,  8, 4),
+                    rn:  cast(reg)slice(instr, 16, 4));
 }
 
 // =============
@@ -130,6 +134,15 @@ execute_bfi_t1
         res = (res & ~field_mask) | insert_bits;
     }
     vm.set_reg(instr.rd, res);
+}
+
+// BFI<c> <Rd>,<Rn>,#<lsb>,#<width>
+string convert_bfi_t1_to_string(const ref instr_32 instr, const condition cond) {
+    return format("bfi%s %s, %s%s%s", get_condition_string(cond),
+                                      get_reg_name(instr.rd),
+                                      get_reg_name(instr.rn),
+                                      get_imm_string(instr.lsb),
+                                      get_imm_string(instr.msb - instr.lsb + 1));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -155,7 +168,6 @@ instr_32 parse_add_imm_t4(const uint instr) {
                     imm: imm);
     // setflags = FALSE;
 }
-// ---------------------------------------------------------------------------------------
 
 // ========================
 //  Execute ADD(Immediate)
@@ -176,6 +188,14 @@ execute_add_imm_t4
         vm.set_v(res.overflow);          // APSR.V = overflow;
     }
     vm.set_reg(instr.rd, res.result);
+}
+
+// ADDW<c> <Rd>,<Rn>,#<imm12>
+string convert_add_imm_t4_to_string(const ref instr_32 instr, const condition cond) {
+    return format("addw%s %s, %s%s", get_condition_string(cond),
+                                     get_reg_name(instr.rd),
+                                     get_reg_name(instr.rn),
+                                     get_imm_string(instr.imm));
 }
 // ---------------------------------------------------------------------------------------
 

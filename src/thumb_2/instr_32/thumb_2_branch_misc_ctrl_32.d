@@ -15,7 +15,6 @@ import cortex_m_core;
 //  Parse BL
 // ==========
 
-enum field_tuples_bl_t1 = [Tuple!(opcode, string[])(opcode.bl_t1, ["label"])];
 // BL<c> <label> 
 // First Half-Word: [15:11] 11110, [10] S, [9:0] imm10
 // Second Half-Word: [15:14] 11, [13] J1, [12] 1, [11] J2, [10:0] imm11
@@ -41,7 +40,7 @@ instr_32 parse_bl_t1(const uint instr) {
 void 
 execute_bl_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	const uint pc  = vm.get_reg(reg.pc);
 	const uint res = ((pc + 4) | 0b1);
 	vm.set_reg(reg.lr, res);
@@ -52,8 +51,9 @@ execute_bl_t1
 //  Convert BL to String
 // ======================
 
-string convert_bl_t1_to_string(const ref instr_32 instr) {
-	return "bl <label>"; 
+// BL<c> <label> 
+string convert_bl_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("bl%s <label>", get_condition_string(cond)); 
 }
 // ---------------------------------------------------------------------------------------
 
@@ -67,7 +67,6 @@ string convert_bl_t1_to_string(const ref instr_32 instr) {
 //  Parse MSR
 // ===========
 
-enum field_tuples_msr_t1 = [Tuple!(opcode, string[])(opcode.msr_t1, ["spec_reg", "rn"])];
 // MSR<c> <spec_reg>,<Rn>
 // First Half-Word: [15:4] 111100111000, [3:0] Rn
 // Second Half-Word: [15:12] 1000, [11:10] mask, [9:8] 00, [7:0] SYSm
@@ -209,6 +208,11 @@ execute_b_t4
 	pc += instr.offset + 4;
 	vm.set_reg(reg.pc, pc);
 }
+
+// B<c>.W <label>
+string convert_b_t4_to_string(const ref instr_32 instr, const condition cond) {
+	return format("b%s.w <label>", get_condition_string(cond));
+}
 // ---------------------------------------------------------------------------------------
 
 // =========
@@ -252,7 +256,7 @@ execute_b_t3
 //  Convert B to String
 // =====================
 
-string convert_b_t3_to_string(const ref instr_32 instr) {
+string convert_b_t3_to_string(const ref instr_32 instr, const condition cond) {
 	return "b.w <label>";
 }
 // --------------------------------------------------------------------------------------
@@ -282,7 +286,7 @@ execute_nop_t2
 //  Convert NOP to String
 // =======================
 
-string convert_nop_t2_to_string(const ref instr_32 instr) {
+string convert_nop_t2_to_string(const ref instr_32 instr, const condition cond) {
 	return "nop";
 }
 // --------------------------------------------------------------------------------------
@@ -295,7 +299,8 @@ string convert_nop_t2_to_string(const ref instr_32 instr) {
 //  Parse ISB
 // ===========
 
-instr_32 parse_isb_t1(uint instr) {
+// ISB<c> #<option>
+instr_32 parse_isb_t1(const uint instr) {
 	return instr_32();
 }
 
@@ -312,8 +317,8 @@ execute_isb_t1
 //  Convert ISB to String
 // =======================
 
-string convert_isb_t1_to_string(const ref instr_32 instr) {
-	return "isb";
+string convert_isb_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return "isb sy";
 }
 // --------------------------------------------------------------------------------------
 
@@ -342,7 +347,7 @@ execute_dsb_t1
 //  Convert DSB to String
 // =======================
 
-string convert_dsb_t1_to_string(const ref instr_32 instr) {
+string convert_dsb_t1_to_string(const ref instr_32 instr, const condition cond) {
 	return "dsb";
 }
 // --------------------------------------------------------------------------------------
@@ -372,7 +377,7 @@ execute_dmb_t1
 //  Convert DSB to String
 // =======================
 
-string convert_dmb_t1_to_string(const ref instr_32 instr) {
+string convert_dmb_t1_to_string(const ref instr_32 instr, const condition cond) {
 	return "dmb";
 }
 // --------------------------------------------------------------------------------------
@@ -402,7 +407,7 @@ execute_yield_t2
 //  Convert DSB to String
 // =======================
 
-string convert_yield_t2_to_string(const ref instr_32 instr) {
+string convert_yield_t2_to_string(const ref instr_32 instr, const condition cond) {
 	return "yield";
 }
 // --------------------------------------------------------------------------------------
