@@ -163,3 +163,58 @@ string convert_mls_t1_to_string(const ref instr_32 instr, const condition cond) 
 										  get_reg_name(instr.ra));
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									 SMUL 											 *
+// ***************************************************************************************
+// Signed Multiply (halfwords) multiplies two signed 16-bit quantities, taken from either 
+// the bottom or the top half of their respective source registers. The other halves of 
+// these source registers are ignored. The 32-bit product is written to the destination 
+// register. No overflow is possible during this instruction.
+
+// SMUL<x><y><c> <Rd>,<Rn>,<Rm>
+instr_32 parse_smul_t1(const uint instr) {
+	return instr_32(rm: 	cast(reg )slice(instr,  0, 4),
+					rn:     cast(reg )slice(instr, 16, 4),
+					rd:     cast(reg )slice(instr,  8, 4),
+					n_high: cast(bool)slice(instr,  5, 1),
+					m_high: cast(bool)slice(instr,  4, 1));
+}
+
+void 
+execute_smul_t1 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable  rn = vm.get_reg(instr.rn);
+	immutable  rm = vm.get_reg(instr.rm);
+	// operand1 = if n_high then R[n]<31:16> else R[n]<15:0>;
+	const int op1 = instr.n_high ? cast(short)slice(rn, 16, 16) :
+								   cast(short)slice(rn,  0, 16);
+	// operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
+	const int op2 = instr.m_high ? cast(short)slice(rm, 16, 16) :
+								   cast(short)slice(rm,  0, 16);
+	// result = SInt(operand1) * SInt(operand2);
+	const int res = op1 * op2;
+	// R[d] = result<31:0>;
+	vm.set_reg(instr.rd, cast(uint)res);
+	// Signed overflow cannot occur
+}
+
+// SMUL<x><y><c> <Rd>,<Rn>,<Rm>
+string convert_smul_t1_to_string(const ref instr_32 instr, const condition cond) {
+	string suffix;
+	ubyte  s = (cast(uint)instr.n_high << 1) | cast(uint)instr.m_high;
+	switch (s) {
+		case 0b10: suffix = "tb"; break;
+		case 0b01: suffix = "bt"; break;
+		case 0b00: suffix = "bb"; break;
+		case 0b11: suffix = "tt"; break;
+		default  : break;
+	}
+	return format("smul%s%s %s, %s, %s", suffix,
+										 get_condition_string(cond),
+										 get_reg_name(instr.rd),
+										 get_reg_name(instr.rn),
+										 get_reg_name(instr.rm));
+}

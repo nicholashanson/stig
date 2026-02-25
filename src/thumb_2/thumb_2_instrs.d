@@ -258,6 +258,8 @@ struct instr_32 {
 	special_reg spec_reg;
 	bool 	   set_flags;
 	uint  unexpanded_imm;
+	bool   		  m_high;
+	bool 		  n_high;
 }
 // ---------------------------------------------------------------------------------------
 

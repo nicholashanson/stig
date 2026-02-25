@@ -222,6 +222,7 @@ enum opcode : ubyte {
 	mla_t1,
 	mul_t2,
 	mls_t1,
+	smul_t1,
 	// long mult
 	smull_t1,
 	umull_t1,
@@ -798,15 +799,19 @@ opcode decode_load_store_dual(const uint instr) {
 // =============
 
 opcode decode_mult(uint instr) {
-	ubyte ra  = cast(ubyte)((instr >> 12) & 0xf);
-	ubyte op1 = cast(ubyte)((instr >> 20) & 0x7);
-	ubyte op2 = cast(ubyte)((instr >>  4) & 0x3);
+	immutable ra  = slice(instr, 12, 4);
+	immutable op1 = slice(instr, 20, 3);
+	immutable op2 = slice(instr,  4, 2);
 	enum ubyte pc = 0xf;
+	if (op1 == 0b001) {
+		if (ra == pc) 
+			return opcode.smul_t1;
+	}
 	ubyte op12 = cast(ubyte)((op1 << 2) | op2); 
 	switch (op12) {
 		case 0b00000: return ra == pc ? opcode.mul_t2 : opcode.mla_t1;
 		case 0b00001: return opcode.mls_t1;
-		default: break;// assert(false, "Invalid 32-bit Data Mult Instruction: " ~ format("%04X", instr));
+		default: break;
 	}
 	return opcode.invalid;
 }
