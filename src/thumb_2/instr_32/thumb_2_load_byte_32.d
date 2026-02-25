@@ -310,7 +310,7 @@ void execute_ldrsh_t1
 
 void execute_ldrsh_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrsh_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_ldrsh_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
 void execute_ldrsht_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 

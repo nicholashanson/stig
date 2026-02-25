@@ -162,3 +162,47 @@ string convert_ldrh_imm_t2_to_string(const ref instr_32 instr, const condition c
 										 get_imm_string(instr.imm));
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   LDRSH 										 *
+// ***************************************************************************************
+
+// LDRSH<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
+instr_32 parse_ldrsh_reg_t2(const uint instr) {
+	return instr_32(rt:		 cast(reg)slice(instr, 12, 4),
+					rn: 	 cast(reg)slice(instr, 16, 4),
+					rm:		 cast(reg)slice(instr,  0, 4),
+					shift_n: slice(instr, 4, 2),
+					shift_t: shift_type.lsl,
+					index:   true,
+					add:     true);
+}
+
+void 
+execute_ldrsh_reg_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable    rm          = vm.get_reg(instr.rm);
+	immutable    rn          = vm.get_reg(instr.rn);
+	// offset = Shift(R[m], shift_t, shift_n, APSR.C);
+	const uint   offset      = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
+	// offset_addr = if add then (R[n] + offset) else (R[n] - offset);
+	const size_t offset_addr = instr.add   ? rn + offset : rn - offset;
+ 	// address = if index then offset_addr else R[n];
+ 	const size_t addr        = instr.index ? offset_addr : rn;
+	// data = MemU[address,2];
+	immutable data           = cast(int)cast(short)vm.read_half_word(addr);
+	// if wback then R[n] = offset_addr;
+	// R[t] = SignExtend(data, 32);
+	vm.set_reg(instr.rt, cast(uint)data);
+}
+
+// LDRSH<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
+string convert_ldrsh_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrsh%s.w %s, [%s, %s%s]", get_condition_string(cond),
+											  get_reg_name(instr.rt),
+											  get_reg_name(instr.rn),
+											  get_reg_name(instr.rn),
+											  get_shift_string(instr));
+}
