@@ -203,6 +203,6 @@ string convert_ldrsh_reg_t2_to_string(const ref instr_32 instr, const condition 
 	return format("ldrsh%s.w %s, [%s, %s%s]", get_condition_string(cond),
 											  get_reg_name(instr.rt),
 											  get_reg_name(instr.rn),
-											  get_reg_name(instr.rn),
+											  get_reg_name(instr.rm),
 											  get_shift_string(instr));
 }

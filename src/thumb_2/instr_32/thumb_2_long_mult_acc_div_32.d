@@ -36,7 +36,6 @@ private uint decimal_to_hex_mask(uint n) {
 //  Parse SMULL
 // =============
 
-enum field_tuples_smull_t1 = [Tuple!(opcode, string[])(opcode.smull_t1, ["rd_lo","rd_hi","rn","rm"])];
 // SMULL <RdLo>,<RdHi>,<Rn>,<Rm>
 // First Half-Word: [15:4] 111110111000, [3:0] Rn
 // Second Half-Word: [15:12] RdLo, [11:8] RdHi, [7:4] 0000, [3:1] Rm 
@@ -116,7 +115,6 @@ string convert_udiv_t1_to_string(const ref instr_32 instr, const condition cond)
 // Unsigned Multiply Long multiplies two 32-bit unsigned values to produce a 64-bit 
 // result.
 
-enum field_tuples_umull_t1 = [Tuple!(opcode, string[])(opcode.umull_t1, ["rd_lo","rd_hi","rn","rm"])];
 // UMULL<c> <RdLo>,<RdHi>,<Rn>,<Rm>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 01110, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8
@@ -194,3 +192,46 @@ string convert_umlal_t1_to_string(const ref instr_32 instr, const condition cond
 											get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  UMAAL											 *
+// ***************************************************************************************
+
+// Unsigned Multiply Accumulate Accumulate Long multiplies two unsigned 32-bit values to 
+// produce a 64-bit value, adds two unsigned 32-bit values, and writes the 64-bit result 
+// to two registers.
+
+// UMAAL<c> <RdLo>,<RdHi>,<Rn>,<Rm>
+instr_32 parse_umaal_t1(const uint instr) {
+	return instr_32(rm:    cast(reg)slice(instr,  0, 4),
+				    rd_hi: cast(reg)slice(instr,  8, 4),
+				    rd_lo: cast(reg)slice(instr, 12, 4),
+				    rn:    cast(reg)slice(instr, 16, 4));
+}
+
+void 
+execute_umaal_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable rn    = vm.get_reg(instr.rn);
+	immutable rm    = vm.get_reg(instr.rm);
+	immutable rd_hi = vm.get_reg(instr.rd_hi);
+	immutable rd_lo = vm.get_reg(instr.rd_lo);
+	// result = UInt(R[n]) * UInt(R[m]) + UInt(R[dHi]) + UInt(R[dLo]);
+	const ulong res = (cast(ulong)rn * cast(ulong)rm) + cast(ulong)rd_hi + cast(ulong)rd_lo;
+	// R[dHi] = result<63:32>;
+	vm.set_reg(instr.rd_hi, slice(res, 32, 32));
+	// R[dLo] = result<31:0>;
+	vm.set_reg(instr.rd_lo, slice(res,  0, 32));
+}
+
+
+// UMAAL<c> <RdLo>,<RdHi>,<Rn>,<Rm>
+string convert_umaal_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("umaal%s %s, %s, %s, %s", get_condition_string(cond),
+											get_reg_name(instr.rd_lo),
+											get_reg_name(instr.rd_hi),
+											get_reg_name(instr.rn),
+											get_reg_name(instr.rm));
+}

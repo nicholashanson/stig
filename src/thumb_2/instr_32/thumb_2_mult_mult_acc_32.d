@@ -82,7 +82,6 @@ string convert_mla_t1_to_string(const ref instr_32 instr, const condition cond) 
 //  Parse MUL
 // ===========
 
-enum field_tuples_mul_t2 = [Tuple!(opcode, string[])(opcode.mul_t2, ["rd","rn","rm"])];
 // MUL<c> <Rd>,<Rn>,<Rm>
 // First Half-Word: [15:4] 111110110000, [3:0] Rn
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000, [3:0] Rm
@@ -129,7 +128,6 @@ string convert_mul_t2_to_string(const ref instr_32 instr, const condition cond) 
 //  Parse MLS
 // ===========
 
-enum field_tuples_mls_t1 = [Tuple!(opcode, string[])(opcode.mls_t1, ["rd","rn","rm","ra"])];
 // MLS<c> <Rd>,<Rn>,<Rm>,<Ra>
 // First Half-Word: [15:4] 111110110000, [3:0] Rn
 // Second Half-Word: [15:12] Ra, [11:8] Rd, [7:4] 0001, [3:0] Rm
