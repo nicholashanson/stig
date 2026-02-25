@@ -267,7 +267,6 @@ void execute_movt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_mov_reg_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ror_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_rrx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_uxtb_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_sxth_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_sxtb_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_sxtab_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

@@ -24,6 +24,7 @@ import thumb_2_uncond_branch_16;
 import thumb_2_misc_16;
 import thumb_2_store_mult_reg_16;
 import thumb_2_load_store_single_data_item_16;
+import thumb_2_load_mult_reg_16;
 // 32-bit instructions
 import thumb_2_load_store_dual_exc_32;
 import thumb_2_branch_misc_ctrl_32;
@@ -168,7 +169,8 @@ unittest {
         test_case(0x4208,      			    "tst r0, r1"),
         test_case(0x4042,      			   "eors r2, r0"),
         test_case(0xb208,      			   "sxth r0, r1"),
-        test_case(0xc303,      	   "stmia r3!, {r0, r1}")
+        test_case(0xc303,      	   "stmia r3!, {r0, r1}"),
+        test_case(0xcc03,      	   "ldmia r4!, {r0, r1}")
 	]; 
 
 	foreach (t; tests) {
@@ -244,7 +246,8 @@ unittest {
 		test_case(0xf8180006, 							   "ldrb.w r0, [r8, r6]"),
 		test_case(0xf8059000, 							   "strb.w r9, [r5, r0]"),
 		test_case(0xf8180006, 							   "ldrb.w r0, [r8, r6]"),
-		test_case(0xf8237b02, 							   "strh.w r7, [r3], #2")
+		test_case(0xf8237b02, 							   "strh.w r7, [r3], #2"),
+		test_case(0xfa5ff788, 									 "uxtb.w r7, r8")
 	];
 
 	foreach (t; tests) {

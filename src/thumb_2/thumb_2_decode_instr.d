@@ -19,6 +19,7 @@ import thumb_2_uncond_branch_16;
 import thumb_2_misc_16;
 import thumb_2_store_mult_reg_16;
 import thumb_2_load_store_single_data_item_16;
+import thumb_2_load_mult_reg_16;
 // 32-bit instructions
 import thumb_2_load_store_dual_exc_32;
 import thumb_2_branch_misc_ctrl_32;

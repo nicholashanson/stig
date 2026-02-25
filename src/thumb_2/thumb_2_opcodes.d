@@ -13,6 +13,9 @@ enum opcode : ubyte {
 	// pc-rel
 	// store multiple registers
 	stm_t1,
+	// load multiple registers
+	ldm_t1,
+	// pc-rel
 	adr_t1,
 	// branch sup call
 	svc_t1,
@@ -459,6 +462,9 @@ opcode decode_mnemonic(const ushort instr) {
     // Store multiple registers
 	if (slice(instr, 11, 5) == 0b11000)
     	return opcode.stm_t1;
+    // Load multiple registers
+	if (slice(instr, 11, 5) == 0b11001)
+    	return opcode.ldm_t1;
     // Generate SP-relative address
     if (slice(instr, 11, 5) == 0b10101) {
 		if (slice(instr, 12, 4) == 0b1010) {

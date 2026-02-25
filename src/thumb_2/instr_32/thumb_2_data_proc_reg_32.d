@@ -244,4 +244,34 @@ string convert_uadd8_t1_to_string(const ref instr_32 instr, const condition cond
 }
 // ---------------------------------------------------------------------------------------
 
+// ***************************************************************************************
+// *									  UXTB 											 *
+// ***************************************************************************************
 
+instr_32 parse_uxtb_t2(const uint instr) {
+	// rotation = UInt(rotate:’000’);
+	return instr_32(rm:  cast(reg)slice(instr, 0, 4),
+					rd:  cast(reg)slice(instr, 8, 4),
+					imm: slice(instr, 4, 2) << 3);
+}
+
+void
+execute_uxtb_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable rm       = vm.get_reg(instr.rm);
+	// rotated = ROR(R[m], rotation);
+	const uint rotated = rotr(rm, instr.imm);
+	// R[d] = ZeroExtend(rotated<7:0>, 32);
+	vm.set_reg(instr.rd, rotated);
+}
+
+// UXTB<c>.W <Rd>,<Rm>{,<rotation>}
+string convert_uxtb_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("uxtb%s.w %s, %s%s", get_condition_string(cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rm),
+									   instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
+// ---------------------------------------------------------------------------------------
