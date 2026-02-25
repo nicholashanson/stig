@@ -686,3 +686,40 @@ string convert_sub_imm_t3_to_string(const ref instr_32 instr, const condition co
 										 instr.imm);
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *                                      TEQ                                            *
+// ***************************************************************************************
+
+// TEQ<c> <Rn>,#<const>
+instr_32 parse_teq_imm_t1(const uint instr) {
+	// (imm32, carry) = ThumbExpandImm_C(i:imm3:imm8, APSR.C);
+	return parse_data_proc_mod_imm(instr);
+}
+
+void 
+execute_teq_imm_t1 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// if ConditionPassed() then
+	// EncodingSpecificOperations();
+	immutable  rn         = vm.get_reg(instr.rn);
+	immutable  imm        = instr.unexpanded_imm;
+	immutable  expand_res = thumb_expand_imm_c(cast(ushort)imm, vm.get_c());
+	// result = R[n] EOR imm32;
+	const uint res        = rn ^ expand_res.imm;
+	// APSR.N = result<31>
+	vm.set_n(res);
+	// APSR.Z = IsZeroBit(result);
+	vm.set_z(res);
+	// APSR.C = carry;
+	vm.set_c(expand_res.carry);
+	// APSR.V unchanged
+}
+
+// TEQ<c> <Rn>,#<const>
+string convert_teq_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("teq%s %s%s", get_condition_string(cond),
+								get_reg_name(instr.rn),
+								get_imm_string(instr.imm));
+}
