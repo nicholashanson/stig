@@ -223,6 +223,7 @@ enum opcode : ubyte {
 	mul_t2,
 	mls_t1,
 	smul_t1,
+	smla_t1,
 	// long mult
 	smull_t1,
 	umull_t1,
@@ -809,6 +810,7 @@ opcode decode_mult(uint instr) {
 	if (op1 == 0b001) {
 		if (ra == pc) 
 			return opcode.smul_t1;
+		return opcode.smla_t1;
 	}
 	ubyte op12 = cast(ubyte)((op1 << 2) | op2); 
 	switch (op12) {

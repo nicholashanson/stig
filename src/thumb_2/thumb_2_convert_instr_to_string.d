@@ -261,7 +261,8 @@ unittest {
 		test_case(0xfbe15366, 							  "umaal r5, r3, r1, r6"),
 		test_case(0xf0900f00, 	  								    "teq r0, #0"),
 		test_case(0xea5f0030, 								"movs.w r0, r0, rrx"),
-		test_case(0xfbc50106, 	  						  "smlal r0, r1, r5, r6")
+		test_case(0xfbc50106, 	  						  "smlal r0, r1, r5, r6"),
+		test_case(0xfb14340a, 							 "smlabb r4, r4, sl, r3")
 	];
 
 	foreach (t; tests) {

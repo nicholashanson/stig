@@ -19,11 +19,11 @@ import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
 
-private uint slice(const ulong instr, const uint shift, const uint width) {
-	return cast(uint)((instr >> shift) & decimal_to_hex_mask(width));
+private ulong slice(const ulong instr, const uint shift, const uint width) {
+	return (instr >> shift) & decimal_to_hex_mask(width);
 }
 
-private uint decimal_to_hex_mask(uint n) {
+private ulong decimal_to_hex_mask(uint n) {
     return (1u << n) - 1;
 }
 
@@ -178,9 +178,9 @@ execute_umlal_t1
 	// result = UInt(R[n]) * UInt(R[m]) + UInt(R[dHi]:R[dLo]);
 	const ulong res   = (cast(ulong)rn * cast(ulong)rm) + acc;
 	// R[dHi] = result<63:32>;
-	vm.set_reg(instr.rd_hi, slice(res, 32, 32));
+	vm.set_reg(instr.rd_hi, cast(uint)slice(res, 32, 32));
 	// R[dLo] = result<31:0>;
-	vm.set_reg(instr.rd_lo, slice(res,  0, 32));
+	vm.set_reg(instr.rd_lo, cast(uint)slice(res,  0, 32));
 }
 
 // UMLAL<c> <RdLo>,<RdHi>,<Rn>,<Rm>
@@ -221,9 +221,9 @@ execute_umaal_t1
 	// result = UInt(R[n]) * UInt(R[m]) + UInt(R[dHi]) + UInt(R[dLo]);
 	const ulong res   = (cast(ulong)rn * cast(ulong)rm) + cast(ulong)rd_hi + cast(ulong)rd_lo;
 	// R[dHi] = result<63:32>;
-	vm.set_reg(instr.rd_hi, slice(res, 32, 32));
+	vm.set_reg(instr.rd_hi, cast(uint)slice(res, 32, 32));
 	// R[dLo] = result<31:0>;
-	vm.set_reg(instr.rd_lo, slice(res,  0, 32));
+	vm.set_reg(instr.rd_lo, cast(uint)slice(res,  0, 32));
 }
 
 
@@ -262,9 +262,9 @@ execute_smlal_t1
 	// result = SInt(R[n]) * SInt(R[m]) + SInt(R[dHi]:R[dLo]);
 	const long res   = (rn * rm) + acc;
 	// R[dHi] = result<63:32>;
-	vm.set_reg(instr.rd_hi, slice(cast(ulong)res, 32, 32));
+	vm.set_reg(instr.rd_hi, cast(uint)slice(cast(ulong)res, 32, 32));
 	// R[dLo] = result<31:0>;
-	vm.set_reg(instr.rd_lo, slice(cast(ulong)res,  0, 32));
+	vm.set_reg(instr.rd_lo, cast(uint)slice(cast(ulong)res,  0, 32));
 }
 
 

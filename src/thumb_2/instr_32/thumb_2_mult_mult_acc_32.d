@@ -162,6 +162,19 @@ string convert_mls_t1_to_string(const ref instr_32 instr, const condition cond) 
 }
 // ---------------------------------------------------------------------------------------
 
+string get_smul_suffix(const bool n_high, const bool m_high) {
+	string suffix;
+	ubyte  s = (cast(uint)n_high << 1) | cast(uint)m_high;
+	switch (s) {
+		case 0b10: suffix = "tb"; break;
+		case 0b01: suffix = "bt"; break;
+		case 0b00: suffix = "bb"; break;
+		case 0b11: suffix = "tt"; break;
+		default  : break;
+	}
+	return suffix;
+}
+
 // ***************************************************************************************
 // *									 SMUL 											 *
 // ***************************************************************************************
@@ -201,19 +214,60 @@ execute_smul_t1
 
 // SMUL<x><y><c> <Rd>,<Rn>,<Rm>
 string convert_smul_t1_to_string(const ref instr_32 instr, const condition cond) {
-	string suffix;
-	ubyte  s = (cast(uint)instr.n_high << 1) | cast(uint)instr.m_high;
-	switch (s) {
-		case 0b10: suffix = "tb"; break;
-		case 0b01: suffix = "bt"; break;
-		case 0b00: suffix = "bb"; break;
-		case 0b11: suffix = "tt"; break;
-		default  : break;
-	}
-	return format("smul%s%s %s, %s, %s", suffix,
+	return format("smul%s%s %s, %s, %s", get_smul_suffix(instr.n_high, instr.m_high),
 										 get_condition_string(cond),
 										 get_reg_name(instr.rd),
 										 get_reg_name(instr.rn),
 										 get_reg_name(instr.rm));
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									 SMLA 											 *
+// ***************************************************************************************
+
+// SMLA<x><y><c> <Rd>,<Rn>,<Rm>,<Ra>
+instr_32 parse_smla_t1(const uint instr) {
+	return instr_32(rm: 	cast(reg )slice(instr,  0, 4),
+					rn:     cast(reg )slice(instr, 16, 4),
+					rd:     cast(reg )slice(instr,  8, 4),
+					ra:     cast(reg )slice(instr, 12, 4),
+					n_high: cast(bool)slice(instr,  5, 1),
+					m_high: cast(bool)slice(instr,  4, 1));
+}
+
+void 
+execute_smla_t1 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	const int rn    = vm.get_reg(instr.rn);
+	const int rm    = vm.get_reg(instr.rm);
+	const int ra    = vm.get_reg(instr.ra);
+	const op1 	    = instr.n_high ? cast(short)slice(rn, 16, 16) : 
+							         cast(short)slice(rn,  0, 16);
+	// operand1 = if n_high then R[n]<31:16> else R[n]<15:0>;
+	const op2 	    = instr.m_high ? cast(short)slice(rm, 16, 16) :
+							   	     cast(short)slice(rm,  0, 16);
+	// operand2 = if m_high then R[m]<31:16> else R[m]<15:0>;
+	// result = SInt(operand1) * SInt(operand2) + SInt(R[a]);
+	const long wide = (cast(long)op1 * cast(long)op2) + cast(long)ra;
+	const int  res  =  cast(int )wide;
+	// R[d] = result<31:0>;
+	vm.set_reg(instr.rd, cast(uint)res);
+	// if result != SInt(result<31:0>) then // Signed overflow
+	if (wide != cast(long)res) 
+		// APSR.Q = ‘1’;
+		vm.set_q(true);
+	// }
+}
+
+// SMLA<x><y><c> <Rd>,<Rn>,<Rm>,<Ra>
+string convert_smla_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("smla%s %s, %s, %s, %s", get_smul_suffix(instr.n_high, instr.m_high),
+										   get_reg_name(instr.rd),
+										   get_reg_name(instr.rn),
+										   get_reg_name(instr.rm),
+										   get_reg_name(instr.ra));
 }
 // ---------------------------------------------------------------------------------------
