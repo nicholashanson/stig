@@ -275,3 +275,73 @@ string convert_uxtb_t2_to_string(const ref instr_32 instr, const condition cond)
 									   instr.imm != 0 ? get_imm_string(instr.imm) : "");
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  UXTAH 										 *
+// ***************************************************************************************
+
+// UXTAH<c> <Rd>,<Rn>,<Rm>{,<rotation>}
+instr_32 parse_uxtah_t1(const uint instr) {
+	// rotation = UInt(rotate:’000’);
+	return instr_32(rm:  cast(reg)slice(instr,  0, 4),
+					rd:  cast(reg)slice(instr,  8, 4),
+					rn:  cast(reg)slice(instr, 16, 4),
+					imm: slice(instr, 4, 2) << 3);
+}
+
+void 
+execute_uxtah_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable rm  = vm.get_reg(instr.rm);
+	immutable rn  = vm.get_reg(instr.rn);
+	immutable imm = instr.imm;
+	// rotated = ROR(R[m], rotation);
+	const uint rotated = rotr(rm, imm);
+	// R[d] = R[n] + ZeroExtend(rotated<15:0>, 32);
+	vm.set_reg(instr.rd, rn + (rotated & 0xffff));
+}
+
+// UXTAH<c> <Rd>,<Rn>,<Rm>{,<rotation>}
+string convert_uxtah_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("uxtah%s %s, %s, %s%s", get_condition_string(cond),
+										  get_reg_name(instr.rd),
+										  get_reg_name(instr.rn),
+										  get_reg_name(instr.rm),
+										  instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  SXTH 											 *
+// ***************************************************************************************
+
+// SXTH<c>.W <Rd>,<Rm>{,<rotation>}
+instr_32 parse_sxth_t2(const uint instr) {
+	return instr_32(rm:  cast(reg)slice(instr,  0, 4),
+					rd:  cast(reg)slice(instr,  8, 4),
+					imm: slice(instr, 4, 2) << 3);
+}
+
+void 
+execute_sxth_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+    immutable  rm      = vm.get_reg(instr.rm);
+    immutable  imm     = instr.imm;
+    // rotated = ROR(R[m], rotation);
+    const uint rotated = cast(int)cast(short)rotr(rm, imm); 
+	// R[d] = SignExtend(rotated<15:0>, 32);
+	vm.set_reg(instr.rd, cast(uint)rotated);
+}
+
+// SXTH<c>.W <Rd>,<Rm>{,<rotation>}
+string convert_sxth_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sxth%s.w %s, %s%s", get_condition_string(cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rm),
+									   instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
+// ---------------------------------------------------------------------------------------
