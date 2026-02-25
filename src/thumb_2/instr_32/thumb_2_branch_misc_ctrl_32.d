@@ -87,16 +87,16 @@ execute_msr_t1
 (const instr_32 instr, ref vm_t vm) {
 	immutable rn = vm.get_reg(instr.rn);
 	switch (instr.spec_reg) {
-		case special_reg.BASEPRI: vm.cpu.basepri = cast(ubyte)(rn & 0xf0); break;
-		case special_reg.MSP    : vm.cpu.msp = rn;						   break;
-		case special_reg.PSP    : vm.cpu.psp = rn; 						   break;
+		case special_reg.BASEPRI: vm.set_basepri(cast(ubyte)(rn & 0xf0));  break;
+		case special_reg.MSP    : vm.set_msp(rn);						   break;
+		case special_reg.PSP    : vm.set_psp(rn); 						   break;
 		case special_reg.CONTROL: 
-		    vm.cpu.npriv  = (rn & 0x1) != 0;
-			vm.cpu.sp_sel = (rn & 0x2) != 0; 							   break;
+		    vm.set_npriv(( rn & 0x1) != 0);
+			vm.set_sp_sel((rn & 0x2) != 0); 							   break;
 		case special_reg.BASEPRI_MAX:
 		    ubyte new_val = cast(ubyte)(rn & 0xff);
-    		if (new_val > vm.cpu.basepri || vm.cpu.basepri == 0) 
-        		vm.cpu.basepri = new_val;
+    		if (new_val > vm.get_basepri() || vm.get_basepri() == 0) 
+        		vm.set_basepri(new_val);
     		break;
 		default:
 			return;
@@ -124,7 +124,6 @@ string convert_msr_t1_to_string(const ref instr_32 instr, const condition cond) 
 //  Parse MRS
 // ===========
 
-enum field_tuples_mrs_t1 = [Tuple!(opcode, string[])(opcode.mrs_t1, ["rd", "spec_reg"])];
 // MRS<c> <Rd>,<spec_reg>
 // First Half-Word: [15:4] 111100111000, [3:0] Rn
 // Second Half-Word: [15:12] 1000, [11:10] mask, [9:8] 00, [7:0] SYSm
@@ -143,20 +142,20 @@ execute_mrs_t1
 (const instr_32 instr, ref vm_t vm) {
 	switch (instr.spec_reg) {
 		case special_reg.BASEPRI:
-			vm.set_reg(instr.rd, cast(uint)vm.cpu.basepri);
+			vm.set_reg(instr.rd, cast(uint)vm.get_basepri());
 			break;
 		case special_reg.IPSR:
-			vm.set_reg(instr.rd, cast(uint)vm.cpu.current_exception & 0x1ff);
+			vm.set_reg(instr.rd, cast(uint)vm.get_current_exception() & 0x1ff);
 			break;
 		case special_reg.MSP:
-			vm.set_reg(instr.rd, vm.cpu.msp);
+			vm.set_reg(instr.rd, vm.get_msp());
 			break;
 		case special_reg.PSP:
-			vm.set_reg(instr.rd, vm.cpu.psp);
+			vm.set_reg(instr.rd, vm.get_psp());
 			break;
 		case special_reg.CONTROL:
 			uint val = 0;
-			if (vm.cpu.sp_sel)
+			if (vm.get_sp_sel())
         		val |= 0x2; 
 			vm.set_reg(instr.rd, val);
 			break;
@@ -181,7 +180,6 @@ string convert_mrs_t1_to_string(const ref instr_32 instr, const condition cond) 
 // *					            Conditional Branch					                 *
 // ***************************************************************************************
 
-enum field_tuples_b_t4 = [Tuple!(opcode, string[])(opcode.b_t4, ["label"])];
 // First Half-Word: [15:11] 11110, [10] S, [9:0] imm10
 // Second Half-Word: [15:14] 10, [13] J1, [12] 1, [11] J2, [10:0] imm11
 instr_32 parse_b_t4(const uint instr) {
@@ -217,7 +215,6 @@ execute_b_t4
 //  Parse B
 // =========
 
-enum field_tuples_b_t3 = [Tuple!(opcode, string[])(opcode.b_t3, ["label"])];
 // B<c>.W <label>
 // First Half-Word: [15:11] 11110, [10] S, [9:6] cond, [5:0] imm6
 // Second Half-Word: [15:14] 10, [13] J1, [12] 1, [11] J2, [10:0] imm11
@@ -268,8 +265,6 @@ string convert_b_t3_to_string(const ref instr_32 instr) {
 //  Parse NOP
 // ===========
 
-enum field_tuples_nop_t2 = [Tuple!(opcode, string[])(opcode.nop_t2, [])];
-
 instr_32 parse_nop_t2(uint instr) {
 	return instr_32();
 }
@@ -295,8 +290,6 @@ string convert_nop_t2_to_string(const ref instr_32 instr) {
 // ***************************************************************************************
 // *									   ISB 											 *
 // ***************************************************************************************
-
-enum field_tuples_isb_t1 = [Tuple!(opcode, string[])(opcode.isb_t1, [])];
 
 // ===========
 //  Parse ISB

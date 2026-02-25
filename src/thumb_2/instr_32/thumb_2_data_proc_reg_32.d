@@ -231,10 +231,10 @@ execute_uadd8_t1
       		   ((sum3 & 0xff) << 16) |
       		   ((sum2 & 0xff) << 8)  |
       		   ( sum1 & 0xff);
-	vm.cpu.ge0 = sum1 >= 0x100 ? true : false;
-	vm.cpu.ge1 = sum2 >= 0x100 ? true : false;
-	vm.cpu.ge2 = sum3 >= 0x100 ? true : false;
-	vm.cpu.ge3 = sum4 >= 0x100 ? true : false;
+	vm.set_ge0(sum1 >= 0x100);
+	vm.set_ge1(sum2 >= 0x100);
+	vm.set_ge2(sum3 >= 0x100);
+	vm.set_ge3(sum4 >= 0x100);
 	vm.set_reg(instr.rd, res);
 }
 

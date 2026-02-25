@@ -31,7 +31,6 @@ import memory_sections;
 //  Parse IF THEN
 // ===============
 
-enum field_tuples_if_then_t1 = [Tuple!(opcode, string[])(opcode.if_then_t1, ["condition"])];
 // IT{x{y{z}}} <firstcond>
 // [15:8] 10111111, [7:4] firstcond, [3:0] mask  
 instr_16 parse_if_then_t1(const ushort instr) {
@@ -52,8 +51,8 @@ execute_if_then_t1
 	immutable cond 		  	  = cast(condition)(first_cond);
 	immutable first_cond_mask = cast(ubyte)((first_cond << 4) | mask);
 	xyz it_block 			  = get_xyz(first_cond_mask);
-	vm.cpu.it_block = it_block;
-	vm.cpu.init_it_block_stack(cond);
+	vm.set_it_block(it_block);
+	vm.init_it_block_stack(cond);
 }
 
 // ==============
@@ -90,7 +89,6 @@ string convert_if_then_t1_to_string(const ref instr_16 instr, const condition co
 //  Parse REV
 // ===========
 
-enum field_tuples_rev_t1 = [Tuple!(opcode, string[])(opcode.rev_t1, ["rd","rm"])];
 // REV<c> <Rd>,<Rm>
 // [15:6] 1011101000, [5:3] Rm, [2:0] Rd
 instr_16 parse_rev_t1(const ushort instr) {
@@ -123,7 +121,6 @@ execute_rev_t1
 //  Parse CBNZ
 // ============
 
-enum field_tuples_cbnz_t1 = [Tuple!(opcode, string[])(opcode.cbnz_t1, ["rn", "label"])];
 // CBNZ <Rn>,<label>
 // [15:12] 1011, [11] op, [10] 0, [9] i, [8] 1, [7:3] imm5, [2:0] Rn  
 instr_16 parse_cbnz_t1(const ushort instr) {
@@ -159,7 +156,7 @@ execute_cbnz_t1
 //  Parse CBZ
 // ===========
 
-enum field_tuples_cbz_t1 = [Tuple!(opcode, string[])(opcode.cbz_t1, ["rn", "label"])];
+
 // CBZ <Rn>,<label>
 // [15:12] 1011, [11] op, [10] 0, [9] i, [8] 1, [7:3] imm5, [2:0] Rn  
 instr_16 parse_cbz_t1(const ushort instr) {
@@ -198,7 +195,6 @@ execute_cbz_t1
 //  Parse CPS
 // ===========
 
-enum field_tuples_cps_t1 = [Tuple!(opcode, string[])(opcode.cps_t1, ["effect", "iflags"])];
 // CPS<effect> <iflags>
 // [15:5] 10110110011, [4] im, [3:2] 00, [1] I, [0] F
 instr_16 parse_cps_t1(const ushort instr) {
@@ -214,7 +210,7 @@ instr_16 parse_cps_t1(const ushort instr) {
 void 
 execute_cps_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable enable 	   = instr.enable;
 	immutable affect_pri   = instr.affect_pri;
 	immutable affect_fault = instr.affect_fault;
@@ -250,7 +246,6 @@ execute_cps_t1
 //  Parse POP
 // ===========
 
-enum field_tuples_pop_t1 = [Tuple!(opcode, string[])(opcode.pop_t1, ["reg_list"])];
 // POP <registers>
 // [15:9] 1011110, [8] P, [7:0] register_list  
 instr_16 parse_pop_t1(const ushort instr) {
@@ -349,7 +344,6 @@ string convert_push_t1_to_string(const ref instr_16 instr, const condition cond)
 //  Parse SXTB
 // ============
 
-enum field_tuples_sxtb_t1 = [Tuple!(opcode, string[])(opcode.sxtb_t1, ["rd","rm"])];
 // SXTB <Rd>,<Rm>
 // [15:6] 1011001001, [5:3] Rm, [2:0] Rd  
 instr_16 parse_sxtb_t1(const ushort instr) {
@@ -421,7 +415,6 @@ string convert_uxtb_t1_to_string(const ref instr_16 instr, const condition cond)
 //  Parse UXTH
 // ============
 
-enum field_tuples_uxth_t1 = [Tuple!(opcode, string[])(opcode.uxth_t1, ["rd","rm"])];
 // UXTH<c> <Rd>,<Rm>
 // [15:6] 1011001011, [5:3] Rm, [2:0] Rd  
 instr_16 parse_uxth_t1(const ushort instr) {
@@ -454,8 +447,6 @@ string convert_uxth_t1_to_string(const ref instr_16 instr, const condition cond)
 // ===========
 //  Parse NOP
 // ===========
-
-enum field_tuples_nop_t1 = [Tuple!(opcode, string[])(opcode.nop_t1, [])];
 
 instr_16 parse_nop_t1(const ushort instr) {
 	return instr_16();
@@ -493,6 +484,12 @@ execute_sxth_t1
 	// R[d] = SignExtend(rotated<15:0>, 32);
 	immutable res = cast(int)cast(short)rm;
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_sxth_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("sxth%s %s, %s", get_condition_string(cond),
+								   get_reg_name(instr.rd),
+								   get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

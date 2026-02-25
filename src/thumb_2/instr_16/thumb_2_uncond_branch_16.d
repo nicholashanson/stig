@@ -23,7 +23,6 @@ import cortex_m_core;
 //  Parse B
 // =========
 
-enum field_tuples_b_t2 = [Tuple!(opcode, string[])(opcode.b_t2, ["label"])];
 // B <label>
 // [15:11] 11100, [10:0] imm11
 instr_16 parse_b_t2(const ushort instr) {

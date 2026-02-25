@@ -112,7 +112,6 @@ string convert_ldrb_imm_t1_to_string(const ref instr_16 instr, const condition c
 //  Parse LDRH(Immediate)
 // =======================
 
-enum field_tuples_ldrh_imm_t1 = [Tuple!(opcode, string[])(opcode.ldrh_imm_t1, ["rt","rn","imm"])];
 // LDRH<c> <Rt>,[<Rn>{,#<imm5>}]
 // [15:11] 10001, [10:6] imm5, [5:3] Rn, [2:0] Rt
 instr_16 parse_ldrh_imm_t1(const ushort instr) {
@@ -180,7 +179,7 @@ execute_ldrh_reg_t1
 	immutable rn 			 = vm.get_reg(instr.rn);
 	// offset_addr = if add then (R[n] + offset) else (R[n] - offset);
 	const size_t offset_addr = instr.add   ? rn + rm     : rn - rm;
-	// address = if index then offset_addr else R[n];\
+	// address = if index then offset_addr else R[n];
 	const size_t addr 		 = instr.index ? offset_addr : rn;
 	// data = MemU[address,2];
 	immutable data 			 = vm.read_half_word(addr);
@@ -198,7 +197,6 @@ execute_ldrh_reg_t1
 //  Parse STRH(Register)
 // ======================
 
-enum field_tuples_strh_reg_t1 = [Tuple!(opcode, string[])(opcode.strh_reg_t1, ["rt","rn","rm"])];
 // STRH <Rt>,[<Rn>,<Rm>]
 // [15:9] 0101001, [8:6] Rm, [5:3] Rn, [2:0] Rt
 instr_16 parse_strh_reg_t1(const ushort instr) {
@@ -230,7 +228,6 @@ execute_strh_reg_t1
 //  Parse STRRB(Register)
 // =======================
 
-enum field_tuples_strb_reg_t1 = [Tuple!(opcode, string[])(opcode.strb_reg_t1, ["rt","rn","rm"])];
 // STRB <Rt>,[<Rn>{,#<imm5>}]
 // [15:11] 01110, [10:6] imm5, [5:3] Rn, [2:0] Rt
 instr_16 parse_strb_reg_t1(short instr) {
@@ -416,12 +413,8 @@ string convert_strb_imm_t1_to_string(const ref instr_16 instr, const condition c
 // LDR<c> <Rt>,[SP{,#<imm8>}]
 // [15:11] 10011, [10:8] Rt, [7:0] imm8
 instr_16 parse_ldr_imm_t2(const ushort instr) {
-	instr_16 res;
-	immutable imm_8 = slice(instr, 0, 8);
-	immutable rt    = slice(instr, 8, 3);
-	res.rt    		= cast(reg)(rt);
-	res.imm 		= (imm_8 << 2);
-	return res;
+	return instr_16(rt: cast(reg)slice(instr, 8, 3),
+				    imm: slice(instr, 0, 8) << 2);
 }
 
 void 

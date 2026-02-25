@@ -6,55 +6,6 @@ import std.algorithm;
 import thumb_2_opcodes;
 import cortex_m_core;
 
-string get_reg_list_string(const ref reg[] reg_list) {
-	return reg_list.map!(r => r.to!string).join(", ");
-}
-
-string get_imm_string(const uint imm) {
- 	return format(", #%d", imm);
-}
-
-string get_it_block_string(const condition cond) {
-	return cond != condition.none ? cond.to!string : "s";
-}
-
-string get_condition_string(const condition cond) {
-	return cond != condition.none ? cond.to!string : "";
-}
-
-string add_suffix(const ref instr_32 instr, const condition cond) {
-	return (instr.set_flags ? "s" : "") ~ (cond != condition.none ? cond.to!string : "");
-}
-
-string get_reg_name(const reg r) {
-	switch (r) {
-		case reg.r10: return "sl";
-		case reg.r11: return "fp";
-		case reg.r12: return "ip";
-		default     : return r.to!string;
-	}
-}
-
-string get_addr_string(const ref instr_32 instr) {
-    string sign = instr.add ? "+" : "-";
-    string imm  = format("#%s%d", sign, instr.imm);
-    string rn   = get_reg_name(instr.rn);
-    if (instr.index && !instr.wback) {
-        // [Rn {, #+/-imm}]
-        if (instr.imm == 0)
-            return format("[%s]", rn);
-        else
-            return format("[%s, %s]", rn, imm);
-    } else if (instr.index && instr.wback) {
-        // [Rn, #+/-imm]!
-        return format("[%s, %s]!", rn, imm);
-    } else if (!instr.index && instr.wback) {
-        // [Rn], #+/-imm
-        return format("[%s], %s", rn, imm);
-    }
-    return "<invalid>";
-}
-
 // ---------------------------------------- Shift ----------------------------------------
 enum shift_type : ubyte {
 	lsl,
@@ -122,6 +73,10 @@ struct shift_result {
 
 shift_result shift_c(uint val, shift_type t, uint n, bool c) {
 	return shift_result(result: shift(val, t, n, c), carry: get_shifter_carry(val, t, n, c));
+}
+
+string get_shift_string(const ref instr_32 instr) {
+	return instr.shift_n != 0 ? format(", %s #%d", instr.shift_t, instr.shift_n) : "";
 }
 // ---------------------------------------------------------------------------------------
 
@@ -306,63 +261,56 @@ struct instr_32 {
 }
 // ---------------------------------------------------------------------------------------
 
-bool is_store(opcode op) {
-	switch (op) {
-		/*
-		case opcode.ldr_imm:
-		case opcode.ldr_imm_32:
-		case opcode.ldr_pool:
-		//case opcode.ldr_post_inc:
-		case opcode.ldr_reg:
-		case opcode.ldr_sp:
-		case opcode.ldrb_imm:
-		case opcode.ldrb_reg:
-		case opcode.ldrb_imm_32_t2:
-		case opcode.ldr_imm_32_t3:
-		case opcode.ldr_imm_32_t4:
-		case opcode.ldrd_imm_32:
-		case opcode.ldrh_imm:
-		case opcode.ldrsb_imm_32_t1:
-		case opcode.ldrsb_imm_32_t2:
-		case opcode.pop:
-		case opcode.pop_32:
-		case opcode.push:
-		case opcode.push_32:
-		case opcode.stmia_32:
-		case opcode.str_imm:
-		case opcode.str_imm_32_t3:
-		case opcode.str_imm_32_t4:
-		case opcode.str_sp:
-		case opcode.str_reg:
-		case opcode.str_reg_32:
-		case opcode.strb_imm:
-		case opcode.strb_imm_32_t2:
-		case opcode.strb_imm_32_t3:
-		case opcode.strb_reg:
-		case opcode.strd_32:
-		case opcode.strh_imm:
-		case opcode.ldr_lit_32:
-		case opcode.ldr_reg_32:
-		case opcode.ldrb_imm_32_t3:
-		case opcode.strh_imm_32_t2:
-		case opcode.svc:
-		case opcode.ldmia_32:
-		case opcode.bx:
-		case opcode.strh_reg_32:
-		case opcode.strh_reg:
-		case opcode.ldr_ex:
-		case opcode.str_rex:
-		case opcode.ldh_32:
-		case opcode.tbb_tbh_32:
-		*/
-			return true;
-		default:
-			return false;
-	}
-}
-
 struct byte_table {
     uint        offset;
     uint          addr;
     ubyte[]       data;
 }
+
+// --------------------------------------- Strings ---------------------------------------
+
+string get_reg_list_string(const ref reg[] reg_list) {
+	return reg_list.map!(r => r.to!string).join(", ");
+}
+
+string get_imm_string(const uint imm) {
+ 	return format(", #%d", imm);
+}
+
+string get_it_block_string(const condition cond) {
+	return cond != condition.none ? cond.to!string : "s";
+}
+
+string get_condition_string(const condition cond) {
+	return cond != condition.none ? cond.to!string : "";
+}
+
+string add_suffix(const ref instr_32 instr, const condition cond) {
+	return (instr.set_flags ? "s" : "") ~ (cond != condition.none ? cond.to!string : "");
+}
+
+string get_reg_name(const reg r) {
+	switch (r) {
+		case reg.r10: return "sl";
+		case reg.r11: return "fp";
+		case reg.r12: return "ip";
+		default     : return r.to!string;
+	}
+}
+
+string get_addr_string(const ref instr_32 instr) {
+    string sign = instr.add ? "" : "-";
+    string imm  = format("#%s%d", sign, instr.imm);
+    string rn   = get_reg_name(instr.rn);
+    if (instr.index && !instr.wback) {
+        if (instr.imm == 0)
+            return format("[%s]", rn);
+        else
+            return format("[%s, %s]", rn, imm);
+    } else if (instr.index && instr.wback) 
+        return format("[%s, %s]!", rn, imm);
+    else if (!instr.index && instr.wback) 
+        return format("[%s], %s", rn, imm);
+    return "<invalid>";
+}
+// ---------------------------------------------------------------------------------------

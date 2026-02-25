@@ -111,6 +111,7 @@ string convert_pop_t2_to_string(const ref instr_32 instr, const condition cond) 
 
 // ---------------------------------------------------------------------------------------
 
+// STM<c>.W <Rn>{!},<registers>
 instr_32 parse_stm_t2(const uint instr) {
 	immutable reg_mask = slice(instr, 0, 16);
 	reg[] reg_list;
@@ -140,6 +141,14 @@ execute_stm_t2
 	}
 	if (instr.wback) 
 		vm.set_reg(instr.rn, rn);
+}
+
+// STM<c>.W <Rn>{!},<registers>
+string convert_stm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("stmia%s.w %s%s, {%s}", get_condition_string(cond),
+										  get_reg_name(instr.rn),
+										  instr.wback ? "!": "",
+										  get_reg_list_string(instr.reg_list));
 }
 // ---------------------------------------------------------------------------------------
 

@@ -15,7 +15,7 @@ import cortex_m_core;
 
 // TST<c> <Rn>,<Rm>
 // [15:6] 0100001000, [5:3] Rm, [2:0] Rn
-instr_16 parse_tst_t1(short instr) {
+instr_16 parse_tst_reg_t1(short instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
 					rm: cast(reg)slice(instr, 3, 3));
 }
@@ -35,6 +35,12 @@ execute_tst_reg_t1
 	vm.set_n(res);
 	// APSR.C = carry;
 	// APSR.V unchanged
+}
+
+string convert_tst_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("tst%s %s, %s", get_condition_string(cond),
+								  get_reg_name(instr.rn),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 
@@ -245,10 +251,10 @@ string convert_cmp_reg_to_string(const ref instr_16 instr, const condition cond)
 //  Parse EOR(Register)
 // =====================
 
-enum field_tuples_eor_reg_t1 = [Tuple!(opcode, string[])(opcode.eor_reg_t1, ["rd","rn"])];
-// EOR <Rdn>,<Rm>
+// EORS <Rdn>,<Rm> 
+// EOR<c> <Rdn>,<Rm> 
 // [15:6] 0100000001, [5:3] Rm, [2:0] Rdn
-instr_16 parse_eor_reg(ushort instr) {
+instr_16 parse_eor_reg_t1(ushort instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
 		            rd: cast(reg)slice(instr, 0, 3), 
 		            rm: cast(reg)slice(instr, 3, 3));
@@ -270,6 +276,12 @@ execute_eor_reg_t1
 		vm.set_n(res);
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_eor_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("eor%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

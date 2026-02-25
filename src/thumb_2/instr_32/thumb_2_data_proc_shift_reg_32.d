@@ -20,10 +20,6 @@ import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
 
-string get_shift_string(const ref instr_32 instr) {
-	return instr.shift_n != 0 ? format(", %s %d", instr.shift_t, instr.shift_n) : "";
-}
-
 instr_32 parse_data_proc_shift_reg(const uint instr) {
 	immutable type    = cast(ubyte)slice(instr,  4, 2);
 	immutable imm_2   = slice(instr,  6, 2);
@@ -634,3 +630,54 @@ execute_teq_reg_t1
 	// APSR.V unchanged	
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// * 									   MVN 											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse MVN(Register)
+// =====================
+
+// MVN{S}<c>.W <Rd>,<Rm>{,shift>}
+instr_32 parse_mvn_reg_t2(const uint instr) {
+	immutable type    = cast(ubyte)slice(instr,  4, 2);
+	immutable imm_2   = slice(instr,  6, 2);
+	immutable imm_3   = slice(instr, 12, 3);
+	immutable imm_5   = cast(ubyte)((imm_3 << 2) | imm_2);
+	immutable shift_t = get_shift_type(type, imm_5);
+	return instr_32(rm: 	   cast(reg)slice(instr,  0, 4),
+		            rd: 	   cast(reg)slice(instr,  8, 4),
+		            shift_t:   shift_t,
+		            shift_n:   shift_t == shift_type.rrx ? 1 : imm_5,
+		            set_flags: cast(bool)slice(instr, 20, 1));
+}
+
+
+void
+execute_mvn_reg_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable  rm        = vm.get_reg(instr.rm);
+	// (shifted, carry) = Shift_C(R[m], shift_t, shift_n, APSR.C);
+	immutable  shift_res = shift_c(rm, instr.shift_t, instr.shift_n, vm.get_c());
+	// result = NOT(shifted);
+	const uint res       = ~shift_res.result;
+	// R[d] = result;
+	vm.set_reg(instr.rd, res);
+	// if setflags then
+	if (instr.set_flags) {
+		vm.set_n(res); 			   // APSR.N = result<31>;
+		vm.set_z(res); 			   // APSR.Z = IsZeroBit(result);
+		vm.set_c(shift_res.carry); // APSR.C = carry;
+		// APSR.V unchanged
+	}
+}
+
+string convert_mvn_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mvn%s.w %s, %s%s", add_suffix(instr, cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rm),
+									  get_shift_string(instr));
+}

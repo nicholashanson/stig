@@ -24,7 +24,6 @@ import cortex_m_core;
 //  Parse MOV
 // ===========
 
-enum field_tuples_mov_imm_t3 = [Tuple!(opcode, string[])(opcode.mov_imm_t3, ["rd","imm"])];
 // MOVW<c> <Rd>,#<imm16>
 // First Half-Word: [15:11] 11110, [10] i, [9:4] 100100, [3:0] imm4
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8
@@ -191,7 +190,6 @@ execute_add_imm_t4
 //  Parse UBFX
 // ============
 
-enum field_tuples_ubfx_t1 = [Tuple!(opcode, string[])(opcode.ubfx_t1, ["rd","rn","lsb","width"])];
 // UBFX <Rd>, <Rn>, #<lsb>, #<width>
 // First Half-Word: [15:4] 111100111100, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm3, [5] 0, [4:0] widthm1
@@ -232,7 +230,6 @@ string convert_ubfx_t1_to_string(const ref instr_32 instr, const condition cond)
 //  Parse SUB(Immediate)
 // ======================
 
-enum field_tuples_sub_imm_t4 = [Tuple!(opcode, string[])(opcode.sub_imm_t4, ["rd","rn","imm"])];
 // SUBW<c> <Rd>,<Rn>,#<imm12>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 01101, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8 
@@ -268,3 +265,59 @@ execute_sub_imm_t4
     vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *                                       SBFX                                          *
+// ***************************************************************************************
+
+// ============
+//  Parse SBFX
+// ============
+
+// SBFX<c> <Rd>,<Rn>,#<lsb>,#<width>
+// [111100110100], [3:0] Rn
+// [0], [14:12] imm3, [11:8] Rd, [7:6] imm2, [0] 5, [4:0] widthm1
+instr_32 parse_sbfx_t1(const uint instr) {
+    immutable imm_2 = slice(instr,  6, 2);
+    immutable imm_3 = slice(instr, 12, 3);
+    return instr_32(widthm1: slice(instr,  0, 5), // widthminus1 = UInt(widthm1);
+                    rd:      cast(reg)slice(instr,  8, 4),
+                    rn:      cast(reg)slice(instr, 16, 4),
+                    lsb:     (imm_3 << 2) | imm_2);
+}
+
+// ==============
+//  Execute SBFX
+// ==============
+
+void 
+execute_sbfx_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+    // EncodingSpecificOperations();
+    // msbit = lsbit + widthminus1;
+    const uint widthm1 = instr.widthm1;
+    const uint msb     = instr.lsb + widthm1;
+    const uint lsb     = instr.lsb;
+    const uint width   = widthm1 + 1;
+    uint       rn      = vm.get_reg(instr.rn);
+    // if msbit <= 31 then
+    if (msb < 32) {
+        // R[d] = SignExtend(R[n]<msbit:lsbit>, 32);
+        uint res = slice(rn, lsb, width);
+        if (slice(res, widthm1, 1) == 1) {
+            res |= ~((1u << width) - 1);
+        }
+        vm.set_reg(instr.rd, res);
+    }
+    // else
+    // UNPREDICTABLE;
+}
+
+// SBFX<c> <Rd>,<Rn>,#<lsb>,#<width>
+string convert_sbfx_t1_to_string(const ref instr_32 instr, const condition cond) {
+    return format("sbfx%s %s, %s, #%d, #%d", get_condition_string(cond),
+                                             get_reg_name(instr.rd),
+                                             get_reg_name(instr.rn),
+                                             instr.lsb, instr.widthm1 + 1);
+}

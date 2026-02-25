@@ -45,7 +45,6 @@ instr_32 parse_data_proc_mod_imm_expand(const uint instr) {
 // *									  ADD 											 *
 // ***************************************************************************************
 
-enum field_tuples_add_imm_t3 = [Tuple!(opcode, string[])(opcode.add_imm_t3, ["rd","rn","imm"])];
 // ADD{S}<c>.W <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 01000, [4] S, [3:0] Rn 
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8
@@ -85,7 +84,6 @@ execute_add_imm_t3
 //  Parse MOV(Immediate)
 // ======================
 
-enum field_tuples_mov_imm_t2 = [Tuple!(opcode, string[])(opcode.mov_imm_t2, ["rd","imm"])];
 // MOV{S}<c>.W <Rd>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [8:5] 00010, [4] S, [3:0] 1111
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8 
@@ -130,7 +128,6 @@ string convert_mov_imm_t2_to_string(const ref instr_32 instr, const condition co
 //  Parse ADC(Immediate)
 // ======================
 
-enum field_tuples_adc_imm_t1 = [Tuple!(opcode, string[])(opcode.adc_imm_t1, ["rd","rn","imm"])];
 // ADC{S}<c> <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 01010, [4] S, [3:0] 1111
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8 
@@ -170,7 +167,6 @@ execute_adc_imm_t1
 //  Parse AND(Immediate)
 // ======================
 
-enum field_tuples_and_imm_t1 = [Tuple!(opcode, string[])(opcode.and_imm_t1, ["rd","rn","imm"])];
 // AND{S}<c> <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 00000, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8 
@@ -220,7 +216,6 @@ string convert_and_imm_t1_to_string(const ref instr_32 instr, const condition co
 //  Parse EOR(Immediate)
 // ======================
 
-enum field_tuples_eor_imm_t1 = [Tuple!(opcode, string[])(opcode.eor_imm_t1, ["rd","rn","imm"])];
 // EOR{S}<c> <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 00100, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8 
@@ -315,7 +310,6 @@ string convert_mvn_imm_t1_to_string(const ref instr_32 instr, const condition co
 //  Parse ORN(Immediate)
 // ======================
 
-enum field_tuples_orn_imm_t1 = [Tuple!(opcode, string[])(opcode.orn_imm_t1, ["rd","imm"])];
 // ORN{S}<c> <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 00011, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8
@@ -359,7 +353,6 @@ execute_orn_imm_t1
 //  Parse SBC(Immediate)
 // ======================
 
-enum field_tuples_sbc_imm_t1 = [Tuple!(opcode, string[])(opcode.sbc_imm_t1, ["rd","rn","imm"])];
 // SBC{S}<c> <Rd>,<Rn>,#<const>
 instr_32 parse_sbc_imm_t1(const uint instr) {
 	// imm32 = ThumbExpandImm(i:imm3:imm8);
@@ -399,7 +392,6 @@ execute_sbc_imm_t1
 //  Parse ORR(Immediate)
 // ======================
 
-enum field_tuples_orr_imm_t1 = [Tuple!(opcode, string[])(opcode.orr_imm_t1, ["rd","rn","imm"])];
 // ORR{S}<c> <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 00010, [4] S, [3:0] Rn 
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8
@@ -449,7 +441,6 @@ string convert_orr_imm_t1_to_string(const ref instr_32 instr, const condition co
 //  Parse CMP(immediate)
 // ======================
 
-enum field_tuples_cmp_imm_t2 = [Tuple!(opcode, string[])(opcode.cmp_imm_t2, ["rn","imm"])];
 // CMP<c>.W <Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:4] 011011, [3:0] Rn
 // Second Half-Word: [15] 0, [14:2] imm3, [11:8] 1111, [7:0] imm8 
@@ -487,7 +478,6 @@ execute_cmp_imm_t2
 //  Parse CMN(Immediate)
 // ======================
 
-enum field_tuples_cmn_imm_t1 = [Tuple!(opcode, string[])(opcode.cmn_imm_t1, ["rn","imm"])];
 // CMN<c> <Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:4] 010001, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] 1111, [7:0] imm8 
@@ -575,7 +565,6 @@ string convert_bic_imm_t1_to_string(const ref instr_32 instr, const condition co
 //  Parse RSB(Immediate)
 // ======================
 
-enum field_tuples_rsb_imm_t2 = [Tuple!(opcode, string[])(opcode.rsb_imm_t2, ["rd","rn","imm"])];
 // RSB{S}<c>.W <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 01110, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8
@@ -621,7 +610,6 @@ string convert_rsb_imm_t2_to_string(const ref instr_32 instr, const condition co
 //  Parse TST(Immediate)
 // ======================
 
-enum field_tuples_tst_imm_t1 = [Tuple!(opcode, string[])(opcode.tst_imm_t1, ["rn","imm"])];
 // TST<c> <Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:4] 000001, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] 1111, [7:0] imm8 

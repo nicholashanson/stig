@@ -1,7 +1,7 @@
 import std.format;
 import std.conv     : to;
 import std.typecons : tuple, Tuple;
-import std.array    : appender;
+import std.array;
 import std.traits   : Parameters, ReturnType;
 
 import cortex_m_core;
@@ -22,6 +22,7 @@ import thumb_2_gen_sp_rel_addr_16;
 import thumb_2_cond_branch_sup_call_16;
 import thumb_2_uncond_branch_16;
 import thumb_2_misc_16;
+import thumb_2_store_mult_reg_16;
 import thumb_2_load_store_single_data_item_16;
 // 32-bit instructions
 import thumb_2_load_store_dual_exc_32;
@@ -43,7 +44,7 @@ import thumb_2_misc_ops_32;
 //  Convert Instr to String
 // =========================
 
-string convert_instr_to_string(T1,T2)(T1 instr, const condition cond)
+string convert_instr_to_string(T1,T2)(T1 instr, const condition cond = condition.none)
 {
 	T2 parsed_instr = decode_instr!(T2,T1)(instr);
 	string res;
@@ -164,8 +165,11 @@ unittest {
         test_case(0xbdf8, "pop {r3, r4, r5, r6, r7, pc}"),
  		test_case(0xdf02, 						 "svc 2"),
         test_case(0xb2a4, 				   "uxth r4, r4"),
-	];
-
+        test_case(0x4208,      			    "tst r0, r1"),
+        test_case(0x4042,      			   "eors r2, r0"),
+        test_case(0xb208,      			   "sxth r0, r1"),
+        test_case(0xc303,      	   "stmia r3!, {r0, r1}")
+	]; 
 
 	foreach (t; tests) {
 		string actual = convert_instr_to_string!(ushort,instr_16)(t.instr, t.cond);
@@ -232,7 +236,15 @@ unittest {
 		test_case(0xf3c13113, 						     "ubfx r1, r1, #12, #20"),
 		test_case(0xfbb3f3f1, 						   	       "udiv r3, r3, r1"),
 		test_case(0xfba32302, 						      "umull r2, r3, r3, r2"),
-		test_case(0xfa1ff68c, 						        	 "uxth.w r6, ip")
+		test_case(0xfa1ff68c, 						        	 "uxth.w r6, ip"),
+		test_case(0xea6f4303,    						 "mvn.w r3, r3, lsl #16"),
+		test_case(0xe8830003, 							  "stmia.w r3, {r0, r1}"),
+		test_case(0xf3420200, 							   "sbfx r2, r2, #0, #1"),
+		test_case(0xf837c012, 				       "ldrh.w ip, [r7, r2, lsl #1]"),
+		test_case(0xf8180006, 							   "ldrb.w r0, [r8, r6]"),
+		test_case(0xf8059000, 							   "strb.w r9, [r5, r0]"),
+		test_case(0xf8180006, 							   "ldrb.w r0, [r8, r6]"),
+		test_case(0xf8237b02, 							   "strh.w r7, [r3], #2")
 	];
 
 	foreach (t; tests) {
@@ -242,4 +254,68 @@ unittest {
 		    format("Failed for instruction [0x%04X], got '%s'", t.instr, actual)
 		);
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+struct reg_cache_item {
+    uint    val;
+    string    s;
+}
+
+reg_cache_item[16] reg_cache;
+
+struct row_view {
+    enum kind { func_name, blank_line, instr };
+    kind    type;
+    string     s;
+    uint    addr;
+}
+
+row_view[] get_function_rows(func f) {
+	row_view[] res;
+	res ~= row_view(type: row_view.kind.func_name, s: f.name);
+	foreach (ins; f.instrs) {
+        string s;
+        try {
+            auto i16 = ins.i.get!instr_16;
+            s = convert_instr_to_string!(ushort,instr_16)(ins._in_16);
+            s = s.replace("label", format("%x", ins._addr + i16.offset + 4));
+            if (i16.op == opcode.ldr_lit_t1) {
+                int base = ins._addr + 4;
+                base &= ~0x3;
+                s ~= format(" @ (%7X)", base + i16.imm);
+            }
+        }
+        catch (Exception e) {
+            try {
+                auto i32 = ins.i.get!instr_32;
+                s = convert_instr_to_string!(uint,instr_32)(ins._in_32);
+                s = s.replace("label", format("%x", ins._addr + i32.offset + 4));
+            }
+            catch (Exception) {
+                s = "Unknown instruction type";
+            }
+        }
+
+        if (ins._instr_bytes.length == 8) {
+            res ~= row_view(type: row_view.kind.instr,
+                            addr: ins._addr, 
+                            s: format("%x: %s     %s",     ins._addr, ins._instr_bytes, s));
+        } else {
+            res ~= row_view(type: row_view.kind.instr,
+                            addr: ins._addr, 
+                            s: format("%x: %s         %s", ins._addr, ins._instr_bytes, s));
+        }
+    }
+    return res;
+}
+
+row_view[] generate_instr_rows(func[] functions) {
+    row_view[] res;
+    foreach (f; functions) {
+        res ~= get_function_rows(f);
+        res ~= row_view(type: row_view.kind.blank_line);
+    }
+    return res;
 }

@@ -11,6 +11,8 @@ private uint decimal_to_hex_mask(uint n) {
 
 enum opcode : ubyte {
 	// pc-rel
+	// store multiple registers
+	stm_t1,
 	adr_t1,
 	// branch sup call
 	svc_t1,
@@ -106,8 +108,8 @@ enum opcode : ubyte {
 	pop_t3,
 	push_t2,
 	push_t3,
-	stmb_t1,
-	ldmb_t1,
+	stmdb_t1,
+	ldmdb_t1,
 	ldm_t2,
 	stm_t2,
 	// Branch-----------------------------------
@@ -364,45 +366,36 @@ opcode decode_load_store_single_data_item(const ushort instr) {
 opcode decode_misc_16_bit_instrs(const ushort instr) {
     immutable op = slice(instr, 5, 7);
 	if ((op & 0b1111100) == 0) {
-		if (slice(instr, 12, 4) == 0b1010) {
+		if (slice(instr, 12, 4) == 0b1010) 
 			return opcode.add_sp_t1;
-		}
-		if (slice(instr, 12, 4) == 0b1011) {
+		if (slice(instr, 12, 4) == 0b1011) 
 			return opcode.add_sp_t2;
-		}
 	}
-	if (slice(instr, 6, 6) == 0b001011) {
+	if (slice(instr, 6, 6) == 0b001011) 
 		return opcode.uxtb_t1;
-	}
-	if (slice(instr, 6, 6) == 0b001001) {
+	if (slice(instr, 6, 6) == 0b001001) 
 		return opcode.sxtb_t1;
-	}
-	if (slice(instr, 9, 3) == 0b010) {
+	if (slice(instr, 6, 6) == 0b001000) 
+		return opcode.sxth_t1;
+	if (slice(instr, 9, 3) == 0b010) 
 		return opcode.push_t1;
-	}
-	if (slice(instr, 9, 3) == 0b110) {
+	if (slice(instr, 9, 3) == 0b110) 
 		return opcode.pop_t1;
-	}
-	if (slice(instr, 8, 4) == 0b1111) {
+	if (slice(instr, 8, 4) == 0b1111) 
 		return slice(instr, 0, 8) == 0 ? opcode.nop_t1 : opcode.if_then_t1;
-	}
-	if (slice(instr, 7, 5) == 0b00001) {
+	if (slice(instr, 7, 5) == 0b00001) 
 		return opcode.sub_sp_t1;
-	}
 	if ((op & 0b1111000) == 0b0001000 ||
 		(op & 0b1111000) == 0b0011000 ||
 		(op & 0b1111000) == 0b1001000 ||
 		(op & 0b1111000) == 0b1011000) 
     	return slice(instr, 11, 1) == 0 ? opcode.cbz_t1 : opcode.cbnz_t1;
-	if ((op & 0b1111110) == 0b0010100) {
+	if ((op & 0b1111110) == 0b0010100) 
 		return opcode.uxth_t1;
-	}
-	if (op == 0b0110011) {
+	if (op == 0b0110011) 
 		return opcode.cps_t1;
-	}
-	if ((op & 0b1111110) == 0b1010000) {
+	if ((op & 0b1111110) == 0b1010000) 
 		return opcode.rev_t1;
-	}
 	return opcode.invalid;
 }
 
@@ -463,6 +456,9 @@ opcode decode_mnemonic(const ushort instr) {
     // Unconditional branch
     if (slice(instr, 11, 5) == 0b11100)
     	return opcode.b_t2;
+    // Store multiple registers
+	if (slice(instr, 11, 5) == 0b11000)
+    	return opcode.stm_t1;
     // Generate SP-relative address
     if (slice(instr, 11, 5) == 0b10101) {
 		if (slice(instr, 12, 4) == 0b1010) {
@@ -576,7 +572,8 @@ unittest {
 		test_case(0xb240,    opcode.sxtb_t1),
 		test_case(0x4208, opcode.tst_reg_t1),
 		test_case(0xb2db,    opcode.uxtb_t1),
-		test_case(0xb29a,    opcode.uxth_t1)
+		test_case(0xb29a,    opcode.uxth_t1),
+		test_case(0xb208,    opcode.sxth_t1)
 	];
 
 	foreach (t; tests) {
@@ -710,9 +707,9 @@ opcode decode_load_store_mult(uint instr) {
 	immutable op_L = cast(ubyte)((op << 1) | L);
 	switch (op_L) {
 		case 0b011: return Wrn == 0b11101 ? opcode.pop_t2  : opcode.ldm_t2;
-		case 0b100: return Wrn == 0b11101 ? opcode.push_t2 : opcode.stm_t2;
-		case 0b101: return opcode.ldmb_t1;
-		case 0b010: return opcode.stmb_t1;
+		case 0b100: return Wrn == 0b11101 ? opcode.push_t2 : opcode.stmdb_t1;
+		case 0b101: return opcode.ldmdb_t1;
+		case 0b010: return opcode.stm_t2;
 		default: break;
 	}
 	return opcode.invalid;
@@ -911,6 +908,7 @@ opcode decode_load_byte_memory_hints(const uint instr) {
 	immutable op1 = slice(instr, 23, 2);
 	immutable rt  = slice(instr, 12, 4);
 	immutable rn  = slice(instr, 16, 4);
+	// 0xF8180006
 	enum pc = 0b1111;
 	if (((op1 & 0b10) == 0b00) && (rn == pc) && (rt != pc)) 
 		return opcode.ldrb_lit_t1;
@@ -922,7 +920,7 @@ opcode decode_load_byte_memory_hints(const uint instr) {
 		return opcode.ldrb_imm_t3;
 	if ((op1 == 0b00) && ((op2 & 0b111100) == 0b111000) && (rn != pc) && (rt != pc)) 
 		return opcode.ldrbt_t1;
-	if ((op1 == 0b00) && ((op2 & 0b000000) == 0b110000) && (rn != pc) && (rt != pc)) 
+	if ((op1 == 0b00) && (op2 == 0) && (rn != pc) && (rt != pc)) 
 		return opcode.ldrb_reg_t2;
 	if (((op1 & 0b10) == 0b10) && (rn == pc) && (rt != pc)) 
 		return opcode.ldrsb_lit_t1;
