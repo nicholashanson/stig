@@ -766,3 +766,46 @@ string convert_rsb_reg_t1_to_string(const ref instr_32 instr, const condition co
 										get_reg_name(instr.rm),
 										get_shift_string(instr));
 }
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// * 									   RRX											 *
+// ***************************************************************************************
+
+// RRX{S}<c> <Rd>,<Rm>
+instr_32 parse_rrx_t1(const uint instr) {
+	return instr_32(rm: 	   cast(reg )slice(instr, 0, 4),
+					rd: 	   cast(reg )slice(instr, 8, 4),
+					set_flags: cast(bool)slice(instr, 20, 1));
+
+}
+
+void 
+execute_rrx_t1 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable rm        = vm.get_reg(instr.rm);
+	// (result, carry) = Shift_C(R[m], SRType_RRX, 1, APSR.C);
+	immutable shift_res = shift_c(rm, shift_type.rrx, 1, vm.get_c());
+	// R[d] = result;
+	vm.set_reg(instr.rd, shift_res.result);
+	// if setflags then
+	if (instr.set_flags) {
+		// APSR.N = result<31>;
+		vm.set_n(shift_res.result);
+		// APSR.Z = IsZeroBit(result);
+		vm.set_z(shift_res.result);
+		// APSR.C = carry;
+		vm.set_c(shift_res.carry);	
+		// APSR.V unchanged
+	}
+}
+
+// RRX{S}<c> <Rd>,<Rm>
+string convert_rrx_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mov%s.w %s, %s, rrx", add_suffix(instr, cond),
+								         get_reg_name(instr.rd),
+								    	 get_reg_name(instr.rm));
+}
+// ---------------------------------------------------------------------------------------
