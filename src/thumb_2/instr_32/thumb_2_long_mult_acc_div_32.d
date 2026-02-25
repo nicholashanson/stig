@@ -214,12 +214,12 @@ execute_umaal_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	// EncodingSpecificOperations();
-	immutable rn    = vm.get_reg(instr.rn);
-	immutable rm    = vm.get_reg(instr.rm);
-	immutable rd_hi = vm.get_reg(instr.rd_hi);
-	immutable rd_lo = vm.get_reg(instr.rd_lo);
+	immutable   rn    = vm.get_reg(instr.rn);
+	immutable   rm    = vm.get_reg(instr.rm);
+	immutable   rd_hi = vm.get_reg(instr.rd_hi);
+	immutable   rd_lo = vm.get_reg(instr.rd_lo);
 	// result = UInt(R[n]) * UInt(R[m]) + UInt(R[dHi]) + UInt(R[dLo]);
-	const ulong res = (cast(ulong)rn * cast(ulong)rm) + cast(ulong)rd_hi + cast(ulong)rd_lo;
+	const ulong res   = (cast(ulong)rn * cast(ulong)rm) + cast(ulong)rd_hi + cast(ulong)rd_lo;
 	// R[dHi] = result<63:32>;
 	vm.set_reg(instr.rd_hi, slice(res, 32, 32));
 	// R[dLo] = result<31:0>;
@@ -235,3 +235,46 @@ string convert_umaal_t1_to_string(const ref instr_32 instr, const condition cond
 											get_reg_name(instr.rn),
 											get_reg_name(instr.rm));
 }
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  SMLAL											 *
+// ***************************************************************************************
+
+// SMLAL<c><q> <RdLo>, <RdHi>, <Rn>, <Rm>
+instr_32 parse_smlal_t1(const uint instr) {
+	return instr_32(rm:    cast(reg)slice(instr,  0, 4),
+				    rd_hi: cast(reg)slice(instr,  8, 4),
+				    rd_lo: cast(reg)slice(instr, 12, 4),
+				    rn:    cast(reg)slice(instr, 16, 4));
+}
+
+void 
+execute_smlal_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	const int  rn    = vm.get_reg(instr.rn);
+	const int  rm    = vm.get_reg(instr.rm);
+	const int  rd_hi = vm.get_reg(instr.rd_hi);
+	const int  rd_lo = vm.get_reg(instr.rd_lo);
+	const long acc   = (cast(long)rd_hi << 32 ) | cast(long)rd_lo;
+	// result = SInt(R[n]) * SInt(R[m]) + SInt(R[dHi]:R[dLo]);
+	const long res   = (rn * rm) + acc;
+	// R[dHi] = result<63:32>;
+	vm.set_reg(instr.rd_hi, slice(cast(ulong)res, 32, 32));
+	// R[dLo] = result<31:0>;
+	vm.set_reg(instr.rd_lo, slice(cast(ulong)res,  0, 32));
+}
+
+
+// SMLAL<c><q> <RdLo>, <RdHi>, <Rn>, <Rm>
+string convert_smlal_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("smlal%s %s, %s, %s, %s", get_condition_string(cond),
+											get_reg_name(instr.rd_lo),
+											get_reg_name(instr.rd_hi),
+											get_reg_name(instr.rn),
+											get_reg_name(instr.rm));
+}
+
+// ---------------------------------------------------------------------------------------

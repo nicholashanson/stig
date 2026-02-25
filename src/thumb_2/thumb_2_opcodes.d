@@ -230,6 +230,7 @@ enum opcode : ubyte {
 	sdiv_t1,
 	umlal_t1,
 	umaal_t1,
+	smlal_t1,
 	// load word
 	ldr_imm_t3,
 	ldr_imm_t4,
@@ -1097,6 +1098,8 @@ opcode decode_mnemonic(const uint instr) {
 				return opcode.umlal_t1;
 			if ((_op1 == 0b110) && (_op2 == 0b0110))
 				return opcode.umaal_t1;
+			if ((_op1 == 0b100) && (_op2 == 0))
+				return opcode.smlal_t1;
 		}
 		// Multiply, multiply accumulate, and absolute difference
 		if ((op2 & op2_32.mult) == 0b0110000) 
