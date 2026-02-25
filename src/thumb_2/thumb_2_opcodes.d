@@ -228,6 +228,7 @@ enum opcode : ubyte {
 	umull_t1,
 	udiv_t1,
 	sdiv_t1,
+	umlal_t1,
 	// load word
 	ldr_imm_t3,
 	ldr_imm_t4,
@@ -1091,8 +1092,8 @@ opcode decode_mnemonic(const uint instr) {
 			immutable _op2 = slice(instr,  4, 4);
 			if ((_op1 == 0) && (_op2 == 0)) 
 				return opcode.smull_t1;
-			else 
-				return opcode.invalid;
+			if ((_op1 == 0b110) && (_op2 == 0))
+				return opcode.umlal_t1;
 		}
 		// Multiply, multiply accumulate, and absolute difference
 		if ((op2 & op2_32.mult) == 0b0110000) 

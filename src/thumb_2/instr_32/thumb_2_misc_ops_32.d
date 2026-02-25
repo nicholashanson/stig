@@ -12,6 +12,7 @@
 // *									    											 *
 // ***************************************************************************************
 
+import std.format;
 import std.typecons : Tuple;
 
 import thumb_2_opcodes;
@@ -107,7 +108,6 @@ execute_clz_t1
 //  Parse SEL
 // ===========
 
-enum field_tuples_sel_t1 = [Tuple!(opcode, string[])(opcode.sel_t1, ["rd","rn","rm"])];
 // SEL<c> <Rd>,<Rn>,<Rm>
 instr_32 parse_sel_t1(const uint instr) {
 	return instr_32(rm: cast(reg)slice(instr,  0, 4),
@@ -131,6 +131,14 @@ execute_sel_t1
 	int rd3 = vm.get_ge0() ? ((rn      ) & 0xff) : ((rm      ) & 0xff); 
 	int res = (rd0 << 24) | (rd1 << 16) | (rd2 << 8) | rd3;
 	vm.set_reg(instr.rd, res);
+}
+
+// SEL<c> <Rd>,<Rn>,<Rm>
+string convert_sel_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sel%s %s, %s, %s", get_condition_string(cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

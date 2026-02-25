@@ -254,7 +254,9 @@ unittest {
 		test_case(0xe9120007, 							"ldmdb r2, {r0, r1, r2}"),
 		test_case(0xfa13f389, 								  "uxtah r3, r3, r9"),
 		test_case(0xfa0ffe8e, 									 "sxth.w lr, lr"),
-		test_case(0xfb13f302, 								 "smulbb r3, r3, r2")
+		test_case(0xfb13f302, 								 "smulbb r3, r3, r2"),
+		test_case(0xfbe20103, 							  "umlal r0, r1, r2, r3"),
+		test_case(0xfaa4f28c, 									"sel r2, r4, ip")
 	];
 
 	foreach (t; tests) {

@@ -218,3 +218,4 @@ string convert_smul_t1_to_string(const ref instr_32 instr, const condition cond)
 										 get_reg_name(instr.rn),
 										 get_reg_name(instr.rm));
 }
+// ---------------------------------------------------------------------------------------

@@ -19,6 +19,14 @@ import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
 
+private uint slice(const ulong instr, const uint shift, const uint width) {
+	return cast(uint)((instr >> shift) & decimal_to_hex_mask(width));
+}
+
+private uint decimal_to_hex_mask(uint n) {
+    return (1u << n) - 1;
+}
+
 // ***************************************************************************************
 // *									  SMULL 										 *
 // ***************************************************************************************
@@ -136,6 +144,50 @@ execute_umull_t1
 
 string convert_umull_t1_to_string(const ref instr_32 instr, const condition cond) {
 	return format("umull%s %s, %s, %s, %s", get_condition_string(cond),
+											get_reg_name(instr.rd_lo),
+											get_reg_name(instr.rd_hi),
+											get_reg_name(instr.rn),
+											get_reg_name(instr.rm));
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  UMLAL											 *
+// ***************************************************************************************
+
+// Unsigned Multiply Accumulate Long multiplies two unsigned 32-bit values to produce a 
+// 64-bit value, and accumulates this with a 64-bit value.
+
+
+// UMLAL<c> <RdLo>,<RdHi>,<Rn>,<Rm>
+instr_32 parse_umlal_t1(const uint instr) {
+	return instr_32(rm:    cast(reg)slice(instr,  0, 4),
+				    rd_hi: cast(reg)slice(instr,  8, 4),
+				    rd_lo: cast(reg)slice(instr, 12, 4),
+				    rn:    cast(reg)slice(instr, 16, 4));
+}
+
+void 
+execute_umlal_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable   rn    = vm.get_reg(instr.rn);
+	immutable   rm    = vm.get_reg(instr.rm);
+	immutable   rd_hi = vm.get_reg(instr.rd_hi);
+	immutable   rd_lo = vm.get_reg(instr.rd_lo);
+	const ulong acc   = (cast(ulong)rd_hi << 32) | cast(ulong)rd_lo;
+	// result = UInt(R[n]) * UInt(R[m]) + UInt(R[dHi]:R[dLo]);
+	const ulong res   = (cast(ulong)rn * cast(ulong)rm) + acc;
+	// R[dHi] = result<63:32>;
+	vm.set_reg(instr.rd_hi, slice(res, 32, 32));
+	// R[dLo] = result<31:0>;
+	vm.set_reg(instr.rd_lo, slice(res,  0, 32));
+}
+
+// UMLAL<c> <RdLo>,<RdHi>,<Rn>,<Rm>
+string convert_umlal_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("umlal%s %s, %s, %s, %s", get_condition_string(cond),
 											get_reg_name(instr.rd_lo),
 											get_reg_name(instr.rd_hi),
 											get_reg_name(instr.rn),
