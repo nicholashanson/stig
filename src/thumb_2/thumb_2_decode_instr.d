@@ -22,6 +22,7 @@ import thumb_2_load_store_single_data_item_16;
 import thumb_2_load_mult_reg_16;
 // 32-bit instructions
 import thumb_2_load_store_dual_exc_32;
+import thumb_2_floating_point_ext_32;
 import thumb_2_branch_misc_ctrl_32;
 import thumb_2_data_proc_bin_imm_32;
 import thumb_2_data_proc_reg_32;

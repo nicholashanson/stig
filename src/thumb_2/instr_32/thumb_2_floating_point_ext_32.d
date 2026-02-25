@@ -20,7 +20,7 @@ execute_vmsr_t1
 }
 
 // VMRS<c> <Rt>, FPSCR
-string convert_vmrs_t1_to_string(const ref instr_32 instr, const condition cond) {
+string convert_vmsr_t1_to_string(const ref instr_32 instr, const condition cond) {
 	return format("vmrs%s %s, FPSCR", get_condition_string(cond),
 									  get_reg_name(instr.rt));
 }

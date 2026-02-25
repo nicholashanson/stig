@@ -36,6 +36,7 @@ import thumb_2_load_half_word_32;
 import thumb_2_load_store_multiple_32;
 import thumb_2_load_word_32;
 import thumb_2_long_mult_acc_div_32;
+import thumb_2_floating_point_ext_32;
 import thumb_2_mult_mult_acc_32;
 import thumb_2_store_single_data_item_32;
 import thumb_2_misc_ops_32;

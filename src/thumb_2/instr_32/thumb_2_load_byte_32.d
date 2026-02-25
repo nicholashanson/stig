@@ -266,7 +266,6 @@ void execute_ror_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 void execute_sxtb_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_sxtab_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_sxtah_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 void execute_sxtab16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_sxtb16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
@@ -323,5 +322,5 @@ void execute_pld_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_reg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 void execute_invalid(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_vmsr_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
 void execute_stmdb_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

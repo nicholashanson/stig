@@ -345,3 +345,40 @@ string convert_sxth_t2_to_string(const ref instr_32 instr, const condition cond)
 									   instr.imm != 0 ? get_imm_string(instr.imm) : "");
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  SXTAH 										 *
+// ***************************************************************************************
+
+// SXTAH<c> <Rd>,<Rn>,<Rm>{,<rotation>}
+instr_32 parse_sxtah_t1(const uint instr) {
+	return instr_32(rm:  cast(reg)slice(instr,  0, 4),
+				rd:  cast(reg)slice(instr,  8, 4),
+				rn:  cast(reg)slice(instr, 16, 4),
+				imm: slice(instr, 4, 2) << 3);
+}
+
+void 
+execute_sxtah_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable  rm      = vm.get_reg(instr.rm);
+	immutable  rn      = vm.get_reg(instr.rn);
+	immutable  imm 	   = instr.imm; 
+	// rotated = ROR(R[m], rotation);
+	const uint rotated = rotr(rm, imm);
+ 	// R[d] = R[n] + SignExtend(rotated<15:0>, 32);
+ 	const uint res     = rn + cast(int)cast(short)rotated;
+ 	vm.set_reg(instr.rd, res);
+}
+
+// SXTAH<c> <Rd>,<Rn>,<Rm>{,<rotation>}
+string convert_sxtah_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sxtah%s %s, %s, %s%s", get_condition_string(cond),
+										  get_reg_name(instr.rd),
+										  get_reg_name(instr.rn),
+										  get_reg_name(instr.rm),
+										  instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
+// ---------------------------------------------------------------------------------------
