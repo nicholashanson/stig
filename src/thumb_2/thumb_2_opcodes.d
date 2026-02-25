@@ -637,6 +637,7 @@ opcode decode_data_proc_shift_reg(const uint instr) {
 			if (rd == pc && s == 1) return opcode.tst_reg_t2;
 			if (rd != pc) return opcode.and_reg_t2;
 			return opcode.invalid;
+		case 0b1110: return opcode.rsb_reg_t1;
 		default: break;
 	}
 	return opcode.invalid;

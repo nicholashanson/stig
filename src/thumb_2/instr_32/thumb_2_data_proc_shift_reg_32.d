@@ -681,3 +681,88 @@ string convert_mvn_reg_t2_to_string(const ref instr_32 instr, const condition co
 									  get_reg_name(instr.rm),
 									  get_shift_string(instr));
 }
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// * 									   CMP											 *
+// ***************************************************************************************
+
+// CMP<c>.W <Rn>, <Rm> {,<shift>}
+instr_32 parse_cmp_reg_t3(const uint instr) {
+	immutable type    = cast(ubyte)slice(instr,  4, 2);
+	immutable imm_2   = slice(instr,  6, 2);
+	immutable imm_3   = slice(instr, 12, 3);
+	immutable imm_5   = cast(ubyte)((imm_3 << 2) | imm_2);
+	immutable shift_t = get_shift_type(type, imm_5);
+	return instr_32(rm: 	   cast(reg)slice(instr,  0, 4),
+		            rn:        cast(reg)slice(instr, 16, 4),
+		            shift_t:   shift_t,
+		            shift_n:   shift_t == shift_type.rrx ? 1 : imm_5);
+}
+
+void
+execute_cmp_reg_t3
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable rm       = vm.get_reg(instr.rm);
+	immutable rn  	   = vm.get_reg(instr.rn);
+	// shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+	const uint shifted = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
+	// (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), ‘1’);
+	immutable res      = add_with_carry(rn, ~shifted, true);
+	// APSR.N = result<31>;
+	vm.set_n(res.result);
+	// APSR.Z = IsZeroBit(result);
+	vm.set_z(res.result);
+	// APSR.C = carry;
+	vm.set_c(res.carry);
+	// APSR.V = overflow;
+	vm.set_v(res.overflow);
+}
+
+// CMP<c>.W <Rn>, <Rm> {,<shift>}
+string convert_cmp_reg_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("cmp%s.w %s, %s%s", get_condition_string(cond),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm),
+									  get_shift_string(instr));
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// * 									   RSB											 *
+// ***************************************************************************************
+
+instr_32 parse_rsb_reg_t1(const uint instr) {
+	return parse_data_proc_shift_reg(instr);
+}
+
+void
+execute_rsb_reg_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable       rm = vm.get_reg(instr.rm);
+	immutable       rn = vm.get_reg(instr.rn);
+    // shifted = Shift(R[m], shift_t, shift_n, APSR.C);
+    const uint shifted = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
+    // (result, carry, overflow) = AddWithCarry(NOT(R[n]), shifted, ‘1’);
+    immutable res      = add_with_carry(~rn, shifted, true);
+    // R[d] = result;
+    vm.set_reg(instr.rd, res.result);
+    // if setflags then
+    if (instr.set_flags) {
+    	vm.set_n(res.result);	// APSR.N = result<31>;
+    	vm.set_c(res.carry);	// APSR.C = carry;
+    }
+}
+
+// RSB{S}<c> <Rd>,<Rn>,<Rm>{,<shift>}
+string convert_rsb_reg_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("rsb%s %s, %s, %s%s", add_suffix(instr, cond),
+										get_reg_name(instr.rd),
+										get_reg_name(instr.rn),
+										get_reg_name(instr.rm),
+										get_shift_string(instr));
+}
