@@ -249,7 +249,9 @@ unittest {
 		test_case(0xf8237b02, 							   "strh.w r7, [r3], #2"),
 		test_case(0xfa5ff788, 									 "uxtb.w r7, r8"),
 		test_case(0xebb31fd2, 	                          "cmp.w r3, r2, lsr #7"),
-		test_case(0xebc404c4, 							"rsb r4, r4, r4, lsl #3")
+		test_case(0xebc404c4, 							"rsb r4, r4, r4, lsl #3"),
+		test_case(0xe9030007, 							"stmdb r3, {r0, r1, r2}"),
+		test_case(0xe9120007, 							"ldmdb r2, {r0, r1, r2}")
 	];
 
 	foreach (t; tests) {

@@ -327,4 +327,3 @@ void execute_pld_reg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_invalid(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_vmsr_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_stmdb_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_ldmdb_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

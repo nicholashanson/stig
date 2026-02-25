@@ -156,7 +156,6 @@ string convert_stm_t2_to_string(const ref instr_32 instr, const condition cond) 
 //  Parse PUSH
 // ============
 
-enum field_tuples_push_t2 = [Tuple!(opcode, string[])(opcode.push_t2, ["reg_list"])];
 // First Half-Word: [15:0] 1110100100101101
 // Second Half-Word: [15] 0, [14] M, [13] 0, [12:0] register_list
 instr_32 parse_push_t2(const uint instr) {
@@ -184,3 +183,100 @@ execute_push_t2
 }
 // ---------------------------------------------------------------------------------------
 
+// ***************************************************************************************
+// *									 STMDB 											 *
+// ***************************************************************************************
+
+// STMDB<c> <Rn>{!},<registers>
+instr_32 parse_stmdb_t1(const uint instr) {
+	immutable reg_mask = slice(instr, 0, 16);
+	reg[] reg_list;
+	foreach (i; 0 .. 16)
+    	if (reg_mask & (1 << i))
+        	reg_list ~= cast(reg)i;
+	return instr_32(rn:    	  cast(reg )slice(instr, 16, 4),
+					wback:    cast(bool)slice(instr, 21, 1),
+					reg_list: reg_list);
+}
+
+void 
+exeucte_stmdb_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	auto regs = instr.reg_list.dup; 
+	regs.sort!((a,b) => cast(int)a > cast(int)b);
+	// EncodingSpecificOperations();
+	immutable rn      = vm.get_reg(instr.rn);
+	// address = R[n] - 4*BitCount(registers);
+	const size_t addr = rn - (4 * instr.reg_list.length);
+	// for i = 0 to 14
+	foreach (r; regs) {
+		// if registers<i> == ‘1’ then
+		uint data = vm.get_reg(r);
+		// MemA[address,4] = R[i];
+		vm.write_word(addr, data);
+		// address = address + 4;
+		addr += 4;
+	}
+	// if wback then R[n] = R[n] - 4*BitCount(registers);
+	if (instr.wback) 
+		vm.set_reg(instr.rn, rn);
+}
+ 
+
+// STMDB<c> <Rn>{!},<registers>
+string convert_stmdb_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("stmdb%s %s%s, {%s}", get_condition_string(cond),
+										get_reg_name(instr.rn),
+										instr.wback ? "!" : "",
+										get_reg_list_string(instr.reg_list));
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									 LDMDB 											 *
+// ***************************************************************************************
+
+// LDMDB<c> <Rn>{!},<registers>
+instr_32 parse_ldmdb_t1(const uint instr) {
+	immutable reg_mask = slice(instr, 0, 16);
+	reg[] reg_list;
+	foreach (i; 0 .. 16)
+    	if (reg_mask & (1 << i))
+        	reg_list ~= cast(reg)i;
+	return instr_32(rn:       cast(reg )slice(instr, 16, 4),
+					wback:    cast(bool)slice(instr, 21, 1),
+					reg_list: reg_list);
+}
+
+void
+execute_ldmdb_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	auto regs = instr.reg_list.dup; 
+	regs.sort!((a,b) => cast(int)a < cast(int)b);
+	// EncodingSpecificOperations();
+	immutable rn   = vm.get_reg(instr.rn);
+	// address = R[n] - 4*BitCount(registers);
+	size_t 	  addr = rn - 4 * regs.length; 
+	// for i = 0 to 14
+	foreach (r; regs) {
+		// if registers<i> == ‘1’ then
+		// R[i] = MemA[address,4]; address = address + 4;
+		immutable data = vm.read_word(addr);
+		vm.set_reg(r, data);
+		addr += 4;
+	}
+	// if wback && registers<n> == ‘0’ then R[n] = R[n] - 4*BitCount(registers);
+	if (instr.wback && !regs.canFind(instr.rn))
+		vm.set_reg(instr.rn, cast(uint)(rn - 4 * regs.length));
+}
+
+// LDMDB<c> <Rn>{!},<registers>
+string convert_ldmdb_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldmdb%s %s%s, {%s}", get_condition_string(cond),
+									    get_reg_name(instr.rn),
+									    instr.wback && !instr.reg_list.canFind(instr.rn) ? "!" : "",
+									    get_reg_list_string(instr.reg_list));
+}
+// ---------------------------------------------------------------------------------------
