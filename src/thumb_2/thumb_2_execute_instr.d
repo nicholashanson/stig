@@ -134,6 +134,8 @@ string mem_diff(const ref tiny_mem a, const ref tiny_mem  b)
 
     foreach (i; 0 .. 1020)
     {
+        if ((i & 3) != 0)   
+          continue;
         auto va = a.read_word(i);
         auto vb = b.read_word(i);
 
@@ -631,16 +633,25 @@ unittest {
                                     tuple(reg.pc, 2), 
                                     tuple(reg.r3, 10), 
                                     tuple(reg.r0, tiny_mem.ram_origin)),
-                      mem: make_mem(tuple(10, 0xffffffff))))
+                      mem: make_mem(tuple(10, 0xffffffff)))),
+    test_case(0x80fb, 
+              instr_16(op: opcode.strh_imm_t1, rt: reg.r3,  rn: reg.r7, imm: 6),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 0x0000eeee), tuple(reg.r7, tiny_mem.ram_origin + 10)),
+                      mem: make_mem(tuple(16, 0xffffffff))),
 
-          /*
-    
-    test_case_mem(0x80fb, 
-                instr_16(op: opcode.strh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6),
-                cortex_m_cpu(r3: 0x0000eeee, r7: stm32f4_mem.ram_origin + 10),
-                cortex_m_cpu(pc: 2, r3: 0x0000eeee, r7: stm32f4_mem.ram_origin + 10),
-                stm32f4_mem(ram: make_ram_with(16, 0xffffffff)),
-                stm32f4_mem(ram: make_ram_with(16, 0xffffeeee))),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc, 2), 
+                                    tuple(reg.r3, 0x0000eeee), 
+                                    tuple(reg.r7, tiny_mem.ram_origin + 10)),
+                      mem: make_mem(tuple(16, 0xffffeeee)))),
+    test_case(0x80fb, 
+              instr_16(op: opcode.strh_imm_t1, rt: reg.r3,  rn: reg.r7, imm: 6),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 0x0000eeee), tuple(reg.r7, tiny_mem.ram_origin + 12)),
+                      mem: make_mem(tuple(16, 0xffffffff))),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc, 2), 
+                                    tuple(reg.r3, 0x0000eeee), 
+                                    tuple(reg.r7, tiny_mem.ram_origin + 12)),
+                      mem: make_mem(tuple(16, 0xeeeeffff)))),
+    /*
     test_case_mem(0x88fb, 
                 instr_16(op: opcode.ldrh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6),
                 cortex_m_cpu(r3: 0xffffffff, r7: stm32f4_mem.ram_origin + 10),
