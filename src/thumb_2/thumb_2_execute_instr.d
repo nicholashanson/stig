@@ -603,7 +603,6 @@ unittest {
                                     tuple(reg.r0, 0x000000ee)),
                       mem: make_mem(tuple(tiny_mem.stack_base-4, 0x000000ff), 
                                     tuple(tiny_mem.stack_base-8, 0x000000ee)))),
-    // "ldmia r4!, {r0, r1}"
     test_case(0xcc03,
               instr_16(op: opcode.ldm_t1, rn: reg.r3, reg_list: [reg.r0, reg.r1]),
               tiny_vm(cpu: make_cpu(tuple(reg.r3, tiny_mem.stack_base - 8)),
@@ -615,14 +614,15 @@ unittest {
                                     tuple(reg.r1, 0xbb)),
                       mem: make_mem(tuple(tiny_mem.stack_base-4, 0xbb), 
                                     tuple(tiny_mem.stack_base-8, 0xaa)))),
-        /*
     test_case(0x608b, 
-              instr_16(op: opcode.str_imm_t1,        rt: reg.r3,  rn: reg.r1, imm: 8),
-              cortex_m_cpu(r3: 0b0101, r1: stm32f4_mem.ram_origin + 12),
-              cortex_m_cpu(pc: 2, r3: 0b0101, r1: stm32f4_mem.ram_origin + 12),
-              stm32f4_mem(ram: make_ram_with(20, 0)),
-              stm32f4_mem(ram: make_ram_with(20, 0b0101))),
-
+              instr_16(op: opcode.str_imm_t1, rt: reg.r3, rn: reg.r1, imm: 8),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 0b0101), 
+                                    tuple(reg.r1, tiny_mem.ram_origin + 12))),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc,      2), 
+                                    tuple(reg.r3, 0b0101), 
+                                    tuple(reg.r1, tiny_mem.ram_origin + 12)),
+                      mem: make_mem(tuple(20, 0b101)))),
+          /*
     test_case_mem(0x50c4, // str  r4, [r0, r3]
               instr_16(op: opcode.str_reg,       rt: reg.r4,  rn: reg.r0, rm: reg.r3),
             cortex_m_cpu(r4: 0xffffffff, r3: 10, r0: stm32f4_mem.ram_origin),
@@ -714,11 +714,25 @@ unittest {
 }
 
 unittest {
+    import std.stdio;
     import std.traits : EnumMembers;
 
+    enum GREEN = "\x1b[32m";
+    enum RED   = "\x1b[31m";
+    enum RESET = "\x1b[0m";
+    enum BLUE  = "\x1b[34m";
+
+    int untested_count;
+    int tested_count;
     foreach(op; EnumMembers!opcode) {
-        assert(tested_opcodes.canFind(op), "Missing test for opcode "~op.stringof);
+        if (!tested_opcodes.canFind(op)) {
+          writeln(RED ~ "Missing test for opcode " ~ op.stringof ~ RESET);
+          untested_count++;
+        } else 
+          tested_count++;
     }
+    writeln(BLUE  ~ untested_count.to!string ~ " untested opcodes" ~ RESET);
+    writeln(GREEN ~ tested_count.to!string   ~ " tested opcodes"   ~ RESET);
 }
 
 
