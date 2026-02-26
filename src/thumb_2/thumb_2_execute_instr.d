@@ -577,7 +577,6 @@ unittest {
   }
 
   test_case[] tests = [
-  
     test_case(0x4718, 
               instr_16(op: opcode.bx_t1,            rm: reg.r3),
               tiny_vm(cpu: make_cpu(tuple(reg.r3, 10), tuple(reg.pc,  0))),
@@ -603,7 +602,19 @@ unittest {
                                     tuple(reg.r1, 0x000000ff), 
                                     tuple(reg.r0, 0x000000ee)),
                       mem: make_mem(tuple(tiny_mem.stack_base-4, 0x000000ff), 
-                                    tuple(tiny_mem.stack_base-8, 0x000000ee)))),    
+                                    tuple(tiny_mem.stack_base-8, 0x000000ee)))),
+    // "ldmia r4!, {r0, r1}"
+    test_case(0xcc03,
+              instr_16(op: opcode.ldm_t1, rn: reg.r3, reg_list: [reg.r0, reg.r1]),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, tiny_mem.stack_base - 8)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-4, 0xbb), 
+                                    tuple(tiny_mem.stack_base-8, 0xaa))),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc, 2),
+                                    tuple(reg.r3, tiny_mem.stack_base),
+                                    tuple(reg.r0, 0xaa),
+                                    tuple(reg.r1, 0xbb)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-4, 0xbb), 
+                                    tuple(tiny_mem.stack_base-8, 0xaa)))),
         /*
     test_case(0x608b, 
               instr_16(op: opcode.str_imm_t1,        rt: reg.r3,  rn: reg.r1, imm: 8),
