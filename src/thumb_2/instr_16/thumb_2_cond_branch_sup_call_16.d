@@ -38,7 +38,7 @@ execute_svc_t1
 	if (vm.get_current_exception() == exception.thread_mode) {
 		vm.push(vm.get_xpsr());
 		auto push_instr = instr_16(op:       opcode.push_t1, 
-			                       reg_list: hardware_saved_frame);
+			                       reg_list: hrdw_saved_frame);
 		execute_push_t1(push_instr, vm);
 	}
 	vm.set_current_exception(exception.svc_irqn);

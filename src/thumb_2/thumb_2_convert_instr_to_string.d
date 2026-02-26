@@ -181,7 +181,8 @@ unittest {
         test_case(0xb661,      				   "cpsie f"),
         test_case(0xb248,    			   "sxtb r0, r1"),
         test_case(0x438a,      			   "bics r2, r1"),
-        test_case(0x5688,      		"ldrsb r0, [r1, r2]")
+        test_case(0x5688,      		"ldrsb r0, [r1, r2]"),
+        test_case(0xba52,      			  "rev16 r2, r2")
 	]; 
 
 	foreach (t; tests) {

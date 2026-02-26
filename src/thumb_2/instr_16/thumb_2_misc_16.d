@@ -575,6 +575,13 @@ execute_rev16_t1
 	// R[d] = result;
 	vm.set_reg(instr.rd, res);
 }
+
+// REV16<c> <Rd>,<Rm>
+string convert_rev16_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("rev16%s %s, %s", get_condition_string(cond),
+									get_reg_name(instr.rd),
+									get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************

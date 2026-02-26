@@ -380,6 +380,8 @@ opcode decode_misc_16_bit_instrs(const ushort instr) {
 		if (slice(instr, 12, 4) == 0b1011) 
 			return opcode.add_sp_t2;
 	}
+	if (slice(instr, 6, 6) == 0b101001) 
+		return opcode.rev16_t1;
 	if (slice(instr, 6, 6) == 0b001011) 
 		return opcode.uxtb_t1;
 	if (slice(instr, 6, 6) == 0b001001) 
@@ -826,7 +828,7 @@ opcode decode_mult(uint instr) {
 //  Misc Ops
 // ==========
 
-opcode misc_ops(uint instr) {
+opcode misc_ops(const uint instr) {
 	ubyte op1  = cast(ubyte)((instr >> 20) & 0x3);
 	ubyte op2  = cast(ubyte)((instr >>  4) & 0x3);
 	ubyte op12 = cast(ubyte)((op1 << 2) | op2);
