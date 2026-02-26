@@ -704,7 +704,16 @@ unittest {
               tiny_vm(cpu: make_cpu(tuple(reg.pc, 2), 
                                     tuple(reg.r3, 0xaa0000ee), 
                                     tuple(reg.r7, tiny_mem.ram_origin + 12)),
-                      mem: make_mem(tuple(24, 0xaa0000ee))))
+                      mem: make_mem(tuple(24, 0xaa0000ee)))),
+    test_case(0x58fb, 
+              instr_16(op: opcode.ldr_reg_t1, rt: reg.r3, rn: reg.r7, rm: reg.r3),
+                tiny_vm(cpu: make_cpu(tuple(reg.r3, 12), 
+                                      tuple(reg.r7, tiny_mem.ram_origin + 12)),
+                        mem: make_mem(tuple(24, 0xffffffee))),
+                tiny_vm(cpu: make_cpu(tuple(reg.pc, 2),
+                                      tuple(reg.r3, 0xffffffee),
+                                      tuple(reg.r7, tiny_mem.ram_origin + 12)),
+                        mem: make_mem(tuple(24, 0xffffffee))))
 
     /*
     test_case_mem(0x68fb, 
@@ -729,12 +738,7 @@ unittest {
               cortex_m_cpu(pc: 2, r3: 0x000000ee, r2: stm32f4_mem.ram_origin + 10),
               stm32f4_mem(ram: make_ram_with(20, 0xffffffee)),
               stm32f4_mem(ram: make_ram_with(20, 0xffffffee))),
-    test_case_mem(0x58fb, 
-                instr_16(op: opcode.ldr_reg,       rt: reg.r3,  rn: reg.r7, rm: reg.r3),
-                cortex_m_cpu(r3:         10, r7: stm32f4_mem.ram_origin + 10),
-                cortex_m_cpu(pc: 2, r3: 0xffffffee, r7: stm32f4_mem.ram_origin + 10),
-                stm32f4_mem(ram: make_ram_with(20, 0xffffffee)),
-              stm32f4_mem(ram: make_ram_with(20, 0xffffffee))),
+    
  
     test_case_mem(0x6013, 
                 instr_16(op: opcode.str_imm,       rt: reg.r3,  rn: reg.r2, imm: 0),
