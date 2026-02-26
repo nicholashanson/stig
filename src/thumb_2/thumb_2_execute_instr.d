@@ -562,7 +562,11 @@ unittest {
           test_vm(cpu: make_cpu(tuple(reg.r0, 0xaaaaaaaa), tuple(reg.r1, 0x55555555))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r0, 0xaaaaaaaa), 
                                                   tuple(reg.r1, 0x55555555), 
-                                                  tuple(flag.z, true))))
+                                                  tuple(flag.z, true)))),
+    test_case(0xba5b, // rev16 r3, r3
+          instr_16(opcode.rev16_t1, rd: reg.r3, rm: reg.r3),
+          test_vm(cpu: make_cpu(tuple(reg.r3, 0xaabbccdd))),
+          test_vm(cpu: make_cpu(tuple(reg.r3, 0xbbaaddcc), tuple(reg.pc, 2))))
   ];
 
   foreach (t; tests) {
