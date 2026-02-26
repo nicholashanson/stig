@@ -300,6 +300,15 @@ unittest {
                   instr_32(op: opcode.adc_reg_t2, rd: reg.r3, rn: reg.r5, rm: reg.r11, shift_t: shift_type.lsl, shift_n: 0),
                   test_vm(cpu: make_cpu(tuple(reg.r5, 5u), tuple(reg.r11,  5u), tuple(flag.c,  true))),
                   test_vm(cpu: make_cpu(tuple(reg.pc, 4u), tuple(reg.r3,  11u), tuple(reg.r11,   5u), tuple(reg.r5,   5u), tuple(flag.c, true)))),
+        test_case(0xfaa4f28c, // sel r2, r4, ip
+                  instr_32(op: opcode.sel_t1, rd: reg.r2, rn: reg.r4, rm: reg.r12),
+                  test_vm(cpu: make_cpu(tuple(reg.r4, 0x778899aa), tuple(reg.r12, 0xbbccddee),
+                                        tuple(flag.ge0, true), tuple(flag.ge2, true))),
+                  test_vm(cpu: make_cpu(tuple(reg.r2,  0xbb88ddaa),
+                                        tuple(reg.pc,  4),
+                                        tuple(reg.r4,  0x778899aa),
+                                        tuple(reg.r12, 0xbbccddee),
+                                        tuple(flag.ge0, true), tuple(flag.ge2, true))))
     ];
 
     foreach (t; tests) {

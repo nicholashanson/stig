@@ -161,8 +161,10 @@ execute_bic_reg_t1
 	immutable  rn  = vm.get_reg(instr.rn);
 	const uint res = rm & ~rn;
 	if (!vm.in_it_block()) {
-		vm.set_z(res);
-		vm.set_n(res);
+		vm.set_z(res);	// APSR.Z = IsZeroBit(result);
+		vm.set_n(res);	// APSR.N = result<31>;
+		// APSR.C = carry;
+		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
 }
