@@ -308,7 +308,12 @@ unittest {
                                         tuple(reg.pc,  4),
                                         tuple(reg.r4,  0x778899aa),
                                         tuple(reg.r12, 0xbbccddee),
-                                        tuple(flag.ge0, true), tuple(flag.ge2, true))))
+                                        tuple(flag.ge0, true), tuple(flag.ge2, true)))),
+        test_case(0xfa50f383, // uxtab r3, r0, r3
+                  instr_32(op: opcode.uxtab_t1, rd: reg.r3, rn: reg.r0, rm: reg.r3),
+                  test_vm(cpu: make_cpu(tuple(reg.r3, 0xccaa), tuple(reg.r0, 0xbb00))),
+                  test_vm(cpu: make_cpu(tuple(reg.r3, 0xbbaa), tuple(reg.r0, 0xbb00),
+                                        tuple(reg.pc, 4))))
     ];
 
     foreach (t; tests) {
