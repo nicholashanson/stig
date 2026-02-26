@@ -2,7 +2,6 @@ import std.stdio;
 import std.format;
 
 import cortex_m_core;
-import load_store_log_;
 
 File* access_log_ptr = null;
 
@@ -11,15 +10,6 @@ File* access_log() {
         access_log_ptr = new File("access_log.txt", "w");
     }
     return access_log_ptr;
-}
-
-File* stack_log_ptr = null;
-
-File* stack_log() {
-    if (stack_log_ptr is null) {
-        stack_log_ptr = new File("stack_log.txt", "w");
-    }
-    return stack_log_ptr;
 }
 
 File* uart_log_ptr = null;
@@ -40,6 +30,36 @@ File* gpio_log() {
     return gpio_log_ptr;
 }
 
+struct tiny_mem {
+    enum flash_origin = 0;
+    enum flash_length = 0;
+    enum ram_origin = 0;
+    enum ram_length = 0;
+    enum stack_base = 0x400;
+    mem_section!(1,0) mem; 
+
+    void write_word(size_t addr, uint val) {
+        mem.write_word(addr, val);  
+    }
+    uint read_word(size_t addr) const { 
+        return mem.read_word(addr);
+    }
+    void write_byte(size_t addr, ubyte val) {
+        mem.write_byte(addr, val);
+    }
+    ubyte read_byte(size_t addr) const { 
+        return mem.read_byte(addr);
+    }
+    void write_half_word(size_t addr, ushort val) {
+        mem.write_half_word(addr, val);
+    }
+    ushort read_half_word(size_t addr) const { 
+        return mem.read_half_word(addr);
+    }
+    void flip_bit(const uint addr, const uint bit){}
+    string get_reg_name(const uint addr) { return ""; }
+}
+
 enum ise_base     = 0xE000E100;
 enum ise_top      = 0xE000E13C;
 enum ice_base     = 0xE000E180;
@@ -53,7 +73,7 @@ enum ipr_top      = 0xE000E5EC;
 
 string get_scb_reg_name(const uint reg_addr) { 
     if (reg_addr >= ipr_base && reg_addr <= ipr_top) {
-        return format("NVIC_IPR%d", (reg_addr - ipr_base) / 4);
+        return format("NVIC_IPR%d", (reg_addr - ipr_base)  / 4);
     } 
     if (reg_addr >= ise_base && reg_addr <= ise_top) {
         return format("NVIC_ISER%d", (reg_addr - ise_base) / 4);
@@ -79,13 +99,13 @@ struct mem_section(size_t kb, size_t origin) {
         return cells[index];
     }
 
-    const(ushort) read_half_word(size_t index) {
+    const(ushort) read_half_word(size_t index) const {
     	index -= origin;
     	ushort res = (cells[index + 1] << 8) | cells[index];
     	return res;
     }
 
-    const(uint) read_word(size_t index) {
+    const(uint) read_word(size_t index) const {
     	index -= origin;
     	uint res = (cells[index + 3] << 24) | 
     	           (cells[index + 2] << 16) | 
@@ -189,7 +209,7 @@ uint[size_t] scb = [
     0xE000ED94: 0,          // MPU_CTRL(RW)
                             // enables the MPU
                             // [2] PRIVDEFENA, [1] HFNMIENA, [0] ENABLE
-                            // PRIVDEFENA: 0 disables the default memory map. Any instruction
+                            // PRIVDEFENA: 0 disables the default mewidthmory map. Any instruction
                             //             or data access that does not access a defined region
                             //             faults
                             //             1 enables the default memory map as a background region
@@ -275,8 +295,97 @@ uint[size_t] scb = [
 
     0xE000E018: 0,
     0xE0042004: 0           // DBGMCU_CR Debug MCU Configuration Register
-
 ];
+
+string[size_t] stm32f4_peripheral_names = [
+    0x40000000: "TIM2_CR1",
+    0x40000004: "TIM2_CR2",
+    0x40000008: "TIM2_SMCR",
+    0xE000E010: "SYST_CSR",
+    0xE000E014: "SYST_RVR",       
+    0xE000E018: "SYST_CVR",       
+    0xE000E01C: "SYST_CALIB",
+    0x40020000: "GPIOA_MODER",
+    0x40020004: "GPIOA_OTYPER",
+    0x40020008: "GPIOA_OSPEEDR",
+    0x4002000C: "GPIOA_PUPDR",
+    0x40020010: "GPIOA_IDR",
+    0x40020014: "GPIOA_ODR",
+    0x40020020: "GPIOA_AFRL",
+    0x40020024: "GPIOA_AFRH",
+    0x40020400: "GPIOB_MODER",
+    0x40020404: "GPIOB_OTYPER",
+    0x40020408: "GPIOB_OSPEEDR",
+    0x4002040C: "GPIOB_PUPDR",
+    0x40020410: "GPIOB_IDR",
+    0x40020414: "GPIOB_ODR",
+    0x40020420: "GPIOB_AFRL",
+    0x40020424: "GPIOB_AFRH",
+    0x40020800: "GPIOC_MODER",
+    0x40020804: "GPIOC_OTYPER",
+    0x40020808: "GPIOC_OSPEEDR",
+    0x4002080C: "GPIOC_PUPDR",
+    0x40020810: "GPIOC_IDR",
+    0x40020814: "GPIOC_ODR",
+    0x40020820: "GPIOC_AFRL",
+    0x40020824: "GPIOC_AFRH",
+    0x40020C00: "GPIOD_MODER",
+    0x40020C04: "GPIOD_OTYPER",
+    0x40020C08: "GPIOD_OSPEEDR",
+    0x40020C0C: "GPIOD_PUPDR",
+    0x40020C10: "GPIOD_IDR",
+    0x40020C14: "GPIOD_ODR",
+    0x40020C20: "GPIOD_AFRL",
+    0x40020C24: "GPIOD_AFRH",
+    0x40021000: "GPIOE_MODER",
+    0x40021004: "GPIOE_OTYPER",
+    0x40021008: "GPIOE_OSPEEDR",
+    0x4002100C: "GPIOE_PUPDR",
+    0x40021010: "GPIOE_IDR",
+    0x40021014: "GPIOE_ODR",
+    0x40021020: "GPIOE_AFRL",
+    0x40021024: "GPIOE_AFRH",
+    0x40021400: "GPIOF_MODER",
+    0x40021404: "GPIOF_OTYPER",
+    0x40021408: "GPIOF_OSPEEDR",
+    0x4002140C: "GPIOF_PUPDR",
+    0x40021410: "GPIOF_IDR",
+    0x40021414: "GPIOF_ODR",
+    0x40021420: "GPIOF_AFRL",
+    0x40021424: "GPIOF_AFRH",
+    0x40021800: "GPIOG_MODER",
+    0x40021804: "GPIOG_OTYPER",
+    0x40021808: "GPIOG_OSPEEDR",
+    0x4002180C: "GPIOG_PUPDR",
+    0x40021810: "GPIOG_IDR",
+    0x40021814: "GPIOG_ODR",
+    0x40021820: "GPIOG_AFRL",
+    0x40021824: "GPIOG_AFRH",
+    0x40021C00: "GPIOH_MODER",
+    0x40021C04: "GPIOH_OTYPER",
+    0x40021C08: "GPIOH_OSPEEDR",
+    0x40021C0C: "GPIOH_PUPDR",
+    0x40021C10: "GPIOH_IDR",
+    0x40021C14: "GPIOH_ODR",
+    0x40021C20: "GPIOH_AFRL",
+    0x40021C24: "GPIOH_AFRH",
+    0x40023830: "RCC_AHB1ENR",
+    0x40023840: "RCC_APB1ENR",
+    0x40023844: "RCC_APB2ENR",
+    0xE000ED90: "MPU_TYPE",
+    0xE000ED94: "MPU_CTRL", 
+    0xE000ED98: "MPU_RNR",
+    0xE000ED9C: "MPU_RBAR",
+    0xE000EDA0: "MPU_RASR",
+    0x4002388C: "RCC_DCKCFGR",
+    0x40011400: "USART_SR",
+    0x40011404: "USART_DR",
+    0x40011408: "USART_BRR",
+    0x4001140C: "USART_CR1",
+    0x40011410: "USART_CR2",
+    0x40011414: "USART_CR3",
+    0x40011418: "USART_GTPR" 
+]; 
 
 struct stm32f4_mem {
     enum flash_origin  =  0x08000000;
@@ -455,100 +564,10 @@ struct stm32f4_mem {
         0x40011000: 0xc0
     ];
 
-    string[size_t] peripheral_names = [
-        0x40000000: "TIM2_CR1",
-        0x40000004: "TIM2_CR2",
-        0x40000008: "TIM2_SMCR",
-        0xE000E010: "SYST_CSR",
-        0xE000E014: "SYST_RVR",       
-        0xE000E018: "SYST_CVR",       
-        0xE000E01C: "SYST_CALIB",
-        0x40020000: "GPIOA_MODER",
-        0x40020004: "GPIOA_OTYPER",
-        0x40020008: "GPIOA_OSPEEDR",
-        0x4002000C: "GPIOA_PUPDR",
-        0x40020010: "GPIOA_IDR",
-        0x40020014: "GPIOA_ODR",
-        0x40020020: "GPIOA_AFRL",
-        0x40020024: "GPIOA_AFRH",
-        0x40020400: "GPIOB_MODER",
-        0x40020404: "GPIOB_OTYPER",
-        0x40020408: "GPIOB_OSPEEDR",
-        0x4002040C: "GPIOB_PUPDR",
-        0x40020410: "GPIOB_IDR",
-        0x40020414: "GPIOB_ODR",
-        0x40020420: "GPIOB_AFRL",
-        0x40020424: "GPIOB_AFRH",
-        0x40020800: "GPIOC_MODER",
-        0x40020804: "GPIOC_OTYPER",
-        0x40020808: "GPIOC_OSPEEDR",
-        0x4002080C: "GPIOC_PUPDR",
-        0x40020810: "GPIOC_IDR",
-        0x40020814: "GPIOC_ODR",
-        0x40020820: "GPIOC_AFRL",
-        0x40020824: "GPIOC_AFRH",
-        0x40020C00: "GPIOD_MODER",
-        0x40020C04: "GPIOD_OTYPER",
-        0x40020C08: "GPIOD_OSPEEDR",
-        0x40020C0C: "GPIOD_PUPDR",
-        0x40020C10: "GPIOD_IDR",
-        0x40020C14: "GPIOD_ODR",
-        0x40020C20: "GPIOD_AFRL",
-        0x40020C24: "GPIOD_AFRH",
-        0x40021000: "GPIOE_MODER",
-        0x40021004: "GPIOE_OTYPER",
-        0x40021008: "GPIOE_OSPEEDR",
-        0x4002100C: "GPIOE_PUPDR",
-        0x40021010: "GPIOE_IDR",
-        0x40021014: "GPIOE_ODR",
-        0x40021020: "GPIOE_AFRL",
-        0x40021024: "GPIOE_AFRH",
-        0x40021400: "GPIOF_MODER",
-        0x40021404: "GPIOF_OTYPER",
-        0x40021408: "GPIOF_OSPEEDR",
-        0x4002140C: "GPIOF_PUPDR",
-        0x40021410: "GPIOF_IDR",
-        0x40021414: "GPIOF_ODR",
-        0x40021420: "GPIOF_AFRL",
-        0x40021424: "GPIOF_AFRH",
-        0x40021800: "GPIOG_MODER",
-        0x40021804: "GPIOG_OTYPER",
-        0x40021808: "GPIOG_OSPEEDR",
-        0x4002180C: "GPIOG_PUPDR",
-        0x40021810: "GPIOG_IDR",
-        0x40021814: "GPIOG_ODR",
-        0x40021820: "GPIOG_AFRL",
-        0x40021824: "GPIOG_AFRH",
-        0x40021C00: "GPIOH_MODER",
-        0x40021C04: "GPIOH_OTYPER",
-        0x40021C08: "GPIOH_OSPEEDR",
-        0x40021C0C: "GPIOH_PUPDR",
-        0x40021C10: "GPIOH_IDR",
-        0x40021C14: "GPIOH_ODR",
-        0x40021C20: "GPIOH_AFRL",
-        0x40021C24: "GPIOH_AFRH",
-        0x40023830: "RCC_AHB1ENR",
-        0x40023840: "RCC_APB1ENR",
-        0x40023844: "RCC_APB2ENR",
-        0xE000ED90: "MPU_TYPE",
-        0xE000ED94: "MPU_CTRL", 
-        0xE000ED98: "MPU_RNR",
-        0xE000ED9C: "MPU_RBAR",
-        0xE000EDA0: "MPU_RASR",
-        0x4002388C: "RCC_DCKCFGR",
-        0x40011400: "USART_SR",
-        0x40011404: "USART_DR",
-        0x40011408: "USART_BRR",
-        0x4001140C: "USART_CR1",
-        0x40011410: "USART_CR2",
-        0x40011414: "USART_CR3",
-        0x40011418: "USART_GTPR" 
-    ]; 
-
     string get_reg_name(const uint reg_addr) {
         auto s = get_scb_reg_name(reg_addr);
         if (s != "") return s;
-        return peripheral_names.get(reg_addr, "");
+        return stm32f4_peripheral_names.get(reg_addr, "");
     }
 
     unittest {
@@ -559,10 +578,7 @@ struct stm32f4_mem {
         assert(zero_case == "", format("reg_name of 0xE000E100 is %s, instead of the expected empty string", zero_case));
     }
 
-    uint read_word(size_t addr, uint pc) {
-        auto f = load_store_log();
-        f.writeln(format("Attempting to access [%08X]", addr));
-        f.flush();
+    uint read_word(size_t addr) {
         uint res;
         if (addr >= scb_base) {
             if (auto s = addr in scb) {
@@ -583,8 +599,6 @@ struct stm32f4_mem {
         } else {
             res = flash.read_word(addr);
         }
-        f.writeln(format("%08X: %08X loaded from [%08X]", pc, res, addr));
-        f.flush();
         return res;
     }
 
@@ -604,15 +618,12 @@ struct stm32f4_mem {
         }
     }
 
-    void write_half_word(size_t addr, ushort val, uint pc) {
-        auto f = load_store_log();
+    void write_half_word(size_t addr, ushort val) {
         if (addr >= ram_origin) {
             ram.write_half_word(addr, val);
         } else {
             flash.write_half_word(addr, val);
         }
-        f.writeln(format("%08X: %08X stored to [%08X]", pc, addr, addr));
-        f.flush();
     }
 
     const(ubyte) read_byte(size_t addr) {
@@ -620,15 +631,9 @@ struct stm32f4_mem {
             if (addr == 0xE000E400) {
                 return 0xf0;
             }
-            size_t word_addr = addr & ~3;
-            uint shift = (addr & 3) * 8;
-            uint val = scb[word_addr];
-            return cast(ubyte)((val >> shift) & 0xff);
+            return read_byte_from_word(scb, addr);
         } else if (addr >= ram_origin + ram_length) {
-            size_t word_addr = addr & ~3;
-            uint shift = (addr & 3) * 8;
-            uint val = peripherals[word_addr];
-            return cast(ubyte)((val >> shift) & 0xff);
+            return read_byte_from_word(peripherals, addr);
         } 
         if (addr >= ram_origin) {
             return ram.read_byte(addr);
@@ -683,58 +688,21 @@ struct stm32f4_mem {
         }
     }
 
-    void write_byte(const size_t addr, const uint val, const uint pc) {
-        auto f = load_store_log();
-        f.writeln(format("Attempting to access [%08X]", addr));
+    void write_byte(const size_t addr, const uint val) {
         const ubyte b = cast(ubyte)(val & 0xff);
         if (addr >= scb_base) {
-            size_t word_addr = addr & ~3;
-            uint shift = (addr & 3) * 8;
-
-            uint old = scb[word_addr];
-            uint masked = (old & ~(0xff << shift)) | (b << shift);
-            scb[word_addr] = masked;
+            write_byte_to_word(scb, addr, b);
         } else if (addr >= ram_origin + ram_length) {
-            size_t word_addr = addr & ~3;
-            uint shift = (addr & 3) * 8;
-
-            uint old = peripherals[word_addr];
-            uint masked = (old & ~(0xff << shift)) | (b << shift);
-            peripherals[word_addr] = masked;
+            write_byte_to_word(peripherals, addr, b);
         } else if (addr >= ram_origin) {
             ram.write_byte(addr, b);
         } else {
             flash.write_byte(addr, b);
         }
-        f.writeln(format("%08X: %08X stored to [%08X]", pc, val, addr));
-        f.flush();
-    }
-
-    void inc_sp_word_width(ref cortex_m_cpu cpu) {
-        uint current_sp = cpu.get_sp();
-        current_sp += 4;
-        cpu.set_sp(current_sp);
-    }
-
-    void dec_sp_word_width(ref cortex_m_cpu cpu) {
-        uint current_sp = cpu.get_sp();
-        current_sp -= 4;
-        cpu.set_sp(current_sp);
-    }
-
-    void push(ref cortex_m_cpu cpu, uint val) {
-        dec_sp_word_width(cpu);
-        ram.write_word(cpu.get_sp(), val);
-    }
-
-    uint pop(ref cortex_m_cpu cpu) {
-        uint res = ram.read_word(cpu.get_sp());
-        inc_sp_word_width(cpu);
-        return res;
     }
 }
 
-struct nrf52840_mem {     
+struct nrf52840_mem {
     enum flash_origin  =  0x00000000;
     enum ram_origin    =  0x20000000;
     enum flash_length  =  1024* 1024;
@@ -766,10 +734,7 @@ struct nrf52840_mem {
         assert(zero_case == "", format("reg_name of 0xE000E100 is %s, instead of the expected empty string", zero_case));
     }
 
-    uint read_word(size_t addr, uint pc) {
-        auto f = load_store_log();
-        f.writeln(format("[%08X]Attempting to access [%08X]", pc, addr));
-        f.flush();
+    uint read_word(size_t addr) {
         uint res;
         if (addr >= scb_base) {
             if (auto s = addr in scb) {
@@ -790,8 +755,6 @@ struct nrf52840_mem {
         } else {
             res = flash.read_word(addr);
         }
-        f.writeln(format("%08X: %08X loaded from [%08X]", pc, res, addr));
-        f.flush();
         return res;
     }
 
@@ -811,17 +774,12 @@ struct nrf52840_mem {
         }
     }
 
-    void write_half_word(size_t addr, ushort val, uint pc) {
-        auto f = load_store_log();
-        f.writeln(format("[%08X]Attempting to access [%08X]", pc, addr));
-        f.flush();
+    void write_half_word(size_t addr, ushort val) {
         if (addr >= ram_origin) {
             ram.write_half_word(addr, val);
         } else {
             flash.write_half_word(addr, val);
         }
-        f.writeln(format("%08X: %08X stored to [%08X]", pc, addr, addr));
-        f.flush();
     }
 
     const(ubyte) read_byte(size_t addr) {
@@ -829,16 +787,10 @@ struct nrf52840_mem {
             if (addr == 0xE000E400) {
                 return 0xf0;
             }
-            size_t word_addr = addr & ~3;
-            uint shift = (addr & 3) * 8;
-            uint val = scb[word_addr];
-            return cast(ubyte)((val >> shift) & 0xff);
+            return read_byte_from_word(scb, addr);
         }
         if (addr >= ram_origin + ram_length) {
-            size_t word_addr = addr & ~3;
-            uint shift = (addr & 3) * 8;
-            uint val = peripherals[word_addr];
-            return cast(ubyte)((val >> shift) & 0xff);
+            return read_byte_from_word(peripherals, addr);
         } 
         if (addr >= ram_origin) {
             return ram.read_byte(addr);
@@ -848,9 +800,6 @@ struct nrf52840_mem {
     }
 
     void write_word(size_t addr, uint val) {
-        auto f = load_store_log();
-        f.writeln(format("Attempting to access [%08X]", addr));
-        f.flush();
         if (addr >= scb_base) {
             if (addr in scb) {
                 scb[addr] = val;  
@@ -868,57 +817,38 @@ struct nrf52840_mem {
         } else {
             flash.write_word(addr, val);
         }
-        f.writeln(format("%08X stored to [%08X]", val, addr));
-        f.flush();
     }
 
-    void write_byte(const size_t addr, const uint val, const uint pc) {
-        auto f = load_store_log();
-        f.writeln(format("[%08X]Attempting to access [%08X]", pc, addr));
+    void write_byte(const size_t addr, const uint val) {
         const ubyte b = cast(ubyte)(val & 0xff);
         if (addr >= scb_base) {
-            size_t word_addr = addr & ~3;
-            uint shift = (addr & 3) * 8;
-
-            uint old = scb[word_addr];
-            uint masked = (old & ~(0xff << shift)) | (b << shift);
-            scb[word_addr] = masked;
+            write_byte_to_word(scb, addr, b);
         } else if (addr >= ram_origin + ram_length) {
-            size_t word_addr = addr & ~3;
-            uint shift = (addr & 3) * 8;
-
-            uint old = peripherals[word_addr];
-            uint masked = (old & ~(0xff << shift)) | (b << shift);
-            peripherals[word_addr] = masked;
+            write_byte_to_word(peripherals, addr, b);
         } else if (addr >= ram_origin) {
             ram.write_byte(addr, b);
         } else {
             flash.write_byte(addr, b);
         }
-        f.writeln(format("%08X: %08X stored to [%08X]", pc, val, addr));
-        f.flush();
     }
+}
 
-    void inc_sp_word_width(ref cortex_m_cpu cpu) {
-        uint current_sp = cpu.get_sp();
-        current_sp += 4;
-        cpu.set_sp(current_sp);
-    }
+void write_byte_to_word(ref uint[size_t] mem_block, const size_t addr, const ubyte b) {
+    const size_t word_addr =  addr & ~3;
+    const uint   shift     = (addr &  3) * 8;
+    const uint   old       =  mem_block[word_addr];
+    const uint   masked    = (old & ~(0xff << shift)) | (b << shift);
+    mem_block[word_addr] = masked;
+}
 
-    void dec_sp_word_width(ref cortex_m_cpu cpu) {
-        uint current_sp = cpu.get_sp();
-        current_sp -= 4;
-        cpu.set_sp(current_sp);
-    }
+ubyte read_byte_from_word(ref uint[size_t] mem_block, size_t addr) {
+    const size_t word_addr =  addr & ~3;
+    const uint   shift     = (addr & 3) * 8;
+    const uint   val       = mem_block[word_addr];
+    return cast(ubyte)((val >> shift) & 0xff);
+}
 
-    void push(ref cortex_m_cpu cpu, uint val) {
-        dec_sp_word_width(cpu);
-        ram.write_word(cpu.get_sp(), val);
-    }
-
-    uint pop(ref cortex_m_cpu cpu) {
-        uint res = ram.read_word(cpu.get_sp());
-        inc_sp_word_width(cpu);
-        return res;
-    }
+struct FRDM_RW612 {
+    enum flash_origin = 0x18000000;
+    mem_section!(256, flash_origin) flash;
 }
