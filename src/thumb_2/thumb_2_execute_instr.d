@@ -566,7 +566,15 @@ unittest {
     test_case(0xba5b, // rev16 r3, r3
           instr_16(opcode.rev16_t1, rd: reg.r3, rm: reg.r3),
           test_vm(cpu: make_cpu(tuple(reg.r3, 0xaabbccdd))),
-          test_vm(cpu: make_cpu(tuple(reg.r3, 0xbbaaddcc), tuple(reg.pc, 2))))
+          test_vm(cpu: make_cpu(tuple(reg.r3, 0xbbaaddcc), tuple(reg.pc, 2)))),
+    test_case(0x4393, // bics  r3, r2
+          instr_16(opcode.bic_reg_t1, rd: reg.r3, rn: reg.r3, rm: reg.r2),
+          test_vm(cpu: make_cpu(tuple(reg.r3, 0x11111111),
+                                tuple(reg.r2, 0xaaaa5555))),
+          test_vm(cpu: make_cpu(tuple(reg.r3, 0xaaaa4444),
+                                tuple(reg.r2, 0xaaaa5555),
+                                tuple(flag.n, true),
+                                tuple(reg.pc, 2))))
   ];
 
   foreach (t; tests) {
