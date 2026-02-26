@@ -7,9 +7,41 @@ import std.format;
 
 import memory_sections;
 import thumb_2_opcodes;
-import cortex_m;
+import thumb_2_instrs;
+import thumb_2_decode_instr;
 
-import load_store_log_;
+import log;
+
+string[] table_names = [
+    "rodata",
+    "_static_thread_data_area",
+    "k_heap_area",
+    "device_area",
+    "initlevel",
+    "uart_driver_api_area",
+    "clock_control_driver_api_area",
+    "reset_driver_api_area",
+    "sw_isr_table",
+    "datas",
+    "text",
+    "log_msg_ptr_area",
+    "k_sem_area",
+    "log_backend_area",
+    "log_const_area",
+    "log_mpsc_pbuf",
+    "gpio_driver_api_area",
+    "rom_start",
+    "k_msgq_area",
+    "adc_driver_api_area",
+    "i2c_driver_api_area",
+    "sensor_driver_api_area",
+    "k_mutex_area",
+    "k_condvar_area",
+    "net_buf_pool_area",
+    ".init_array",
+    "entropy_driver_api_area",
+    "bt_hci_driver_api_area"
+];
 
 enum elf_class {
     elf_32 = 1,
@@ -218,14 +250,6 @@ string[] get_section_names(const ref string filename) {
     return names;
 }
 
-unittest {
-    auto filename = "../test/blinky.elf";
-    auto section_names = get_section_names(filename);
-    foreach (name; section_names) {
-        writeln(name);
-    }
-}
-
 struct elf_section {
     string  name;
     uint    addr;
@@ -311,13 +335,11 @@ void load_section_into_memory(mem_t)(const ref string filename, const string sec
     auto section = get_section_by_name(filename, section_name);
     if (section.data.length == 0)
         return;
-    auto f = load_store_log();
-    f.writeln(format("Loading %s of size %d into memory", section.name, section.data.length));
-    f.flush();
+    // log load
     auto segments = get_load_segments(filename);
     uint addr = file_offset_to_addr(section.file_offset, segments);
     foreach (b; section.data) {
-        mem.write_byte(addr++, b, 0);
+        mem.write_byte(addr++, b);
     }
 }
 
@@ -326,7 +348,7 @@ unittest {
     auto section_name = "device_area";
     stm32f4_mem mem;
     load_section_into_memory(filename, section_name, mem);
-    auto actual_data = mem.read_word(0x80039d4, 0);
+    auto actual_data = mem.read_word(0x80039d4);
     assert(actual_data == 0x08004446, 
            format("Actual device area length is %d, not the expected 0x08004446", actual_data));
 }
@@ -375,7 +397,7 @@ unittest {
     auto section_name = "rodata";
     stm32f4_mem mem;
     load_section_into_memory(filename, section_name, mem);
-    auto actual_data = mem.read_word(0x8003e34, 0);
+    auto actual_data = mem.read_word(0x8003e34);
     assert(actual_data == 0x00000044, 
            format("Actual value at 0x8003e34 is %08X, not the expected 0x00000044", actual_data));
 }
@@ -484,9 +506,6 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_typ
             }
         }
 
-        if (name == "LoopFillZerobss") 
-            writeln(name, ": ", _st_type.to!string);
-
         if (!get_size) {
             if (!get_all) {
                 uint lower_bound;
@@ -521,22 +540,6 @@ st_name_val[] get_st_name_val(const string elf_file, const st_type type = st_typ
         }
     }
     return items;
-}
-
-unittest {
-    auto filename = "../test/blinky.elf";
-    auto f_s = get_st_name_val(filename, st_type.stt_func, soc.stm32);
-    foreach (f; f_s) {
-        writeln(f.name);
-    }
-}
-
-unittest {
-    auto filename = "../test/stm32_dsp.elf";
-    auto f_s = get_st_name_val(filename, st_type.stt_func, soc.stm32);
-    foreach (f; f_s) {
-        writeln(f.name, format(": %08X", f.addr));
-    }
 }
 
 struct elf_func {
@@ -724,7 +727,7 @@ string fetch_instr(ubyte[] b)
 {
     if (b.length == 2) return format("%02x%02x", b[1], b[0]);
     if (b.length == 4) return format("%02x%02x%02x%02x", b[1], b[0], b[3], b[2]);
-    return b.map!(x => format("%02x", x)).join;
+    assert(0, "Invalid instruction length");
 }
 
 func get_function_from_elf(const string elf_file, const string func_name, const uint addr, ref bool[uint] pending_literals) {
@@ -748,12 +751,6 @@ func get_function_from_elf(const string elf_file, const string func_name, const 
     return res; 
 }
 
-struct byte_table {
-    uint        offset;
-    uint          addr;
-    ubyte[]       data;
-}
-
 bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] pending_literals) {
     uint[] toRemove;
 
@@ -767,8 +764,6 @@ bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] 
             const uint rel_offset = l - e_func.offset;
             words_to_remove[rel_offset] = true;
             literal_offsets[rel_offset] = true;
-            writeln("removing: ", format("%08X", l));
-            writeln("removing: ", format("%08X", rel_offset)); 
             f.literal_pool[l] = read_ub_32_(data, rel_offset);        
         }
     }
@@ -792,33 +787,31 @@ bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] 
                 continue;
             }
             uint instr = read_ub_32(data, offset);
-            if (decode_mnemonic_32(instr) == opcode.ldr_lit_32) {
-                auto parsed_instr = decode_instr(instr);
+            if (decode_mnemonic(instr) == opcode.ldr_lit_t2) {
+                auto parsed_instr = decode_instr!(instr_32,uint)(instr);
                 uint base = e_func.offset + offset + 4;
                 base &= ~0x3;   
                 uint lit_offset = base + parsed_instr.imm;
                 uint rel_offset = lit_offset - e_func.offset; 
                 words_to_remove[rel_offset] = true;
                 literal_offsets[rel_offset] = true;
-                writeln(format("%s: %08X %08X", f.name, e_func.offset + offset, lit_offset));
                 if (rel_offset < data.length) 
                     f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
                 else {
                     pending_literals[lit_offset] = true;
-                    writeln("Added %08X to pending literals", lit_offset);
                 }
             }
-            if (decode_mnemonic_32(instr) == opcode.tbb_tbh_32) {
-                auto parsed_instr = decode_instr(instr);
+            if (decode_mnemonic(instr) == opcode.tbb_tbh_t1) {
+                auto parsed_instr = decode_instr!(instr_32,uint)(instr);
                 bool is_tbh = parsed_instr.is_tbh;
                 uint cmp_offset = offset - branch_instr_size - cmp_instr_size;
                 uint cmp_imm;
                 if (cmp_instr_size == 2) {
                     auto cmp_instr = read_ul_16(data, cmp_offset);
-                    cmp_imm = decode_instr(cmp_instr).imm;  
+                    cmp_imm = decode_instr!(instr_16,ushort)(cmp_instr).imm;  
                 } else { 
                     auto cmp_instr = read_ul_32(data, cmp_offset);
-                    cmp_imm = decode_instr(cmp_instr).imm; 
+                    cmp_imm = decode_instr!(instr_32,uint)(cmp_instr).imm; 
                 }
                 uint entries     = cmp_imm + 1;
                 uint raw_size    = is_tbh ? entries * 2 : entries;
@@ -830,15 +823,14 @@ bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] 
                 );
             }
         } else if (len == 2) {
-            if (decode_mnemonic(first_hw) == opcode.ldr_pool) {
-                auto parsed_instr = decode_instr(first_hw);
+            if (decode_mnemonic(first_hw) == opcode.ldr_lit_t1) {
+                auto parsed_instr = decode_instr!(instr_16,ushort)(first_hw);
                 uint base = e_func.offset + offset + 4;
                 base &= ~0x3;   
                 uint lit_offset = base + parsed_instr.imm;
                 uint rel_offset = lit_offset - e_func.offset; 
                 words_to_remove[rel_offset] = true;
                 literal_offsets[rel_offset] = true;
-                writeln(format("%s: %08X %08X", f.name, e_func.offset + offset, lit_offset));
                 if (rel_offset < data.length) 
                     f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
                 else {
@@ -886,6 +878,25 @@ unittest {
     assert(f.byte_tables[0].data.length == 18, format("First bytes table length is %d and not 18", f.byte_tables[0].data.length));
 }
 
+/*
+unittest {
+    auto e_func = get_elf_func("../test/z_prod_con.elf", "__l_vfprintf", 0x800A085);
+    assert(e_func.data.length == 1208, format("Func is %d and not 1268", e_func.data.length));
+    func f;
+    bool[uint] l;
+    extract_literal_pool(e_func, f, l);
+    assert(l.length == 0, "Literal pool for __l_vfprintf is not empty");
+    assert(f.byte_tables.length == 2, format("Number of byte tables found is %d and not 2", f.byte_tables.length));
+    writeln(format("%08X", f.byte_tables[0].addr));
+    writeln(format("first size: %d", f.byte_tables[0].data.length));
+    writeln(format("%08X", f.byte_tables[1].addr));
+    writeln(format("second size: %d", f.byte_tables[1].data.length));
+    assert(f.byte_tables[0].data.length == 18, format("First bytes table length is %d and not 18", f.byte_tables[0].data.length));
+    assert(f.byte_tables[1].data.length == 38, format("Second bytes table length is %d and not 38", f.byte_tables[1].data.length));
+    assert(e_func.data.length == 1208 - 18 - 38 - 4 - 4, format("Function is not the right length: %d, not %d", e_func.data.length, 1208 - 18 - 38 - 4 - 4));
+}
+*/
+
 unittest {
     ubyte[] original = [
         0x08, 0xb5, 0xff, 0xf7, 0xef, 0xff,
@@ -914,78 +925,6 @@ unittest {
     assert(e_func.data == expected, "Byte array is not correct after removing literals");
 }
 
-void extract_literal_pool(ref func f) {
-    for (int i = cast(int)f.instrs.length - 1; i >= 0; --i) {
-        auto elem = f.instrs[i];
-        
-        bool is_ldr_lit_16;
-        bool is_ldr_lit_32;
-        if (elem._instr_bytes.length == 8 && decode_mnemonic_32(elem._in_32) == opcode.ldr_lit_32) {
-            is_ldr_lit_32 = true;
-        }
-        if (elem._instr_bytes.length == 4 && decode_mnemonic(elem._in_16) == opcode.ldr_pool) {
-            is_ldr_lit_16 = true;
-        }
-        if (!(is_ldr_lit_16 || is_ldr_lit_32)) {
-            continue;
-        }
-        if (is_ldr_lit_16) {
-            auto parsed = decode_instr(elem._in_16);
-            uint pc = (elem._addr + 4) & ~3u;
-            uint lit_addr = pc + parsed.imm;        
-            for (int j = cast(int)f.instrs.length - 1; j >= 0; --j) {
-                auto cand = f.instrs[j];
-                if (cand._addr == lit_addr) {
-                    uint value;
-                    if (cand._instr_bytes.length == 8) {
-                        value = parse!uint(cand._instr_bytes, 16);
-                    } else if (cand._instr_bytes.length == 4) {
-                        if (j + 1 < cast(int)f.instrs.length) {
-                            auto high = parse!uint(f.instrs[j+1]._instr_bytes, 16);
-                            value = (high << 16) | parse!uint(cand._instr_bytes, 16);
-                            f.instrs = f.instrs[0 .. j] ~ f.instrs[j+2 .. $];
-                        } else {
-                            value = parse!uint(cand._instr_bytes, 16);
-                            f.instrs = f.instrs[0 .. j] ~ f.instrs[j+1 .. $];
-                        }
-                    }
-                    f.literal_pool[lit_addr] = value;
-                    break;
-                }
-            }
-        }
-        if (is_ldr_lit_32) {
-            auto parsed = decode_instr(elem._in_32);
-            uint pc = (elem._addr + 4) & ~3u;
-            uint lit_addr = pc + parsed.imm;        
-            for (int j = cast(int)f.instrs.length - 1; j >= 0; --j) {
-                auto cand = f.instrs[j];
-                if (cand._addr == lit_addr) {
-                    // check if the literal spans multiple instr entries
-                    uint value;
-                    if (cand._instr_bytes.length == 8) {
-                        // already 32-bit entry
-                        value = parse!uint(cand._instr_bytes, 16);
-                    } else if (cand._instr_bytes.length == 4) {
-                        // two consecutive 16-bit entries
-                        if (j + 1 < cast(int)f.instrs.length) {
-                            auto high = parse!uint(f.instrs[j+1]._instr_bytes, 16);
-                            value = (high << 16) | parse!uint(cand._instr_bytes, 16);
-                            // remove both entries from instrs
-                            f.instrs = f.instrs[0 .. j] ~ f.instrs[j+2 .. $];
-                        } else {
-                            value = parse!uint(cand._instr_bytes, 16);
-                            f.instrs = f.instrs[0 .. j] ~ f.instrs[j+1 .. $];
-                        }
-                    }
-                    f.literal_pool[lit_addr] = value;
-                    break;
-                }
-            }
-        }
-    }
-}
-
 unittest {
     auto filename = "../test/blinky.elf";
     //auto f = get_function_from_elf(filename, "char_out");
@@ -1007,7 +946,7 @@ load_function_into_memory
     func f = get_function(elf_file, func_name);
     foreach (i; f.instrs) {
         if (i._instr_bytes.length == 4) {
-            mem.write_half_word(i._addr, i._in_16, 0);
+            mem.write_half_word(i._addr, i._in_16);
         }
         if (i._instr_bytes.length == 8) {
             mem.write_word(i._addr, i._in_32);
@@ -1024,7 +963,7 @@ load_function_into_memory
 (func f, ref mem_t mem) {
     foreach (i; f.instrs) {
         if (i._instr_bytes.length == 4) {
-            mem.write_half_word(i._addr, i._in_16, 0);
+            mem.write_half_word(i._addr, i._in_16);
         }
         if (i._instr_bytes.length == 8) {
             mem.write_word(i._addr, i._in_32);
@@ -1053,7 +992,7 @@ load_function_into_memory
 
         if (offset + 2 <= data.length) {
             ushort val = cast(ushort)(data[offset] | (data[offset + 1] << 8));
-            mem.write_half_word(addr, val, 0);
+            mem.write_half_word(addr, val);
             offset += 2;
             addr   += 2;
         }
@@ -1065,7 +1004,7 @@ unittest {
     auto filename = "../test/blinky.elf";
     stm32f4_mem mem;
     //load_function_into_memory(filename, "char_out", mem);
-    auto lit = mem.read_word(0x80004f4, 0);
+    auto lit = mem.read_word(0x80004f4);
     //assert(lit == 0x20000000, format("Actual instrs length is %08X, not the expected 0x20000000", lit));
 }
 
@@ -1078,259 +1017,4 @@ func[] get_program_from_elf(const string elf_file) {
         res ~= f; 
     }
     return res;
-}
-
-unittest {
-    auto filename = "../test/stm32_dsp.elf";
-    auto prog = get_program_from_elf(filename);
-}
-
-string[] blinky_funcs = [
-    "char_out",
-    "st_stm32_common_config",
-    "mem_manage_fault",
-    "usage_fault.isra.0",
-    "bus_fault.isra.0",
-    "region_init",
-    "size_to_mpu_rasr_size",
-    "mpu_configure_regions",
-    "picolibc_put",
-    "malloc_prepare",
-    "stm32_exti_init",
-    "stm32_fill_irq_table",
-    "stm32_exti_gpio_intc_init",
-    "stm32_intc_gpio_isr",
-    "stm32_clock_control_on",
-    "stm32_clock_control_off",
-    "stm32_clock_control_get_subsys_rate",
-    "stm32_clock_control_configure",
-    "stm32_clock_control_get_status",
-    "uart_console_init",
-    "console_out",
-    "gpio_stm32_port_get_raw",
-    "gpio_stm32_port_set_masked_raw",
-    "gpio_stm32_port_set_bits_raw",
-    "gpio_stm32_port_clear_bits_raw",
-    "gpio_stm32_port_toggle_bits",
-    "gpio_stm32_manage_callback",
-    "gpio_stm32_pin_interrupt_configure",
-    "gpio_stm32_isr",
-    "gpio_stm32_configure_raw.isra.0",
-    "gpio_stm32_config",
-    "gpio_stm32_init",
-    "LL_USART_ClearFlag_PE",
-    "LL_USART_ClearFlag_ORE",
-    "LL_USART_ClearFlag_NE",
-    "LL_USART_ClearFlag_FE",
-    "uart_stm32_err_check",
-    "uart_stm32_set_baudrate",
-    "uart_stm32_poll_out",
-    "uart_stm32_poll_in",
-    "uart_stm32_parameters_set",
-    "uart_stm32_configure",
-    "uart_stm32_init",
-    "uart_stm32_config_get",
-    "elapsed",
-    "sys_clock_driver_init",
-    "z_sys_init_run_level",
-    "bg_thread_main",
-    "sys_dlist_remove",
-    "unpend_thread_no_timeout",
-    "z_swap_irqlock",
-    "ready_thread",
-    "unready_thread",
-    "z_tick_sleep",
-    "slice_timeout",
-    "first",
-    "next_timeout",
-    "elapsed",
-    "remove_timeout",
-    "__ultoa_invert",
-    "skip_to_arg",
-    "chunk_size",
-    "free_list_add",
-    "reset_stm32_status",
-    "reset_stm32_line_assert",
-    "reset_stm32_line_deassert",
-    "reset_stm32_line_toggle",
-    "z_abort_timeout",
-    "z_arm_mpu_init",
-    "z_arm_bus_fault",
-    "z_arm_pendsv",
-    "stm32_gpio_intc_select_line_trigger",
-    "z_arm_reset",
-    "sys_clock_announce",
-    "z_impl_zephyr_fputc",
-    "sys_clock_tick_get_32",
-    "move_current_to_end_of_prio_q",
-    "printf",
-    "sys_clock_tick_get",
-    "z_arm_usage_fault",
-    "arch_early_memset",
-    "stm32_gpio_intc_set_irq_callback",
-    "z_arm_mpu_fault",
-    "HAL_RCC_GetSysClockFreq",
-    "z_thread_entry",
-    "z_impl_k_yield",
-    "soc_early_init_hook",
-    "z_dummy_thread_init",
-    "k_sys_fatal_error_handler",
-    "memcpy",
-    "arch_coprocessors_disable",
-    "z_do_kernel_oops",
-    "z_sched_wake_thread",
-    "z_cstart",
-    "__aeabi_uldivmod",
-    "__l_vfprintf",
-    "stm32_gpio_intc_disable_line",
-    "z_check_thread_stack_fail",
-    "z_arm_configure_dynamic_mpu_regions",
-    "sys_clock_isr",
-    "mem_attr_get_regions",
-    "arm_core_mpu_configure_dynamic_mpu_regions",
-    "__aeabi_memcpy",
-    "z_sched_init",
-    "_OffsetAbsSyms",
-    "__printk_hook_install",
-    "k_sched_lock",
-    "config_pll_sysclock",
-    "__udivmoddi4",
-    "sys_clock_set_timeout",
-    "stm32_exti_is_pending",
-    "__aeabi_memcpy4",
-    "config_enable_default_clocks",
-    "arch_cpu_idle",
-    "stm32_clock_control_init",
-    "strnlen",
-    "z_arm_configure_static_mpu_regions",
-    "z_arm_exc_exit",
-    "get_pllsrc_frequency",
-    "__aeabi_memcpy8",
-    "stm32_exti_clear_pending",
-    "arch_switch_to_main_thread",
-    "arm_core_mpu_enable",
-    "__start",
-    "z_impl_k_thread_abort",
-    "arch_printk_char_out",
-    "arch_data_copy",
-    "idle",
-    "thread_is_sliceable",
-    "z_impl_k_sleep",
-    "vprintk",
-    "z_thread_timeout",
-    "z_impl_device_is_ready",
-    "z_thread_abort",
-    "_isr_wrapper",
-    "config_plli2s",
-    "z_arm_fault",
-    "do_device_init",
-    "z_reschedule",
-    "_ConfigAbsSyms",
-    "stm32_gpio_intc_get_pin_irq_line",
-    "arm_irq_enable",
-    "z_arm_exc_spurious",
-    "printk",
-    "arch_system_halt",
-    "__aeabi_ldiv0",
-    "k_sched_unlock",
-    "z_arm_interrupt_init",
-    "LL_SetFlashLatency",
-    "memset",
-    "sys_heap_init",
-    "main",
-    "stm32_exti_get_line_src_port",
-    "z_SysNmiOnReset",
-    "z_irq_spurious",
-    "arm_irq_priority_set",
-    "enabled_clock",
-    "stm32_gpio_intc_remove_irq_callback",
-    "arm_core_mpu_disable",
-    "z_arm_int_exit",
-    "__stdout_hook_install",
-    "stm32_gpio_intc_enable_line",
-    "stm32_exti_set_line_src_port",
-    "pinctrl_lookup_state",
-    "z_arm_debug_monitor",
-    "config_regulator_voltage",
-    "z_add_timeout",
-    "relocate_vector_table",
-    "arm_core_mpu_configure_static_mpu_regions",
-    "gpio_stm32_configure",
-    "z_init_cpu",
-    "sys_clock_elapsed",
-    "z_ready_thread",
-    "z_prep_c",
-    "arch_new_thread",
-    "pinctrl_configure_pins",
-    "z_reschedule_irqlock",
-    "z_setup_new_thread",
-    "z_arm_fault_init",
-    "__aeabi_idiv0",
-    "z_arm_fatal_error",
-    "z_arm_svc",
-    "z_arm_cpu_idle_init",
-    "arch_early_memcpy",
-    "z_impl_k_wakeup",
-    "z_reset_time_slice",
-    "arch_bss_zero",
-    "z_arm_nmi",
-    "z_time_slice",
-    "z_impl_k_sched_current_thread_query",
-    "z_fatal_error",
-    "boot_banner",
-    "vfprintf",
-    "arch_irq_unlock_outlined",
-    "z_arm_hard_fault"
-];
-
-unittest {
-    auto filename = "../test/blinky.elf";
-    bool[uint] l;
-    foreach (f_n; blinky_funcs) {
-        writeln(format("%s", f_n));
-        //auto f = get_function_from_elf(filename, f_n, l);
-    }
-}
-
-struct elf_basic_structs {
-    read_fn!ushort half;
-    read_fn!uint   word;
-    read_fn!ulong  xword;
-    read_fn!long   sxword;
-}
-
-elf_basic_structs get_basic_structs(const ref elf_file_info info) {
-    elf_basic_structs basic;
-    basic.half = &read_ul_16;
-    basic.word = &read_ul_32;
-    return basic;
-}
-
-elf_file_info identify_elf(const ref string filename) {
-    auto info = elf_file_info();
-    auto data = cast(ubyte[]) read(filename, 16);
-    enforce(data.length >= 16, "File too small for ELF");
-    enforce(data[0] == 0x7f && data[1] == 'E' && data[2] == 'L' && data[3] == 'F',
-            "Magic number does not match ELF");
-
-    auto e_class = cast(elf_class)(data[4]);
-    final switch (e_class) {
-        case elf_class.elf_32: info.e_class = elf_class.elf_32; break;
-        case elf_class.elf_64: info.e_class = elf_class.elf_64; 
-    } 
-    auto endian = cast(elf_endian)(data[5]);
-    final switch (endian) {
-        case elf_endian.little: info.endian = elf_endian.little; break;
-        case elf_endian.big   : info.endian = elf_endian.big;
-    }
-    return info;
-}
-
-unittest {
-    auto filename = "../test/blinky.elf";
-    auto res = identify_elf(filename);
-    assert(res.e_class == elf_class.elf_32 && res.endian == elf_endian.little,
-           "blinky.elf is not Elf 32 Little Endian");
-    auto b_structs = get_basic_structs(res);
-    assert(b_structs.half == &read_ul_16 && b_structs.word == &read_ul_32, "Basic Structs test failed");
 }
