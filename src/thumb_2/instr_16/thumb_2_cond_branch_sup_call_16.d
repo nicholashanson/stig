@@ -33,7 +33,7 @@ instr_16 parse_svc_t1(const ushort instr) {
 void 
 execute_svc_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	vm.increment_pc(2);
 	if (vm.get_current_exception() == exception.thread_mode) {
 		vm.push(vm.get_xpsr());
@@ -44,8 +44,8 @@ execute_svc_t1
 	vm.set_current_exception(exception.svc_irqn);
 	vm.set_npriv(false);
 	vm.set_reg(reg.lr, 0xffff_fffd);
-	immutable  vtor_raw    = vm.read_word(0xE000_ED08);
-	const uint vector_base = vtor_raw & 0xFFFF_FF80;
+	immutable  vtor_raw    = vm.read_word(0xe000_ed08);
+	const uint vector_base = vtor_raw & 0xffff_ff80;
 	immutable pc = vm.read_word(vector_base + 4 * exception.svc_irqn);
 	vm.set_reg(reg.pc, pc);
 }

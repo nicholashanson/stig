@@ -407,28 +407,22 @@ void
 execute_asr_reg_t1
 (vm_t)
 (const ref instr_16 instr, ref vm_t vm) {
-	immutable shift = vm.get_reg(instr.rm);
-	immutable rn_u  = vm.get_reg(instr.rn);
-	const int rn    = cast(int)(rn_u);
-	uint res;
-    if (shift >= 32) {
-        res = (rn < 0) ? 0xFFFF_FFFF : 0;
-        if (!vm.in_it_block()) {
-            vm.set_c(rn < 0);
-        }
-    } else {
-        res = cast(uint)(rn >> shift);
-        if (!vm.in_it_block() && shift != 0) {
-            bool carry = (rn_u >> (shift - 1)) & 1;
-            vm.set_c(carry);
-        }
+	// EncodingSpecificOperations();
+	// shift_n = UInt(R[m]<7:0>);
+	immutable rn        = vm.get_reg(instr.rn);
+	immutable rm        = vm.get_reg(instr.rm);
+	immutable shift_n   = cast(uint)cast(ubyte)rm;
+	// (result, carry) = Shift_C(R[n], SRType_ASR, shift_n, APSR.C);
+	immutable shift_res = shift_c(rn, shift_type.asr, shift_n, vm.get_c());
+	// R[d] = result;
+	vm.set_reg(instr.rd, shift_res.result);
+	// if setflags then
+	if (!vm.in_it_block()) {
+		vm.set_n(shift_res.result); // APSR.N = result<31>;
+		vm.set_z(shift_res.result); // APSR.Z = IsZeroBit(result);
+		vm.set_c(shift_res.carry); // APSR.C = carry;
+		// APSR.V unchanged
     }
-
-    if (!vm.in_it_block()) {
-        vm.set_z(res);
-        vm.set_n(res);
-    }
-	vm.set_reg(instr.rd, res);
 }
 
 // ASRS <Rdn>,<Rm>
