@@ -290,12 +290,19 @@ void
 execute_pop_t1
 (vm_t)
 (const ref instr_16 instr, ref vm_t vm) {
+	//EncodingSpecificOperations();
+	// address = SP;
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a < cast(int)b);
+	// for i = 0 to 14
+	// if registers<i> == ‘1’ then
 	foreach (r; regs) {
+		// R[i} = MemA[address,4]; address = address + 4;
 		immutable val = vm.pop();
 		vm.set_reg(r, val);
 	}
+	// if registers<15> == ‘1’ then
+	// LoadWritePC(MemA[address,4]);
 	if (regs.back == reg.pc) {
 		if ((vm.get_pc() & 0xff00_0000) == 0xff00_0000) { // (*)
 	        exception_return(vm, vm.get_pc());
@@ -303,6 +310,7 @@ execute_pop_t1
 	    }
 		vm.clear_thumb_bit();
 	}
+	// SP = SP + 4*BitCount(registers);
 } 
 
 string convert_pop_t1_to_string(const ref instr_16 instr, const condition cond) {
@@ -342,11 +350,17 @@ void
 execute_push_t1
 (vm_t)
 (const ref instr_16 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// address = SP - 4*BitCount(registers);
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a > cast(int)b);
-	foreach (r; regs) {
+	// for i = 0 to 14
+	// if registers<i> == ‘1’ then
+	foreach (r; regs) 
+		// MemA[address,4] = R[i];
+		// address = address + 4;
 		vm.push(r);	
-	}
+	// SP = SP - 4*BitCount(registers);
 } 
 
 string convert_push_t1_to_string(const ref instr_16 instr, const condition cond) {
