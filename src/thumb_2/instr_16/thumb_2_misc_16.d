@@ -341,7 +341,7 @@ instr_16 parse_push_t1(const ushort instr) {
 void 
 execute_push_t1
 (vm_t)
-(instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a > cast(int)b);
 	foreach (r; regs) {

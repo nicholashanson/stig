@@ -576,7 +576,6 @@ string convert_lsl_imm_t2_to_string(const ref instr_32 instr, const condition co
 //  Parse LSL(Immediate)
 // ======================
 
-enum field_tuples_lsr_imm_t2 = [Tuple!(opcode, string[])(opcode.lsr_imm_t2, ["rd","rm","imm"])];
 // First Half-Word: [15:0] 11101010010, [4] S. [3:0] 1111 
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] 10, [3:0] Rm
 instr_32 parse_lsr_imm_t2(const uint instr) {

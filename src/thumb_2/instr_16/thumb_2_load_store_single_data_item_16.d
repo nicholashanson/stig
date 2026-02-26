@@ -602,6 +602,14 @@ execute_ldrsb_reg_t1
 	immutable    data 		 = cast(int)cast(byte)vm.read_byte(addr);
 	vm.set_reg(instr.rt, data);
 }
+
+// LDRSB<c> <Rt>,[<Rn>,<Rm>]
+string convert_ldrsb_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("ldrsb%s %s, [%s, %s]", get_condition_string(cond),
+										  get_reg_name(instr.rt),
+										  get_reg_name(instr.rn),
+										  get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************

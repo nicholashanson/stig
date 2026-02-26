@@ -1,8 +1,9 @@
 import std.format;
-import std.conv     : to;
-import std.typecons : tuple, Tuple;
-import std.array    : appender;
-import std.traits   : Parameters, ReturnType;
+import std.conv      : to;
+import std.typecons  : tuple, Tuple;
+import std.array     : appender;
+import std.traits    : Parameters, ReturnType;
+import std.algorithm : canFind;
 
 import cortex_m_core;
 import memory_sections;
@@ -41,6 +42,13 @@ import thumb_2_mult_mult_acc_32;
 import thumb_2_store_single_data_item_32;
 import thumb_2_misc_ops_32;
 
+__gshared opcode[] tested_opcodes;
+
+void record_tested_opcode(opcode op) {
+    if (!tested_opcodes.canFind(op))
+        tested_opcodes ~= op;
+}
+
 void 
 execute_instr
 (vm_t,t)
@@ -72,7 +80,7 @@ execute_instr
                 }
                 else
                 {
-                    pragma(msg, "Handler exists but wrong signature: execute_" ~ member);
+                    assert(0, "Handler exists but wrong signature: execute_" ~ member);
                 }
             }
             else
@@ -97,7 +105,6 @@ string cpu_diff(const ref cortex_m_cpu a, const ref cortex_m_cpu b)
 {
     auto buf = appender!string();
 
-    // -------- Registers --------
     foreach (i; 0 .. 16)
     {
         auto ra = a.core_registers[i];
@@ -107,14 +114,12 @@ string cpu_diff(const ref cortex_m_cpu a, const ref cortex_m_cpu b)
             buf ~= format("r%-2d : 0x%08X vs 0x%08X\n", i, ra, rb);
     }
 
-    // -------- Stack pointers --------
     if (a.get_sp() != b.get_sp())
         buf ~= format("sp  : 0x%08X vs 0x%08X\n", a.get_sp(), b.get_sp());
 
     if (a.get_pc() != b.get_pc())
         buf ~= format("pc  : 0x%08X vs 0x%08X\n", a.get_pc(), b.get_pc());
 
-    // -------- Flags --------
     if (a.n != b.n) buf ~= format("N   : %s vs %s\n", a.n, b.n);
     if (a.z != b.z) buf ~= format("Z   : %s vs %s\n", a.z, b.z);
     if (a.c != b.c) buf ~= format("C   : %s vs %s\n", a.c, b.c);
@@ -127,7 +132,6 @@ string mem_diff(const ref tiny_mem a, const ref tiny_mem  b)
 {
     auto buf = appender!string();
 
-    // -------- Registers --------
     foreach (i; 0 .. 1020)
     {
         auto va = a.read_word(i);
@@ -297,6 +301,7 @@ unittest {
     ];
 
     foreach (t; tests) {
+        record_tested_opcode(t.instr.op);
         execute_instr(t.instr, t.before);
         assert(
             t.before == t.expected,
@@ -305,7 +310,7 @@ unittest {
     }
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 unittest {
   struct test_case {
     uint instr_bytes;
@@ -387,6 +392,7 @@ unittest {
   ];
 
   foreach (t; tests) {
+      record_tested_opcode(t.instr.op);
       execute_instr(t.instr, t.before);
       assert(
           t.before == t.expected,
@@ -477,7 +483,6 @@ unittest {
           instr_16(op: opcode.mov_reg_t1,        rd: reg.r7,  rm: reg.r1),
           test_vm(cpu: make_cpu(tuple(reg.r7, 10), tuple(reg.r1, 1))),
           test_vm(cpu: make_cpu(tuple(reg.pc,  2), tuple(reg.r7, 1), tuple(reg.r1, 1)))),
-    
     test_case(0x4798, 
           instr_16(op: opcode.blx_t1,           rm: reg.r3),
           test_vm(cpu: make_cpu(tuple(reg.pc, 10), tuple(reg.r3, 20))),
@@ -553,6 +558,7 @@ unittest {
   ];
 
   foreach (t; tests) {
+      record_tested_opcode(t.instr.op);
       execute_instr(t.instr, t.before);
       assert(
           t.before == t.expected,
@@ -560,5 +566,152 @@ unittest {
       );
   }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+unittest {
+  struct test_case {
+    ushort instr_bytes;
+    instr_16 instr;
+    tiny_vm before;
+    tiny_vm expected;
+  }
+
+  test_case[] tests = [
+  
+    test_case(0x4718, 
+              instr_16(op: opcode.bx_t1,            rm: reg.r3),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 10), tuple(reg.pc,  0))),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 10), tuple(reg.pc, 10)))),
+    test_case(0xb510, 
+              instr_16(op: opcode.push_t1, reg_list: [reg.r4, reg.lr]),
+              tiny_vm(cpu: make_cpu(tuple(reg.sp, tiny_mem.stack_base), 
+                                    tuple(reg.lr, 0x000000ff), 
+                                    tuple(reg.r4, 0x000000ee))),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc, 2), 
+                                    tuple(reg.sp, tiny_mem.stack_base-8), 
+                                    tuple(reg.lr, 0x000000ff), 
+                                    tuple(reg.r4, 0x000000ee)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-4, 0x000000ff), 
+                                    tuple(tiny_mem.stack_base-8, 0x000000ee)))),
+    test_case(0xc303,
+              instr_16(op: opcode.stm_t1, rn: reg.r3, reg_list: [reg.r0, reg.r1]),
+              tiny_vm(cpu: make_cpu(tuple(reg.r1, 0x000000ff), 
+                                    tuple(reg.r0, 0x000000ee),
+                                    tuple(reg.r3, tiny_mem.stack_base-8))),
+              tiny_vm(cpu: make_cpu(tuple(reg.pc, 2), 
+                                    tuple(reg.r3, tiny_mem.stack_base), 
+                                    tuple(reg.r1, 0x000000ff), 
+                                    tuple(reg.r0, 0x000000ee)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-4, 0x000000ff), 
+                                    tuple(tiny_mem.stack_base-8, 0x000000ee)))),    
+        /*
+    test_case(0x608b, 
+              instr_16(op: opcode.str_imm_t1,        rt: reg.r3,  rn: reg.r1, imm: 8),
+              cortex_m_cpu(r3: 0b0101, r1: stm32f4_mem.ram_origin + 12),
+              cortex_m_cpu(pc: 2, r3: 0b0101, r1: stm32f4_mem.ram_origin + 12),
+              stm32f4_mem(ram: make_ram_with(20, 0)),
+              stm32f4_mem(ram: make_ram_with(20, 0b0101))),
+
+    test_case_mem(0x50c4, // str  r4, [r0, r3]
+              instr_16(op: opcode.str_reg,       rt: reg.r4,  rn: reg.r0, rm: reg.r3),
+            cortex_m_cpu(r4: 0xffffffff, r3: 10, r0: stm32f4_mem.ram_origin),
+            cortex_m_cpu(r4: 0xffffffff, pc: 2, r3: 10, r0: stm32f4_mem.ram_origin),
+            stm32f4_mem(),
+            stm32f4_mem(ram: make_ram_with(10, 0xffffffff))),
+    test_case_mem(0x80fb, 
+                instr_16(op: opcode.strh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6),
+                cortex_m_cpu(r3: 0x0000eeee, r7: stm32f4_mem.ram_origin + 10),
+                cortex_m_cpu(pc: 2, r3: 0x0000eeee, r7: stm32f4_mem.ram_origin + 10),
+                stm32f4_mem(ram: make_ram_with(16, 0xffffffff)),
+                stm32f4_mem(ram: make_ram_with(16, 0xffffeeee))),
+    test_case_mem(0x88fb, 
+                instr_16(op: opcode.ldrh_imm,      rt: reg.r3,  rn: reg.r7, imm: 6),
+                cortex_m_cpu(r3: 0xffffffff, r7: stm32f4_mem.ram_origin + 10),
+                cortex_m_cpu(pc: 2, r3: 0xffffeeee, r7: stm32f4_mem.ram_origin + 10),
+                stm32f4_mem(ram: make_ram_with(16, 0x0000eeee)),
+                stm32f4_mem(ram: make_ram_with(16, 0x0000eeee))),
+    test_case_mem(0x781a, 
+            instr_16(op: opcode.ldrb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0),
+            cortex_m_cpu(r2: 0xffffffff, r3: memory.ram_origin + 10),
+                cortex_m_cpu(pc: 2, r2: 0xffffffee, r3: memory.ram_origin + 10),
+                memory(ram: make_ram_with(10, 0x000000ee)),
+                memory(ram: make_ram_with(10, 0x000000ee))),
+    test_case_mem(0x701a, 
+              instr_16(op: opcode.strb_imm,      rt: reg.r2,  rn: reg.r3, imm: 0),
+              cortex_m_cpu(r2: 0x000000ee, r3: stm32f4_mem.ram_origin + 10),
+                cortex_m_cpu(pc: 2, r2: 0x000000ee, r3: stm32f4_mem.ram_origin + 10),
+                stm32f4_mem(ram: make_ram_with(10, 0xffffffff)),
+                stm32f4_mem(ram: make_ram_with(10, 0xffffffee))),
+    test_case_mem(0x68fb, 
+            instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 12),
+            cortex_m_cpu(r3: 0x000000ff, r7: stm32f4_mem.ram_origin + 10),
+                cortex_m_cpu(pc: 2, r3: 0x000000ee, r7: stm32f4_mem.ram_origin + 10),
+                stm32f4_mem(ram: make_ram_with(22, 0x000000ee)),
+                stm32f4_mem(ram: make_ram_with(22, 0x000000ee))),
+    test_case_mem(0x68fb, 
+            instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 0x30),
+            cortex_m_cpu(r7: 0x40023800),
+                cortex_m_cpu(pc: 2, r7: 0x40023800),
+                stm32f4_mem(),
+                stm32f4_mem()),
+    test_case_mem(0x4803, 
+            // 80091a0: 4803        ldr r0, [pc, #12] @ (80091b0 <stdio_exit_handler+0x14>)
+            instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 12),
+            cortex_m_cpu(r0: 0x000000ff, pc: 0x80091a0),
+                cortex_m_cpu(r0: 0x000000ee, pc: 0x80091a2),
+                stm32f4_mem(flash: make_flash_with(0x80091b0 - stm32f4_mem.flash_origin, 0x000000ee)),
+                stm32f4_mem(flash: make_flash_with(0x80091b0 - stm32f4_mem.flash_origin, 0x000000ee))),
+
+    test_case_mem(0xbd10, 
+              instr_16(op: opcode.pop,  reg_list: [reg.r4, reg.pc]),
+              cortex_m_cpu(msp: memory.stack_base-8),
+                cortex_m_cpu(msp: memory.stack_base, pc: 0x000000ee, r4: 0x000000ff),
+                memory(ram: make_ram_with([memory.stack_base-4, memory.stack_base-8],
+                              [0x000000ee, 0x000000ff])),
+              memory()),
+  
+    test_case_mem(0x5cd3, 
+                instr_16(op: opcode.ldrb_reg,      rt: reg.r3,  rn: reg.r2, rm: reg.r3),
+                cortex_m_cpu(r2: stm32f4_mem.ram_origin + 10, r3: 10),
+              cortex_m_cpu(pc: 2, r3: 0x000000ee, r2: stm32f4_mem.ram_origin + 10),
+              stm32f4_mem(ram: make_ram_with(20, 0xffffffee)),
+              stm32f4_mem(ram: make_ram_with(20, 0xffffffee))),
+    test_case_mem(0x58fb, 
+                instr_16(op: opcode.ldr_reg,       rt: reg.r3,  rn: reg.r7, rm: reg.r3),
+                cortex_m_cpu(r3:         10, r7: stm32f4_mem.ram_origin + 10),
+                cortex_m_cpu(pc: 2, r3: 0xffffffee, r7: stm32f4_mem.ram_origin + 10),
+                stm32f4_mem(ram: make_ram_with(20, 0xffffffee)),
+              stm32f4_mem(ram: make_ram_with(20, 0xffffffee))),
+ 
+    test_case_mem(0x6013, 
+                instr_16(op: opcode.str_imm,       rt: reg.r3,  rn: reg.r2, imm: 0),
+                cortex_m_cpu(r3:         10, r2: 0x5600800),
+                cortex_m_cpu(pc: 2, r3: 0xffffffee, r2: 0x5600800),
+                memory(),
+              memory(flash: make_flash_with(0x5600800 - memory.flash_origin, 0xffffffee)))
+*/
+  ];
+
+  foreach (t; tests) {
+    record_tested_opcode(t.instr.op);
+    execute_instr(t.instr, t.before);
+    assert(
+        t.before == t.expected,
+        format("Failed for instruction 0x%08X:\n %s\n %s", t.instr_bytes, cpu_diff(t.before.cpu, t.expected.cpu), mem_diff(t.before.mem, t.expected.mem))
+    );
+  }
+}
+
+unittest {
+    import std.traits : EnumMembers;
+
+    foreach(op; EnumMembers!opcode) {
+        assert(tested_opcodes.canFind(op), "Missing test for opcode "~op.stringof);
+    }
+}
+
+
+
+
 
 

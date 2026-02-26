@@ -62,6 +62,13 @@ execute_smull_t1
 	vm.set_reg(instr.rd_lo, res_lo);
 	vm.set_reg(instr.rd_hi, res_hi);  
 }
+
+string convert_smull_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("smull %s, %s, %s, %s", get_reg_name(instr.rd_lo), 
+									      get_reg_name(instr.rd_hi),
+									      get_reg_name(instr.rn),
+									      get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************

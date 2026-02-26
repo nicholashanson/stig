@@ -178,7 +178,7 @@ instr_32 parse_ldr_lit_t2(const uint instr) {
 void 
 execute_ldr_lit_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	size_t addr;
 	uint   base = vm.get_pc();
 	base        = ((base + 4) & ~3);

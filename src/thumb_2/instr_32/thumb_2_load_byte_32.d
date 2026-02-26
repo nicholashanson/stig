@@ -104,8 +104,8 @@ string convert_ldrb_imm_t2_to_string(const ref instr_32 instr, const condition c
 // LDRB<c> <Rt>,[<Rn>,#+/-<imm8>]!
 string convert_ldrb_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
 	return format("ldrb%s.w %s, %s", get_condition_string(cond),
-										 get_reg_name(instr.rt),
-									     get_addr_string(instr));
+									 get_reg_name(instr.rt),
+									 get_addr_string(instr));
 }
 // ---------------------------------------------------------------------------------------
 

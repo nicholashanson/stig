@@ -179,7 +179,9 @@ unittest {
         test_case(0xba2e,      				"rev r6, r5"),
         test_case(0x53dd,     		 "strh r5, [r3, r7]"),
         test_case(0xb661,      				   "cpsie f"),
-        test_case(0xb248,    			   "sxtb r0, r1")
+        test_case(0xb248,    			   "sxtb r0, r1"),
+        test_case(0x438a,      			   "bics r2, r1"),
+        test_case(0x5688,      		"ldrsb r0, [r1, r2]")
 	]; 
 
 	foreach (t; tests) {
@@ -306,7 +308,10 @@ unittest {
 		test_case(0xea4f0e62, 							  "mov.w lr, r2, asr #1"),
 		test_case(0xea940f05,  										"teq r4, r5"),
 		test_case(0xf20733e7, 								 "addw r3, r7, #999"),
-		test_case(0xea190f03, 									  "tst.w r9, r3")
+		test_case(0xea190f03, 									  "tst.w r9, r3"),
+		test_case(0xfb8b0100, 							  "smull r0, r1, fp, r0"),
+		test_case(0xf04f5380, 						      "mov.w r3, #268435456"),
+		test_case(0xf2a54535,        						"subw r5, r5, #1077")
 	];
 
 	foreach (t; tests) {
@@ -352,7 +357,7 @@ row_view[] get_function_rows(func f) {
         catch (Exception e) {
             try {
                 auto i32 = ins.i.get!instr_32;
-                s = convert_instr_to_string!(uint,instr_32)(ins._in_32);
+            	s = convert_instr_to_string!(uint,instr_32)(ins._in_32);
                 s = s.replace("label", format("%x", ins._addr + i32.offset + 4));
             }
             catch (Exception) {
@@ -360,6 +365,7 @@ row_view[] get_function_rows(func f) {
             }
         }
 
+        assert(s.length != 0, "instruction string is empty");
         if (ins._instr_bytes.length == 8) {
             res ~= row_view(type: row_view.kind.instr,
                             addr: ins._addr, 

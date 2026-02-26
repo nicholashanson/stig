@@ -141,7 +141,6 @@ string convert_and_reg_t1_to_string(const ref instr_16 instr, const condition co
 //  Parse BIC(Register)
 // =====================
 
-enum field_tuples_bic_reg_t1 = [Tuple!(opcode, string[])(opcode.bic_reg_t1, ["rd","rn"])];
 // [15:6] 0100001110, [5:3] Rm, [2:0] Rdn
 instr_16 parse_bic_reg_t1(const ushort instr) {
 	return instr_16(rn: cast(reg)slice(instr, 0, 3), 
@@ -165,6 +164,14 @@ execute_bic_reg_t1
 		vm.set_n(res);
 	}
 	vm.set_reg(instr.rd, res);
+}
+
+// BICS <Rdn>,<Rm> 
+// BIC<c> <Rdn>,<Rm>
+string convert_bic_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("bic%s %s, %s", get_it_block_string(cond),
+								  get_reg_name(instr.rd),
+								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

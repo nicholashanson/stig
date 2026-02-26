@@ -23,15 +23,21 @@ instr_16 parse_stm_t1(const ushort instr) {
 void 
 execute_stm_t1
 (vm_t)
-(const ref instr_16 instr, vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	auto regs = instr.reg_list.dup; 
-	regs.sort!((a,b) => cast(int)a > cast(int)b);
+	regs.sort!((a,b) => cast(int)a < cast(int)b);
+	// address = R[n];
 	uint rn   = vm.get_reg(instr.rn);
+	// for i = 0 to 14
+	// if registers<i> == ‘1’ then
 	foreach (r; regs) {
-		uint data = vm.get_reg(r);
+		immutable data = vm.get_reg(r);
+		// MemA[address,4] = R[i];
+		// address = address + 4;
 		vm.write_word(rn, data);
 		rn += 4;
 	}
+	// if wback then R[n] = R[n] + 4*BitCount(registers);
 	// wback = TRUE;
 	vm.set_reg(instr.rn, rn);
 }
@@ -42,3 +48,4 @@ string convert_stm_t1_to_string(const ref instr_16 instr, const condition cond) 
 									   get_reg_name(instr.rn),
 									   get_reg_list_string(instr.reg_list));
 }
+// ---------------------------------------------------------------------------------------

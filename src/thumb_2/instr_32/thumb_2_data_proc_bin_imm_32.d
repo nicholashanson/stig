@@ -284,6 +284,14 @@ execute_sub_imm_t4
     }
     vm.set_reg(instr.rd, res.result);
 }
+
+// SUBW<c> <Rd>,<Rn>,#<imm12>
+string convert_sub_imm_t4_to_string(const ref instr_32 instr, const condition cond) {
+    return format("subw%s %s, %s%s", get_condition_string(cond),
+                                     get_reg_name(instr.rd),
+                                     get_reg_name(instr.rn),
+                                     get_imm_string(instr.imm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -341,3 +349,4 @@ string convert_sbfx_t1_to_string(const ref instr_32 instr, const condition cond)
                                              get_reg_name(instr.rn),
                                              instr.lsb, instr.widthm1 + 1);
 }
+// ---------------------------------------------------------------------------------------
