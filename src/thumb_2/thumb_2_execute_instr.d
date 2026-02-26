@@ -556,7 +556,13 @@ unittest {
     test_case(0x4652, 
           instr_16(op: opcode.mov_reg_t2,    rd: reg.r2,  rm: reg.r10),
           test_vm(cpu: make_cpu(tuple(reg.r2, 1), tuple(reg.r10, 3))),
-          test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r2,  3), tuple(reg.r10, 3))))
+          test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r2,  3), tuple(reg.r10, 3)))),
+    test_case(0x4208, // tst  r0, r1
+          instr_16(opcode.tst_reg_t1, rn: reg.r0, rm: reg.r1),
+          test_vm(cpu: make_cpu(tuple(reg.r0, 0xaaaaaaaa), tuple(reg.r1, 0x55555555))),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 2), tuple(reg.r0, 0xaaaaaaaa), 
+                                                  tuple(reg.r1, 0x55555555), 
+                                                  tuple(flag.z, true))))
   ];
 
   foreach (t; tests) {
@@ -722,9 +728,7 @@ unittest {
               tiny_vm(cpu: make_cpu(tuple(reg.pc, 2),
                                     tuple(reg.r3, 0x000000ee),
                                     tuple(reg.r2, tiny_mem.ram_origin + 12)),
-                      mem: make_mem(tuple(24, 0xffeeffff)))),              
-        
-
+                      mem: make_mem(tuple(24, 0xffeeffff))))              
     /*
     test_case_mem(0x68fb, 
             instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 0x30),

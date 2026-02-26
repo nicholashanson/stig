@@ -27,16 +27,17 @@ instr_16 parse_tst_reg_t1(short instr) {
 void 
 execute_tst_reg_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable  rn  = vm.get_reg(instr.rn);
 	immutable  rm  = vm.get_reg(instr.rm);
-	const uint res = rm & rm;
+	const uint res = rm & rn;
 	vm.set_z(res);
 	vm.set_n(res);
 	// APSR.C = carry;
 	// APSR.V unchanged
 }
 
+// TST<c> <Rn>,<Rm>
 string convert_tst_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
 	return format("tst%s %s, %s", get_condition_string(cond),
 								  get_reg_name(instr.rn),
