@@ -476,7 +476,20 @@ unittest {
                       mem: make_mem(tuple(tiny_mem.stack_base-16, 1),
                                     tuple(tiny_mem.stack_base-12, 2),
                                     tuple(tiny_mem.stack_base-8,  3),
-                                    tuple(tiny_mem.stack_base-4,  4)))),          
+                                    tuple(tiny_mem.stack_base-4,  4)))), 
+      test_case(0xe9120007, // ldmdb r2, {r0, r1, r2}
+                instr_32(op: opcode.ldmdb_t1, rn: reg.r2, reg_list: [reg.r0, reg.r1, reg.r2]),
+                tiny_vm(cpu: make_cpu(tuple(reg.r2, tiny_mem.stack_base)),
+                        mem: make_mem(tuple(tiny_mem.stack_base-12, 1),
+                                      tuple(tiny_mem.stack_base-8,  2),
+                                      tuple(tiny_mem.stack_base-4,  3))),
+                tiny_vm(cpu: make_cpu(tuple(reg.pc, 4),
+                                      tuple(reg.r0, 1),
+                                      tuple(reg.r1, 2),
+                                      tuple(reg.r2, 3)),
+                        mem: make_mem(tuple(tiny_mem.stack_base-12, 1),
+                                      tuple(tiny_mem.stack_base-8,  2),
+                                      tuple(tiny_mem.stack_base-4,  3)))),
   ];
 
   foreach (t; tests) {
