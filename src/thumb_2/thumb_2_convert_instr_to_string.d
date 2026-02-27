@@ -313,7 +313,8 @@ unittest {
 		test_case(0xfb8b0100, 							  "smull r0, r1, fp, r0"),
 		test_case(0xf04f5380, 						      "mov.w r3, #268435456"),
 		test_case(0xf2a54535,        						"subw r5, r5, #1077"),
-		test_case(0xfa4ff38a,									 "sxtb.w r3, sl")
+		test_case(0xfa4ff38a,									 "sxtb.w r3, sl"),
+		test_case(0xf9156c62, 							"ldrsb.w r6, [r5, #-98]")
 	];
 
 	foreach (t; tests) {

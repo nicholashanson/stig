@@ -37,8 +37,7 @@ execute_svc_t1
 	vm.increment_pc(2);
 	if (vm.get_current_exception() == exception.thread_mode) {
 		vm.push(vm.get_xpsr());
-		auto push_instr = instr_16(op:       opcode.push_t1, 
-			                       reg_list: hrdw_saved_frame);
+		auto push_instr = instr_16(op: opcode.push_t1, reg_list: hsf);
 		execute_push_t1(push_instr, vm);
 	}
 	vm.set_current_exception(exception.svc_irqn);
@@ -46,7 +45,7 @@ execute_svc_t1
 	vm.set_reg(reg.lr, 0xffff_fffd);
 	immutable  vtor_raw    = vm.read_word(0xe000_ed08);
 	const uint vector_base = vtor_raw & 0xffff_ff80;
-	immutable pc = vm.read_word(vector_base + 4 * exception.svc_irqn);
+	immutable pc 		   = vm.read_word(vector_base + 4 * exception.svc_irqn);
 	vm.set_reg(reg.pc, pc);
 }
 

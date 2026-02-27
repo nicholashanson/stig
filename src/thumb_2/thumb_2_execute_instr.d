@@ -529,6 +529,14 @@ unittest {
                                       tuple(tiny_mem.stack_base-12, 4),
                                       tuple(tiny_mem.stack_base-8,  5),
                                       tuple(tiny_mem.stack_base-4,  6)))), 
+      test_case(0xf9156c62, // ldrsb.w r6, [r5, #-98]
+                instr_32(op: opcode.ldrsb_imm_t2, rt: reg.r6, rn: reg.r5, index: true, imm: 98),
+                tiny_vm(cpu: make_cpu(tuple(reg.r5, 200)),
+                        mem: make_mem(tuple(100, 0x00ee0000))),
+                tiny_vm(cpu: make_cpu(tuple(reg.r5, 200), 
+                                      tuple(reg.r6, 0xffffffee), 
+                                      tuple(reg.pc, 4)),
+                        mem: make_mem(tuple(100, 0x00ee0000)))),
 
   ];
 
