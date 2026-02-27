@@ -179,3 +179,39 @@ execute_revsh_t2
 	vm.set_reg(instr.rd, res);
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									REVSH										     *
+// ***************************************************************************************
+
+// REV16<c>.W <Rd>,<Rm>
+instr_32 parse_rev16_t2(const uint instr) {
+	return instr_32(rd: cast(reg)slice(instr, 0, 4),
+					rm: cast(reg)slice(instr, 8, 4));
+}
+
+void 
+execute_rev16_t2 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// bits(32) result;
+	immutable rm = vm.get_reg(instr.rm);
+	// result<31:24> = R[m]<23:16>;
+	// result<23:16> = R[m]<31:24>;
+	// result<15:8> = R[m]<7:0>;
+	// result<7:0> = R[m]<15:8>;
+	const uint res = (rm >> 8 & (0x00ff0000)) |
+					 (rm << 8 & (0xff000000)) |
+					 (rm >> 8 & (0x000000ff)) |
+					 (rm << 8 & (0x0000ff00));
+	// R[d] = result;
+	vm.set_reg(instr.rd, res);
+}
+
+// REV16<c>.W <Rd>,<Rm>
+string convert_rev16_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("rev16%s.w %s, %s", get_condition_string(cond),
+									  get_reg_name(instr.rd),
+									  get_reg_name(instr.rm));
+} 
+// ---------------------------------------------------------------------------------------

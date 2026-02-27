@@ -285,7 +285,6 @@ void execute_qdadd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qdsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_rev_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_rev16_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrh_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrh_imm_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
