@@ -55,6 +55,11 @@ execute_instr
 (const t instr, ref vm_t vm) {
     bool handled = false;
 
+    if (!vm.it_block_stack_empty()) {
+      if (!vm.it_condition_is_met!(t)())
+        return;
+    }
+
     foreach (member; __traits(allMembers, opcode))
     {
         enum op = mixin("opcode." ~ member);
@@ -158,6 +163,9 @@ cortex_m_cpu make_cpu(T...)(T args)
             cpu.set_reg(arg[0], arg[1]);
         static if (is(typeof(arg[0]) == flag))
             cpu.set_flag(arg[0], arg[1]);
+        static if (is(typeof(arg[0]) == condition))
+            cpu.it_block_stack.insertBack(arg[0]);
+
     }
 
     return cpu;
@@ -723,7 +731,11 @@ unittest {
     test_case(0xb005, // add sp, #20
               instr_16(op: opcode.add_sp_t2, rd: reg.sp, imm: 20),
               test_vm(),
-              test_vm(cpu: make_cpu(tuple(reg.sp, 20), tuple(reg.pc, 2))))
+              test_vm(cpu: make_cpu(tuple(reg.sp, 20), tuple(reg.pc, 2)))),
+    test_case(0x2301, // movne r3, #1
+              instr_16(op: opcode.mov_imm_t1, rd: reg.r3, imm: 1),
+              test_vm(cpu: make_cpu(tuple(condition.eq, true))),
+              test_vm(cpu: make_cpu(tuple(reg.pc, 2))))
   ];
 
   foreach (t; tests) {
