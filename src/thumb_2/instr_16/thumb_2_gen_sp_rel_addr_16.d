@@ -43,7 +43,8 @@ instr_16 parse_add_sp_t1(const ushort instr) {
 
 // ADD<c> SP,SP,#<imm7>
 instr_16 parse_add_sp_t2(const ushort instr) {
-	return instr_16(imm: slice(instr, 0, 7) << 2);
+	return instr_16(imm: slice(instr, 0, 7) << 2,
+				    rd:  reg.sp);
 }
 
 // ================

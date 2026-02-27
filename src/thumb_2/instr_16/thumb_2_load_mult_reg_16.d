@@ -32,6 +32,8 @@ execute_ldm_t1
 		// R[i] = MemA[address,4]; address = address + 4;
 		immutable data = vm.read_word(rn);
 		vm.set_reg(r, data);
+		if (instr.rn == reg.sp)
+			vm.log_pop(rn, data);
 		rn += 4;
 	}
 	// if registers<15> == ‘1’ then

@@ -69,6 +69,8 @@ execute_ldm_t2
 		immutable data = vm.read_word(rn);
 		// R[i] = MemA[address,4]; address = address + 4;
 		vm.set_reg(r, data);
+		if (instr.rn == reg.sp)
+			vm.log_pop(rn, data);
 		rn += 4;
 	}
 	// if registers<15> == ‘1’ then
@@ -154,6 +156,8 @@ execute_stm_t2
 	foreach (r; regs) {
 		uint data = vm.get_reg(r);
 		vm.write_word(rn, data);
+		if (instr.rn == reg.sp)
+			vm.log_push(rn, data);
 		rn += 4;
 	}
 	if (instr.wback) 
@@ -238,6 +242,8 @@ execute_stmdb_t1
 		uint data = vm.get_reg(r);
 		// MemA[address,4] = R[i];
 		vm.write_word(addr, data);
+		if (instr.rn == reg.sp)
+			vm.log_push(addr, data);
 		// address = address + 4;
 		addr += 4;
 	}
@@ -288,6 +294,8 @@ execute_ldmdb_t1
 		// R[i] = MemA[address,4]; address = address + 4;
 		immutable data = vm.read_word(addr);
 		vm.set_reg(r, data);
+		if (instr.rn == reg.sp) 
+			vm.log_pop(addr, data);
 		addr += 4;
 	}
 	// if wback && registers<n> == ‘0’ then R[n] = R[n] - 4*BitCount(registers);

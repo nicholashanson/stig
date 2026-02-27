@@ -35,6 +35,8 @@ execute_stm_t1
 		// MemA[address,4] = R[i];
 		// address = address + 4;
 		vm.write_word(rn, data);
+		if (instr.rn == reg.sp)
+			vm.log_push(rn, data);
 		rn += 4;
 	}
 	// if wback then R[n] = R[n] + 4*BitCount(registers);

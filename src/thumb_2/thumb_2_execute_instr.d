@@ -719,7 +719,11 @@ unittest {
               instr_16(op: opcode.sxtb_t1, rd: reg.r0, rm: reg.r0),
               test_vm(cpu: make_cpu(tuple(reg.r0, 0x000000ee))),
               test_vm(cpu: make_cpu(tuple(reg.pc, 2),
-                                    tuple(reg.r0, 0xffffffee))))
+                                    tuple(reg.r0, 0xffffffee)))),
+    test_case(0xb005, // add sp, #20
+              instr_16(op: opcode.add_sp_t2, rd: reg.sp, imm: 20),
+              test_vm(),
+              test_vm(cpu: make_cpu(tuple(reg.sp, 20), tuple(reg.pc, 2))))
   ];
 
   foreach (t; tests) {
