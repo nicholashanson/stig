@@ -334,7 +334,11 @@ unittest {
                   instr_32(op: opcode.uxtb_t2, rd: reg.r12, rm: reg.r12),
                   test_vm(cpu: make_cpu(tuple(reg.r12, 0xeeeeeeff))),
                   test_vm(cpu: make_cpu(tuple(reg.r12, 0x000000ff),
-                                        tuple(reg.pc,  4))))
+                                        tuple(reg.pc,  4)))),
+        test_case(0xf34000cf, // sbfx r0, r0, #3, #16
+                  instr_32(op: opcode.sbfx_t1, rd: reg.r0, rn: reg.r0, lsb: 3, widthm1: 15),
+                  test_vm(cpu: make_cpu(tuple(reg.r0, 0x0004cccf))),
+                  test_vm(cpu: make_cpu(tuple(reg.r0, 0xffff999))))
     ];
 
     foreach (t; tests) {
