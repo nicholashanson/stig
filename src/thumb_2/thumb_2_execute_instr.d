@@ -459,7 +459,24 @@ unittest {
                       mem: make_mem(tuple(tiny_mem.stack_base-16, 1),
                                     tuple(tiny_mem.stack_base-12, 2),
                                     tuple(tiny_mem.stack_base-8,  3),
-                                    tuple(tiny_mem.stack_base-4,  4))))
+                                    tuple(tiny_mem.stack_base-4,  4)))),
+    test_case(0xe8ac00f, // stmia.w ip!, {r0, r1, r2, r3}
+              instr_32(op: opcode.stm_t2, rn: reg.r12, reg_list: [reg.r0, reg.r1, reg.r2, reg.r3], wback: true),
+              tiny_vm(cpu: make_cpu(tuple(reg.r12, tiny_mem.stack_base-16),
+                                    tuple(reg.r0, 1),
+                                    tuple(reg.r1, 2),
+                                    tuple(reg.r2, 3),
+                                    tuple(reg.r3, 4))),
+              tiny_vm(cpu: make_cpu(tuple(reg.r12, tiny_mem.stack_base),
+                                    tuple(reg.pc, 4),
+                                    tuple(reg.r0, 1),
+                                    tuple(reg.r1, 2),
+                                    tuple(reg.r2, 3),
+                                    tuple(reg.r3, 4)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-16, 1),
+                                    tuple(tiny_mem.stack_base-12, 2),
+                                    tuple(tiny_mem.stack_base-8,  3),
+                                    tuple(tiny_mem.stack_base-4,  4)))),          
   ];
 
   foreach (t; tests) {
