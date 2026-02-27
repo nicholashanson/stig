@@ -145,7 +145,6 @@ execute_blx_t1
 	immutable  rm = vm.get_reg(instr.rm);
 	vm.set_reg(reg.lr, vm.get_pc() + 2);
 	vm.set_reg(reg.pc, rm);
-	vm.clear_thumb_bit();
 }
 
 // =================================
@@ -194,7 +193,6 @@ execute_bx_t1
         return;
     }
 	vm.set_reg(reg.pc, rm);
-	vm.clear_thumb_bit();
 }
 
 // ======================

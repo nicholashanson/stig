@@ -308,7 +308,6 @@ execute_pop_t1
 	        exception_return(vm, vm.get_pc());
 	        return;
 	    }
-		vm.clear_thumb_bit();
 	}
 	// SP = SP + 4*BitCount(registers);
 } 

@@ -119,11 +119,8 @@ execute_pop_t2
 		immutable val = vm.pop();
 		vm.set_reg(r, val);
 	}
-	if (regs.back == reg.pc) 
-		vm.clear_thumb_bit();
 }
 
-// ldmia.w sp!, {r3, r4, r5, r6, r7, r8, r9, pc}
 string convert_pop_t2_to_string(const ref instr_32 instr, const condition cond) {
 	return format("ldmia.w sp!, {%s}", get_reg_list_string(instr.reg_list));
 }
