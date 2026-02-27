@@ -329,7 +329,12 @@ unittest {
                   test_vm(cpu: make_cpu(tuple(reg.r12, 0xeeeeffff))),
                   test_vm(cpu: make_cpu(tuple(reg.r12, 0xeeeeffff),
                                         tuple(reg.pc,  4),
-                                        tuple(reg.lr,  0x0000ffff))))
+                                        tuple(reg.lr,  0x0000ffff)))),
+        test_case(0xfa5ffc8c, // uxtb.w ip, ip
+                  instr_32(op: opcode.uxtb_t2, rd: reg.r12, rm: reg.r12),
+                  test_vm(cpu: make_cpu(tuple(reg.r12, 0xeeeeeeff))),
+                  test_vm(cpu: make_cpu(tuple(reg.r12, 0x000000ff),
+                                        tuple(reg.pc,  4))))
     ];
 
     foreach (t; tests) {

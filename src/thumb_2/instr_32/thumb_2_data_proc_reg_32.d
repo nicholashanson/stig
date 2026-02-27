@@ -250,7 +250,11 @@ string convert_uadd8_t1_to_string(const ref instr_32 instr, const condition cond
 // ***************************************************************************************
 // *									  UXTB 											 *
 // ***************************************************************************************
+// Unsigned Extend Byte extracts an 8-bit value from a register, zero extends it to 32 
+// bits, and writes the result to the destination register. You can specify a rotation by 
+// 0, 8, 16, or 24 bits before extracting the 8-bit value.
 
+// UXTB<c>.W <Rd>,<Rm>{,<rotation>}
 instr_32 parse_uxtb_t2(const uint instr) {
 	// rotation = UInt(rotate:’000’);
 	return instr_32(rm:  cast(reg)slice(instr, 0, 4),
@@ -267,7 +271,7 @@ execute_uxtb_t2
 	// rotated = ROR(R[m], rotation);
 	const uint rotated = rotr(rm, instr.imm);
 	// R[d] = ZeroExtend(rotated<7:0>, 32);
-	vm.set_reg(instr.rd, rotated);
+	vm.set_reg(instr.rd, cast(uint)cast(ubyte)rotated);
 }
 
 // UXTB<c>.W <Rd>,<Rm>{,<rotation>}
