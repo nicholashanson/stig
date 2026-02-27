@@ -425,3 +425,37 @@ string convert_uxtab_t1_to_string(const ref instr_32 instr, const condition cond
 										  get_reg_name(instr.rm),
 										  instr.imm != 0 ? get_imm_string(instr.imm) : "");
 }
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									  SXTB 											 *
+// ***************************************************************************************
+
+// SXTB<c>.W <Rd>,<Rm>{,<rotation>}
+instr_32 parse_sxtb_t2(const uint instr) {
+	return instr_32(rd:  cast(reg)slice(instr, 8, 4),
+					rm:  cast(reg)slice(instr, 0, 4),
+					// rotation = UInt(rotate:’000’);
+					imm: slice(instr, 4, 2) << 3);
+}
+
+void 
+execute_sxtb_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	immutable  rm      = vm.get_reg(instr.rm);
+	// rotated = ROR(R[m], rotation);
+	const uint rotated = rotr(rm, instr.imm);
+	// R[d] = SignExtend(rotated<7:0>, 32);
+	vm.set_reg(instr.rd, cast(int)cast(byte)rotated);
+}
+
+// SXTB<c>.W <Rd>,<Rm>{,<rotation>}
+string convert_sxtb_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("sxtb%s.w %s, %s%s", get_condition_string(cond),
+									   get_reg_name(instr.rd),
+									   get_reg_name(instr.rm),
+									   instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
+// ---------------------------------------------------------------------------------------

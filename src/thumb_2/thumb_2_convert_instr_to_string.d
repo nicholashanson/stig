@@ -235,7 +235,7 @@ unittest {
 		test_case(0xf1c10720, 						    	   "rsb r7, r1, #32"),
 		test_case(0xeb66060c, 								  "sbc.w r6, r6, ip"),
 		test_case(0xeb660203, 								  "sbc.w r2, r6, r3"),
-		//test_case(0xe8801ff0, "stmia.w r0, {r4, r5, r6, r7, r8, r9, sl, fp, ip}"),
+		test_case(0xe8801ff0, "stmia.w r0, {r4, r5, r6, r7, r8, r9, sl, fp, ip}"),
 		test_case(0xf8c46188, 						   	  "str.w r6, [r4, #392]"),
 		test_case(0xf8c73098, 						   	  "str.w r3, [r7, #152]"),
 		test_case(0xf8832300, 						     "strb.w r2, [r3, #768]"),
@@ -312,7 +312,8 @@ unittest {
 		test_case(0xea190f03, 									  "tst.w r9, r3"),
 		test_case(0xfb8b0100, 							  "smull r0, r1, fp, r0"),
 		test_case(0xf04f5380, 						      "mov.w r3, #268435456"),
-		test_case(0xf2a54535,        						"subw r5, r5, #1077")
+		test_case(0xf2a54535,        						"subw r5, r5, #1077"),
+		test_case(0xfa4ff38a,									 "sxtb.w r3, sl")
 	];
 
 	foreach (t; tests) {

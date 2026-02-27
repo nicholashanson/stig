@@ -358,7 +358,15 @@ unittest {
                   test_vm(cpu: make_cpu(tuple(reg.r8, 0xaabbccdd))),
                   test_vm(cpu: make_cpu(tuple(reg.r8, 0xbbaaddcc),
                                         tuple(reg.pc, 4)))),
-        //test_case(0xf36f0208, // bfc r2, #0, #9
+        // test_case(0xf36f0208, // bfc r2, #0, #9
+
+
+        test_case(0xfa4ff38a, // sxtb.w r3, sl
+                  instr_32(op: opcode.sxtb_t2, rd: reg.r3, rm: reg.r10),
+                  test_vm(cpu: make_cpu(tuple(reg.r10, 0x000000ee))),
+                  test_vm(cpu: make_cpu(tuple(reg.r10, 0x000000ee),
+                                        tuple(reg.pc,  4),
+                                        tuple(reg.r3,  0xffffffee))))
 
     ];
 
