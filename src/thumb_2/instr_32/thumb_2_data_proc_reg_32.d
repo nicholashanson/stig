@@ -91,9 +91,7 @@ string convert_asr_reg_t2_to_string(const ref instr_32 instr, const condition co
 // ============
 //  Parse UXTH
 // ============
-
-enum field_tuples_uxth_t2 = [Tuple!(opcode, string[])(opcode.uxth_t2, ["rd","rm","imm"])];
-// UXTH.W <Rd>,<Rm>{,<rotation>}
+// UXTH<c>.W <Rd>,<Rm>{,<rotation>}
 // First Half-Word: [15:5] 11111010010, [4] S, [3:0] Rn
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
 instr_32 parse_uxth_t2(const uint instr) {
@@ -111,12 +109,17 @@ execute_uxth_t2
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	immutable rm       = vm.get_reg(instr.rm);
+	//rotated = ROR(R[m], rotation);
 	const uint rotated = rotr(rm, instr.imm);
-	vm.set_reg(instr.rd, rotated);	
+	// R[d] = ZeroExtend(rotated<15:0>, 32);
+	vm.set_reg(instr.rd, cast(uint)cast(ushort)rotated);	
 }
 
+// UXTH<c>.W <Rd>,<Rm>{,<rotation>}
 string convert_uxth_t2_to_string(const ref instr_32 instr, const condition cond) {
-	return format("uxth.w %s, %s", get_reg_name(instr.rd), get_reg_name(instr.rm));
+	return format("uxth%s.w %s, %s", get_condition_string(cond),
+									 get_reg_name(instr.rd), 
+									 get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
 

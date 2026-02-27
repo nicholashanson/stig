@@ -323,7 +323,13 @@ unittest {
         test_case(0xfab2f282, //clz r2, r2
                   instr_32(op: opcode.clz_t1, rd: reg.r2, rm: reg.r2),
                   test_vm(cpu: make_cpu(tuple(reg.r2, 0x3aa))),
-                  test_vm(cpu: make_cpu(tuple(reg.pc, 4), tuple(reg.r2, 22))))
+                  test_vm(cpu: make_cpu(tuple(reg.pc, 4), tuple(reg.r2, 22)))),
+        test_case(0xfa1ffe8c, //uxth.w  lr, ip
+                  instr_32(op: opcode.uxth_t2, rd: reg.lr, rm: reg.r12),
+                  test_vm(cpu: make_cpu(tuple(reg.r12, 0xeeeeffff))),
+                  test_vm(cpu: make_cpu(tuple(reg.r12, 0xeeeeffff),
+                                        tuple(reg.pc,  4),
+                                        tuple(reg.lr,  0x0000ffff))))
     ];
 
     foreach (t; tests) {
