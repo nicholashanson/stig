@@ -223,15 +223,15 @@ instr_32 parse_stmdb_t1(const uint instr) {
 }
 
 void 
-exeucte_stmdb_t1
+execute_stmdb_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	auto regs = instr.reg_list.dup; 
-	regs.sort!((a,b) => cast(int)a > cast(int)b);
+	regs.sort!((a,b) => cast(int)a < cast(int)b);
 	// EncodingSpecificOperations();
-	immutable rn      = vm.get_reg(instr.rn);
+	immutable rn   = vm.get_reg(instr.rn);
 	// address = R[n] - 4*BitCount(registers);
-	const size_t addr = rn - (4 * instr.reg_list.length);
+	size_t    addr = rn - (4 * instr.reg_list.length);
 	// for i = 0 to 14
 	foreach (r; regs) {
 		// if registers<i> == ‘1’ then
@@ -243,7 +243,7 @@ exeucte_stmdb_t1
 	}
 	// if wback then R[n] = R[n] - 4*BitCount(registers);
 	if (instr.wback) 
-		vm.set_reg(instr.rn, rn);
+		vm.set_reg(instr.rn, cast(uint)(rn - (4 * instr.reg_list.length)));
 }
  
 

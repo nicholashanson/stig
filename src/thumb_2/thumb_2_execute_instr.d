@@ -490,6 +490,30 @@ unittest {
                         mem: make_mem(tuple(tiny_mem.stack_base-12, 1),
                                       tuple(tiny_mem.stack_base-8,  2),
                                       tuple(tiny_mem.stack_base-4,  3)))),
+      test_case(0xe92d41f0, // stmdb sp!, {r4, r5, r6, r7, r8, lr}
+                instr_32(op: opcode.stmdb_t1, rn: reg.sp, reg_list: [reg.r4, reg.r5, reg.r6, reg.r7, reg.r8, reg.lr], wback: true),
+                tiny_vm(cpu: make_cpu(tuple(reg.sp, tiny_mem.stack_base),
+                                      tuple(reg.r4, 1),
+                                      tuple(reg.r5, 2),
+                                      tuple(reg.r6, 3),
+                                      tuple(reg.r7, 4),
+                                      tuple(reg.r8, 5),
+                                      tuple(reg.lr, 6))),
+                tiny_vm(cpu: make_cpu(tuple(reg.pc, 4),
+                                      tuple(reg.sp, tiny_mem.stack_base-24),
+                                      tuple(reg.r4, 1),
+                                      tuple(reg.r5, 2),
+                                      tuple(reg.r6, 3),
+                                      tuple(reg.r7, 4),
+                                      tuple(reg.r8, 5),
+                                      tuple(reg.lr, 6)),
+                        mem: make_mem(tuple(tiny_mem.stack_base-24, 1),
+                                      tuple(tiny_mem.stack_base-20, 2),
+                                      tuple(tiny_mem.stack_base-16, 3),
+                                      tuple(tiny_mem.stack_base-12, 4),
+                                      tuple(tiny_mem.stack_base-8,  5),
+                                      tuple(tiny_mem.stack_base-4,  6)))), 
+
   ];
 
   foreach (t; tests) {
