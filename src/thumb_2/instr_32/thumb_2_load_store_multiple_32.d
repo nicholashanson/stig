@@ -58,14 +58,22 @@ void
 execute_ldm_t2
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// address = R[n];
 	uint rn   = vm.get_reg(instr.rn);
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a < cast(int)b);
+	// for i = 0 to 14
+	// if registers<i> == ‘1’ then
 	foreach (r; regs) {
 		immutable data = vm.read_word(rn);
+		// R[i] = MemA[address,4]; address = address + 4;
 		vm.set_reg(r, data);
 		rn += 4;
 	}
+	// if registers<15> == ‘1’ then
+	// LoadWritePC(MemA[address,4]);
+	// if wback && registers<n> == ‘0’ then R[n] = R[n] + 4*BitCount(registers);
 	if (instr.wback) 
 		vm.set_reg(instr.rn, rn);
 }

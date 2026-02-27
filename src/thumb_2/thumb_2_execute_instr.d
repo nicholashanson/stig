@@ -349,7 +349,9 @@ unittest {
                   instr_32(op: opcode.rev16_t2, rd: reg.r8, rm: reg.r8),
                   test_vm(cpu: make_cpu(tuple(reg.r8, 0xaabbccdd))),
                   test_vm(cpu: make_cpu(tuple(reg.r8, 0xbbaaddcc),
-                                        tuple(reg.pc, 4))))
+                                        tuple(reg.pc, 4)))),
+        //test_case(0xf36f0208, // bfc r2, #0, #9
+
     ];
 
     foreach (t; tests) {
@@ -440,7 +442,24 @@ unittest {
                                     tuple(tiny_mem.stack_base-20,     4), 
                                     tuple(tiny_mem.stack_base-24,     3), 
                                     tuple(tiny_mem.stack_base-28,     2), 
-                                    tuple(tiny_mem.stack_base-32,     1))))
+                                    tuple(tiny_mem.stack_base-32,     1)))),
+    test_case(0xe8bd4070, // ldmia.w sp!, {r4, r5, r6, lr}
+              instr_32(op: opcode.ldm_t2, rn: reg.sp, reg_list: [reg.r4, reg.r5, reg.r6, reg.lr], wback: true),
+              tiny_vm(cpu: make_cpu(tuple(reg.sp, tiny_mem.stack_base-16)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-16, 1),
+                                    tuple(tiny_mem.stack_base-12, 2),
+                                    tuple(tiny_mem.stack_base-8,  3),
+                                    tuple(tiny_mem.stack_base-4,  4))),
+              tiny_vm(cpu: make_cpu(tuple(reg.sp, tiny_mem.stack_base),
+                                    tuple(reg.pc, 4),
+                                    tuple(reg.lr, 4),
+                                    tuple(reg.r6, 3),
+                                    tuple(reg.r5, 2),
+                                    tuple(reg.r4, 1)),
+                      mem: make_mem(tuple(tiny_mem.stack_base-16, 1),
+                                    tuple(tiny_mem.stack_base-12, 2),
+                                    tuple(tiny_mem.stack_base-8,  3),
+                                    tuple(tiny_mem.stack_base-4,  4))))
   ];
 
   foreach (t; tests) {
