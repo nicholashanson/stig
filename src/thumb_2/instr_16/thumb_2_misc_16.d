@@ -417,7 +417,6 @@ string convert_sxtb_t1_to_string(const ref instr_16 instr, const condition cond)
 // ============
 //  Parse UXTB
 // ============
-
 // UXTB<c> <Rd>,<Rm>
 // [15:6] 1011001011, [5:3] Rm, [2:0] Rd  
 instr_16 parse_uxtb_t1(const ushort instr) {
@@ -434,6 +433,8 @@ execute_uxtb_t1
 (vm_t)
 (const instr_16 instr, ref vm_t vm) {
 	immutable  rm  = vm.get_reg(instr.rm);
+	// rotated = ROR(R[m], rotation);
+	// R[d] = ZeroExtend(rotated<7:0>, 32);
 	const uint res = rm & 0xff;
 	vm.set_reg(instr.rd, res);
 }

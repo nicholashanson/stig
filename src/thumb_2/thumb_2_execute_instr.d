@@ -608,7 +608,13 @@ unittest {
     test_case(0xb209, // sxth r1, r1
           instr_16(op: opcode.sxth_t1, rd: reg.r1, rm: reg.r1),
           test_vm(cpu: make_cpu(tuple(reg.r1, 0x0000aa00))),
-          test_vm(cpu: make_cpu(tuple(reg.r1, 0xffffaa00), tuple(reg.pc, 2))))
+          test_vm(cpu: make_cpu(tuple(reg.r1, 0xffffaa00), tuple(reg.pc, 2)))),
+    test_case(0xb2f4, // uxtb r4, r6
+          instr_16(op: opcode.uxtb_t1, rd: reg.r4, rm: reg.r6),
+          test_vm(cpu: make_cpu(tuple(reg.r6, 0xeeeeeeff))),
+          test_vm(cpu: make_cpu(tuple(reg.pc, 2),
+                                tuple(reg.r6, 0xeeeeeeff), 
+                                tuple(reg.r4, 0x000000ff))))
   ];
 
   foreach (t; tests) {
