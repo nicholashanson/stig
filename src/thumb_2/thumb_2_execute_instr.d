@@ -624,7 +624,14 @@ unittest {
           test_vm(cpu: make_cpu(tuple(reg.r6, 0xeeeeeeff))),
           test_vm(cpu: make_cpu(tuple(reg.pc, 2),
                                 tuple(reg.r6, 0xeeeeeeff), 
-                                tuple(reg.r4, 0x000000ff))))
+                                tuple(reg.r4, 0x000000ff)))),
+    test_case(0x4358, // muls r0, r3
+              instr_16(op: opcode.mul_t1, rd: reg.r0, rn: reg.r3, rm: reg.r0),
+              test_vm(cpu: make_cpu(tuple(reg.r3, -2), tuple(reg.r0, 3))),
+              test_vm(cpu: make_cpu(tuple(reg.r0, 0xfffffffa),
+                                    tuple(reg.r3, -2),
+                                    tuple(reg.pc,  2),
+                                    tuple(flag.n, true))))
   ];
 
   foreach (t; tests) {
