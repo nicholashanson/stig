@@ -86,12 +86,24 @@ execute_msr_t1
 (const instr_32 instr, ref vm_t vm) {
 	immutable rn = vm.get_reg(instr.rn);
 	switch (instr.spec_reg) {
-		case special_reg.BASEPRI: vm.set_basepri(cast(ubyte)(rn & 0xf0));  break;
-		case special_reg.MSP    : vm.set_msp(rn);						   break;
-		case special_reg.PSP    : vm.set_psp(rn); 						   break;
+		case special_reg.BASEPRI:
+			auto b = cast(ubyte)(rn & 0xf0); 
+			vm.set_basepri(b);  
+			vm.log_msr("BASEPRI", b);
+			break;
+		case special_reg.MSP    : 
+			vm.set_msp(rn);						   
+			vm.log_msr("MSP", rn);
+			break;
+		case special_reg.PSP    : 
+			vm.set_psp(rn); 						   
+			vm.log_msr("PSP", rn);
+			break;
 		case special_reg.CONTROL: 
 		    vm.set_npriv(( rn & 0x1) != 0);
-			vm.set_sp_sel((rn & 0x2) != 0); 							   break;
+			vm.set_sp_sel((rn & 0x2) != 0);
+			vm.log_msr("CONTROL", rn); 							   
+			break;
 		case special_reg.BASEPRI_MAX:
 		    ubyte new_val = cast(ubyte)(rn & 0xff);
     		if (new_val > vm.get_basepri() || vm.get_basepri() == 0) 
@@ -148,9 +160,11 @@ execute_mrs_t1
 			break;
 		case special_reg.MSP:
 			vm.set_reg(instr.rd, vm.get_msp());
+			vm.log_mrs("MSP", vm.get_msp());
 			break;
 		case special_reg.PSP:
 			vm.set_reg(instr.rd, vm.get_psp());
+			vm.log_mrs("PSP", vm.get_psp());
 			break;
 		case special_reg.CONTROL:
 			uint val = 0;

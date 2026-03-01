@@ -76,6 +76,14 @@ execute_ldrsh_imm
 	//R[t] = SignExtend(data, 32);
 	vm.set_reg(instr.rt, data);
 }
+
+// LDRSH<c> <Rt>,[<Rn>,#<imm12>]
+string convert_ldrsh_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrsh%s.w %s, [%s%s]", get_condition_string(cond),
+										  get_reg_name(instr.rt),
+										  get_reg_name(instr.rn),
+										  get_imm_string(instr.imm));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************

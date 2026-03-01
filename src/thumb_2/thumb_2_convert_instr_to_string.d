@@ -316,7 +316,8 @@ unittest {
 		test_case(0xf2a54535,        						"subw r5, r5, #1077"),
 		test_case(0xfa4ff38a,									 "sxtb.w r3, sl"),
 		test_case(0xf9156c62, 							"ldrsb.w r6, [r5, #-98]"),
-		test_case(0xf890f000, 										  "pld [r0]")
+		test_case(0xf890f000, 										  "pld [r0]"),
+		test_case(0xf9b1100e, 							 "ldrsh.w r1, [r1, #14]")
 	];
 
 	foreach (t; tests) {

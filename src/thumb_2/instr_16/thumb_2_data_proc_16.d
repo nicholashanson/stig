@@ -204,7 +204,8 @@ instr_16 parse_cmp_reg_t2(const ushort instr) {
 	auto n  = slice(instr, 7, 1);
 	if (n) 
 		rn |= 0b1000; 
-	return instr_16(rm: cast(reg)slice(instr, 3, 4), rn: cast(reg)rn);
+	return instr_16(rm: cast(reg)slice(instr, 3, 4), 
+					rn: cast(reg)rn);
 }
 
 // =======================
@@ -229,12 +230,19 @@ void
 execute_cmp_reg
 (vm_t)   
 (const instr_16 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// shifted = Shift(R[m], shift_t, shift_n, APSR.C);
 	immutable rm  = vm.get_reg(instr.rm);
 	immutable rn  = vm.get_reg(instr.rn);
-	immutable res = add_with_carry(rm, ~rn, true);
+	// (result, carry, overflow) = AddWithCarry(R[n], NOT(shifted), ‘1’);
+	immutable res = add_with_carry(rn, ~rm, true);
+	// APSR.Z = IsZeroBit(result);
 	vm.set_z(res.result);
+	// APSR.N = result<31>;
 	vm.set_n(res.result);
-	vm.set_c(res.carry);;
+	// APSR.C = carry;
+	vm.set_c(res.carry);
+	// APSR.V = overflow;
 	vm.set_v(res.overflow);
 }
 
@@ -518,7 +526,6 @@ execute_mov_reg_t2
 // ===========
 //  Parse MUL
 // ===========
-
 // MULS <Rdm>,<Rn>,<Rdm> 
 // MUL<c> <Rdm>,<Rn>,<Rdm>
 // [15:6] 0100001101, [5:3] Rn, [2:0] Rdm
