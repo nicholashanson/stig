@@ -253,6 +253,55 @@ string convert_ldrb_reg_t2_to_string(const ref instr_32 instr, const condition c
 }
 // ---------------------------------------------------------------------------------------
 
+// ***************************************************************************************
+// *									   PLD 										     *
+// ***************************************************************************************
+
+instr_32 parse_pld_reg_t1(const uint instr) {
+	return instr_32(rm:      cast(reg)slice(instr,  0, 4),
+					rn:      cast(reg)slice(instr, 16, 4),
+					shift_n: slice(instr, 4, 2),
+					shift_t: shift_type.lsl);
+}
+
+void
+execute_pld_reg_t1 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	return;
+}
+
+// PLD<c> [<Rn>,<Rm>{,LSL #<imm2>}]
+string convert_pld_reg_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("pld%s [%s, %s%s]", get_condition_string(cond),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm),
+									  get_shift_string(instr));
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   PLD 										     *
+// ***************************************************************************************
+
+// PLD<c> [<Rn>,#<imm12>]
+instr_32 parse_pld_imm_t1(const uint instr) {
+	return instr_32(rn:  cast(reg)slice(instr, 16, 4),
+					imm: slice(instr, 0, 12));
+}
+
+void 
+execute_pld_imm_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {}
+
+// PLD<c> [<Rn>,#<imm12>]
+string convert_pld_imm_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("pld%s [%s%s]", get_condition_string(cond),
+								  get_reg_name(instr.rn),
+								  instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
+// ---------------------------------------------------------------------------------------
 
 void execute_ldrexh_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pop_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
@@ -322,9 +371,7 @@ void execute_ldrsb_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrsbt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrsb_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_pld_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_pld_reg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 void execute_invalid(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 

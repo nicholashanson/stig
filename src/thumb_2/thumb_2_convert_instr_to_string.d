@@ -3,6 +3,7 @@ import std.conv     : to;
 import std.typecons : tuple, Tuple;
 import std.array;
 import std.traits   : Parameters, ReturnType;
+import std.regex;
 
 import cortex_m_core;
 import memory_sections;
@@ -314,7 +315,8 @@ unittest {
 		test_case(0xf04f5380, 						      "mov.w r3, #268435456"),
 		test_case(0xf2a54535,        						"subw r5, r5, #1077"),
 		test_case(0xfa4ff38a,									 "sxtb.w r3, sl"),
-		test_case(0xf9156c62, 							"ldrsb.w r6, [r5, #-98]")
+		test_case(0xf9156c62, 							"ldrsb.w r6, [r5, #-98]"),
+		test_case(0xf890f000, 										  "pld [r0]")
 	];
 
 	foreach (t; tests) {
@@ -350,7 +352,7 @@ row_view[] get_function_rows(func f) {
         try {
             auto i16 = ins.i.get!instr_16;
             s = convert_instr_to_string!(ushort,instr_16)(ins._in_16);
-            s = s.replace("label", format("%x", ins._addr + i16.offset + 4));
+            s = s.replace("<label>", format("%x", ins._addr + i16.offset + 4));
             if (i16.op == opcode.ldr_lit_t1) {
                 int base = ins._addr + 4;
                 base &= ~0x3;
@@ -390,3 +392,36 @@ row_view[] generate_instr_rows(func[] functions) {
     }
     return res;
 }
+
+immutable string[] regs = ["r0","r1","r2","r3","r4","r5","r6","r7","r8","r9",
+                           "sl","fp","ip","sp","lr","pc"];
+
+string[] split_instr(string s) {
+    enum reg_pattern = `\b(r[0-9]|sl|fp|ip|sp|lr|pc)\b`;
+    auto re = regex(reg_pattern);
+
+    string[] tokens;
+    size_t lastEnd = 0;
+
+    foreach (m; matchAll(s, re)) {
+        // absolute position of the match in s
+        size_t start = cast(size_t)(m.hit.ptr - s.ptr);
+        size_t end   = start + m.hit.length;
+
+        // append text before match
+        if (start > lastEnd)
+            tokens ~= s[lastEnd .. start];
+
+        // append the match itself
+        tokens ~= m.hit;
+
+        lastEnd = end;
+    }
+
+    // append anything after the last match
+    if (lastEnd < s.length)
+        tokens ~= s[lastEnd .. $];
+
+    return tokens;
+}
+

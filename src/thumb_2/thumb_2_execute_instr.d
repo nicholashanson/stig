@@ -71,14 +71,14 @@ execute_instr
                 alias Handler = mixin("execute_" ~ member);
                 static if (member == "ldrsh_imm_t1") {}
                 alias P = Parameters!(Handler!(vm_t));
-                pragma(msg, "Handler execute_" ~ member ~ " signature:");
+                //pragma(msg, "Handler execute_" ~ member ~ " signature:");
                 foreach (i, T; P) {
-                     pragma(msg, "  param " ~ i.stringof ~ ": " ~ T.stringof);
-                pragma(msg, "  returns: " ~ ReturnType!(Handler!(vm_t)).stringof);
+                     //pragma(msg, "  param " ~ i.stringof ~ ": " ~ T.stringof);
+                //pragma(msg, "  returns: " ~ ReturnType!(Handler!(vm_t)).stringof);
                 }
                 static if (__traits(compiles, Handler!(vm_t)(instr, vm)))
                 {
-                    pragma(msg, "Handler callable with this instruction type: execute_" ~ member);
+                    //pragma(msg, "Handler callable with this instruction type: execute_" ~ member);
                     Handler!(vm_t)(instr, vm);
                     handled = true;
                     break;

@@ -955,13 +955,13 @@ opcode decode_load_byte_memory_hints(const uint instr) {
 	if ((op1 == 0b10) && (op2 == 0b000000) && (rn != pc) && (rt != pc)) 
 		return opcode.ldrsb_reg_t2;
 	if ((op1 == 0b00) && (op2 == 0b000000) && (rn != pc) && (rt == pc)) 
-		return opcode.pld_lit_t1;
-	if (((op1 & 0b10) == 0b00) && (rn == pc) && (rt == pc)) 
+		return opcode.pld_reg_t1;
+	if ((op1 == 0b01) && (rn != pc) && (rt == pc)) 
 		return opcode.pld_imm_t1;
 	if ((op1 == 0b00) && ((op2 & 0b111100) == 0b110000) && (rn != pc) && (rt == pc)) 
 		return opcode.pld_imm_t2;
-	if ((op1 == 0b01) && (rn != pc) && (rt == pc)) 
-		return opcode.pld_reg_t1;
+	if (((op1 & 0b10) == 0b00) && (rn == pc) && (rt == pc)) 
+		return opcode.pld_lit_t1;
 	return opcode.invalid;
 }
 
@@ -1193,7 +1193,7 @@ unittest {
 		test_case(0xe8bd4010,      opcode.pop_t2),
 		test_case(0xf883203c, opcode.strb_imm_t2),
 		test_case(0xf9973007,opcode.ldrsb_imm_t1),
-		test_case(0xf890f000,  opcode.pld_reg_t1),
+		test_case(0xf890f000,  opcode.pld_imm_t1),
 		test_case(0xf893303d, opcode.ldrb_imm_t2),
 		test_case(0xf997300f,opcode.ldrsb_imm_t1),
 		test_case(0xf8832300, opcode.strb_imm_t2),
