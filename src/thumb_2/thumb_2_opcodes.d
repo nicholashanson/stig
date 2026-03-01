@@ -33,6 +33,7 @@ enum opcode : ubyte {
 	mov_imm_t1,
 	cmp_imm_t1,
 	// Data processing
+	cmn_reg_t1,
 	tst_reg_t1,
 	adc_reg_t1,
 	and_reg_t1,
@@ -304,6 +305,7 @@ opcode decode_data_proc(const ushort instr) {
 		case 0b1110: return opcode.bic_reg_t1;
 		case 0b1111: return opcode.mvn_reg_t1;
 		case 0b0110: return opcode.sbc_reg_t1;
+		case 0b1011: return opcode.cmn_reg_t1;
 		default    : break; 
 	}
     return opcode.invalid;
