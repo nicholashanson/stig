@@ -3,7 +3,6 @@ import std.conv;
 import std.format;
 import std.traits : isIntegral;
 
-import memory_sections;
 import thumb_2_misc_16;
 import thumb_2_instrs;
 import thumb_2_opcodes;
@@ -17,6 +16,13 @@ enum special_reg : ubyte {
 	IAPSR       = 0b00000001,
 	EAPSR       = 0b00000010,
 	XPSR        = 0b00000011,
+	// The processor writes to the IPSR on exception entry and exit. 
+	// Software can use an MRS instruction, to read the IPSR, but 
+	// the processor ignores writes to the IPSR by an MSR instruction. 
+	// The IPSR Exception Number field is defined as follows:
+	// 		- in Thread mode, the value is 0
+	//		- in Handler mode, holds the exception number of the 
+	//        currently-executing exception.
 	IPSR        = 0b00000101,
 	EPSR        = 0b00000110,
 	IEPSR       = 0b00000111,
@@ -38,10 +44,12 @@ enum special_reg : ubyte {
 enum exception {
 	thread_mode,
 	svc_irqn = 11,
+	pendsv_irqn = 14,
 	systick_irqn = 15
 }
 
-reg[] hardware_saved_frame = [reg.r0, reg.r1, reg.r2, reg.r3, reg.r12, reg.lr, reg.pc /*, XPSR */];
+// hrdware saved frame
+reg[] hsf = [reg.r0, reg.r1, reg.r2, reg.r3, reg.r12, reg.lr, reg.pc /*, XPSR */];
 
 // ==================
 //  EXCEPTION RETURN
@@ -54,14 +62,13 @@ exception_return
     bool return_to_thread = (exc_return & (1 << 3)) != 0;
     bool use_psp 		  = (exc_return & (1 << 2)) != 0;
     vm.set_sp_sel(use_psp);
-	auto pop_instr = instr_16(op: opcode.pop_t1, reg_list: hardware_saved_frame);
+	auto pop_instr = instr_16(op: opcode.pop_t1, reg_list: hsf);
 	execute_pop_t1(pop_instr, vm);
 	vm.set_xpsr(vm.pop());
-    vm.clear_thumb_bit();
     if (return_to_thread)
-        cpu.current_exception = exception.thread_mode;
+        vm.set_current_exception(exception.thread_mode);
     if (return_to_thread)
-        cpu.npriv = false;
+        vm.set_npriv(false);
 }
 
 // ==================
@@ -74,17 +81,43 @@ execute_sys_tick
 (ref vm_t vm) {
 	if (vm.get_current_exception() == exception.thread_mode) {
 		vm.push(vm.get_xpsr());
-		auto push_instr = instr_16(op: opcode.push_t1, reg_list: hardware_saved_frame);
+		auto push_instr = instr_16(op: opcode.push_t1, reg_list: hsf);
 		execute_push_t1(push_instr, vm);
 	}
 	vm.set_current_exception(exception.systick_irqn);
 	vm.set_npriv(false);
 	vm.set_reg(reg.lr, vm.get_sp_sel() ? 0xffff_fffd : 0xffff_fff9); 
 	vm.set_sp_sel(false);
-	uint vtor_raw = vm.read_word(0xE000_ED08);
-	uint vector_base = vtor_raw & 0xFFFF_FF80;
-	uint systick_addr = vector_base + 4 * exception.systick_irqn;
-	immutable pc = vm.read_word(systick_addr);
+	const uint vtor_raw     = vm.read_word(0xe000_ed08);
+	const uint vector_base  = vtor_raw & 0xffff_ff80;
+	const uint systick_addr = vector_base + 4 * exception.systick_irqn;
+	immutable pc            = vm.read_word(systick_addr);
+	vm.set_reg(reg.pc, pc);
+	vm.align_pc();
+}
+
+// ================
+//  EXECUTE PENDSV
+// ================
+
+void 
+execute_pendsv
+(vm_t)
+(ref vm_t vm) {
+	if (vm.get_current_exception() == exception.thread_mode) {
+		vm.push(vm.get_xpsr());
+		auto push_instr = instr_16(op: opcode.push_t1, reg_list: hsf);
+		execute_push_t1(push_instr, vm);
+	}
+	vm.set_current_exception(exception.pendsv_irqn);
+	vm.set_npriv(false);
+	vm.set_reg(reg.lr, vm.get_sp_sel() ? 0xffff_fffd : 0xffff_fff9); 
+	vm.set_sp_sel(false);
+	const uint vtor_raw     = vm.read_word(0xe000_ed08);
+	const uint vector_base  = vtor_raw & 0xffff_ff80;
+	const uint pendsv_addr  = vector_base + 4 * exception.pendsv_irqn;
+	immutable pc            = vm.read_word(pendsv_addr);
+	vm.flip_bit(0xe000_ed04, 28);
 	vm.set_reg(reg.pc, pc);
 	vm.align_pc();
 }
@@ -108,14 +141,15 @@ enum condition : ubyte {
 	vc		= 0b0111,
 	cc		= 0b0011, 			// carry clear
 	al		= 0b1110,
-	invalid = 0xff
+	invalid = 0xff,
+	none    = 0xff
 }
 
 // ==================
 //  CONDITION IS MET
 // ==================
 
-bool condition_is_met(condition cond, ref cortex_m_cpu cpu) {
+bool condition_is_met(condition cond, const ref cortex_m_cpu cpu) {
 	final switch (cond) {
 		case condition.eq: return cpu.z == 1;
 		case condition.ne: return cpu.z == 0;
@@ -247,7 +281,11 @@ enum flag {
   	z, 
   	c, 
   	n,
-  	v
+  	v,
+  	ge0,
+  	ge1,
+  	ge2, 
+  	ge3
 }
 
 // ==============
@@ -276,8 +314,11 @@ struct cortex_m_cpu {
 	void set_reg(const reg r, const uint val) {
 		if (r == reg.sp)		
 			set_sp(val);
-		else 
+		else {
 			core_registers[r] = val;
+			if (r == reg.pc)
+				clear_thumb_bit();
+		}
 	}
 
 	// ==============
@@ -297,8 +338,12 @@ struct cortex_m_cpu {
 	}
 
 	void align_pc() {
-		core_registers[reg.pc] &= 0x3;
+		core_registers[reg.pc] &= ~0x3;
 	}
+	// -------------------------------------------------------------------------------------- 
+
+	// ---------------------------------------- Tick ---------------------------------------- 
+	uint tick;
 
 	uint get_tick() const {
 		return tick;
@@ -307,8 +352,6 @@ struct cortex_m_cpu {
 	void inc_tick() {
 		tick++;
 	}
-	// -------------------------------------------------------------------------------------- 
-	uint tick;
 	// ------------------------------------ Stack Pointer ----------------------------------- 
 	bool sp_sel;	// stack pointer select
 	uint msp;		// main stack pointer
@@ -339,6 +382,7 @@ struct cortex_m_cpu {
 	bool z;
 	bool c;
 	bool v;
+	bool q;
 	bool ge0;
 	bool ge1;
 	bool ge2;
@@ -354,6 +398,10 @@ struct cortex_m_cpu {
 		c = v;
 	}
 
+	bool get_v() const {
+		return v;
+	}
+
 	void set_v(const bool v_) {
 		v = v_;
 	}
@@ -366,16 +414,28 @@ struct cortex_m_cpu {
 		n = (v < 0);
 	}
 
+	bool get_n() const {
+		return n;
+	}
+
 	void set_z(t)(t v) if (isIntegral!t) {
     	z = (v == 0);
 	}
 
+	bool get_z() const {
+		return z;
+	}
+
 	void set_flag(flag f, bool i) {
 		final switch (f) {
-			case flag.z: z = i; break;
-			case flag.n: n = i; break;
-			case flag.v: v = i; break;
-			case flag.c: c = i; break;
+			case flag.z  : z   = i; break;
+			case flag.n  : n   = i; break;
+			case flag.v  : v   = i; break;
+			case flag.c  : c   = i; break;
+			case flag.ge0: ge0 = i; break;
+			case flag.ge1: ge1 = i; break;
+			case flag.ge2: ge2 = i; break;
+			case flag.ge3: ge3 = i; break;
 		}
 	}
 	// -------------------------------------------------------------------------------------- 
@@ -391,6 +451,7 @@ struct cortex_m_cpu {
 	    if (z) xpsr |= (1u << 30);
 	    if (c) xpsr |= (1u << 29);
 	    if (v) xpsr |= (1u << 28);
+	    if (q) xpsr |= (1u << 27);
 
     	xpsr |= (1u << 24);
 
@@ -409,11 +470,12 @@ struct cortex_m_cpu {
 	//  SET XSPR
 	// ==========
 
-	void set_xpsr(uint xpsr) {
+	void set_xpsr(const uint xpsr) {
     	n = (xpsr & (1u << 31)) != 0;
     	z = (xpsr & (1u << 30)) != 0;
     	c = (xpsr & (1u << 29)) != 0;
     	v = (xpsr & (1u << 28)) != 0;
+    	q = (xpsr & (1u << 27)) != 0;
     }
 	// --------------------------------------------------------------------------------------
 
@@ -508,9 +570,19 @@ struct cortex_m_cpu {
 		return basepri;
 	}
 
+	// The fault mask, a 1-bit register. Setting FAULTMASK to 1 raises the execution 
+	// priority to -1, the priority of HardFault. Only privileged software executing at a 
+	// priority below -1 set FAULTMASK to 1. This means HardFault and NMI handlers cannot 
+	// set FAULTMASK to 1. Returning from any exception except NMI clears FAULTMASK to 0.
 	bool fault_mask;
+	// The exception mask register, a 1-bit register. Setting PRIMASK to 1 raises the 
+	// execution priority to 0.
 	bool pri_mask;
+	// The base priority mask, an 8-bit register. BASEPRI changes the priority level 
+	// required for exception preemption. It has an effect only when BASEPRI has a lower 
+	// value than the unmasked priority level of the currently executing software.
 	ubyte basepri;
 	// --------------------------------------------------------------------------------------
 }
+
 
