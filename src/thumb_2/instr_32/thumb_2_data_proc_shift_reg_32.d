@@ -237,7 +237,6 @@ string convert_eor_reg_t2_to_string(const ref instr_32 instr, const condition co
 //  Parse SBC(Register)
 // =====================
 
-enum field_tuples_sbc_reg_t2 = [Tuple!(opcode, string[])(opcode.sbc_reg_t2, ["rd","rn","rm","shift"])];
 // SBC{S}<c>.W <Rd>,<Rn>,<Rm>{,<shift>}
 // First Half-Word: [15:5] 11101011101, [4] S, [3:0] Rn
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:6] imm2, [5:4] type, [3:0] Rm

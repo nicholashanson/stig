@@ -86,6 +86,24 @@ execute_msr_t1
 (const instr_32 instr, ref vm_t vm) {
 	immutable rn = vm.get_reg(instr.rn);
 	switch (instr.spec_reg) {
+		case special_reg.APSR:
+			// if mask<0> == ‘1’ then /* GE[3:0] bits */
+			//		if !HaveDSPExt() then
+			//			UNPREDICTABLE
+			//		else
+			//			APSR<19:16> = R[n]<19:16>;
+			// if mask<1> == ‘1’ then /* N, Z, C, V, Q bits */
+			//		APSR<31:27> = R[n]<31:27>;
+			immutable  _nzcvq  = slice(rn, 27, 5);
+			immutable  _g      = slice(rn, 16, 4);
+			const uint _nzcvqg = _nzcvq | _g;
+			final switch(instr.mask) {
+				case 0b00: 					         break;
+				case 0b01: vm.cpu.set_apsr(_g);	     break;
+				case 0b10: vm.cpu.set_apsr(_nzcvq);  break;
+				case 0b11: vm.cpu.set_apsr(_nzcvqg); break;
+			}
+			break;
 		case special_reg.BASEPRI:
 			auto b = cast(ubyte)(rn & 0xf0); 
 			vm.set_basepri(b);  
@@ -156,11 +174,15 @@ execute_mrs_t1
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
 	switch (instr.spec_reg) {
+		case special_reg.APSR:
+			vm.set_reg(instr.rd, vm.cpu.get_apsr());
+			break;
 		case special_reg.BASEPRI:
 			vm.set_reg(instr.rd, cast(uint)vm.get_basepri());
 			break;
 		case special_reg.IPSR:
-			vm.set_reg(instr.rd, cast(uint)vm.get_current_exception() & 0x1ff);
+			// IPSR<8:0> = ExceptionNumber
+			vm.set_reg(instr.rd, vm.cpu.get_ipsr());
 			break;
 		case special_reg.MSP:
 			vm.set_reg(instr.rd, vm.get_msp());

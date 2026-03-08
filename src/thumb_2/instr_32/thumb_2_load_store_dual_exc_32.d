@@ -81,7 +81,6 @@ string convert_tbb_tbh_t1_to_string(const ref instr_32 instr, const condition co
 // =============
 //  Parse LDREX
 // =============
-
 // LDREX<c> <Rt>,[<Rn>{,#<imm8>}]
 // First Half-Word: [15:4] 111010000101, [3:0] Rn
 // Second Half-Word: [15:12] Rt, [11:8] 1111, [7:0] imm8
@@ -107,7 +106,8 @@ execute_ldrex_t1
 
 // LDREX<c> <Rt>,[<Rn>{,#<imm8>}]
 string convert_ldrex_t1_to_string(const ref instr_32 instr, const condition cond) {
-	return format("ldrex%s %s, [%s%s]", get_reg_name(instr.rt),
+	return format("ldrex%s %s, [%s%s]", get_condition_string(cond),
+										get_reg_name(instr.rt),
 										get_reg_name(instr.rn),
 										instr.imm != 0 ? get_imm_string(instr.imm) : "");
 }

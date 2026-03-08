@@ -301,7 +301,6 @@ string convert_sub_imm_t4_to_string(const ref instr_32 instr, const condition co
 // ============
 //  Parse SBFX
 // ============
-
 // SBFX<c> <Rd>,<Rn>,#<lsb>,#<width>
 // [111100110100], [3:0] Rn
 // [0], [14:12] imm3, [11:8] Rd, [7:6] imm2, [0] 5, [4:0] widthm1

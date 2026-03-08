@@ -381,18 +381,6 @@ struct cortex_m_cpu {
 	}
 	// -------------------------------------------------------------------------------------- 
 	
-	// ---------------------------------------- xPSR ---------------------------------------- 
-	bool n;
-	bool z;
-	bool c;
-	bool v;
-	bool q;
-	bool ge0;
-	bool ge1;
-	bool ge2;
-	bool ge3;
-	exception current_exception;
-
 	// ---------------------------------------- Flags ---------------------------------------
 	bool get_c() const {
 		return c;
@@ -444,30 +432,88 @@ struct cortex_m_cpu {
 	}
 	// -------------------------------------------------------------------------------------- 
 
+	// ---------------------------------------- xPSR ---------------------------------------- 
+	// The Program Status Register (PSR) is a 32-bit register that comprises three 
+	// subregisters:
+	//		- Application Program Status Register, APSR
+	//		- Interrupt Program Status Register, IPSR
+	//		- Execution Program Status Register, EPSR
+
+	// APSR
+	bool n;
+	bool z;
+	bool c;
+	bool v;
+	bool q;
+	bool ge0;
+	bool ge1;
+	bool ge2;
+	bool ge3;
+
+	// ==========
+	//  GET APSR
+	// ==========
+
+	uint get_apsr() {
+		uint apsr = 0;
+		if (n)   apsr |= (1u << 31);
+	    if (z)   apsr |= (1u << 30);
+	    if (c)   apsr |= (1u << 29);
+	    if (v)   apsr |= (1u << 28);
+	    if (q)   apsr |= (1u << 27);
+	    if (ge3) apsr |= (1u << 19);
+	    if (ge2) apsr |= (1u << 18);
+	    if (ge1) apsr |= (1u << 17);
+	    if (ge0) apsr |= (1u << 16);
+	    return apsr;
+	}
+
+	// ==========
+	//  SET APSR
+	// ==========
+
+	void set_apsr(const uint apsr) {
+		n   = (apsr & (1u << 31)) != 0;
+    	z   = (apsr & (1u << 30)) != 0;
+    	c   = (apsr & (1u << 29)) != 0;
+    	v   = (apsr & (1u << 28)) != 0;
+    	q   = (apsr & (1u << 27)) != 0;
+    	ge3 = (apsr & (1u << 19)) != 0;
+    	ge2 = (apsr & (1u << 18)) != 0;
+    	ge1 = (apsr & (1u << 17)) != 0;
+    	ge0 = (apsr & (1u << 16)) != 0;
+    }
+
+	// IPSR
+	exception current_exception;
+
+	// ==========
+	//  GET IPSR
+	// ==========
+
+	uint get_ipsr() {
+		uint isr;
+    	if (current_exception == exception.thread_mode)
+        	isr = 0;
+    	else
+        	isr = cast(uint)current_exception;
+        return (isr & 0x1ff); 
+    }
+
+    // ==========
+	//  GET EPSR
+	// ==========
+
+	uint get_epsr() {
+    	return (1u << 24);
+	}
+
 	// ==========
 	//  GET XPSR
 	// ==========
 
 	uint get_xpsr() {
-    	uint xpsr = 0;
-
-	    if (n) xpsr |= (1u << 31);
-	    if (z) xpsr |= (1u << 30);
-	    if (c) xpsr |= (1u << 29);
-	    if (v) xpsr |= (1u << 28);
-	    if (q) xpsr |= (1u << 27);
-
-    	xpsr |= (1u << 24);
-
-    	uint isr;
-    	if (current_exception == exception.thread_mode)
-        	isr = 0;
-    	else
-        	isr = cast(uint)current_exception;
-
-    	xpsr |= (isr & 0x1ff); 
-
-    	return xpsr;
+    	return get_apsr() | get_ipsr() | get_epsr();
 	}
 
 	// ==========
@@ -475,11 +521,7 @@ struct cortex_m_cpu {
 	// ==========
 
 	void set_xpsr(const uint xpsr) {
-    	n = (xpsr & (1u << 31)) != 0;
-    	z = (xpsr & (1u << 30)) != 0;
-    	c = (xpsr & (1u << 29)) != 0;
-    	v = (xpsr & (1u << 28)) != 0;
-    	q = (xpsr & (1u << 27)) != 0;
+    	set_apsr(xpsr);
     }
 	// --------------------------------------------------------------------------------------
 
