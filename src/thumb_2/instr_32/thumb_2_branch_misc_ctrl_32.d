@@ -193,10 +193,11 @@ execute_mrs_t1
 			vm.log_mrs("PSP", vm.get_psp());
 			break;
 		case special_reg.CONTROL:
-			uint val = 0;
-			if (vm.get_sp_sel())
-        		val |= 0x2; 
-			vm.set_reg(instr.rd, val);
+			// if HaveFPExt() then
+			// 		R[d]<2:0> = CONTROL<2:0>
+			// else
+			//		R[d]<1:0> = CONTROL<1:0>;
+			vm.set_reg(instr.rd, vm.cpu.get_control_reg());
 			break;
 		// All fields read as zero using an MRS instruction, and the 
     	// processor ignores writes to the EPSR by an MSR instruction.

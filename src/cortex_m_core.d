@@ -568,8 +568,16 @@ struct cortex_m_cpu {
 	// --------------------------------------------------------------------------------------
 
 	// -------------------------------------- Control ---------------------------------------
-	// software must use an ISB barrier instruction to ensure a write to the CONTROL register
-	// takes effect before the next insturction is executed
+	// The special-purpose CONTROL register is a 2-bit or 3-bit register defined as follows:
+	//		- nPRIV, bit[0] Defines the execution privilege in Thread mode.
+	//		- SPSEL, bit[1] Defines the stack to be used.
+	//		- FPCA, bit[2], if the processor includes the FP extension.
+
+	// Software must use an ISB barrier instruction to ensure a write to the CONTROL register
+	// takes effect before the next insturction is executed.
+
+	// On an exception entry or exception return, the processor updates the SPSEL bit and, 
+	// if it implements the FP extension, the FPCA bit. 
 
 	// =================
 	//  GET CONTROL REG
