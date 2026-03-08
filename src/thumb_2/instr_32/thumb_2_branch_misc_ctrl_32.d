@@ -175,42 +175,72 @@ void
 execute_mrs_t1
 (vm_t)
 (const instr_32 instr, ref vm_t vm) {
+	// R[d] = 0;
+	vm.set_reg(instr.rd, 0);
 	switch (instr.spec_reg) {
-		case special_reg.APSR:
-			vm.set_reg(instr.rd, vm.cpu.get_apsr());
-			break;
-		case special_reg.BASEPRI:
-			vm.set_reg(instr.rd, cast(uint)vm.get_basepri());
-			break;
 		case special_reg.IPSR:
 			// IPSR<8:0> = ExceptionNumber
 			vm.set_reg(instr.rd, vm.cpu.get_ipsr());
+			vm.log_mrs("IPSR", vm.cpu.get_ipsr());
+			break;
+		// All fields read as zero using an MRS instruction, and the 
+    	// processor ignores writes to the EPSR by an MSR instruction.
+    	case special_reg.EPSR:
+    		vm.log_mrs("EPSR", 0);
+    		break;
+		// if SYSm<2> == ‘0’ then
+		//		R[d]<31:27> = APSR<31:27>;
+		//		if HaveDSPext() then
+		// 			R[d]<19:16> = APSR<19:16>;
+		case special_reg.APSR:
+			vm.set_reg(instr.rd, vm.cpu.get_apsr());
+			break;
+		// BASEPRI_MAX: On reads, acts as an alias of BASEPRI.
+		case special_reg.BASEPRI_MAX:
+		// R[d]<7:0> = if CurrentModeIsPrivileged() then
+		//		BASEPRI<7:0> else ‘00000000’;
+		case special_reg.BASEPRI:
+			if (vm.current_mode_is_privileged()) {
+				vm.set_reg(instr.rd, vm.get_basepri());
+				vm.log_mrs("BASEPRI", vm.get_basepri());
+			} else {
+				vm.log_mrs("BASEPRI", 0);
+			}
 			break;
 		case special_reg.MSP:
-			vm.set_reg(instr.rd, vm.get_msp());
-			vm.log_mrs("MSP", vm.get_msp());
+			// R[d] = MSP;
+			if (vm.current_mode_is_privileged()) {
+				vm.set_reg(instr.rd, vm.get_msp());
+				vm.log_mrs("MSP", vm.get_msp());
+			}
 			break;
 		case special_reg.PSP:
-			vm.set_reg(instr.rd, vm.get_psp());
-			vm.log_mrs("PSP", vm.get_psp());
+			// R[d] = PSP;
+			if (vm.current_mode_is_privileged()) {
+				vm.set_reg(instr.rd, vm.get_psp());
+				vm.log_mrs("PSP", vm.get_psp());
+			}
+			break;
+		case special_reg.PRIMASK:
+			if (vm.current_mode_is_privileged()) {
+				vm.set_reg(instr.rd, vm.get_pri_mask());
+				vm.log_mrs("PRIMASK", vm.get_pri_mask());
+			}
+			break;
+		case special_reg.FAULTMASK:
+			if (vm.current_mode_is_privileged()) {
+				vm.set_reg(instr.rd, vm.get_fault_mask());
+				vm.log_mrs("FAULTMASK", vm.get_fault_mask());
+			}
 			break;
 		case special_reg.CONTROL:
 			// if HaveFPExt() then
 			// 		R[d]<2:0> = CONTROL<2:0>
 			// else
 			//		R[d]<1:0> = CONTROL<1:0>;
-			immutable  rd        = vm.get_reg(instr.rd);
-			immutable  ctrl_reg  = vm.cpu.get_control_reg();
-			const uint masked_rd = rd & 0x7; 
-			const uint res       = masked_rd | ctrl_reg; 
-			vm.set_reg(instr.rd, res);
-			vm.log_mrs("CONTROL", ctrl_reg);
+			vm.set_reg(instr.rd, vm.cpu.get_control_reg());
+			vm.log_mrs("CONTROL", vm.cpu.get_control_reg());
 			break;
-		// All fields read as zero using an MRS instruction, and the 
-    	// processor ignores writes to the EPSR by an MSR instruction.
-    	case special_reg.EPSR:
-    		vm.set_reg(instr.rd, 0);
-    		break;
 		default:
 			return;
 	}
