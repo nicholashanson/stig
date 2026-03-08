@@ -24,6 +24,10 @@ enum special_reg : ubyte {
 	//		- in Handler mode, holds the exception number of the 
 	//        currently-executing exception.
 	IPSR        = 0b00000101,
+	// The EPSR contains the T bit, that is set to 1 to indicate that 
+	// the processor executes Thumb instructions, and an overlaid ICI 
+	// or IT field that supports interrupt-continue load/store 
+	// instructions and the IT instruction.
 	EPSR        = 0b00000110,
 	IEPSR       = 0b00000111,
 	MSP 		= 0b00001000,

@@ -109,6 +109,10 @@ execute_msr_t1
     		if (new_val > vm.get_basepri() || vm.get_basepri() == 0) 
         		vm.set_basepri(new_val);
     		break;
+    	// All fields read as zero using an MRS instruction, and the 
+    	// processor ignores writes to the EPSR by an MSR instruction.
+    	case special_reg.EPSR:
+    		break;
 		default:
 			return;
 	}
@@ -172,6 +176,11 @@ execute_mrs_t1
         		val |= 0x2; 
 			vm.set_reg(instr.rd, val);
 			break;
+		// All fields read as zero using an MRS instruction, and the 
+    	// processor ignores writes to the EPSR by an MSR instruction.
+    	case special_reg.EPSR:
+    		vm.set_reg(instr.rd, 0);
+    		break;
 		default:
 			return;
 	}
