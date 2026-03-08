@@ -296,6 +296,123 @@ enum flag {
   	ge3
 }
 
+
+
+// ***************************************************************************************
+// *                                 Execution Priority                                  * 
+// ***************************************************************************************
+
+// =====================
+//  Exception Is Active
+// =====================
+
+bool 
+exception_is_active
+(vm_t)
+(const uint i, ref vm_t vm) {
+	// IABR: 0xE000E300-0xE000E37C
+	const uint base_reg = 0xE000E300; 
+	const uint reg_n    = i / 32;
+	const uint reg_addr = base_reg + (reg_n * 4);
+	immutable  reg      = vm.read_word(reg_addr);
+	const uint shift_n  = i % 32;
+	return cast(bool)slice(reg, shift_n, 1);
+}
+
+// ========================
+//  Get Exception Priority
+// ========================
+
+uint 
+get_exception_priority
+(vm_t)
+(const uint i, ref vm_t vm) {
+	// IPR: 0xE000E400-0xE000E7EC
+	const uint base_reg = 0xE000E400;
+	const uint reg_n    =  i / 4;
+	const uint reg_addr = base_reg + (reg_n * 4);
+	immutable  reg      = vm.read_word(reg_addr);
+	const uint shift_n  = (i % 4) * 4;
+	return slice(reg, shift_n, 4);
+}
+
+// ========================
+//  Get Execution Priority
+// ========================
+// integer ExecutionPriority()
+
+int 
+get_execution_priority
+(vm_t)
+(ref vm_t vm) {
+	int priority;
+	// highestpri = 256; // priority of Thread mode with no active exceptions
+	//					 // the value is PriorityMax + 1 = 256
+	//					 // (configurable priority maximum bit field is 8 bits)
+	int highest_pri = 256;
+	// boostedpri = 256; // priority influence of BASEPRI, PRIMASK and FAULTMASK
+	int boosted_pri = 256;
+
+	// subgroupshift = UInt(BITS(3) AIRCR.PRIGROUP)
+	immutable  aicr 		 = vm.read_word(0xE000ED0C);
+	const uint sub_grp_shift = slice(aicr, 8, 3);
+	// groupvalue = ‘000000010’ LSL groupshift // used by priority grouping
+	const uint grp_val       = shift(0b10, shift_type.lsl, sub_grp_shift, false);
+
+	// for (i=2, i<512, i=i+1) ; IPSR values of the exception handlers
+	for (int i = 2; i < 512; ++i) {
+		// if ExceptionActive[i] == ‘1’ then
+		if (exception_is_active(i, vm)) {
+			immutable exc_pri = get_exception_priority(i, vm);
+			// if ExceptionPriority[i] < highestpri then
+			if (exc_pri < highest_pri) {
+				// highestpri = ExceptionPriority[i];
+				highest_pri = exc_pri;
+				// include the PRIGROUP effect
+				// subgroupvalue = highestpri MOD groupvalue
+				const uint sub_grp_val = highest_pri % grp_val;
+				// highestpri = highestpri - subgroupvalue
+				highest_pri -= sub_grp_val;	
+			}
+		}
+	}
+
+	immutable basepri = vm.get_basepri();
+	// if Uint(BASEPRI<7:0>) != 0 then
+	if (basepri != 0) {
+			// boostedpri = Uint(BASEPRI<7:0>);
+			boosted_pri = basepri;
+			// include the PRIGROUP effect
+			// subgroupvalue = boostedpri MOD groupvalue
+			const uint sub_grp_val = boosted_pri % grp_val;
+ 			// boostedpri = boostedpri - subgroupvalue
+ 			boosted_pri -= sub_grp_val;
+ 	}
+ 	immutable pri_mask   = cast(bool)vm.get_pri_mask();
+	// if PRIMASK<0> == ‘1’ then
+	if (pri_mask) {
+		// boostedpri = 0;
+		boosted_pri = 0;
+	}
+	immutable fault_mask = cast(bool)vm.get_fault_mask();
+	// if FAULTMASK<0> == ‘1’ then
+	if (fault_mask) {
+		// boostedpri = -1;
+		boosted_pri = -1;
+	}
+	// if boostedpri < highestpri then
+	if (boosted_pri < highest_pri) {
+		// priority = boostedpri;
+		priority = boosted_pri;
+	} else {
+		// priority = highestpri;
+		priority = highest_pri;
+	}
+	// return (priority);
+	return priority;
+}
+// --------------------------------------------------------------------------------------
+
 // ==============
 //  CORTEX M CPU
 // ==============
@@ -609,7 +726,7 @@ struct cortex_m_cpu {
 	// ================
 
 	uint get_fault_mask() {
-		return pri_mask ? 1 : 0;
+		return fault_mask ? 1 : 0;
 	}
 
 	// ==============
@@ -617,7 +734,7 @@ struct cortex_m_cpu {
 	// ==============
 
 	uint get_pri_mask() {
-		return fault_mask ? 1 : 0;
+		return pri_mask ? 1 : 0;
 	}
 
 	// ==============

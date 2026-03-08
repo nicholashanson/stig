@@ -86,6 +86,10 @@ execute_msr_t1
 (const instr_32 instr, ref vm_t vm) {
 	immutable rn = vm.get_reg(instr.rn);
 	switch (instr.spec_reg) {
+		// All fields read as zero using an MRS instruction, and the 
+    	// processor ignores writes to the EPSR by an MSR instruction.
+    	case special_reg.EPSR:
+    		break;
 		case special_reg.APSR:
 			// if mask<0> == ‘1’ then /* GE[3:0] bits */
 			//		if !HaveDSPExt() then
@@ -98,41 +102,85 @@ execute_msr_t1
 			immutable  _g      = slice(rn, 16, 4);
 			const uint _nzcvqg = _nzcvq | _g;
 			final switch(instr.mask) {
-				case 0b00: 					         break;
-				case 0b01: vm.cpu.set_apsr(_g);	     break;
-				case 0b10: vm.cpu.set_apsr(_nzcvq);  break;
-				case 0b11: vm.cpu.set_apsr(_nzcvqg); break;
+				case 0b00: 					     
+					break;
+				case 0b01: 
+					vm.set_apsr(_g);	     
+					vm.log_msr("APSR", _g);
+					break;
+				case 0b10: 
+					vm.set_apsr(_nzcvq);  
+					vm.log_msr("APSR", _nzcvq);
+					break;
+				case 0b11: 
+					vm.set_apsr(_nzcvqg); 
+					vm.log_msr("APSR", _nzcvqg);
+					break;
 			}
+			
 			break;
 		case special_reg.BASEPRI:
-			auto b = cast(ubyte)(rn & 0xf0); 
-			vm.set_basepri(b);  
-			vm.log_msr("BASEPRI", b);
-			break;
-		case special_reg.FAULTMASK:
-
-		case special_reg.MSP    : 
-			vm.set_msp(rn);						   
-			vm.log_msr("MSP", rn);
-			break;
-		case special_reg.PSP    : 
-			vm.set_psp(rn); 						   
-			vm.log_msr("PSP", rn);
-			break;
-		case special_reg.CONTROL: 
-		    vm.set_npriv(( rn & 0x1) != 0);
-			vm.set_sp_sel((rn & 0x2) != 0);
-			vm.log_msr("CONTROL", rn); 							   
+			// if CurrentModeIsPrivileged() then 
+			if (vm.current_mode_is_privileged()) {
+				auto b = cast(ubyte)(rn & 0xf0); 
+				// BASEPRI<7:0> = R[n]<7:0>;
+				vm.set_basepri(b);  
+				vm.log_msr("BASEPRI", b);
+			}
 			break;
 		case special_reg.BASEPRI_MAX:
-		    ubyte new_val = cast(ubyte)(rn & 0xff);
-    		if (new_val > vm.get_basepri() || vm.get_basepri() == 0) 
-        		vm.set_basepri(new_val);
+			// if CurrentModeIsPrivileged() &&
+			// (R[n]<7:0> != ‘00000000’) &&
+			// (R[n]<7:0> < BASEPRI<7:0> || BASEPRI<7:0> == ‘00000000’) then
+		    if (vm.current_mode_is_privileged()) {
+			    immutable b = cast(ubyte)slice(rn, 0, 8);
+	    		if (b < vm.get_basepri() || vm.get_basepri() == 0) {
+	    			// BASEPRI<7:0> = R[n]<7:0>; 
+	        		vm.set_basepri(b);
+	        		vm.log_msr("BASEPRI", b);
+	        	}
+        	}
     		break;
-    	// All fields read as zero using an MRS instruction, and the 
-    	// processor ignores writes to the EPSR by an MSR instruction.
-    	case special_reg.EPSR:
-    		break;
+		case special_reg.FAULTMASK:
+			// if CurrentModeIsPrivileged() && (ExecutionPriority() > -1) then
+			if (vm.current_mode_is_privileged() && (get_execution_priority(vm) > -1)) {
+				immutable fault_mask = cast(bool)slice(rn, 0, 1);
+				// FAULTMASK<0> = R[n]<0>;
+				vm.set_fault_mask(fault_mask);
+				vm.log_msr("FAULTMASK", rn);
+			}
+			break;
+		case special_reg.MSP    : 
+			// MSP = R[n];
+			if (vm.current_mode_is_privileged()) {
+				vm.set_msp(rn);						   
+				vm.log_msr("MSP", rn);
+			}
+			break;
+		case special_reg.PSP    : 
+			// PSP = R[n];
+			if (vm.current_mode_is_privileged()) {
+				vm.set_psp(rn); 						   
+				vm.log_msr("PSP", rn);
+			}
+			break;
+		case special_reg.CONTROL: 
+			// if CurrentModeIsPrivileged() then
+			if (vm.current_mode_is_privileged()) {
+				immutable npriv  = cast(bool)slice(rn, 0, 1);
+				immutable sp_sel = cast(bool)slice(rn, 1, 1);
+				immutable fpca   = cast(bool)slice(rn, 2, 1);
+				// CONTROL.nPRIV = R[n]<0>;
+		    	vm.set_npriv(npriv);
+		    	// If CurrentMode == Mode_Thread then
+		    	if (vm.get_current_exception() == exception.thread_mode)
+		    		// CONTROL.SPSEL = R[n]<1>;
+					vm.set_sp_sel(sp_sel);
+				// if HaveFPExt() then CONTROL.FPCA = R[n]<2>;
+				vm.set_fpca(fpca);
+				vm.log_msr("CONTROL", rn);
+			} 							   
+			break;
 		default:
 			return;
 	}
