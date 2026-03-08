@@ -12,8 +12,12 @@ bool test_unsigned_neg(const uint v) {
 }
 
 enum special_reg : ubyte {
+	// Holds flags that can be written by application-level software, 
+	// that is, by unprivileged software.
 	APSR        = 0b00000000,
+	// A composite of IPSR and APSR. 
 	IAPSR       = 0b00000001,
+	// A composite of EPSR and APSR.
 	EAPSR       = 0b00000010,
 	XPSR        = 0b00000011,
 	// The processor writes to the IPSR on exception entry and exit. 

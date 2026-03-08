@@ -109,6 +109,8 @@ execute_msr_t1
 			vm.set_basepri(b);  
 			vm.log_msr("BASEPRI", b);
 			break;
+		case special_reg.FAULTMASK:
+
 		case special_reg.MSP    : 
 			vm.set_msp(rn);						   
 			vm.log_msr("MSP", rn);
@@ -197,7 +199,12 @@ execute_mrs_t1
 			// 		R[d]<2:0> = CONTROL<2:0>
 			// else
 			//		R[d]<1:0> = CONTROL<1:0>;
-			vm.set_reg(instr.rd, vm.cpu.get_control_reg());
+			immutable  rd        = vm.get_reg(instr.rd);
+			immutable  ctrl_reg  = vm.cpu.get_control_reg();
+			const uint masked_rd = rd & 0x7; 
+			const uint res       = masked_rd | ctrl_reg; 
+			vm.set_reg(instr.rd, res);
+			vm.log_mrs("CONTROL", ctrl_reg);
 			break;
 		// All fields read as zero using an MRS instruction, and the 
     	// processor ignores writes to the EPSR by an MSR instruction.
