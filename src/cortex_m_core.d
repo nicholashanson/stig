@@ -71,7 +71,7 @@ deactivate_exc
 	uint       reg      = vm.read_word(reg_addr);
 	const uint shift_n  = i % 32;
 	reg                ^= (1u << shift_n);
-	vm.write_word(reg, reg_addr);
+	vm.write_word(reg_addr, reg);
 	///* PRIMASK and BASEPRI unchanged on exception exit */
 	//if IPSR<8:0> != ‘000000010’ then
 	if (vm.get_ipsr() != 0b10) 
@@ -83,7 +83,7 @@ deactivate_exc
 void 
 pop_stack
 (vm_t)
-(const uint frame_ptr, const uint exc_return, ref vm_t vm) {
+(uint frame_ptr, const uint exc_return, ref vm_t vm) {
 	// if HaveFPExt() && EXC_RETURN<4> == ‘0’ then
 	// framesize = 0x68;
 	// forcealign = ‘1’;
@@ -158,12 +158,14 @@ exc_rtr
 (const uint exc_return, ref vm_t vm) {
     // ExceptionReturn(bits(28) EXC_RETURN)
 	// assert CurrentMode == Mode_Handler;
-	assert(vm.get_current_exception() != exception.thread_mode);
+	assert(vm.get_current_exception() != exception.thread_mode,
+		   "Trying to return from exception in thread mode");
 	// if HaveFPExt() then
 	// 		if !IsOnes(EXC_RETURN<27:5>) then UNPREDICTABLE;
 	// else
 	// 		if !IsOnes(EXC_RETURN<27:4>) then UNPREDICTABLE;
-	assert(slice(exc_return, 4, 13) == 0x7ff);
+	assert(slice(exc_return, 5, 12) == 0xfff, 
+		   format("Invalid exception return: %08X", exc_return));
 	// integer ReturningExceptionNumber = UInt(IPSR<8:0>);
 	const uint rtr_excn = vm.get_ipsr();
 	// integer NestedActivation; // used for Handler => Thread check when value == 1
@@ -227,6 +229,7 @@ exc_rtr
 			// ExceptionTaken(UsageFault); // illegal EXC_RETURN
 			// return;
 			// DeActivate(ReturningExceptionNumber);
+			assert(0);
 			break;
 	}
 	// DeActivate(ReturningExceptionNumber);
@@ -253,7 +256,7 @@ get_irq_addr
 (const exception irqn, ref vm_t vm) {
 	immutable  vtor_raw     = vm.read_word(0xE000_ED08);
 	const uint vector_base  = vtor_raw & 0xFFFF_FF80;
-	return vector_base + 4 * irqn;
+	return vm.read_word(vector_base + 4 * irqn);
 }
 
 void 
@@ -278,12 +281,20 @@ push_stack
 	vm.write_word(frame_ptr + 28, vm.get_xpsr());
 }
 
+bool
+push_to_psp
+(vm_t)
+(ref vm_t vm) {
+	return vm.get_sp_sel() && (vm.get_current_exception() == exception.thread_mode);
+}
+
+
 uint 
 get_frame_ptr
 (vm_t)
 (ref vm_t vm) {
 	// if CONTROL.SPSEL == ‘1’ AND CurrentMode == Mode_Thread then
-	if (vm.get_sp_sel() && (vm.get_current_exception() == exception.thread_mode)) 
+	if (push_to_psp(vm)) 
 		// frameptr = SP_process;
 		return vm.get_psp();
 	else
@@ -342,7 +353,19 @@ enter_exec
 (const exception exc, ref vm_t vm) {
 	const uint frame_size  = 32;
 	uint       frame_ptr   = get_frame_ptr(vm);
+	// if CONTROL.SPSEL == ‘1’ AND CurrentMode == Mode_Thread then
+	//	 frameptralign = SP_process<2> AND forcealign;
+	//   SP_process = (SP_process - framesize) AND spmask;
+	//   frameptr = SP_process;
+	// else
+	//	 frameptralign = SP_main<2> AND forcealign;
+	//   SP_main = (SP_main - framesize) AND spmask;
+	//	 frameptr = SP_main;
 	frame_ptr 			  -= frame_size;
+	if (push_to_psp(vm)) 
+		vm.set_psp(frame_ptr);
+	else
+		vm.set_msp(frame_ptr);
 	const uint return_addr = exc == exception.svc_irqn ? vm.get_pc() + 2 : vm.get_pc(); 
 	push_stack(frame_ptr, return_addr, vm);
 	vm.set_reg(reg.lr, get_lr(vm));
@@ -677,7 +700,7 @@ struct cortex_m_cpu {
 			set_sp(val);
 		else {
 			core_registers[r] = val;
-			if (r == reg.pc)
+			if ((r == reg.pc) && ((val & 0xff00_0000) != 0xff00_0000))
 				clear_thumb_bit();
 		}
 	}
