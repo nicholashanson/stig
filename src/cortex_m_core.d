@@ -67,15 +67,16 @@ deactivate_exc
 	const uint base_reg = 0xE000E300; 
 	const uint reg_n    = i / 32;
 	const uint reg_addr = base_reg + (reg_n * 4);
-	//ExceptionActive[ReturningExceptionNumber] = ‘0’;
+	// ExceptionActive[ReturningExceptionNumber] = ‘0’;
 	uint       reg      = vm.read_word(reg_addr);
 	const uint shift_n  = i % 32;
 	reg                ^= (1u << shift_n);
 	vm.write_word(reg_addr, reg);
-	///* PRIMASK and BASEPRI unchanged on exception exit */
-	//if IPSR<8:0> != ‘000000010’ then
+	// PRIMASK and BASEPRI unchanged on exception exit
+	// if IPSR<8:0> != ‘000000010’ then
 	if (vm.get_ipsr() != 0b10) 
-		//	FAULTMASK<0> = ‘0’; // clear FAULTMASK on any return except NMI
+		//	FAULTMASK<0> = ‘0’; 
+		// clear FAULTMASK on any return except NMI
 		vm.set_fault_mask(false);
 	// return;
 }
@@ -250,6 +251,10 @@ exc_rtr
 	// 		return;
 }
 
+// ==============
+//  GET IRQ ADDR
+// ==============
+
 uint
 get_irq_addr
 (vm_t)
@@ -258,6 +263,10 @@ get_irq_addr
 	const uint vector_base  = vtor_raw & 0xFFFF_FF80;
 	return vm.read_word(vector_base + 4 * irqn);
 }
+
+// ============
+//  PUSH STACK
+// ============
 
 void 
 push_stack
@@ -281,6 +290,10 @@ push_stack
 	vm.write_word(frame_ptr + 28, vm.get_xpsr());
 }
 
+// =============
+//  PUSH TO PSP
+// =============
+
 bool
 push_to_psp
 (vm_t)
@@ -288,6 +301,9 @@ push_to_psp
 	return vm.get_sp_sel() && (vm.get_current_exception() == exception.thread_mode);
 }
 
+// ===============
+//  GET FRAME PTR
+// ===============
 
 uint 
 get_frame_ptr
@@ -302,8 +318,12 @@ get_frame_ptr
 		return vm.get_msp();
 }
 
+// =================
+//  GET EXC RTR VAL
+// =================
+
 uint
-get_lr
+get_exc_rtr_val
 (vm_t)
 (ref vm_t vm) {
 	// if Mode==Handler then
@@ -368,7 +388,7 @@ enter_exec
 		vm.set_msp(frame_ptr);
 	const uint return_addr = exc == exception.svc_irqn ? vm.get_pc() + 2 : vm.get_pc(); 
 	push_stack(frame_ptr, return_addr, vm);
-	vm.set_reg(reg.lr, get_lr(vm));
+	vm.set_reg(reg.lr, get_exc_rtr_val(vm));
 	// tmp = MemA[VectorTable+4*ExceptionNumber,4];
 	// PC = tmp AND 0xFFFFFFFE;
 	vm.set_reg(reg.pc, get_irq_addr(exc, vm));
