@@ -373,18 +373,18 @@ enter_exec
 (const exception exc, ref vm_t vm) {
 	const uint frame_size  = 32;
 	uint       frame_ptr   = get_frame_ptr(vm);
-	// if CONTROL.SPSEL == ‘1’ AND CurrentMode == Mode_Thread then
-	//	 frameptralign = SP_process<2> AND forcealign;
-	//   SP_process = (SP_process - framesize) AND spmask;
-	//   frameptr = SP_process;
-	// else
-	//	 frameptralign = SP_main<2> AND forcealign;
-	//   SP_main = (SP_main - framesize) AND spmask;
-	//	 frameptr = SP_main;
 	frame_ptr 			  -= frame_size;
+	// if CONTROL.SPSEL == ‘1’ AND CurrentMode == Mode_Thread then
 	if (push_to_psp(vm)) 
+		// frameptralign = SP_process<2> AND forcealign;
+		// SP_process = (SP_process - framesize) AND spmask;
+		// frameptr = SP_process;
 		vm.set_psp(frame_ptr);
+	// else
 	else
+		// frameptralign = SP_main<2> AND forcealign;
+		// SP_main = (SP_main - framesize) AND spmask;
+		// frameptr = SP_main;
 		vm.set_msp(frame_ptr);
 	const uint return_addr = exc == exception.svc_irqn ? vm.get_pc() + 2 : vm.get_pc(); 
 	push_stack(frame_ptr, return_addr, vm);
