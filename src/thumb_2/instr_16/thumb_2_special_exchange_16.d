@@ -189,7 +189,7 @@ execute_bx_t1
 (const instr_16 instr, ref vm_t vm) {
 	immutable rm = vm.get_reg(instr.rm);
 	if ((rm & 0xff00_0000) == 0xff00_0000) { // (*)
-        exception_return(vm, rm);
+        exc_rtr(rm, vm);
         return;
     }
 	vm.set_reg(reg.pc, rm);

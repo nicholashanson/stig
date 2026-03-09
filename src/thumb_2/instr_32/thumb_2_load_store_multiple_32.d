@@ -57,7 +57,7 @@ instr_32 parse_ldm_t2(const uint instr) {
 void 
 execute_ldm_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	// EncodingSpecificOperations();
 	// address = R[n];
 	uint rn   = vm.get_reg(instr.rn);
@@ -112,7 +112,7 @@ instr_32 parse_pop_t2(const uint instr) {
 void 
 execute_pop_t2
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	auto regs = instr.reg_list.dup; 
 	regs.sort!((a,b) => cast(int)a < cast(int)b);
 	foreach (r; regs) {

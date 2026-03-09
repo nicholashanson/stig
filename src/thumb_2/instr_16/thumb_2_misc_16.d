@@ -305,7 +305,7 @@ execute_pop_t1
 	// LoadWritePC(MemA[address,4]);
 	if (regs.back == reg.pc) {
 		if ((vm.get_pc() & 0xff00_0000) == 0xff00_0000) { // (*)
-	        exception_return(vm, vm.get_pc());
+	        exc_rtr(vm.get_pc(), vm);
 	        return;
 	    }
 	}

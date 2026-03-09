@@ -53,6 +53,9 @@ void
 execute_instr
 (vm_t,t)
 (const t instr, ref vm_t vm) {
+
+    vm.check_pc_modified(); // make sure pc_modified flag is cleared
+
     bool handled = false;
 
     if (!vm.it_block_stack_empty()) {
@@ -71,14 +74,14 @@ execute_instr
                 alias Handler = mixin("execute_" ~ member);
                 static if (member == "ldrsh_imm_t1") {}
                 alias P = Parameters!(Handler!(vm_t));
-                pragma(msg, "Handler execute_" ~ member ~ " signature:");
+                //pragma(msg, "Handler execute_" ~ member ~ " signature:");
                 foreach (i, T; P) {
                      //pragma(msg, "  param " ~ i.stringof ~ ": " ~ T.stringof);
-                pragma(msg, "  returns: " ~ ReturnType!(Handler!(vm_t)).stringof);
+                //pragma(msg, "  returns: " ~ ReturnType!(Handler!(vm_t)).stringof);
                 }
                 static if (__traits(compiles, Handler!(vm_t)(instr, vm)))
                 {
-                    pragma(msg, "Handler callable with this instruction type: execute_" ~ member);
+                    //pragma(msg, "Handler callable with this instruction type: execute_" ~ member);
                     Handler!(vm_t)(instr, vm);
                     handled = true;
                     break;
@@ -165,7 +168,6 @@ cortex_m_cpu make_cpu(T...)(T args)
             cpu.set_flag(arg[0], arg[1]);
         static if (is(typeof(arg[0]) == condition))
             cpu.it_block_stack.insertBack(arg[0]);
-
     }
 
     return cpu;
@@ -920,33 +922,6 @@ unittest {
                                     tuple(reg.r3, 0x000000ee),
                                     tuple(reg.r2, tiny_mem.ram_origin + 12)),
                       mem: make_mem(tuple(24, 0xffeeffff))))              
-    /*
-    test_case_mem(0x68fb, 
-            instr_16(op: opcode.ldr_imm,       rt: reg.r3,  rn: reg.r7, imm: 0x30),
-            cortex_m_cpu(r7: 0x40023800),
-                cortex_m_cpu(pc: 2, r7: 0x40023800),
-                stm32f4_mem(),
-                stm32f4_mem()),
-    test_case_mem(0x4803, 
-            // 80091a0: 4803        ldr r0, [pc, #12] @ (80091b0 <stdio_exit_handler+0x14>)
-            instr_16(op: opcode.ldr_pool,      rt: reg.r0,              imm: 12),
-            cortex_m_cpu(r0: 0x000000ff, pc: 0x80091a0),
-                cortex_m_cpu(r0: 0x000000ee, pc: 0x80091a2),
-                stm32f4_mem(flash: make_flash_with(0x80091b0 - stm32f4_mem.flash_origin, 0x000000ee)),
-                stm32f4_mem(flash: make_flash_with(0x80091b0 - stm32f4_mem.flash_origin, 0x000000ee))),
-
-   
-  
-
-    
- 
-    test_case_mem(0x6013, 
-                instr_16(op: opcode.str_imm,       rt: reg.r3,  rn: reg.r2, imm: 0),
-                cortex_m_cpu(r3:         10, r2: 0x5600800),
-                cortex_m_cpu(pc: 2, r3: 0xffffffee, r2: 0x5600800),
-                memory(),
-              memory(flash: make_flash_with(0x5600800 - memory.flash_origin, 0xffffffee)))
-*/
   ];
 
   foreach (t; tests) {

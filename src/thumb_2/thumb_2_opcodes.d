@@ -899,7 +899,7 @@ opcode decode_store_single_data_item(const uint instr) {
 	immutable op2 		     = slice(instr,  6, 6);
 	immutable masked_op2     = cast(ubyte)(op2 & 0x20);
 	immutable op1_masked_op2 = cast(ushort)((op1 << 6) | masked_op2);
-	final switch (op1_masked_op2) 
+	switch (op1_masked_op2) 
 	{
 		case 0b100100000:
 		case 0b100000000: return opcode.strb_imm_t2;
@@ -913,6 +913,7 @@ opcode decode_store_single_data_item(const uint instr) {
 		case 0b110100000: return opcode.str_imm_t3;
 		case 0b010100000: return opcode.str_imm_t4;
 		case 0b010000000: return opcode.str_reg_t2;
+		default         : break;
 	}
 	return opcode.invalid;
 }

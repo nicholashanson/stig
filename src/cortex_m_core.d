@@ -51,83 +51,319 @@ enum special_reg : ubyte {
 
 enum exception {
 	thread_mode,
-	svc_irqn = 11,
-	pendsv_irqn = 14,
+	svc_irqn     = 11,
+	pendsv_irqn  = 14,
 	systick_irqn = 15
 }
 
 // hrdware saved frame
 reg[] hsf = [reg.r0, reg.r1, reg.r2, reg.r3, reg.r12, reg.lr, reg.pc /*, XPSR */];
 
+void
+deactivate_exc
+(vm_t)
+(const uint i, ref vm_t vm) {
+	// IABR: 0xE000E300-0xE000E37C
+	const uint base_reg = 0xE000E300; 
+	const uint reg_n    = i / 32;
+	const uint reg_addr = base_reg + (reg_n * 4);
+	//ExceptionActive[ReturningExceptionNumber] = ‘0’;
+	uint       reg      = vm.read_word(reg_addr);
+	const uint shift_n  = i % 32;
+	reg                ^= (1u << shift_n);
+	vm.write_word(reg, reg_addr);
+	///* PRIMASK and BASEPRI unchanged on exception exit */
+	//if IPSR<8:0> != ‘000000010’ then
+	if (vm.get_ipsr() != 0b10) 
+		//	FAULTMASK<0> = ‘0’; // clear FAULTMASK on any return except NMI
+		vm.set_fault_mask(false);
+	// return;
+}
+
+void 
+pop_stack
+(vm_t)
+(const uint frame_ptr, const uint exc_return, ref vm_t vm) {
+	// if HaveFPExt() && EXC_RETURN<4> == ‘0’ then
+	// framesize = 0x68;
+	// forcealign = ‘1’;
+	// else
+	// framesize = 0x20;
+	const uint frame_size = 32;
+	// forcealign = CCR.STKALIGN;
+	// R[0] = MemA[frameptr,4];
+	vm.set_reg(reg.r0,  vm.read_word(frame_ptr));
+	// R[1] = MemA[frameptr+0x4,4];
+	vm.set_reg(reg.r1,  vm.read_word(frame_ptr + 4));
+	// R[2] = MemA[frameptr+0x8,4];
+	vm.set_reg(reg.r2,  vm.read_word(frame_ptr + 8));
+	// R[3] = MemA[frameptr+0xC,4];
+	vm.set_reg(reg.r3,  vm.read_word(frame_ptr + 12));
+	// R[12] = MemA[frameptr+0x10,4];
+	vm.set_reg(reg.r12, vm.read_word(frame_ptr + 16));
+	// LR = MemA[frameptr+0x14,4];
+	vm.set_reg(reg.lr,  vm.read_word(frame_ptr + 20));
+	// PC = MemA[frameptr+0x18,4]; // UNPREDICTABLE if the new PC not halfword aligned
+	vm.set_reg(reg.pc,  vm.read_word(frame_ptr + 24));
+	// psr = MemA[frameptr+0x1C,4];
+	vm.set_xpsr(vm.read_word(frame_ptr + 28));
+	// if HaveFPExt() then
+	// if EXC_RETURN<4> == ‘0’ then
+	// if FPCCR.LSPACT == ‘1’ then
+	// FPCCR.LSPACT = ‘0’; // state in FP is still valid
+	// else
+	// CheckVFPEnabled();
+	// for i = 0 to 15
+	// S[i] = MemA[frameptr+0x20+(4*i),4];
+	// FPSCR = MemA[frameptr+0x60,4];
+	// CONTROL.FPCA = NOT(EXC_RETURN<4>);
+	vm.set_fpca(cast(bool)slice(exc_return, 4, 1));
+	// spmask = Zeros(29)((psr<9> AND forcealign):’00’;
+	// case EXC_RETURN<3:0> of
+	immutable exc_rtr_lb = slice(exc_return, 0, 4);
+	switch (exc_rtr_lb) {
+		// when ‘0001’ // returning to Handler
+		case 0b0001:
+			// SP_main = (SP_main + framesize) OR spmask;
+			vm.set_msp(vm.get_msp() + frame_size);
+			break;
+		// when ‘1001’ // returning to Thread using Main stack
+		case 0b1001:
+			// SP_main = (SP_main + framesize) OR spmask;
+			vm.set_msp(vm.get_msp() + frame_size);
+			break;
+		// when ‘1101’ // returning to Thread using Process stack
+		case 0b1101:
+			// SP_process = (SP_process + framesize) OR spmask;
+			vm.set_psp(vm.get_psp() + frame_size);
+			break;
+		default:
+			break;
+	}
+	// APSR<31:27> = psr<31:27>; // valid APSR bits loaded from memory
+	// if HaveDSPExt() then
+	// APSR<19:16> = psr<19:16>;
+	// IPSR<8:0> = psr<8:0>; // valid IPSR bits loaded from memory
+	// EPSR<26:24,15:10> = psr<26:24,15:10>; // valid EPSR bits loaded from memory
+	// return;
+}
+
 // ==================
 //  EXCEPTION RETURN
 // ==================
 
 void 
-exception_return
+exc_rtr
 (vm_t)
-(ref vm_t vm, const uint exc_return) {
-    bool return_to_thread = (exc_return & (1 << 3)) != 0;
-    bool use_psp 		  = (exc_return & (1 << 2)) != 0;
-    vm.set_sp_sel(use_psp);
-	auto pop_instr = instr_16(op: opcode.pop_t1, reg_list: hsf);
-	execute_pop_t1(pop_instr, vm);
-	vm.set_xpsr(vm.pop());
-    if (return_to_thread)
-        vm.set_current_exception(exception.thread_mode);
-    if (return_to_thread)
-        vm.set_npriv(false);
+(const uint exc_return, ref vm_t vm) {
+    // ExceptionReturn(bits(28) EXC_RETURN)
+	// assert CurrentMode == Mode_Handler;
+	assert(vm.get_current_exception() != exception.thread_mode);
+	// if HaveFPExt() then
+	// 		if !IsOnes(EXC_RETURN<27:5>) then UNPREDICTABLE;
+	// else
+	// 		if !IsOnes(EXC_RETURN<27:4>) then UNPREDICTABLE;
+	assert(slice(exc_return, 4, 13) == 0x7ff);
+	// integer ReturningExceptionNumber = UInt(IPSR<8:0>);
+	const uint rtr_excn = vm.get_ipsr();
+	// integer NestedActivation; // used for Handler => Thread check when value == 1
+	// NestedActivation = ExceptionActiveBitCount(); // Number of active exceptions
+	// if ExceptionActive[ReturningExceptionNumber] == ‘0’ then
+	// DeActivate(ReturningExceptionNumber);
+	// UFSR.INVPC = ‘1’;
+	// LR = 0xF0000000 + EXC_RETURN;
+	// ExceptionTaken(UsageFault); // returning from an inactive handler
+	// return;
+	// else
+	uint frame_ptr;
+	// case EXC_RETURN<3:0> of
+	immutable exc_rtr_lb = slice(exc_return, 0, 4);
+	switch (exc_rtr_lb) {
+		// when ‘0001’ // return to Handler
+		case 0b0001:
+			// frameptr = SP_main;
+			frame_ptr = vm.get_msp();
+			// CurrentMode = Mode_Handler;
+			// CONTROL.SPSEL = ‘0’;
+			vm.set_sp_sel(false);
+			break;
+		// when ‘1001’ // returning to Thread using Main stack
+		case 0b1001:
+			// if NestedActivation != 1 && CCR.NONBASETHRDENA == ‘0’ then
+			// DeActivate(ReturningExceptionNumber);
+			// UFSR.INVPC = ‘1’;
+			// LR = 0xF0000000 + EXC_RETURN;
+			// ExceptionTaken(UsageFault); // return to Thread exception mismatch
+			// return;
+			// else
+			// frameptr = SP_main;
+			frame_ptr = vm.get_msp();
+			// CurrentMode = Mode_Thread;
+			vm.set_current_exception(exception.thread_mode);
+			// CONTROL.SPSEL = ‘0’;
+			vm.set_sp_sel(false);
+			break;
+		// when ‘1101’ // returning to Thread using Process stack
+		case 0b1101:
+			// if NestedActivation != 1 && CCR.NONBASETHRDENA == ‘0’ then
+			// DeActivate(ReturningExceptionNumber);
+			// UFSR.INVPC = ‘1’;
+			// LR = 0xF0000000 + EXC_RETURN;
+			// ExceptionTaken(UsageFault); // return to Thread exception mismatch
+			// return;
+			// else
+			// frameptr = SP_process;
+			frame_ptr = vm.get_psp();
+			// CurrentMode = Mode_Thread;
+			vm.set_current_exception(exception.thread_mode);
+			// CONTROL.SPSEL = ‘1’;
+			vm.set_sp_sel(true);
+			break;
+		// otherwise
+		default:
+			// DeActivate(ReturningExceptionNumber);
+			// UFSR.INVPC = ‘1’;
+			// LR = 0xF0000000 + EXC_RETURN;
+			// ExceptionTaken(UsageFault); // illegal EXC_RETURN
+			// return;
+			// DeActivate(ReturningExceptionNumber);
+			break;
+	}
+	// DeActivate(ReturningExceptionNumber);
+	deactivate_exc(rtr_excn, vm);
+	// PopStack(frameptr);
+	pop_stack(frame_ptr, exc_return, vm);
+	// if CurrentMode==Mode_Handler AND IPSR<8:0> == ‘000000000’ then
+	// 		UFSR.INVPC = ‘1’;
+	// 		PushStack(); // to negate PopStack()
+	// 		LR = 0xF0000000 + EXC_RETURN;
+	// 		ExceptionTaken(UsageFault); // return IPSR is inconsistent
+	// 		return;
+	// if CurrentMode==Mode_Thread AND IPSR<8:0> != ‘000000000’ then
+	// 		UFSR.INVPC = ‘1’;
+	// 		PushStack(); // to negate PopStack()
+	// 		LR = 0xF0000000 + EXC_RETURN;
+	// 		ExceptionTaken(UsageFault); // return IPSR is inconsistent
+	// 		return;
 }
 
-// ==================
-//  EXECUTE SYS TICK
-// ==================
-
-void 
-execute_sys_tick
+uint
+get_irq_addr
 (vm_t)
-(ref vm_t vm) {
-	if (vm.get_current_exception() == exception.thread_mode) {
-		vm.push(vm.get_xpsr());
-		auto push_instr = instr_16(op: opcode.push_t1, reg_list: hsf);
-		execute_push_t1(push_instr, vm);
-	}
-	vm.set_current_exception(exception.systick_irqn);
-	vm.set_npriv(false);
-	vm.set_reg(reg.lr, vm.get_sp_sel() ? 0xffff_fffd : 0xffff_fff9); 
-	vm.set_sp_sel(false);
-	const uint vtor_raw     = vm.read_word(0xe000_ed08);
-	const uint vector_base  = vtor_raw & 0xffff_ff80;
-	const uint systick_addr = vector_base + 4 * exception.systick_irqn;
-	immutable pc            = vm.read_word(systick_addr);
-	vm.set_reg(reg.pc, pc);
-	vm.align_pc();
+(const exception irqn, ref vm_t vm) {
+	immutable  vtor_raw     = vm.read_word(0xE000_ED08);
+	const uint vector_base  = vtor_raw & 0xFFFF_FF80;
+	return vector_base + 4 * irqn;
 }
 
-// ================
-//  EXECUTE PENDSV
-// ================
-
 void 
-execute_pendsv
+push_stack
+(vm_t)
+(const uint frame_ptr, const uint return_addr, ref vm_t vm) {
+	// MemA[frameptr,4] = R[0];
+	vm.write_word(frame_ptr,      vm.get_reg(reg.r0));
+	// MemA[frameptr+0x4,4] = R[1];
+	vm.write_word(frame_ptr + 4,  vm.get_reg(reg.r1));
+	// MemA[frameptr+0x8,4] = R[2];
+	vm.write_word(frame_ptr + 8,  vm.get_reg(reg.r2));
+	// MemA[frameptr+0xC,4] = R[3];
+	vm.write_word(frame_ptr + 12, vm.get_reg(reg.r3));
+	// MemA[frameptr+0x10,4] = R[12];
+	vm.write_word(frame_ptr + 16, vm.get_reg(reg.r12));
+	// MemA[frameptr+0x14,4] = LR;
+	vm.write_word(frame_ptr + 20, vm.get_reg(reg.lr));
+	// MemA[frameptr+0x18,4] = ReturnAddress();
+	vm.write_word(frame_ptr + 24, return_addr);
+	// MemA[frameptr+0x1C,4] = (xPSR<31:10>:frameptralign:xPSR<8:0>);
+	vm.write_word(frame_ptr + 28, vm.get_xpsr());
+}
+
+uint 
+get_frame_ptr
 (vm_t)
 (ref vm_t vm) {
-	if (vm.get_current_exception() == exception.thread_mode) {
-		vm.push(vm.get_xpsr());
-		auto push_instr = instr_16(op: opcode.push_t1, reg_list: hsf);
-		execute_push_t1(push_instr, vm);
-	}
-	vm.set_current_exception(exception.pendsv_irqn);
-	vm.set_npriv(false);
-	vm.set_reg(reg.lr, vm.get_sp_sel() ? 0xffff_fffd : 0xffff_fff9); 
+	// if CONTROL.SPSEL == ‘1’ AND CurrentMode == Mode_Thread then
+	if (vm.get_sp_sel() && (vm.get_current_exception() == exception.thread_mode)) 
+		// frameptr = SP_process;
+		return vm.get_psp();
+	else
+		// frameptr = SP_main;
+		return vm.get_msp();
+}
+
+uint
+get_lr
+(vm_t)
+(ref vm_t vm) {
+	// if Mode==Handler then
+	if (vm.get_current_exception() != exception.thread_mode)
+		// LR = Ones(27):NOT(CONTROL.FPCA):’0001’;
+		if (vm.get_fpca()) 
+			return 0xFFFFFFF1;
+		else 
+			return 0xFFFFFFE1;
+	// else
+	else
+		// LR = Ones(27):NOT(CONTROL.FPCA):’1’:CONTROL.SPSEL:’01’;
+		if (vm.get_fpca()) 
+			if (vm.get_sp_sel())
+				return 0xFFFFFFFD;
+			else 
+				return 0xFFFFFFF9;
+		else 
+			if (vm.get_sp_sel())
+				return 0xFFFFFFED;
+			else 
+				return 0xFFFFFFE9;
+}
+
+void
+set_exc_as_active
+(vm_t)
+(const exception exc, ref vm_t vm) {
+	const uint i        = cast(uint)exc;
+	// IABR: 0xE000E300-0xE000E37C
+	const uint base_reg = 0xE000E300; 
+	const uint reg_n    = i / 32;
+	const uint reg_addr = base_reg + (reg_n * 4);
+	uint       reg      = vm.read_word(reg_addr);
+	const uint shift_n  = i % 32;
+	reg                |= (1u << shift_n);
+	vm.write_word(reg_addr, reg);
+}
+
+// ==============
+//  EXECUTE EXEC
+// ==============
+
+void 
+enter_exec
+(vm_t)
+(const exception exc, ref vm_t vm) {
+	const uint frame_size  = 32;
+	uint       frame_ptr   = get_frame_ptr(vm);
+	frame_ptr 			  -= frame_size;
+	const uint return_addr = exc == exception.svc_irqn ? vm.get_pc() + 2 : vm.get_pc(); 
+	push_stack(frame_ptr, return_addr, vm);
+	vm.set_reg(reg.lr, get_lr(vm));
+	// tmp = MemA[VectorTable+4*ExceptionNumber,4];
+	// PC = tmp AND 0xFFFFFFFE;
+	vm.set_reg(reg.pc, get_irq_addr(exc, vm));
+	// IPSR<8:0> = ExceptionNumber // ExceptionNumber set in IPSR
+	vm.set_ipsr(cast(uint)exc);
+	// CONTROL.FPCA = ‘1’; // Floating-point extension only
+	vm.set_fpca(true);
+	// EPSR.T = tbit; // T-bit set from vector
+	// EPSR.IT<7:0> = 0x0; // IT/ICI bits cleared
+	// //* PRIMASK, FAULTMASK, BASEPRI unchanged on exception entry*//
+	vm.set_current_exception(exc);
+	// ExceptionActive[ExceptionNumber]= ‘1’;
+	set_exc_as_active(exc, vm);
+	// CONTROL.SPSEL = ‘0’; // current Stack is Main, CONTROL.nPRIV unchanged
 	vm.set_sp_sel(false);
-	const uint vtor_raw     = vm.read_word(0xe000_ed08);
-	const uint vector_base  = vtor_raw & 0xffff_ff80;
-	const uint pendsv_addr  = vector_base + 4 * exception.pendsv_irqn;
-	immutable pc            = vm.read_word(pendsv_addr);
-	vm.flip_bit(0xe000_ed04, 28);
-	vm.set_reg(reg.pc, pc);
-	vm.align_pc();
+	//* CONTROL.nPRIV unchanged *//
+	if (exc == exception.pendsv_irqn)
+		vm.flip_bit(0xE000_ED04, 28);
 }
 // --------------------------------------------------------------------------------------
 
@@ -332,8 +568,8 @@ get_exception_priority
 	const uint reg_n    =  i / 4;
 	const uint reg_addr = base_reg + (reg_n * 4);
 	immutable  reg      = vm.read_word(reg_addr);
-	const uint shift_n  = (i % 4) * 4;
-	return slice(reg, shift_n, 4);
+	const uint shift_n  = (i % 4) * 8;
+	return slice(reg, shift_n, 8);
 }
 
 // ========================
@@ -622,6 +858,15 @@ struct cortex_m_cpu {
     }
 
     // ==========
+	//  SET IPSR
+	// ==========
+
+    void set_ipsr(const uint ipsr) {
+    	immutable val     = slice(ipsr, 0, 8);
+    	current_exception = cast(exception)val;
+    }
+
+    // ==========
 	//  GET EPSR
 	// ==========
 
@@ -643,6 +888,7 @@ struct cortex_m_cpu {
 
 	void set_xpsr(const uint xpsr) {
     	set_apsr(xpsr);
+    	set_ipsr(xpsr);
     }
 	// --------------------------------------------------------------------------------------
 
