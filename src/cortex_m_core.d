@@ -10,6 +10,11 @@ import thumb_2_opcodes;
 bool test_unsigned_neg(const uint v) {
 	return (v & 0x8000_0000) != 0;
 }
+// --------------------------------------------------------------------------------------
+
+// ===================
+//  SPECIAL REGISTERS
+// ===================
 
 enum special_reg : ubyte {
 	// Holds flags that can be written by application-level software, 
@@ -19,6 +24,11 @@ enum special_reg : ubyte {
 	IAPSR       = 0b00000001,
 	// A composite of EPSR and APSR.
 	EAPSR       = 0b00000010,
+	// The Program Status Register (PSR) is a 32-bit register that comprises three 
+	// subregisters:
+	//		- Application Program Status Register, APSR
+	//		- Interrupt Program Status Register, IPSR
+	//		- Execution Program Status Register, EPSR
 	XPSR        = 0b00000011,
 	// The processor writes to the IPSR on exception entry and exit. 
 	// Software can use an MRS instruction, to read the IPSR, but 
@@ -42,11 +52,14 @@ enum special_reg : ubyte {
 	FAULTMASK   = 0b00010011,
 	CONTROL     = 0b00010100
 }
+// --------------------------------------------------------------------------------------
 
-// ------------------------------------- Exception -------------------------------------- 
+// ***************************************************************************************
+// *                                      Exception                                      * 
+// ***************************************************************************************
 
 // ===========
-//  EXECUTION
+//  EXCEPTION
 // ===========
 
 enum exception {
@@ -56,8 +69,12 @@ enum exception {
 	systick_irqn = 15
 }
 
-// hrdware saved frame
+// hardware saved frame
 reg[] hsf = [reg.r0, reg.r1, reg.r2, reg.r3, reg.r12, reg.lr, reg.pc /*, XPSR */];
+
+// ======================
+//  DEACTIVATE EXCEPTION
+// ======================
 
 void
 deactivate_exc
@@ -80,6 +97,10 @@ deactivate_exc
 		vm.set_fault_mask(false);
 	// return;
 }
+
+// ===========
+//  POP STACK
+// ===========
 
 void 
 pop_stack
@@ -318,9 +339,9 @@ get_frame_ptr
 		return vm.get_msp();
 }
 
-// =================
-//  GET EXC RTR VAL
-// =================
+// ============================
+//  GET EXCEPTION RETURN VALUE
+// ============================
 
 uint
 get_exc_rtr_val
@@ -348,6 +369,10 @@ get_exc_rtr_val
 				return 0xFFFFFFE9;
 }
 
+// =========================
+//  SET EXCEPTION AS ACTIVE
+// =========================
+
 void
 set_exc_as_active
 (vm_t)
@@ -363,9 +388,9 @@ set_exc_as_active
 	vm.write_word(reg_addr, reg);
 }
 
-// ==============
-//  EXECUTE EXEC
-// ==============
+// =================
+//  ENTER EXCEPTION
+// =================
 
 void 
 enter_exec
@@ -410,7 +435,9 @@ enter_exec
 }
 // --------------------------------------------------------------------------------------
 
-// ------------------------------------- Condition --------------------------------------
+// ***************************************************************************************
+// *                                      Condition                                      * 
+// ***************************************************************************************
 
 enum condition : ubyte {
 	cs		= 0b0010,			// carry set
@@ -574,8 +601,6 @@ enum flag {
   	ge2, 
   	ge3
 }
-
-
 
 // ***************************************************************************************
 // *                                 Execution Priority                                  * 
