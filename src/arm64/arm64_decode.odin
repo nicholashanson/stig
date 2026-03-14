@@ -7,6 +7,8 @@ import "core:testing"
 a64_opcode :: enum(u32) {
 	hint,
 	mov_z_64,
+	// add/subtract extended register
+	add_ext_64,
 	// loigical shifted register
 	and_shift_reg_32, bic_shift_reg_32,  orr_shift_reg_32,  orn_shift_reg_32, eor_shift_reg_32,
 	eon_shift_reg_32, ands_shift_reg_32, bics_shift_reg_32, and_shift_reg_64, bic_shift_reg_64,
@@ -63,9 +65,18 @@ get_opcode :: proc(instr: u32) -> a64_opcode {
 	if ( (op1 & 0b0101) == 0b0100 ) {
 		return decode_load_and_stores(instr)
 	}
- 
+
 	return a64_opcode.invalid
 }
+
+// 0 00 0 AND (shifted register) — 32-bit
+// 0 00 1 BIC (shifted register) — 32-bit
+// 0 01 0 ORR (shifted register) — 32-bit
+// 0 01 1 ORN (shifted register) — 32-bit
+// 0 10 0 EOR (shifted register) — 32-bit
+// 0 10 1 EON (shifted register) — 32-bit
+// 0 11 0 ANDS (shifted register) — 32-bit
+// 0 11 1 BICS (shifted register) — 32-bit
 
 decode_logical_shift_reg :: proc(instr: u32) -> a64_opcode {
 	sf:  u32 = (instr >> 31) & 0x1 
@@ -81,20 +92,93 @@ decode_logical_shift_reg :: proc(instr: u32) -> a64_opcode {
 		case 0b0101: return a64_opcode.eon_shift_reg_32
 		case 0b0110: return a64_opcode.ands_shift_reg_32
 		case 0b0111: return a64_opcode.bics_shift_reg_32
+		// 1 00 0 AND (shifted register) — 64-bit
 		case 0b1000: return a64_opcode.and_shift_reg_64
+		// 1 00 1 BIC (shifted register) — 64-bit
 		case 0b1001: return a64_opcode.bic_shift_reg_64
+		// 1 01 0 ORR (shifted register) — 64-bit
 		case 0b1010: return a64_opcode.orr_shift_reg_64
+		// 1 01 1 ORN (shifted register) — 64-bit
 		case 0b1011: return a64_opcode.orn_shift_reg_64
+		// 1 10 0 EOR (shifted register) — 64-bit
 		case 0b1100: return a64_opcode.eor_shift_reg_64
-		case 0b1101: return a64_opcode.eon_shift_reg_64        
+		// 1 10 1 EON (shifted register) — 64-bit
+		case 0b1101: return a64_opcode.eon_shift_reg_64 
+		// 1 11 0 ANDS (shifted register) — 64-bit       
 		case 0b1110: return a64_opcode.ands_shift_reg_64
+		// 1 11 1 BICS (shifted register) — 64-bit
 		case 0b1111: return a64_opcode.bics_shift_reg_64
 	}
 	return a64_opcode.invalid
 }
 
+decode_proc_2_src :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_proc_1_src :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_add_sub_shifted_reg :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_add_sub_ext_reg :: proc(instr: u32) -> a64_opcode {
+	// 0 0 0 00 ADD (extended register) — 32-bit
+	// 0 0 1 00 ADDS (extended register) — 32-bit
+	// 0 1 0 00 SUB (extended register) — 32-bit
+	// 0 1 1 00 SUBS (extended register) — 32-bit
+	// 1 0 0 00 ADD (extended register) — 64-bit
+	return a64_opcode.add_ext_64
+	// 1 0 1 00 ADDS (extended register) — 64-bit
+	// 1 1 0 00 SUB (extended register) — 64-bit
+	// 1 1 1 00 SUBS (extended register) — 64-bit
+	// return a64_opcode.invalid
+}
+
+decode_add_sub_carry :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_add_sub_checked_ptr :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
 decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
-	return decode_logical_shift_reg(instr)
+	op0: u32 = (instr >> 30) &  0x1
+	op1: u32 = (instr >> 28) &  0x1
+	op2: u32 = (instr >> 21) &  0xf
+	op3: u32 = (instr >> 10) & 0x3f
+	// 0 1 0110 xxxxxx Data-processing (2 source)
+	if ( (op0 == 0b0) && (op1 == 0b1) && (op2 == 0b0110)) {
+		return decode_proc_2_src(instr)
+	}
+	// 1 1 0110 xxxxxx Data-processing (1 source)
+	if ( (op0 == 0b1) && (op1 == 0b1) && (op2 == 0b0110)) {
+		return decode_proc_1_src(instr)
+	}
+	// x 0 0xxx xxxxxx Logical (shifted register)
+	if ( (op1 == 0b0) && (op2 & 0b1000) == 0b0000) {
+		return decode_logical_shift_reg(instr)
+	}
+	// x 0 1xx0 xxxxxx Add/subtract (shifted register)
+	if ( (op1 == 0b0) && (op2 & 0b1001) == 0b1000) {
+		return decode_add_sub_shifted_reg(instr)
+	}
+	// x 0 1xx1 xxxxxx Add/subtract (extended register)
+	if ( (op1 == 0b0) && (op2 & 0b1001) == 0b1001) {
+		return decode_add_sub_ext_reg(instr)
+	}
+	// x 1 0000 000000 Add/subtract (with carry)
+	if ( (op1 == 0b1) && (op2 & 0b0000) == 0b0000 && (op3 == 0b000000)) {
+		return decode_add_sub_carry(instr)
+	}
+	// x 1 0000 001xxx Add/subtract (checked pointer)
+	if ( (op1 == 0b1) && (op2 == 0b0000) && ((op3 & 0b111000) == 0b001000)) {
+		return decode_add_sub_checked_ptr(instr)
+	}
+	return a64_opcode.invalid
 }
 
 decode_mov_wide_imm :: proc(instr: u32) -> a64_opcode {
@@ -143,6 +227,8 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		// load/store register (register offset)
 		case a64_opcode.ldr_reg_32       : return "ldr_reg_32"
 		case a64_opcode.ldr_reg_simd_fp  : return "ldr_reg_simd_fp"
+		// add/subtract extended register
+		case a64_opcode.add_ext_64       : return "add_ext_64"
 		case a64_opcode.invalid			 : return "invalid"
     }
     return ""
