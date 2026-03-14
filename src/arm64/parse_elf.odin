@@ -339,14 +339,13 @@ main :: proc() {
             op := get_opcode(instr)
 
             if op == a64_opcode.invalid {
-                fmt.printf("Invalid instruction at func VA 0x%016x offset 0x%08x: 0x%08x\n",
-           			f.offset, i, instr)
-                panic("Execution halted due to invalid instruction")
-            } else {
-                // Optional: print decoded opcode
-                fmt.printf("Invalid instruction at func VA 0x%016x offset 0x%08x: 0x%08x\n",
-           			f.offset, i, instr)
-            }
+			    fmt.printf("Invalid instruction at func VA 0x%016x offset 0x%08x: 0x%08x\n",
+			        f.offset, i, instr)
+			    panic("Execution halted due to invalid instruction")
+			} else {
+			    fmt.printf("Decoded instruction at func VA 0x%016x offset 0x%08x: %s\n",
+			        f.offset, i, opcode_to_string(op))
+			}
         }
     }
 
