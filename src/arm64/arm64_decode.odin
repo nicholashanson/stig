@@ -18,6 +18,9 @@ a64_opcode :: enum(u32) {
 	bics_shift_reg_64,
 	// load/store register (register offset)
 	ldr_reg_32,		  ldr_reg_simd_fp,	
+
+	// unconditional branch (register)
+	ret,
 	invalid
 }
 
@@ -273,7 +276,47 @@ decode_data_proc_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+decode_unconditional_branch_reg :: proc(instr: u32) -> a64_opcode {
+	// 0010 11111 000000 xxxxx 00000 RET 
+	return a64_opcode.ret
+}
+
 decode_branches :: proc(instr: u32) -> a64_opcode {
+	op0: u32 = (instr >> 29) &    0x7
+	op1: u32 = (instr >> 12) & 0x3fff
+	// 010 00xxxxxxxxxxxx xxxxx Conditional branch (immediate)
+	// 010 01xxxxxxxxxxxx xxxxx Miscellaneous branch (immediate)
+	// 011 00xxxxxxxx1xxx xxxxx Compare bytes/halfwords in registers and
+	// branch
+	// 01x 1xxxxxxxxxxxxx xxxxx UNALLOCATED
+	// 110 00xxxxxxxxxxxx xxxxx Exception generation
+	// 110 010000000x00xx xxxxx UNALLOCATED
+	// 110 010000001000xx xxxxx UNALLOCATED
+	// 110 01000000110000 xxxxx UNALLOCATED
+	// 110 01000000110001 xxxxx System instructions with register argument
+	// 110 01000000110010 11111 Hints
+	// 110 01000000110010 != 11111 UNALLOCATED
+	// 110 01000000110011 xxxxx Barriers
+	// 110 01000001xx00xx xxxxx UNALLOCATED
+	// 110 0100000xxx0100 xxxxx PSTATE
+	// 110 0100000xxx0101 xxxxx UNALLOCATED
+	// 110 0100000xxx011x xxxxx UNALLOCATED
+	// 110 0100000xxx1xxx xxxxx UNALLOCATED
+	// 110 0100100xxxxxxx xxxxx UNALLOCATED
+	// 110 0100x01xxxxxxx xxxxx System instructions
+	// 110 0100x1xxxxxxxx xxxxx System register move
+	// 110 0101x00xxxxxxx xxxxx UNALLOCATED
+	// 110 0101x01xxxxxxx xxxxx System pair instructions
+	// 110 0101x1xxxxxxxx xxxxx System register pair move
+	// 110 011xxxxxxxxxxx xxxxx UNALLOCATED
+	// 110 1xxxxxxxxxxxxx xxxxx Unconditional branch (register)
+	if ( (op0 == 0b110) && (op1 & 0b10000000000000) == 0b10000000000000) {
+		return decode_unconditional_branch_reg(instr)
+	}
+	// 111 00xxxxxxxx1xxx xxxxx UNALLOCATED
+	// 111 1xxxxxxxxxxxxx xxxxx UNALLOCATED
+	// x00 xxxxxxxxxxxxxx xxxxx Unconditional branch (immediate)
+	// x01 0xxxxxxxxxxxxx xxxxx Compare and branch (immediate)
 	return a64_opcode.hint;
 }
 
@@ -305,6 +348,8 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.add_ext_64       : return "add_ext_64"
 		// bitfield
 		case a64_opcode.ubfm_32			 : return "ubfm_32"
+		// unconditional branch (register)
+	 	case a64_opcode.ret              : return "ret"
 		case a64_opcode.invalid			 : return "invalid"
     }
     return ""
