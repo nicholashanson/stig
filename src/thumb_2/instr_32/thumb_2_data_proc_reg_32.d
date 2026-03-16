@@ -265,6 +265,10 @@ string convert_uadd8_t1_to_string(const ref instr_32 instr, const condition cond
 // bits, and writes the result to the destination register. You can specify a rotation by 
 // 0, 8, 16, or 24 bits before extracting the 8-bit value.
 
+// ============
+//  Parse UXTB
+// ============
+
 // UXTB<c>.W <Rd>,<Rm>{,<rotation>}
 instr_32 parse_uxtb_t2(const uint instr) {
 	// rotation = UInt(rotate:’000’);
@@ -272,6 +276,10 @@ instr_32 parse_uxtb_t2(const uint instr) {
 					rd:  cast(reg)slice(instr, 8, 4),
 					imm: slice(instr, 4, 2) << 3);
 }
+
+// ==============
+//  Execute UXTB
+// ==============
 
 void
 execute_uxtb_t2
@@ -298,6 +306,10 @@ string convert_uxtb_t2_to_string(const ref instr_32 instr, const condition cond)
 // *									  UXTAH 										 *
 // ***************************************************************************************
 
+// =============
+//  Parse UXTAH
+// =============
+
 // UXTAH<c> <Rd>,<Rn>,<Rm>{,<rotation>}
 instr_32 parse_uxtah_t1(const uint instr) {
 	// rotation = UInt(rotate:’000’);
@@ -306,6 +318,10 @@ instr_32 parse_uxtah_t1(const uint instr) {
 					rn:  cast(reg)slice(instr, 16, 4),
 					imm: slice(instr, 4, 2) << 3);
 }
+
+// ===============
+//  Execute UXTAH
+// ===============
 
 void 
 execute_uxtah_t1
@@ -335,12 +351,20 @@ string convert_uxtah_t1_to_string(const ref instr_32 instr, const condition cond
 // *									  SXTH 											 *
 // ***************************************************************************************
 
+// ============
+//  Parse SXTH
+// ============
+
 // SXTH<c>.W <Rd>,<Rm>{,<rotation>}
 instr_32 parse_sxth_t2(const uint instr) {
 	return instr_32(rm:  cast(reg)slice(instr,  0, 4),
 					rd:  cast(reg)slice(instr,  8, 4),
 					imm: slice(instr, 4, 2) << 3);
 }
+
+// ==============
+//  Execute SXTH
+// ==============
 
 void 
 execute_sxth_t2
@@ -368,6 +392,10 @@ string convert_sxth_t2_to_string(const ref instr_32 instr, const condition cond)
 // *									  SXTAH 										 *
 // ***************************************************************************************
 
+// =============
+//  Parse SXTAH
+// =============
+
 // SXTAH<c> <Rd>,<Rn>,<Rm>{,<rotation>}
 instr_32 parse_sxtah_t1(const uint instr) {
 	return instr_32(rm:  cast(reg)slice(instr,  0, 4),
@@ -375,6 +403,10 @@ instr_32 parse_sxtah_t1(const uint instr) {
 					rn:  cast(reg)slice(instr, 16, 4),
 					imm: slice(instr, 4, 2) << 3);
 }
+
+// ===============
+//  Execute SXTAH
+// ===============
 
 void 
 execute_sxtah_t1
@@ -405,6 +437,10 @@ string convert_sxtah_t1_to_string(const ref instr_32 instr, const condition cond
 // *									  UXTAB 										 *
 // ***************************************************************************************
 
+// =============
+//  Parse UXTAB
+// =============
+
 // UXTAB<c> <Rd>,<Rn>,<Rm>{,<rotation>}
 instr_32 parse_uxtab_t1(const uint instr) {
 	return instr_32(rm:  cast(reg)slice(instr,  0, 4),
@@ -412,6 +448,10 @@ instr_32 parse_uxtab_t1(const uint instr) {
 					rn:  cast(reg)slice(instr, 16, 4),
 					imm: slice(instr, 4, 2) << 3);
 }
+
+// ===============
+//  Execute UXTAB
+// ===============
 
 void 
 execute_uxtab_t1
@@ -442,6 +482,10 @@ string convert_uxtab_t1_to_string(const ref instr_32 instr, const condition cond
 // *									  SXTB 											 *
 // ***************************************************************************************
 
+// ============
+//  Parse SXTB
+// ============
+
 // SXTB<c>.W <Rd>,<Rm>{,<rotation>}
 instr_32 parse_sxtb_t2(const uint instr) {
 	return instr_32(rd:  cast(reg)slice(instr, 8, 4),
@@ -449,6 +493,10 @@ instr_32 parse_sxtb_t2(const uint instr) {
 					// rotation = UInt(rotate:’000’);
 					imm: slice(instr, 4, 2) << 3);
 }
+
+// ==============
+//  Execute SXTB
+// ==============
 
 void 
 execute_sxtb_t2
