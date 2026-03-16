@@ -37,6 +37,10 @@ instr_32 parse_mov_imm_t3(const uint instr) {
                     imm: imm);
 }
 
+// =============
+//  Execute MOV
+// =============
+
 void 
 execute_mov_imm_t3
 (vm_t)
@@ -150,9 +154,9 @@ string convert_bfi_t1_to_string(const ref instr_32 instr, const condition cond) 
 // *                                       ADD                                           *
 // ***************************************************************************************
 
-// ===========
-//  Parse ADD
-// ===========
+// ======================
+//  Parse ADD(Immediate)
+// ======================
 
 // ADDW<c> <Rd>,<Rn>,#<imm12>
 // First Half-Word: [15:11] 11110, [10] i, [9:4] 100000, [3:0] Rn 
@@ -264,9 +268,9 @@ instr_32 parse_sub_imm_t4(const uint instr) {
     // setflags = FALSE;
 }
 
-// =========================
-//  Executre SUB(Immediate)
-// =========================
+// ========================
+//  Execute SUB(Immediate)
+// ========================
 
 void 
 execute_sub_imm_t4
@@ -301,6 +305,7 @@ string convert_sub_imm_t4_to_string(const ref instr_32 instr, const condition co
 // ============
 //  Parse SBFX
 // ============
+
 // SBFX<c> <Rd>,<Rn>,#<lsb>,#<width>
 // [111100110100], [3:0] Rn
 // [0], [14:12] imm3, [11:8] Rd, [7:6] imm2, [0] 5, [4:0] widthm1

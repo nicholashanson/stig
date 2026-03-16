@@ -45,6 +45,10 @@ instr_32 parse_data_proc_mod_imm_expand(const uint instr) {
 // *									  ADD 											 *
 // ***************************************************************************************
 
+// ======================
+//  Parse ADD(Immediate)
+// ======================
+
 // ADD{S}<c>.W <Rd>,<Rn>,#<const>
 // First Half-Word: [15:11] 11110, [10] i, [9:5] 01000, [4] S, [3:0] Rn 
 // Second Half-Word: [15] 0, [14:12] imm3, [11:8] Rd, [7:0] imm8
@@ -52,6 +56,10 @@ instr_32 parse_add_imm_t3(const uint instr) {
 	// imm32 = ThumbExpandImm(i:imm3:imm8);
 	return parse_data_proc_mod_imm_expand(instr);
 }
+
+// ========================
+//  Execute ADD(Immediate)
+// ========================
 
 void 
 execute_add_imm_t3
@@ -456,7 +464,7 @@ execute_orr_imm_t1
 		vm.set_n(res);				// APSR.N = result<31>;
 		vm.set_z(res); 				// APSR.Z = IsZeroBit(result);
 		vm.set_c(expand_res.carry); // APSR.C = carry;
-		// // APSR.V unchanged
+		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res);
 }
@@ -783,3 +791,4 @@ string convert_teq_imm_t1_to_string(const ref instr_32 instr, const condition co
 								get_reg_name(instr.rn),
 								get_imm_string(instr.imm));
 }
+// ---------------------------------------------------------------------------------------

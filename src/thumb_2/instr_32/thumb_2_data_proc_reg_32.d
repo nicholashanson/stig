@@ -20,6 +20,11 @@ import thumb_2_opcodes;
 import thumb_2_instrs;
 import cortex_m_core;
 
+// ---------------------------------------------------------------------------------------
+// =====================
+//  Execute Shift Instr
+// =====================
+
 void 
 execute_shift_instr
 (vm_t)
@@ -39,6 +44,9 @@ execute_shift_instr
 	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
+// ===============================
+//  Parse Data Proc Reg Shift Rot
+// ===============================
 
 instr_32 parse_data_proc_reg_shift_rot(const uint instr) {
 	return instr_32(rm: 	   cast(reg )slice(instr,  0, 4), 
@@ -56,7 +64,6 @@ instr_32 parse_data_proc_reg_shift_rot(const uint instr) {
 //  Parse ASR(Register)
 // =====================
 
-enum field_tuples_asr_reg_t2 = [Tuple!(opcode, string[])(opcode.asr_reg_t2, ["rd","rn","rm"])];
 // ASR <Rd>, <Rn>, <Rm>
 // First Half-Word: [15:5] 11111010010, [4] S, [3:0] Rn
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
