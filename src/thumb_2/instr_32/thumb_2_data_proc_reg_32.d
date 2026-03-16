@@ -36,9 +36,12 @@ execute_shift_instr
 	// (result, carry) = Shift_C(R[n], SRType_LSL, shift_n, APSR.C);
 	immutable res 	   = shift_c(rn, instr.shift_t, shift_n, vm.get_c());
 	if (instr.set_flags) {
-		vm.set_c(res.carry);	// APSR.C = carry;
-		vm.set_z(res.result);	// APSR.Z = IsZeroBit(result);
-		vm.set_n(res.result);	// APSR.N = result<31>;	
+		// APSR.C = carry;
+		vm.set_c(res.carry);	
+		// APSR.Z = IsZeroBit(result);
+		vm.set_z(res.result);	
+		// APSR.N = result<31>;	
+		vm.set_n(res.result);	
 		// APSR.V unchanged
 	}
 	vm.set_reg(instr.rd, res.result);
@@ -98,6 +101,7 @@ string convert_asr_reg_t2_to_string(const ref instr_32 instr, const condition co
 // ============
 //  Parse UXTH
 // ============
+
 // UXTH<c>.W <Rd>,<Rm>{,<rotation>}
 // First Half-Word: [15:5] 11111010010, [4] S, [3:0] Rn
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
@@ -138,7 +142,7 @@ string convert_uxth_t2_to_string(const ref instr_32 instr, const condition cond)
 //  Parse LSL(Register)
 // =====================
 
-// // LSL{S}<c>.W <Rd>,<Rn>,<Rm>
+// LSL{S}<c>.W <Rd>,<Rn>,<Rm>
 // First Half-Word: [15:5] 11111010000, [4] S, [3:0] Rn 
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000, [3:0] Rm
 instr_32 parse_lsl_reg_t2(const uint instr) {
