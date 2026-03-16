@@ -24,6 +24,10 @@ a64_opcode :: enum(u32) {
 	invalid
 }
 
+// =================
+//  DECODE BITFIELD
+// =================
+
 decode_bitfield :: proc(instr: u32) -> a64_opcode {
 	// 0 00 0 SBFM — 32-bit
 	// 0 01 0 BFM — 32-bit
@@ -35,6 +39,10 @@ decode_bitfield :: proc(instr: u32) -> a64_opcode {
 	// 1 01 1 BFM — 64-bit
 	// 1 10 1 UBFM — 64-bit
 }
+
+// ==============================
+//  DECODE LOAD STORE REG OFFSET
+// ==============================
 
 decode_load_store_reg_offset :: proc(instr: u32) -> a64_opcode {
 	size: u32 = (instr >> 30) & 0x3 
@@ -51,6 +59,10 @@ decode_load_store_reg_offset :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ========================
+//  DECODE LOAD AND STORES
+// ========================
+
 decode_load_and_stores :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 28) & 0xf 
 	op1: u32 = (instr >> 26) & 0x1 
@@ -61,6 +73,10 @@ decode_load_and_stores :: proc(instr: u32) -> a64_opcode {
 	} 
 	return a64_opcode.invalid
 }
+
+// ============
+//  GET OPCODE
+// ============
 
 get_opcode :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 31) & 0x1
@@ -85,6 +101,10 @@ get_opcode :: proc(instr: u32) -> a64_opcode {
 
 	return a64_opcode.invalid
 }
+
+// ==========================
+//  DECODE LOGICAL SHIFT REG
+// ==========================
 
 decode_logical_shift_reg :: proc(instr: u32) -> a64_opcode {
 	sf:  u32 = (instr >> 31) & 0x1 
@@ -128,17 +148,33 @@ decode_logical_shift_reg :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ==================
+//  DECODE POC 2 SRC
+// ==================
+
 decode_proc_2_src :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
+
+// ==================
+//  DECODE POC 1 SRC
+// ==================
 
 decode_proc_1_src :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ============================
+//  DECODE ADD/SUB SHIFTED REG
+// ============================
+
 decode_add_sub_shifted_reg :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
+
+// ========================
+//  DECODE ADD/SUB EXT REG
+// ========================
 
 decode_add_sub_ext_reg :: proc(instr: u32) -> a64_opcode {
 	// 0 0 0 00 ADD (extended register) — 32-bit
@@ -153,13 +189,25 @@ decode_add_sub_ext_reg :: proc(instr: u32) -> a64_opcode {
 	// return a64_opcode.invalid
 }
 
+// ======================
+//  DECODE ADD/SUB CARRY
+// ======================
+
 decode_add_sub_carry :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ================================
+//  DECODE ADD/SUB CHECKED POINTER
+// ================================
+
 decode_add_sub_checked_ptr :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
+
+// ======================
+//  DECODE DATA PROC REG
+// ======================
 
 decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 30) &  0x1
@@ -197,6 +245,10 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ======================
+//  DECODE MOVE WIDE IMM
+// ======================
+
 decode_mov_wide_imm :: proc(instr: u32) -> a64_opcode {
 	sf:  u32 = (instr >> 31) & 0x1
 	opc: u32 = (instr >> 29) & 0x3
@@ -206,33 +258,65 @@ decode_mov_wide_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ========================
+//  DECODE DATA PROC 1 SRC
+// ========================
+
 decode_data_proc_1_src :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
+
+// ===============
+//  DECODE PC REL
+// ===============
 
 decode_pc_rel :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ====================
+//  DECODE ADD/SUB IMM
+// ====================
+
 decode_add_sub_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
-decode_add_dub_imm_tags :: proc(instr: u32) -> a64_opcode {
+// =========================
+//  DECODE ADD/SUB IMM TAGS
+// =========================
+
+decode_add_sub_imm_tags :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
+
+// ====================
+//  DECODE MIN/MAX IMM
+// ====================
 
 decode_min_max_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ====================
+//  DECODE LOGICAL IMM
+// ====================
+
 decode_logical_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ================
+//  DECODE EXTRACT
+// ================
+
 decode_extract :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
+
+// ======================
+//  DECODE DATA PROC IMM
+// ======================
 
 decode_data_proc_imm :: proc(instr: u32) -> a64_opcode {
 	op1: u32 = (instr >> 22) & 0xf
@@ -251,7 +335,7 @@ decode_data_proc_imm :: proc(instr: u32) -> a64_opcode {
 	}
 	// xx 0110 Add/subtract (immediate, with tags)
 	if ( op1 == 0b0110 ) {
-		return decode_add_dub_imm_tags(instr)
+		return decode_add_sub_imm_tags(instr)
 	}
 	// xx 0111 Min/max (immediate)
 	if ( (op1 & 0b1111) == 0b0111) {
@@ -276,10 +360,18 @@ decode_data_proc_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// =================================
+//  DECODE UNCONDITIONAL BRANCH REG
+// =================================
+
 decode_unconditional_branch_reg :: proc(instr: u32) -> a64_opcode {
 	// 0010 11111 000000 xxxxx 00000 RET 
 	return a64_opcode.ret
 }
+
+// =================
+//  DECODE BRANCHES
+// =================
 
 decode_branches :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 29) &    0x7
@@ -319,6 +411,10 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 	// x01 0xxxxxxxxxxxxx xxxxx Compare and branch (immediate)
 	return a64_opcode.hint;
 }
+
+// ==================
+//  OPCODE TO STRING
+// ==================
 
 opcode_to_string :: proc(op: a64_opcode) -> string {
     switch op {
