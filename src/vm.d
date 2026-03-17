@@ -17,14 +17,15 @@ struct dummy_mem {
 	enum flash_length = 0;
 	enum ram_origin = 0;
 	enum ram_length = 0;
-    void write_word(size_t addr, uint val) {}
-    uint read_word(size_t addr) { return 0; }
-    void write_byte(size_t addr, ubyte val) {}
-    ubyte read_byte(size_t addr) { return 0; }
-    void write_half_word(size_t addr, ushort val) {}
-    ushort read_half_word(size_t addr) { return 0; }
+    void write_word(const size_t addr, uint val) {}
+    uint read_word(const size_t addr) { return 0; }
+    void write_byte(const size_t addr, ubyte val) {}
+    ubyte read_byte(const size_t addr) { return 0; }
+    void write_half_word(const size_t addr, ushort val) {}
+    ushort read_half_word(const size_t addr) { return 0; }
     void flip_bit(const uint addr, const uint bit) {}
     string get_reg_name(const uint addr) { return ""; }
+    void set_vtor() {}
 }
 
 alias test_vm = cortex_m_vm!(dummy_mem);
@@ -37,7 +38,23 @@ struct cortex_m_vm(mem_t) {
 	addr_instr[] current_program;
 	string[] func_names;
 	st_name_val[] objects;
+	st_name_val[] func_map;
+	string latest_load_store;
 
+	bool opEquals(const ref typeof(this) rhs) const {
+        return cpu == rhs.cpu
+            && mem == rhs.mem;
+    }
+
+    // ============================
+	//  Current Mode is Privileged
+	// ============================
+
+    // boolean CurrentModeIsPrivileged()
+	// return (CurrentMode == Mode_Handler || CONTROL.nPRIV == ‘0’);
+    bool current_mode_is_privileged() {
+    	return (get_current_exception() != exception.thread_mode) | !get_npriv();
+    }
 	// ----------------------------------------- PC ----------------------------------------- 
 	private bool pc_modified;
 
@@ -83,8 +100,20 @@ struct cortex_m_vm(mem_t) {
 		return cpu.get_xpsr();
 	}
 
-	void set_npriv(const bool v) {
-		cpu.npriv = v;
+	uint get_ipsr() {
+		return cpu.get_ipsr();
+	}
+
+	uint get_apsr() {
+		return cpu.get_apsr();
+	}
+
+	void set_apsr(const uint v) {
+		cpu.set_apsr(v);
+	}
+
+	void set_fpca(const bool v) {
+		cpu.fpca = v;
 	}
 
 	bool get_sp_sel() const {
@@ -93,6 +122,10 @@ struct cortex_m_vm(mem_t) {
 
 	void set_sp_sel(bool v) {
 		cpu.sp_sel = v;
+	}
+
+	void set_fault_mask(bool v) {
+		cpu.fault_mask = v;
 	}
 
 	uint get_sp() {
@@ -189,6 +222,14 @@ struct cortex_m_vm(mem_t) {
 		return cpu.pri_mask;
 	}
 
+	bool get_fpca() {
+		return cpu.fpca;
+	}
+
+	void set_ipsr(const uint ipsr) {
+		cpu.set_ipsr(ipsr);
+	}
+
 	void set_it_block(const xyz it_block) {
 		cpu.it_block = it_block;
 	}
@@ -262,6 +303,27 @@ struct cortex_m_vm(mem_t) {
 		cpu.set_reg(r, val);
 	} 
 	// ---------------------------------------- Memory --------------------------------------
+	bool pendsv_is_pending() {
+		auto val = mem.read_word(0xE000ED04);
+		return cast(bool)slice(val, 28, 1);
+	}
+
+	void set_vtor() {
+		mem.set_vtor();
+	}
+
+	void load_half_word(const size_t addr, const ushort val) {
+		mem.write_half_word(addr, val);
+	}
+
+	void load_byte(const size_t addr, const ubyte val) {
+		mem.write_byte(addr, val);
+	}
+
+	void load_word(const size_t addr, const uint val) {
+		mem.write_word(addr, val);
+	}
+
 	void write_half_word(const size_t addr, const ushort val) {
 		mem.write_half_word(addr, val);
 		log_store(addr, val);
@@ -300,7 +362,7 @@ struct cortex_m_vm(mem_t) {
 	}
 
 	string get_reg_name(const uint addr) {
-		return mem.get_reg_name(addr);
+		return mem.get_reg_name(addr & ~0x3);
 	}
 
 	uint get_ram_origin() {
@@ -350,12 +412,19 @@ struct cortex_m_vm(mem_t) {
         return res;
     }
     // --------------------------------------------------------------------------------------
-	string get_func_name() {
-		return "placeholder";
+	string get_func_name(const uint val) {
+		foreach (f; func_map) {
+        	if (val >= (f.addr & ~1) && val - (f.addr & ~1) < f.size) {
+            	return f.name;
+        	}
+    	}
+    	return "UNKNOWN";;
 	}
 
 	string get_log_prefix() {
-		return format("[TICK:%d][PC:%08X][FUNC:%s]", cpu.get_tick(), cpu.get_pc(), get_func_name());
+		return format("[%d][%X][%s]", cpu.get_tick(), 
+									  cpu.get_pc(), 
+									  get_func_name(cpu.get_pc()));
 	}
 
 	void log_pc() {
@@ -376,15 +445,97 @@ struct cortex_m_vm(mem_t) {
 		log_file.flush();
 	}
 
-	void log_load(const size_t src_addr, const uint val) {
+	string get_latest_load_store() const {
+		return latest_load_store;
+	}
+
+	string 
+	get_format
+	(T)
+	(const T val) {
+		static if (is(T == ubyte))
+			return "%02X";
+		else static if (is(T == ushort))
+        	return "%04X";
+    	else
+    		return "%08X";
+    }
+
+    // =========
+	//  Log MSR
+	// =========
+
+	void 
+	log_msr
+	(T)
+	(const string spec_reg, const T val) {
 		auto log_file = load_store_log();
-		log_file.writeln(get_log_prefix(), format("(%08X loaded from %08X)", val, src_addr));
+		string s = get_format(val);
+		string msr_msg = get_log_prefix() ~ format("(0x" ~ s ~ " stored into %s)", 
+												    val, spec_reg);
+		latest_load_store = msr_msg;
+		log_file.writeln(msr_msg);
+		log_file.flush();
+	} 
+
+	// =========
+	//  Log MRS
+	// =========
+
+	void 
+	log_mrs
+	(T)
+	(const string spec_reg, const T val) {
+		auto log_file = load_store_log();
+		string s = get_format(val);
+		string mrs_msg = get_log_prefix() ~ format("(0x" ~ s ~ " loaded from %s)", 
+												    val, spec_reg);
+		latest_load_store = mrs_msg;
+		log_file.writeln(mrs_msg);
 		log_file.flush();
 	}
 
-	void log_store(const size_t target_addr, const uint val) {
+	// ==========
+	//  Log Load
+	// ==========
+
+	void 
+	log_load
+	(T)
+	(const size_t src_addr, const T val) {
 		auto log_file = load_store_log();
-		log_file.writeln(get_log_prefix(), format("(%08X stored into %08X)", val, target_addr));
+		auto reg_name = mem.get_reg_name(cast(uint)src_addr);
+		string s = get_format(val);
+    	string load_msg = get_log_prefix() ~ format("(0x" ~ s ~ " loaded from 0x%08X%s)", 
+												    val, src_addr, 
+												    reg_name != "" ? "[" ~ reg_name ~ "]" : "");
+		latest_load_store = load_msg;
+		log_file.writeln(load_msg);
+		log_file.flush();
+	}
+
+	// ===========
+	//  Log Store
+	// ===========
+
+	void 
+	log_store
+	(T)
+	(const size_t target_addr, const T val) {
+		auto log_file = load_store_log();
+		auto reg_name = mem.get_reg_name(cast(uint)target_addr);
+		string s;
+		static if (is(T == ubyte))
+			s = "%02X";
+		else static if (is(T == ushort))
+        	s = "%04X";
+    	else
+    		s = "%08X";
+    	string store_msg = get_log_prefix() ~ format("(0x" ~ s ~ " stored into 0x%08X%s)", 
+												     val, target_addr, 
+												     reg_name != "" ? "[" ~ reg_name ~ "]" : "");
+    	latest_load_store = store_msg;
+		log_file.writeln(store_msg);
 		log_file.flush();
 	}
  	// -------------------------------------------------------------------------------------- 
@@ -396,8 +547,12 @@ struct cortex_m_vm(mem_t) {
 	void execute_next_instr() {
 		log_pc();
 		++cpu.tick;
+		if (pendsv_is_pending()) {
+			enter_exec(exception.pendsv_irqn, this);
+			return;
+		}
 		if (cpu.tick == 10000) {
-			execute_sys_tick(this);
+			enter_exec(exception.systick_irqn, this);
 			cpu.tick = 0;
 			return;
 		}
