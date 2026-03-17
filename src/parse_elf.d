@@ -407,8 +407,7 @@ size_t[string] func_sizes = [
     "FillZerobss"       : 4,
     "register_tm_clones":36,
     "z_arm_bus_fault"   :20,
-    "z_arm_svc"         :36,
-    //"z_arm_pendsv"      :96
+    "z_arm_svc"         :36
 ];
 // --------------------------------------------------------------------------------------
 // =================
@@ -491,7 +490,9 @@ st_name_val[] get_st_name_val(const string elf_file,
         } else {
             uint size = sym.st_size;
             if (name in func_sizes) 
-                size = cast(uint)func_sizes[name]; 
+                size = cast(uint)func_sizes[name];
+            if (name == "z_arm_pendsv")
+                size = get_pendsv_size(elf_file); 
             items ~= st_name_val(name, sym.st_value, size);
         }
     }
@@ -564,6 +565,8 @@ elf_func get_elf_func(const string elf_file, const string func_name, const uint 
 
         if (name in func_sizes) 
             size = func_sizes[name]; 
+        if (name == "z_arm_pendsv")
+            size = get_pendsv_size(elf_file); 
 
         auto data = file_data[file_offset .. file_offset + size];
         assert(data.length == size, format("%s: sizes are not equal, %d != %d", name, data.length, size));
@@ -1022,3 +1025,67 @@ bool add_zephyr_syms(string name, const ref elf_32_sym sym, st_name_val[] items)
     return found;
 }
 // --------------------------------------------------------------------------------------
+// =============
+//  GET CONFIGS
+// =============
+
+st_name_val[] get_configs(const string elf_filename) {
+    auto vals = get_st_name_val(elf_filename, st_type.all, soc.stm32, true);
+    st_name_val[] configs;
+    foreach (val; vals) {
+        if (val.name.canFind("CONFIG")) {
+            configs ~= val;
+        }
+    } 
+    return configs;
+}
+// --------------------------------------------------------------------------------------
+// =================
+//  GET PENDSV SIZE
+// =================
+
+int get_pendsv_size(const string elf_filename) {
+    int res               =  0;
+    int lit_pool_size     =  8;
+    int min_mainline_size = 64;
+    res = min_mainline_size;
+    auto configs = get_configs(elf_filename);
+    foreach (config; configs) {
+        switch (config.name) {
+            case "CONFIG_MPU_STACK_GUARD":
+                res += 12;
+                break;
+            case "CONFIG_INSTRUMENT_THREAD_SWITCHING":
+                res += 16;
+                break;
+            case "CONFIG_ARM_STORE_EXC_RETURN":
+                res +=  4;
+                break;
+            case "CONFIG_FPU_SHARING":
+                res += 20;
+                break;
+            case "CONFIG_THREAD_LOCAL_STORAGE": 
+                res +=  6;
+                lit_pool_size += 6;
+                break;
+            case "CONFIG_USERSPACE":
+                res += 12;
+                break;
+            default:
+                break;
+        }
+    }
+    res += lit_pool_size;
+    return res;
+} 
+
+// ------------------------------------------------------------------------------------------
+unittest {
+    // ======================
+    //  TEST GET PENDSV SIZE
+    // ======================
+    auto filename = "../test/blinky.elf";
+    auto size     = get_pendsv_size(filename);
+    assert(size == 84, format("pendsv size is %d, not 84", size));
+    // --------------------------------------------------------------------------------------
+}
