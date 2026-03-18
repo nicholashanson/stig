@@ -695,6 +695,7 @@ func get_function_from_elf(const string elf_file,
 bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func, 
                                 ref func f, 
                                 ref bool[uint] pending_literals) {
+    auto fh = load_store_log();
     auto text_sec     = get_section_by_name(elf_file, "text");
     if (text_sec.name == "")
         text_sec = get_section_by_name(elf_file, ".text");
@@ -742,9 +743,8 @@ bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func,
                 literal_offsets[rel_offset] = true;
                 if (rel_offset < data.length) 
                     f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
-                else {
+                else 
                     pending_literals[lit_offset] = true;
-                }
             }
             if (decode_mnemonic(instr) == opcode.ldr_reg_t2) {
                 auto parsed_instr = decode_instr!(instr_32,uint)(instr);
@@ -785,8 +785,9 @@ bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func,
                     e_func.offset + offset + 4,
                     data[(offset + 4) .. (offset + 4 + padded_size)]
                 );
-                for (int i = offset + 4; i < offset + 4 + padded_size; i += 2)
+                for (int i = offset + 4; i < offset + 4 + padded_size; i += 2) 
                     e_func.skipped_addrs ~= i;
+                offset += padded_size;
             }
         } else if (len == 2) {
             if (decode_mnemonic(first_hw) == opcode.ldr_lit_t1) {
@@ -796,7 +797,7 @@ bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func,
                 uint lit_offset = base + parsed_instr.imm;
                 uint rel_offset = lit_offset - e_func.offset; 
                 words_to_remove[rel_offset] = true;
-                literal_offsets[rel_offset] = true;
+                literal_offsets[rel_offset] = true;          
                 if (rel_offset < data.length) 
                     f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
                 else 
@@ -819,9 +820,8 @@ bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func,
     keys.reverse;
     foreach (w; keys) {
         uint width = widths[w];
-        if (w + width <= data.length) {
+        if (w + width <= data.length) 
             data = data[0 .. w] ~ data[w + width .. $];
-        }
     }
     e_func.data = data;
     return literal_offsets;
@@ -873,12 +873,9 @@ load_function_into_memory
 func[] get_program_from_elf(const string elf_file) {
     bool[uint] pending_literals;
     func[] res;
-    auto fh = load_store_log();
     auto f_s = get_st_name_val(elf_file, st_type.stt_func, soc.all);
     foreach (fn; f_s) {
         auto f = get_function_from_elf(elf_file, fn.name, fn.addr, pending_literals);
-        fh.writeln(format("loaded function %s: %s", f.name, f.instrs.length));
-        fh.flush();
         res ~= f; 
     }
     return res;
