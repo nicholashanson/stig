@@ -50,7 +50,15 @@ string[] table_names = [
     ".init_array",
     "entropy_driver_api_area",
     "bt_hci_driver_api_area",
-    ".isr_vector"
+    ".isr_vector",
+    "flash_driver_api_area",
+    "bt_l2cap_fixed_chan_area",
+    "bt_conn_cb_area",
+    "bt_gatt_service_static_area",
+    "bt_ias_cb_area",
+    "settings_handler_static_area",
+    "device_states",
+    "k_mem_slab_area"
 ];
 // --------------------------------------------------------------------------------------
 alias read_fn(T) = T function(const(ubyte)[] data, size_t offset);
@@ -662,7 +670,7 @@ func get_function_from_elf(const string elf_file,
     func res;
     res.name             = func_name;
     auto e_func          = get_elf_func(elf_file, func_name, addr);
-    auto literal_offsets = extract_literal_pool(e_func, res, pending_literals);
+    auto literal_offsets = extract_literal_pool(elf_file, e_func, res, pending_literals);
     uint offset          = 0;
     uint addr_offset     = 0;
     while (offset + 2 <= e_func.data.length) {
@@ -684,7 +692,14 @@ func get_function_from_elf(const string elf_file,
 //  EXTRACT LITERAL POOL
 // ======================
 
-bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] pending_literals) {
+bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func, 
+                                ref func f, 
+                                ref bool[uint] pending_literals) {
+    auto text_sec     = get_section_by_name(elf_file, "text");
+    if (text_sec.name == "")
+        text_sec = get_section_by_name(elf_file, ".text");
+    uint text_sec_start = text_sec.addr;
+    uint text_sec_end   = cast(uint)(text_sec.addr + text_sec.data.length);
     uint[]     to_remove;
     bool[uint] words_to_remove;
     bool[uint] literal_offsets;
@@ -734,11 +749,18 @@ bool[uint] extract_literal_pool(ref elf_func e_func, ref func f, ref bool[uint] 
             if (decode_mnemonic(instr) == opcode.ldr_reg_t2) {
                 auto parsed_instr = decode_instr!(instr_32,uint)(instr);
                 if (parsed_instr.rt == reg.pc) { 
-                    int base = offset + 4 + 2;
+                    int  base     = offset + 4;
+                    uint abs_base = e_func.offset;
+                    abs_base &= ~0x3; 
+                    auto next_instr = read_ul_16(data, base);
+                    if (decode_mnemonic(next_instr) == opcode.nop_t1)
+                        base += 2;
                     int table_pos = base;
-                    while (read_ul_32(data, table_pos) > 0x08000000 && 
-                           read_ul_32(data, table_pos) < 0x08100000) {
+                    while (read_ul_32(data, table_pos) > text_sec_start && 
+                           read_ul_32(data, table_pos) < text_sec_end) {
                         words_to_remove[table_pos] = true;
+                        literal_offsets[table_pos] = true; 
+                        f.literal_pool[abs_base + table_pos] = read_ub_32_(data, table_pos);
                         table_pos += 4;
                     }
                 }
@@ -1078,7 +1100,6 @@ int get_pendsv_size(const string elf_filename) {
     res += lit_pool_size;
     return res;
 } 
-
 // ------------------------------------------------------------------------------------------
 unittest {
     // ======================
