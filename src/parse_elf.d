@@ -695,7 +695,6 @@ func get_function_from_elf(const string elf_file,
 bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func, 
                                 ref func f, 
                                 ref bool[uint] pending_literals) {
-    auto fh = load_store_log();
     auto text_sec     = get_section_by_name(elf_file, "text");
     if (text_sec.name == "")
         text_sec = get_section_by_name(elf_file, ".text");
