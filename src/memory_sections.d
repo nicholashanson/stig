@@ -68,6 +68,8 @@ enum ice_base     = 0xE000E180;
 enum ice_top      = 0xE000E1BC;
 enum isp_base     = 0xE000E200;
 enum isp_top      = 0xE000E23C;
+enum icpr_base    = 0xE000E280;
+enum icpr_top     = 0xE000E2BC;
 enum iab_base     = 0xE000E300;
 enum iab_top      = 0xE000E33C;
 enum ipr_base     = 0xE000E400;
@@ -390,6 +392,23 @@ uint[size_t] scb = [
     0xE000E134: 0,
     0xE000E138: 0,
     0xE000E13C: 0,
+    // ------------------------------------- NVIC ICPR --------------------------------------   
+    0xE000E280: 0,
+    0xE000E284: 0,
+    0xE000E288: 0,
+    0xE000E28C: 0,
+    0xE000E290: 0,
+    0xE000E294: 0,
+    0xE000E298: 0,
+    0xE000E29C: 0,
+    0xE000E2A0: 0,
+    0xE000E2A4: 0,
+    0xE000E2A8: 0,
+    0xE000E2AC: 0,
+    0xE000E2B0: 0,
+    0xE000E2B4: 0,
+    0xE000E2B8: 0,
+    0xE000E2BC: 0,
     // ------------------------------------- NVIC IPR ---------------------------------------                        
     0xE000E400: 0,
     0xE000E404: 0,
@@ -1163,6 +1182,122 @@ struct nrf52840_mem {
     static uint stack_base = ram_origin + ram_length;
     uint[size_t]   peripherals      = [
         0x40011504: 0,          // RTC1: COUNTER, Reset 0x00000000 
+        // CLOCK---------------------------------------------------------------------------------
+        0x40000000: 0,          // TASKS_HFCLKSTART; Start HFXO crystal oscillator
+        0x40000004: 0,          // TASKS_HFCLKSTOP; Stop HFXO crystal oscillator
+        0x40000008: 0,          // TASKS_LFCLKSTART; Start LFCLK
+        0x4000000C: 0,          // TASKS_LFCLKSTOP; Stop LFCLK
+        0x40000010: 0,          // TASKS_CAL; Start calibration of LFRC
+        0x40000014: 0,          // TASKS_CTSTART; Start calibration timer
+        0x40000018: 0,          // TASKS_CTSTOP; Stop calibration timer
+        0x40000100: 0,          // EVENTS_HFCLKSTARTED; HFXO crystal oscillator started
+        0x40000104: 0,          // EVENTS_LFCLKSTARTED; LFCLK started
+        0x4000010C: 0,          // EVENTS_DONE; Calibration of LFRC completed
+        0x40000110: 0,          // EVENTS_CTTO; Calibration timer timeout
+        0x40000128: 0,          // EVENTS_CTSTARTED; Calibration timer has been started and is ready to process new tasks
+        0x4000012C: 0,          // EVENTS_CTSTOPPED; Calibration timer has been stopped and is ready to process new tasks
+        0x40000304: 0,          // INTENSET; Enable interrupt
+        0x40000308: 0,          // INTENCLR; Disable interrupt
+        0x40000408: 0,          // HFCLKRUN; Status indicating that HFCLKSTART task has been triggered
+        0x4000040C: 0,          // HFCLKSTAT; HFCLK status
+        0x40000414: 0,          // LFCLKRUN; Status indicating that LFCLKSTART task has been triggered
+        0x40000418: 0x00010001, // LFCLKSTAT; LFCLK status
+        0x4000041C: 0,          // LFCLKSRCCOPY; Copy of LFCLKSRC register, set when LFCLKSTART task was triggered
+        0x40000518: 0,          // LFCLKSRC; Clock source for the LFCLK
+        0x40000528: 0,          // HFXODEBOUNCE; HFXO debounce time. The HFXO is started by triggering the TASKS_HFCLKSTART task.
+        0x40000538: 0,          // CTIV; Calibration timer interval
+                                // This register is retained.
+        0x4000055C: 0,          // TRACECONFIG; Clocking options for the trace port debug interface
+        0x400005B4: 0,          // LFRCMODE; LFRC mode configuration
+        // RNG-----------------------------------------------------------------------------------
+        0x4000D000: 0,          // TASKS_START: Task starting the random number generator
+        0x4000D004: 0,          // TASKS_STOP:  Task stopping the random number generator
+        0x4000D100: 0,          // EVENTS_VALRDY: Event being generated for every new random 
+                                // number written to the VALUE register
+        0x4000D200: 0,          // SHORTS: Shortcuts between local events and tasks
+        0x4000D304: 0,          // INTENSET: Enable interrupt
+        0x4000D308: 0,          // INTENCLR: Disable interrupt
+        0x4000D504: 0,          // CONFIG: Configuration register
+        0x4000D508: 0,          // VALUE: Output random number
+        // UART0---------------------------------------------------------------------------------
+        0x40002000: 0,          // TASKS_STARTRX: Start UART receiver
+        0x40002004: 0,          // TASKS_STOPRX: Stop UART receiver
+        0x40002008: 0,          // TASKS_STARTTX: Start UART transmitter
+        0x4000200C: 0,          // TASKS_STOPTX: Stop UART transmitter
+        0x4000201C: 0,          // TASKS_SUSPEND: Suspend UART
+        0x40002100: 0,          // EVENTS_CTS: CTS is activated (set low). Clear To Send.
+        0x40002104: 0,          // EVENTS_NCTS: CTS is deactivated (set high). Not Clear To Send.
+        0x40002108: 0,          // EVENTS_RXDRDY: Data received in RXD
+        0x4000211C: 0,          // EVENTS_TXDRDY: Data sent from TXD
+        0x40002124: 0,          // EVENTS_ERROR: Error detected
+        0x40002144: 0,          // EVENTS_RXTO: Receiver timeout
+        0x40002200: 0,          // SHORTS: Shortcuts between local events and tasks
+        0x40002304: 0,          // INTENSET: Enable interrupt
+        0x40002308: 0,          // INTENCLR: Disable interrupt
+        0x40002480: 0,          // ERRORSRC: Error source
+        0x40002500: 0,          // ENABLE: Enable UART
+        0x40002508: 0,          // PSEL.RTS: Pin select for RTS
+        0x4000250C: 0,          // PSEL.TXD: Pin select for TXD
+        0x40002510: 0,          // PSEL.CTS: Pin select for CTS
+        0x40002514: 0,          // PSEL.RXD: Pin select for RXD
+        0x40002518: 0,          // RXD: RXD register. Register is cleared on read and the double 
+                                // buffered byte will be moved to RXD if it exists.
+        0x4000251C: 0,          // TXD: TXD register
+        0x40002524: 0,          // BAUDRATE: Baud rate. Accuracy depends on the HFCLK source 
+                                // selected.
+        0x4000256C: 0,          // CONFIG: Configuration of parity and hardware flow control
+        // UARTE0--------------------------------------------------------------------------------
+        // Universal asynchronous receiver/transmitter with EasyDMA, unit 0
+        0x4000202C: 0,          // TASKS_FLUSHRX: Flush RX FIFO into RX buffer
+        0x40002110: 0,          // EVENTS_ENDRX: Receive buffer is filled up
+        0x40002120: 0,          // EVENTS_ENDTX: Last TX byte transmitted
+        0x4000214C: 0,          // EVENTS_RXSTARTED: UART receiver has started
+        0x40002150: 0,          // EVENTS_TXSTARTED: UART transmitter has started
+        0x40002158: 1,          // EVENTS_TXSTOPPED: Transmitter stopped
+        0x40002300: 0,          // INTEN: Enable or disable interrupt
+        // GPIO----------------------------------------------------------------------------------
+        0x50000504: 0,          // OUT: Write GPIO port
+        0x50000508: 0,          // OUTSET: Set individual bits in GPIO port
+        0x5000050C: 0,          // OUTCLR: Clear individual bits in GPIO port
+        0x50000510: 0,          // IN: Read GPIO port
+        0x50000514: 0,          // DIR: Direction of GPIO pins
+        0x50000518: 0,          // DIRSET: DIR set register
+        0x5000051C: 0,          // DIRCLR: DIR clear register
+        0x50000520: 0,          // LATCH: Latch register indicating what GPIO pins that have met the criteria set in the PIN_CNF[n].SENSE
+                                // registers
+        0x50000524: 0,          // DETECTMODE: Select between default DETECT signal behavior and LDETECT mode
+        0x50000700: 0,          // PIN_CNF[0]: Configuration of GPIO pins
+        0x50000704: 0,          // PIN_CNF[1]: Configuration of GPIO pins
+        0x50000708: 0,          // PIN_CNF[2]: Configuration of GPIO pins
+        0x5000070C: 0,          // PIN_CNF[3]: Configuration of GPIO pins
+        0x50000710: 0,          // PIN_CNF[4]: Configuration of GPIO pins
+        0x50000714: 0,          // PIN_CNF[5]: Configuration of GPIO pins
+        0x50000718: 0,          // PIN_CNF[6]: Configuration of GPIO pins
+        0x5000071C: 0,          // PIN_CNF[7]: Configuration of GPIO pins
+        0x50000720: 0,          // PIN_CNF[8]: Configuration of GPIO pins
+        0x50000724: 0,          // PIN_CNF[9]: Configuration of GPIO pins
+        0x50000728: 0,          // PIN_CNF[10]: Configuration of GPIO pins
+        0x5000072C: 0,          // PIN_CNF[11]: Configuration of GPIO pins
+        0x50000730: 0,          // PIN_CNF[12]: Configuration of GPIO pins
+        0x50000734: 0,          // PIN_CNF[13]: Configuration of GPIO pins
+        0x50000738: 0,          // PIN_CNF[14]: Configuration of GPIO pins
+        0x5000073C: 0,          // PIN_CNF[15]: Configuration of GPIO pins
+        0x50000740: 0,          // PIN_CNF[16]: Configuration of GPIO pins
+        0x50000744: 0,          // PIN_CNF[17]: Configuration of GPIO pins
+        0x50000748: 0,          // PIN_CNF[18]: Configuration of GPIO pins
+        0x5000074C: 0,          // PIN_CNF[19]: Configuration of GPIO pins
+        0x50000750: 0,          // PIN_CNF[20]: Configuration of GPIO pins
+        0x50000754: 0,          // PIN_CNF[21]: Configuration of GPIO pins
+        0x50000758: 0,          // PIN_CNF[22]: Configuration of GPIO pins
+        0x5000075C: 0,          // PIN_CNF[23]: Configuration of GPIO pins
+        0x50000760: 0,          // PIN_CNF[24]: Configuration of GPIO pins
+        0x50000764: 0,          // PIN_CNF[25]: Configuration of GPIO pins
+        0x50000768: 0,          // PIN_CNF[26]: Configuration of GPIO pins
+        0x5000076C: 0,          // PIN_CNF[27]: Configuration of GPIO pins
+        0x50000770: 0,          // PIN_CNF[28]: Configuration of GPIO pins
+        0x50000774: 0,          // PIN_CNF[29]: Configuration of GPIO pins
+        0x50000778: 0,          // PIN_CNF[30]: Configuration of GPIO pins
+        0x5000077C: 0,          // PIN_CNF[31]: Configuration of GPIO pins
     ];
     string[size_t] peripheral_names = [
         0x40011504: "RTC1_COUNTER"
@@ -1186,6 +1321,9 @@ struct nrf52840_mem {
 
     uint read_word(size_t addr) {
         uint res;
+        if (addr == 0x40000518) {
+            return 0x1;
+        }
         if (addr >= scb_base) {
             if (auto s = addr in scb) {
                 res = *s;              
