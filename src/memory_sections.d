@@ -392,6 +392,23 @@ uint[size_t] scb = [
     0xE000E134: 0,
     0xE000E138: 0,
     0xE000E13C: 0,
+    // ------------------------------------- NVIC ISP ---------------------------------------
+    0xE000E200: 0,
+    0xE000E204: 0,
+    0xE000E208: 0,
+    0xE000E20C: 0,
+    0xE000E210: 0,
+    0xE000E214: 0,
+    0xE000E218: 0,
+    0xE000E21C: 0,
+    0xE000E220: 0,
+    0xE000E224: 0,
+    0xE000E228: 0,
+    0xE000E22C: 0,
+    0xE000E230: 0,
+    0xE000E234: 0,
+    0xE000E238: 0,
+    0xE000E23C: 0,
     // ------------------------------------- NVIC ICPR --------------------------------------   
     0xE000E280: 0,
     0xE000E284: 0,
@@ -1255,6 +1272,29 @@ struct nrf52840_mem {
         0x40002150: 0,          // EVENTS_TXSTARTED: UART transmitter has started
         0x40002158: 1,          // EVENTS_TXSTOPPED: Transmitter stopped
         0x40002300: 0,          // INTEN: Enable or disable interrupt
+        // RTC-----------------------------------------------------------------------------------
+        0x4000B000: 0,          // TASKS_START 0x000 Start RTC COUNTER
+        0x4000B004: 0,          // TASKS_STOP 0x004 Stop RTC COUNTER
+        0x4000B008: 0,          // TASKS_CLEAR 0x008 Clear RTC COUNTER
+        0x4000B00C: 0,          // TASKS_TRIGOVRFLW 0x00C Set COUNTER to 0xFFFFF0
+        0x4000B100: 0,          // EVENTS_TICK 0x100 Event on COUNTER increment
+        0x4000B104: 0,          // EVENTS_OVRFLW 0x104 Event on COUNTER overflow
+        0x4000B140: 0,          // EVENTS_COMPARE[0] 0x140 Compare event on CC[0] match
+        0x4000B144: 0,          // EVENTS_COMPARE[1] 0x144 Compare event on CC[1] match
+        0x4000B148: 0,          // EVENTS_COMPARE[2] 0x148 Compare event on CC[2] match
+        0x4000B14C: 0,          // EVENTS_COMPARE[3] 0x14C Compare event on CC[3] match
+        0x4000B304: 0,          // INTENSET 0x304 Enable interrupt
+        0x4000B308: 0,          // INTENCLR 0x308 Disable interrupt
+        0x4000B340: 0,          // EVTEN 0x340 Enable or disable event routing
+        0x4000B344: 0,          // EVTENSET 0x344 Enable event routing
+        0x4000B348: 0,          // EVTENCLR 0x348 Disable event routing
+        0x4000B504: 0,          // COUNTER 0x504 Current COUNTER value
+        0x4000B508: 0,          // PRESCALER 0x508 12 bit prescaler for COUNTER frequency (32768/(PRESCALER+1)). Must be written when RTC is
+                                // stopped.
+        0x4000B540: 0,          // CC[0] 0x540 Compare register 0
+        0x4000B544: 0,          // CC[1] 0x544 Compare register 1
+        0x4000B548: 0,          // CC[2] 0x548 Compare register 2
+        0x4000B54C: 0,          // CC[3] 0x54C Compare register 3
         // GPIO----------------------------------------------------------------------------------
         0x50000504: 0,          // OUT: Write GPIO port
         0x50000508: 0,          // OUTSET: Set individual bits in GPIO port
@@ -1347,7 +1387,11 @@ struct nrf52840_mem {
     }
 
     void flip_bit(size_t addr, int bit_pos) {
-        if (addr > ram_origin + ram_length) {
+        if (addr >= scb_base) {
+            uint val = scb[addr];
+            val ^= (1u << bit_pos);
+            scb[addr] = val;
+        } else if (addr > ram_origin + ram_length) {
             uint val = peripherals[addr];
             val ^= (1u << bit_pos);
             peripherals[addr] = val;
