@@ -1,4 +1,4 @@
-# Vortex-M
+# Vortex-M (Visual Cortex-M)
 Vortex-M is a full-featured soft-core implementation of the Cortex-M architecture.
 
 It is intended for educational and artistic purposes.
