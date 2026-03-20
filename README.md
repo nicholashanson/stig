@@ -21,3 +21,15 @@ From the src subdirectory run:
 - [soc] : one of either "stm32" (for stm32f4X) or "nrf" (for nrf52X).
 - [addr] : (optional) run to this address.
 
+## Samples
+You can get started by running one of the samples. 
+
+For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run:
+
+```
+  dub run -c=cortex -- ../samples/stm32f4/freertos_blink.elf stm32
+```
+<div align="center">
+  <img src="assets/demo.gif" width="400"><br>
+</div>
+
