@@ -7,6 +7,18 @@ import thumb_2_misc_16;
 import thumb_2_instrs;
 import thumb_2_opcodes;
 
+enum IABR_BASE = 0xE000E300;
+enum IPR_BASE  = 0xE000E400;
+
+// ===========================
+//  IS EXCEPTION RETURN VALUE
+// ===========================
+
+bool is_exc_ret_val(const uint val) {
+	return ((val & 0xff00_0000) != 0xff00_0000);
+}
+// --------------------------------------------------------------------------------------
+
 bool test_unsigned_neg(const uint v) {
 	return (v & 0x8000_0000) != 0;
 }
@@ -80,10 +92,8 @@ void
 deactivate_exc
 (vm_t)
 (const uint i, ref vm_t vm) {
-	// IABR: 0xE000E300-0xE000E37C
-	const uint base_reg = 0xE000E300; 
 	const uint reg_n    = i / 32;
-	const uint reg_addr = base_reg + (reg_n * 4);
+	const uint reg_addr = IABR_BASE + (reg_n * 4);
 	// ExceptionActive[ReturningExceptionNumber] = ‘0’;
 	uint       reg      = vm.read_word(reg_addr);
 	const uint shift_n  = i % 32;
@@ -196,7 +206,8 @@ exc_rtr
 	// DeActivate(ReturningExceptionNumber);
 	// UFSR.INVPC = ‘1’;
 	// LR = 0xF0000000 + EXC_RETURN;
-	// ExceptionTaken(UsageFault); // returning from an inactive handler
+	// ExceptionTaken(UsageFault); 
+	// returning from an inactive handler
 	// return;
 	// else
 	uint frame_ptr;
@@ -351,22 +362,22 @@ get_exc_rtr_val
 	if (vm.get_current_exception() != exception.thread_mode)
 		// LR = Ones(27):NOT(CONTROL.FPCA):’0001’;
 		if (vm.get_fpca()) 
-			return 0xFFFFFFF1;
+			return 0xFFFF_FFF1;
 		else 
-			return 0xFFFFFFE1;
+			return 0xFFFF_FFE1;
 	// else
 	else
 		// LR = Ones(27):NOT(CONTROL.FPCA):’1’:CONTROL.SPSEL:’01’;
 		if (vm.get_fpca()) 
 			if (vm.get_sp_sel())
-				return 0xFFFFFFFD;
+				return 0xFFFF_FFFD;
 			else 
-				return 0xFFFFFFF9;
+				return 0xFFFF_FFF9;
 		else 
 			if (vm.get_sp_sel())
-				return 0xFFFFFFED;
+				return 0xFFFF_FFED;
 			else 
-				return 0xFFFFFFE9;
+				return 0xFFFF_FFE9;
 }
 
 // =========================
@@ -375,13 +386,11 @@ get_exc_rtr_val
 
 void
 set_exc_as_active
-(vm_t)
-(const exception exc, ref vm_t vm) {
+(VM_T)
+(const exception exc, ref VM_T vm) {
 	const uint i        = cast(uint)exc;
-	// IABR: 0xE000E300-0xE000E37C
-	const uint base_reg = 0xE000E300; 
 	const uint reg_n    = i / 32;
-	const uint reg_addr = base_reg + (reg_n * 4);
+	const uint reg_addr = IABR_BASE + (reg_n * 4);
 	uint       reg      = vm.read_word(reg_addr);
 	const uint shift_n  = i % 32;
 	reg                |= (1u << shift_n);
@@ -552,54 +561,34 @@ xyz get_xyz(ubyte first_cond_mask) {
 	return xyz.none;
 }
 // --------------------------------------------------------------------------------------
-
+// =====
+//  REG
+// =====
 enum reg : ubyte {
-	r0,
-	r1,
-	r2,
-	r3,
-	r4,
-	r5,
-	r6,
-	r7,
-	r8,
-	r9,
-	r10,
-	r11,
-	r12,
+	r0, r1, r2, r3, r4, r5, r6, 
+	r7, r8, r9, r10, r11, r12,
 	sp,   	// stack pointer
 	lr,		// link register
 	pc,		// program counter
 	none
 }
-
+// --------------------------------------------------------------------------------------
+// =====
+//  XYZ
+// =====
 enum xyz {
-	none,
-	t,
-	e,
-	tt,
-	et,
-	te,
-	ee,
-	ttt,
-	ett,
-	tet,
-	eet,
-	tte,
-	ete,
-	tee,
-	eee
+	t, e, tt, et, te, ee,
+	ttt, ett, tet, eet, tte,
+	ete, tee, eee,
+	none
 }
-
+// --------------------------------------------------------------------------------------
+// ======
+//  FLAG
+// ======
 enum flag {
-  	z, 
-  	c, 
-  	n,
-  	v,
-  	ge0,
-  	ge1,
-  	ge2, 
-  	ge3
+  	z, c, n, v,
+  	ge0, ge1, ge2, ge3
 }
 
 // ***************************************************************************************
@@ -614,10 +603,8 @@ bool
 exception_is_active
 (vm_t)
 (const uint i, ref vm_t vm) {
-	// IABR: 0xE000E300-0xE000E37C
-	const uint base_reg = 0xE000E300; 
 	const uint reg_n    = i / 32;
-	const uint reg_addr = base_reg + (reg_n * 4);
+	const uint reg_addr = IABR_BASE + (reg_n * 4);
 	immutable  reg      = vm.read_word(reg_addr);
 	const uint shift_n  = i % 32;
 	return cast(bool)slice(reg, shift_n, 1);
@@ -631,10 +618,8 @@ uint
 get_exception_priority
 (vm_t)
 (const uint i, ref vm_t vm) {
-	// IPR: 0xE000E400-0xE000E7EC
-	const uint base_reg = 0xE000E400;
 	const uint reg_n    =  i / 4;
-	const uint reg_addr = base_reg + (reg_n * 4);
+	const uint reg_addr = IPR_BASE + (reg_n * 4);
 	immutable  reg      = vm.read_word(reg_addr);
 	const uint shift_n  = (i % 4) * 8;
 	return slice(reg, shift_n, 8);
@@ -650,17 +635,20 @@ get_execution_priority
 (vm_t)
 (ref vm_t vm) {
 	int priority;
-	// highestpri = 256; // priority of Thread mode with no active exceptions
-	//					 // the value is PriorityMax + 1 = 256
-	//					 // (configurable priority maximum bit field is 8 bits)
+	// highestpri = 256; 
+	// priority of Thread mode with no active exceptions
+	// the value is PriorityMax + 1 = 256
+	// (configurable priority maximum bit field is 8 bits)
 	int highest_pri = 256;
-	// boostedpri = 256; // priority influence of BASEPRI, PRIMASK and FAULTMASK
+	// boostedpri = 256; 
+	// priority influence of BASEPRI, PRIMASK and FAULTMASK
 	int boosted_pri = 256;
 
 	// subgroupshift = UInt(BITS(3) AIRCR.PRIGROUP)
 	immutable  aicr 		 = vm.read_word(0xE000ED0C);
 	const uint sub_grp_shift = slice(aicr, 8, 3);
-	// groupvalue = ‘000000010’ LSL groupshift // used by priority grouping
+	// groupvalue = ‘000000010’ LSL groupshift 
+	// used by priority grouping
 	const uint grp_val       = shift(0b10, shift_type.lsl, sub_grp_shift, false);
 
 	// for (i=2, i<512, i=i+1) ; IPSR values of the exception handlers
@@ -733,6 +721,8 @@ struct cortex_m_cpu {
 	uint get_reg(const reg r) const {
 		if (r == reg.sp) 
 			return get_sp();
+		if (r == reg.pc)
+			return get_pc() + 4;
 		return core_registers[r];
 	}
 
@@ -745,7 +735,7 @@ struct cortex_m_cpu {
 			set_sp(val);
 		else {
 			core_registers[r] = val;
-			if ((r == reg.pc) && ((val & 0xff00_0000) != 0xff00_0000))
+			if ((r == reg.pc) && is_exc_ret_val(val))
 				clear_thumb_bit();
 		}
 	}
@@ -758,13 +748,25 @@ struct cortex_m_cpu {
 		core_registers[reg.pc] += val;
 	}
 
+	// ========
+	//  GET PC
+	// ========
+
 	uint get_pc() const {
 		return core_registers[reg.pc];
 	}
 
+	// =================
+	//  CLEAR THUMB BIT
+	// =================
+
 	void clear_thumb_bit() {
 		core_registers[reg.pc] &= ~1;
 	}
+
+	// ==========
+	//  ALIGN PC
+	// ==========
 
 	void align_pc() {
 		core_registers[reg.pc] &= ~0x3;
