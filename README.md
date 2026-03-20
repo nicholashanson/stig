@@ -19,7 +19,7 @@ From the src subdirectory run:
 ```
 - [path_to_elf_file] : valid path to an elf file.
 - [soc] : one of either "stm32" (for stm32f4X) or "nrf" (for nrf52X).
-- [addr] : (optional) run to this address.
+- [addr] : (optional) run to this address on start-up.
 
 ## Samples
 You can get started by running one of the samples. 
