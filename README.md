@@ -10,7 +10,7 @@ The project supports the core Thumb2 instruction set.
 </div>
 
 ## Build and Run
-Vortex-M is written in DLang and built using dub:
+Vortex-M is written in DLang and built using dub. From the src subdirectory run:
 
 ```
   dub run -c=cortex -- [path_to_elf_file] [soc] [addr] 
