@@ -15,7 +15,7 @@ Vortex-M is written in DLang and built using dub.
 From the src subdirectory run:
 
 ```
-  dub run -c=cortex -- [path_to_elf_file] [soc] [addr] 
+  dub run -c=cortexm -- [path_to_elf_file] [soc] [addr] 
 ```
 - [path_to_elf_file] : valid path to an elf file.
 - [soc] : one of either "stm32" (for stm32f4X) or "nrf" (for nrf52X).
@@ -27,7 +27,7 @@ You can get started by running one of the samples.
 For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run:
 
 ```
-  dub run -c=cortex -- ../samples/stm32f4/freertos_blink.elf stm32
+  dub run -c=cortexm -- ../samples/stm32f4/freertos_blink.elf stm32
 ```
 <div align="center">
   <img src="assets/demo.gif" width="400"><br>
