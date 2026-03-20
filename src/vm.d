@@ -53,7 +53,7 @@ struct cortex_m_vm(mem_t) {
     // boolean CurrentModeIsPrivileged()
 	// return (CurrentMode == Mode_Handler || CONTROL.nPRIV == ‘0’);
     bool current_mode_is_privileged() {
-    	return (get_current_exception() != exception.thread_mode) | !get_npriv();
+    	return (get_curr_exc() != exception.thread_mode) | !get_npriv();
     }
 	// ----------------------------------------- PC ----------------------------------------- 
 	private bool pc_modified;
@@ -88,11 +88,11 @@ struct cortex_m_vm(mem_t) {
 		return cpu.in_it_block();
 	}
 
-	exception get_current_exception() {
+	exception get_curr_exc() {
 		return cpu.current_exception;
 	}
 
-	void set_current_exception(const exception exc) {
+	void set_curr_exc(const exception exc) {
 		cpu.current_exception = exc;
 	}
 
@@ -552,7 +552,7 @@ struct cortex_m_vm(mem_t) {
 			return;
 		}
 		if (cpu.tick == 10000) {
-			enter_exec(exception.systick_irqn, this);
+			//enter_exec(exception.systick_irqn, this);
 			cpu.tick = 0;
 			return;
 		}

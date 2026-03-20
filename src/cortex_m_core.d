@@ -190,7 +190,7 @@ exc_rtr
 (const uint exc_return, ref vm_t vm) {
     // ExceptionReturn(bits(28) EXC_RETURN)
 	// assert CurrentMode == Mode_Handler;
-	assert(vm.get_current_exception() != exception.thread_mode,
+	assert(vm.get_curr_exc() != exception.thread_mode,
 		   "Trying to return from exception in thread mode");
 	// if HaveFPExt() then
 	// 		if !IsOnes(EXC_RETURN<27:5>) then UNPREDICTABLE;
@@ -214,7 +214,8 @@ exc_rtr
 	// case EXC_RETURN<3:0> of
 	immutable exc_rtr_lb = slice(exc_return, 0, 4);
 	switch (exc_rtr_lb) {
-		// when ‘0001’ // return to Handler
+		// when ‘0001’ 
+		// return to Handler
 		case 0b0001:
 			// frameptr = SP_main;
 			frame_ptr = vm.get_msp();
@@ -222,35 +223,39 @@ exc_rtr
 			// CONTROL.SPSEL = ‘0’;
 			vm.set_sp_sel(false);
 			break;
-		// when ‘1001’ // returning to Thread using Main stack
+		// when ‘1001’ 
+		// returning to Thread using Main stack
 		case 0b1001:
 			// if NestedActivation != 1 && CCR.NONBASETHRDENA == ‘0’ then
 			// DeActivate(ReturningExceptionNumber);
 			// UFSR.INVPC = ‘1’;
 			// LR = 0xF0000000 + EXC_RETURN;
-			// ExceptionTaken(UsageFault); // return to Thread exception mismatch
+			// ExceptionTaken(UsageFault); 
+			// return to Thread exception mismatch
 			// return;
 			// else
 			// frameptr = SP_main;
 			frame_ptr = vm.get_msp();
 			// CurrentMode = Mode_Thread;
-			vm.set_current_exception(exception.thread_mode);
+			vm.set_curr_exc(exception.thread_mode);
 			// CONTROL.SPSEL = ‘0’;
 			vm.set_sp_sel(false);
 			break;
-		// when ‘1101’ // returning to Thread using Process stack
+		// when ‘1101’ 
+		// returning to Thread using Process stack
 		case 0b1101:
 			// if NestedActivation != 1 && CCR.NONBASETHRDENA == ‘0’ then
 			// DeActivate(ReturningExceptionNumber);
 			// UFSR.INVPC = ‘1’;
 			// LR = 0xF0000000 + EXC_RETURN;
-			// ExceptionTaken(UsageFault); // return to Thread exception mismatch
+			// ExceptionTaken(UsageFault); 
+			// return to Thread exception mismatch
 			// return;
 			// else
 			// frameptr = SP_process;
 			frame_ptr = vm.get_psp();
 			// CurrentMode = Mode_Thread;
-			vm.set_current_exception(exception.thread_mode);
+			vm.set_curr_exc(exception.thread_mode);
 			// CONTROL.SPSEL = ‘1’;
 			vm.set_sp_sel(true);
 			break;
@@ -259,7 +264,8 @@ exc_rtr
 			// DeActivate(ReturningExceptionNumber);
 			// UFSR.INVPC = ‘1’;
 			// LR = 0xF0000000 + EXC_RETURN;
-			// ExceptionTaken(UsageFault); // illegal EXC_RETURN
+			// ExceptionTaken(UsageFault); 
+			// illegal EXC_RETURN
 			// return;
 			// DeActivate(ReturningExceptionNumber);
 			assert(0);
@@ -271,15 +277,19 @@ exc_rtr
 	pop_stack(frame_ptr, exc_return, vm);
 	// if CurrentMode==Mode_Handler AND IPSR<8:0> == ‘000000000’ then
 	// 		UFSR.INVPC = ‘1’;
-	// 		PushStack(); // to negate PopStack()
+	// 		PushStack(); 
+	// 		to negate PopStack()
 	// 		LR = 0xF0000000 + EXC_RETURN;
-	// 		ExceptionTaken(UsageFault); // return IPSR is inconsistent
+	// 		ExceptionTaken(UsageFault); 
+	// 		return IPSR is inconsistent
 	// 		return;
 	// if CurrentMode==Mode_Thread AND IPSR<8:0> != ‘000000000’ then
 	// 		UFSR.INVPC = ‘1’;
-	// 		PushStack(); // to negate PopStack()
+	// 		PushStack(); 
+	// 		to negate PopStack()
 	// 		LR = 0xF0000000 + EXC_RETURN;
-	// 		ExceptionTaken(UsageFault); // return IPSR is inconsistent
+	// 		ExceptionTaken(UsageFault); 
+	// 		return IPSR is inconsistent
 	// 		return;
 }
 
@@ -330,7 +340,7 @@ bool
 push_to_psp
 (vm_t)
 (ref vm_t vm) {
-	return vm.get_sp_sel() && (vm.get_current_exception() == exception.thread_mode);
+	return vm.get_sp_sel() && (vm.get_curr_exc() == exception.thread_mode);
 }
 
 // ===============
@@ -359,7 +369,7 @@ get_exc_rtr_val
 (vm_t)
 (ref vm_t vm) {
 	// if Mode==Handler then
-	if (vm.get_current_exception() != exception.thread_mode)
+	if (vm.get_curr_exc() != exception.thread_mode)
 		// LR = Ones(27):NOT(CONTROL.FPCA):’0001’;
 		if (vm.get_fpca()) 
 			return 0xFFFF_FFF1;
@@ -433,7 +443,7 @@ enter_exec
 	// EPSR.T = tbit; // T-bit set from vector
 	// EPSR.IT<7:0> = 0x0; // IT/ICI bits cleared
 	// //* PRIMASK, FAULTMASK, BASEPRI unchanged on exception entry*//
-	vm.set_current_exception(exc);
+	vm.set_curr_exc(exc);
 	// ExceptionActive[ExceptionNumber]= ‘1’;
 	set_exc_as_active(exc, vm);
 	// CONTROL.SPSEL = ‘0’; // current Stack is Main, CONTROL.nPRIV unchanged
@@ -498,9 +508,8 @@ bool condition_is_met(condition cond, const ref cortex_m_cpu cpu) {
 // ==============
 
 condition get_negation(condition cond) {
-	if (cond == condition.invalid) {
+	if (cond == condition.invalid)
 		return condition.invalid;
-	}
 	return cast(condition)(cond ^ 1);
 }
 
