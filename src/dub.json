@@ -1,33 +1,23 @@
 {
-    "name": "stig",
-    "description": "CPU emulator with TUI",
+    "name": "vortex-m",
+    "description": "Cortex-M emulator with TUI",
     "authors": ["nicholashanson"],
+    "targetType": "executable",
+
     "dependencies": {
         "ncurses": "~>1.0.0"
     },
-    "targetType": "executable",
-    "sourceFiles": [
-        "thumb_2_instrs.d",
-        "cortex_m.d",
-        "cortex_m_ui.d",
-        "thumb_2_opcodes.d",
-        "memory_sections.d",
-        "cortex_m_core.d",
-        "thumb_2_data_proc_16.d",
-        "thumb_2_data_proc_mod_imm_32.d",
-        "thumb_2_misc_16.d",
-        "thumb_2_store_single_data_item.d",
-        "thumb_2_load_store_single_data_item_16.d",
-        "thumb_2_misc_ops_32.d",
-        "thumb_2_data_proc_reg_32.d",
-        "thumb_2_long_mult_acc_div_32.d",
-        "file_parsing.d",
-        "thumb_2_data_proc_shift_reg_32.d",
-        "thumb_2_load_store_dual_exc_32.d",
-        "parse_elf.d",
-        "thumb_2_shift_add_sub_16.d",
-        "thumb_2_load_store_multiple.d",
-        "load_store_log.d",
-        "floating_point_ext.d"
+
+    "sourcePaths": ["."],
+    "dflags": ["-verrors=0"],
+
+    "configurations": [
+        {
+            "name": "default",
+            "excludedSourceFiles": ["cortex_m_ui.d"]
+        },
+        {
+            "name": "cortexm"
+        }
     ]
 }
