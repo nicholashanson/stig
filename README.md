@@ -43,7 +43,14 @@ load_store_log.txt
 pc_log.txt
 stack_log.txt
 ```
-
+PC logging is in this format: 
+```
+[count][program_counter][function_name]
+```
+- [count]: index with no special meaning.
+- [program_counter] : address of the executing instruction.
+- [function_name]: name of the function that the executing function belongs to.
+For example:
 ```
 [3733][8014222][SVC_Handler]
 [3734][8014226][SVC_Handler]
