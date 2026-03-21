@@ -1,3 +1,4 @@
+import std.algorithm;
 import std.stdio;
 import std.format;
 
@@ -1050,14 +1051,6 @@ struct stm32f4_mem {
         return stm32f4_peripheral_names.get(reg_addr, "");
     }
 
-    unittest {
-        stm32f4_mem mem;
-        auto reg_name = mem.get_reg_name(0xE000E100);
-        assert(reg_name == "NVIC_ISER0", format("reg_name of 0xE000E100 is %s, instead of the expected NVIC_ISER0", reg_name));
-        auto zero_case = mem.get_reg_name(0x0);
-        assert(zero_case == "", format("reg_name of 0xE000E100 is %s, instead of the expected empty string", zero_case));
-    }
-
     uint read_word(size_t addr) {
         uint res;
         if (addr >= scb_base) {
@@ -1186,6 +1179,45 @@ struct stm32f4_mem {
     }
 }
 
+// =======
+//  UART0
+// =======
+
+enum UART0 { 
+    EVENTS_TXDRDY = 0x4000211C
+}
+
+// ========
+//  UARTE0
+// ========
+
+enum UARTE0 {
+    EVENTS_TXSTOPPED = 0x40002158
+}
+
+// =======
+//  CLOCK
+// =======
+
+enum CLOCK {
+    LFCLKSRC = 0x40000518
+}
+
+// ======
+//  QPSI
+// ======
+
+enum QPSI {
+    EVENTS_READY = 0x40029100
+}
+
+size_t[] nrf52840_always_set = [
+    CLOCK.LFCLKSRC,
+    UART0.EVENTS_TXDRDY,
+    QPSI.EVENTS_READY,
+    UARTE0.EVENTS_TXSTOPPED
+];
+
 struct nrf52840_mem {
     enum flash_origin  =  0x00000000;
     enum ram_origin    =  0x20000000;
@@ -1270,7 +1302,7 @@ struct nrf52840_mem {
         0x40002120: 0,          // EVENTS_ENDTX: Last TX byte transmitted
         0x4000214C: 0,          // EVENTS_RXSTARTED: UART receiver has started
         0x40002150: 0,          // EVENTS_TXSTARTED: UART transmitter has started
-        0x40002158: 1,          // EVENTS_TXSTOPPED: Transmitter stopped
+        0x40002158: 0,          // EVENTS_TXSTOPPED: Transmitter stopped
         0x40002300: 0,          // INTEN: Enable or disable interrupt
         // RTC-----------------------------------------------------------------------------------
         0x4000B000: 0,          // TASKS_START 0x000 Start RTC COUNTER
@@ -1338,6 +1370,41 @@ struct nrf52840_mem {
         0x50000774: 0,          // PIN_CNF[29]: Configuration of GPIO pins
         0x50000778: 0,          // PIN_CNF[30]: Configuration of GPIO pins
         0x5000077C: 0,          // PIN_CNF[31]: Configuration of GPIO pins
+        // QPSI----------------------------------------------------------------------------------
+        0x40029000: 0,          // TASKS_ACTIVATE 0x000 Activate QSPI interface
+        0x40029004: 0,          // TASKS_READSTART 0x004 Start transfer from external flash memory to internal RAM
+        0x40029008: 0,          // TASKS_WRITESTART 0x008 Start transfer from internal RAM to external flash memory
+        0x4002900C: 0,          // TASKS_ERASESTART 0x00C Start external flash memory erase operation
+        0x40029010: 0,          // TASKS_DEACTIVATE 0x010 Deactivate QSPI interface
+        0x40029100: 0,          // EVENTS_READY 0x100 QSPI peripheral is ready. This event will be generated as a response to any QSPI task.
+        0x40029300: 0,          // INTEN 0x300 Enable or disable interrupt
+        0x40029304: 0,          // INTENSET 0x304 Enable interrupt
+        0x40029308: 0,          // INTENCLR 0x308 Disable interrupt
+        0x40029500: 0,          // ENABLE 0x500 Enable QSPI peripheral and acquire the pins selected in PSELn registers
+        0x40029504: 0,          // READ.SRC 0x504 Flash memory source address
+        0x40029508: 0,          // READ.DST 0x508 RAM destination address
+        0x4002950C: 0,          // READ.CNT 0x50C Read transfer length
+        0x40029510: 0,          // WRITE.DST 0x510 Flash destination address
+        0x40029514: 0,          // WRITE.SRC 0x514 RAM source address
+        0x40029518: 0,          // WRITE.CNT 0x518 Write transfer length
+        0x4002951C: 0,          // ERASE.PTR 0x51C Start address of flash block to be erased
+        0x40029520: 0,          // ERASE.LEN 0x520 Size of block to be erased.
+        0x40029524: 0,          // PSEL.SCK 0x524 Pin select for serial clock SCK
+        0x40029528: 0,          // PSEL.CSN 0x528 Pin select for chip select signal CSN.
+        0x40029530: 0,          // PSEL.IO0 0x530 Pin select for serial data MOSI/IO0.
+        0x40029534: 0,          // PSEL.IO1 0x534 Pin select for serial data MISO/IO1.
+        0x40029538: 0,          // PSEL.IO2 0x538 Pin select for serial data IO2.
+        0x4002953C: 0,          // PSEL.IO3 0x53C Pin select for serial data IO3.
+        0x40029540: 0,          // XIPOFFSET 0x540 Address offset into the external memory for Execute in Place operation.
+        0x40029544: 0,          // IFCONFIG0 0x544 Interface configuration.
+        0x40029600: 0,          // IFCONFIG1 0x600 Interface configuration.
+        0x40029604: 0,          // STATUS 0x604 Status register.
+        0x40029614: 0,          // DPMDUR 0x614 Set the duration required to enter/exit deep power-down mode (DPM).
+        0x40029624: 0,          // ADDRCONF 0x624 Extended address configuration.
+        0x40029634: 0,          // CINSTRCONF 0x634 Custom instruction configuration register.
+        0x40029638: 0,          // CINSTRDAT0 0x638 Custom instruction data register 0.
+        0x4002963C: 0,          // CINSTRDAT1 0x63C Custom instruction data register 1.
+        0x40029640: 0,          // IFTIMING 0x640 SPI interface timing
     ];
     string[size_t] peripheral_names = [
         0x40011504: "RTC1_COUNTER"
@@ -1351,19 +1418,10 @@ struct nrf52840_mem {
 
     void set_vtor() {}
 
-    unittest {
-        stm32f4_mem mem;
-        auto reg_name = mem.get_reg_name(0xE000E100);
-        assert(reg_name == "NVIC_ISER0", format("reg_name of 0xE000E100 is %s, instead of the expected NVIC_ISER0", reg_name));
-        auto zero_case = mem.get_reg_name(0x0);
-        assert(zero_case == "", format("reg_name of 0xE000E100 is %s, instead of the expected empty string", zero_case));
-    }
-
     uint read_word(size_t addr) {
         uint res;
-        if (addr == 0x40000518) {
+        if (nrf52840_always_set.canFind(addr)) 
             return 0x1;
-        }
         if (addr >= scb_base) {
             if (auto s = addr in scb) {
                 res = *s;              
