@@ -46,6 +46,7 @@ string[] table_names = [
     "sensor_driver_api_area",
     "k_mutex_area",
     "k_condvar_area",
+    "k_fifo_area",
     "net_buf_pool_area",
     ".init_array",
     "entropy_driver_api_area",
@@ -442,13 +443,7 @@ st_name_val[] get_st_name_val(const string elf_file,
     st_name_val[] items;
 
     for (size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
-        elf_32_sym sym;
-        sym.st_name  = read_ul_32(symdata, pos + 0);
-        sym.st_value = read_ul_32(symdata, pos + 4);
-        sym.st_size  = read_ul_32(symdata, pos + 8);
-        sym.st_info  = symdata[pos + 12];
-        sym.st_other = symdata[pos + 13];
-        sym.st_shndx = read_ul_16(symdata, pos + 14);
+        auto sym = get_sym(symdata, pos);
 
         auto _st_type = get_elf_32_st_type(sym.st_info);
         
@@ -507,6 +502,35 @@ st_name_val[] get_st_name_val(const string elf_file,
     return items;
 }
 // --------------------------------------------------------------------------------------
+// =================
+//  GET ST NAME VAL
+// =================
+
+st_name_val get_st_name_val(const string elf_file, const string sym_name) {
+    auto symtab_sec = get_section_by_name(elf_file, ".symtab");
+    auto strtab_sec = get_section_by_name(elf_file, ".strtab");
+
+    ubyte[] symdata = symtab_sec.data;
+    ubyte[] strdata = strtab_sec.data;
+
+    for (size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
+        auto sym = get_sym(symdata, pos);
+        
+        uint name_off = sym.st_name;
+        if(name_off >= strdata.length)
+            continue;
+
+        size_t end = name_off;
+        while(end < strdata.length && strdata[end] != 0) end++;
+        string name = cast(string) strdata[name_off .. end];
+
+        if (name == sym_name) {
+            return st_name_val(name, sym.st_value);
+        }
+    }
+    return st_name_val();
+}
+// --------------------------------------------------------------------------------------
 // ==========
 //  ELF FUNC
 // ==========
@@ -549,13 +573,7 @@ elf_func get_elf_func(const string elf_file, const string func_name, const uint 
     auto segs = get_load_segments(elf_file);
 
     for (size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
-        elf_32_sym sym;
-        sym.st_name  = read_ul_32(symdata, pos + 0);
-        sym.st_value = read_ul_32(symdata, pos + 4);
-        sym.st_size  = read_ul_32(symdata, pos + 8);
-        sym.st_info  = symdata[pos + 12];
-        sym.st_other = symdata[pos + 13];
-        sym.st_shndx = read_ul_16(symdata, pos + 14);
+        auto sym = get_sym(symdata, pos);
 
         uint name_off = sym.st_name;
         if (name_off >= strdata.length) continue;
@@ -583,6 +601,21 @@ elf_func get_elf_func(const string elf_file, const string func_name, const uint 
     return elf_func(0, []);
 }
 // --------------------------------------------------------------------------------------
+// =============
+//  GET SYMDATA
+// =============
+
+elf_32_sym get_sym(ubyte[] symdata, const size_t symstart) {
+    elf_32_sym sym;
+    sym.st_name  = read_ul_32(symdata, symstart + 0);
+    sym.st_value = read_ul_32(symdata, symstart + 4);
+    sym.st_size  = read_ul_32(symdata, symstart + 8);
+    sym.st_info  = symdata[symstart + 12];
+    sym.st_other = symdata[symstart + 13];
+    sym.st_shndx = read_ul_16(symdata, symstart + 14);
+    return sym;
+}
+// --------------------------------------------------------------------------------------
 // ======================
 //  GET FUNCTION BY NAME
 // ======================
@@ -601,13 +634,7 @@ ubyte[] get_function_by_name(const string elf_file, const string func_name) {
     ubyte[] text_data = text_sec.data;
 
     for (size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
-        elf_32_sym sym;
-        sym.st_name  = read_ul_32(symdata, pos + 0);
-        sym.st_value = read_ul_32(symdata, pos + 4);
-        sym.st_size  = read_ul_32(symdata, pos + 8);
-        sym.st_info  = symdata[pos + 12];
-        sym.st_other = symdata[pos + 13];
-        sym.st_shndx = read_ul_16(symdata, pos + 14);
+        auto sym = get_sym(symdata, pos);
 
         if(get_elf_32_st_type(sym.st_info) != st_type.stt_func)
             continue;
@@ -873,6 +900,9 @@ func[] get_program_from_elf(const string elf_file) {
     bool[uint] pending_literals;
     func[] res;
     auto f_s = get_st_name_val(elf_file, st_type.stt_func, soc.all);
+    auto s   = get_st_name_val(elf_file, "delay_machine_code.0");
+    if (s.name != "") 
+        f_s ~= s;
     foreach (fn; f_s) {
         auto f = get_function_from_elf(elf_file, fn.name, fn.addr, pending_literals);
         res ~= f; 
