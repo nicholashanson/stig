@@ -89,6 +89,7 @@ void append_unique(ref string[] buffer, string next, size_t n) {
 }
 
 void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
+    visible_lines = LINES;
     werase(instr_pad);
     werase(load_store_pad);
     box(load_store_pad,  0, 0);
@@ -105,7 +106,7 @@ void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
 
     int load_store_screen_row = reg_height + 5;   
     int load_store_screen_col =              1;   
-    int load_store_height     =             18;     
+    int load_store_height     =     LINES - 25;  
     int load_store_width      =   COLS / 2 - 2;
 
     int reg_x        = 1;
@@ -116,7 +117,11 @@ void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     int load_store_y = 1;
 
     auto print_reg = (string name, reg r, ref vm_t vm) {
-        immutable val = vm.get_reg(r);
+        uint val; 
+        if (r == reg.pc) 
+            val = vm.get_pc();
+        else
+            val = vm.get_reg(r);
         string reg_name; 
         if (reg_cache[r].val != val) {
             reg_name = vm.get_reg_name(val);
@@ -191,26 +196,26 @@ void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     //  FLAGS
     // =======
         
-    mvwprintw(flag_pad,     flag_y++,     flag_x,     "Flags:");
-    print_flag("z:",                    vm.get_z(), flag_col_1);
-    print_flag("n:",                    vm.get_n(), flag_col_2);
-    print_flag("c:",                    vm.get_c(), flag_col_3);
-    print_flag("v:",                    vm.get_v(), flag_col_4);
-    print_flag("ge0:",                vm.get_ge0(), flag_col_1);
-    print_flag("ge1:",                vm.get_ge1(), flag_col_2);
-    print_flag("ge2:",                vm.get_ge2(), flag_col_3);
-    print_flag("ge3:",                vm.get_ge3(), flag_col_4);
-    print_flag("SPSEL:",           vm.get_sp_sel(), flag_col_1);
-    print_flag("NPRIV:",            vm.get_npriv(), flag_col_2);
-    print_flag("FAULTMASK:",   vm.get_fault_mask(), flag_col_3);
-    print_flag("PRIMASK:",       vm.get_pri_mask(), flag_col_4);
+    mvwprintw(flag_pad,     flag_y++,        flag_x,          "Flags:");
+    print_flag("z:",                            vm.get_z(), flag_col_1);
+    print_flag("n:",                            vm.get_n(), flag_col_2);
+    print_flag("c:",                            vm.get_c(), flag_col_3);
+    print_flag("v:",                            vm.get_v(), flag_col_4);
+    print_flag("ge0:",                        vm.get_ge0(), flag_col_1);
+    print_flag("ge1:",                        vm.get_ge1(), flag_col_2);
+    print_flag("ge2:",                        vm.get_ge2(), flag_col_3);
+    print_flag("ge3:",                        vm.get_ge3(), flag_col_4);
+    print_flag("SPSEL:",                   vm.get_sp_sel(), flag_col_1);
+    print_flag("NPRIV:",                    vm.get_npriv(), flag_col_2);
+    print_flag("FAULTMASK:", cast(bool)vm.get_fault_mask(), flag_col_3);
+    print_flag("PRIMASK:",               vm.get_pri_mask(), flag_col_4);
 
     // ============
     //  LOAD/STORE
     // ============
 
     auto latest_load_store = vm.get_latest_load_store();
-    append_unique(load_store_buffer, latest_load_store, 13);
+    append_unique(load_store_buffer, latest_load_store, load_store_height - 5);
 
     mvwprintw(load_store_pad, load_store_y++, load_store_x, "Load/Store:");
     foreach (s; load_store_buffer) {
@@ -219,8 +224,6 @@ void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
 
     int screen_row     = 0;
     int col            = 1;
-
-    int visible_lines  = 39;
     int current_pc_row = -1;
 
     int pc_r = 0;
@@ -401,6 +404,16 @@ void nrf_control_loop(ref runtime_ctrl ctrl, ref cortex_m_vm!nrf52840_mem vm, re
             if (ch == 'q') {
                 break;
             }
+            if (ch == 'z') {
+                pc_moved = false;
+                start = max(0, start - 1);
+                end   = start + visible_lines;
+            }
+            if (ch == 'x') {
+                pc_moved = false;
+                end   = min(cast(uint)rows.length, end + 1);
+                start = end - visible_lines;
+            }
             if (ch == KEY_DOWN) {
                 vm.execute_next_instr();
             }
@@ -518,10 +531,10 @@ void main(string[] args) {
 
     instr_pad_frame = newwin(frame_h, frame_w, frame_y, frame_x);
 
-    reg_pad        = newpad(19, COLS / 2 - 2);
-    flag_pad       = newpad( 6, COLS / 2 - 2);
-    instr_pad      = newpad(10000,       200);
-    load_store_pad = newpad(16, COLS / 2 - 2);
+    reg_pad        = newpad(            19, COLS / 2 - 2);
+    flag_pad       = newpad(             6, COLS / 2 - 2);
+    instr_pad      = newpad(         10000,          200);
+    load_store_pad = newpad(    LINES - 27, COLS / 2 - 2);
 
     box(reg_pad,         0, 0);
     box(flag_pad,        0, 0);
@@ -531,18 +544,16 @@ void main(string[] args) {
     if (soc_s == "nrf") {
         cortex_m_vm!nrf52840_mem vm;
         load_elf(vm, soc.nrf, target_file_name);
-        if (entry_point != 0) {
+        if (entry_point != 0)
             vm.run_to(entry_point);
-        }
         draw_screen(vm, rows);
         nrf_control_loop(ctrl, vm, rows);
     } else {
         cortex_m_vm!stm32f4_mem vm;
         vm.set_vtor();
         load_elf(vm, soc.stm32, target_file_name);
-        if (entry_point != 0) {
+        if (entry_point != 0)
             vm.run_to(entry_point);
-        }
         draw_screen(vm, rows);
         stm32_control_loop(ctrl, vm, rows);
     }

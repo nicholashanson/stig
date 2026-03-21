@@ -12,6 +12,10 @@ import thumb_2_instrs;
 import thumb_2_decode_instr;
 import thumb_2_execute_instr;
 
+// ===========
+//  DUMMY MEM
+// ===========
+
 struct dummy_mem {
 	enum flash_origin = 0;
 	enum flash_length = 0;
@@ -27,27 +31,51 @@ struct dummy_mem {
     string get_reg_name(const uint addr) { return ""; }
     void set_vtor() {}
 }
+// --------------------------------------------------------------------------------------
 
 alias test_vm = cortex_m_vm!(dummy_mem);
 alias tiny_vm = cortex_m_vm!(tiny_mem);
 alias stm32f4_vm = cortex_m_vm!(stm32f4_mem);
+// --------------------------------------------------------------------------------------
+
+// ==============
+//  CPU PROPERTY
+// ==============
+
+mixin template cpu_property(string name) {
+    mixin(
+        "@property auto get_" ~ name ~ "() const {\n" ~
+        "    return cpu.get_" ~ name ~ "();\n" ~
+        "}\n" ~
+        "\n" ~
+        "@property void set_" ~ name ~
+        "(typeof(cpu.get_" ~ name ~ "()) v) {\n" ~
+        "    cpu.set_" ~ name ~ "(v);\n" ~
+        "}\n"
+    );
+}
+
+// ***************************************************************************************
+// *					              CORTEX M VM 										 *
+// ***************************************************************************************
 
 struct cortex_m_vm(mem_t) {
 	cortex_m_cpu cpu;
 	mem_t mem;
-	addr_instr[] current_program;
-	string[] func_names;
+	addr_instr[]  current_program;
+	string[] 	  func_names;
 	st_name_val[] objects;
 	st_name_val[] func_map;
-	string latest_load_store;
+	string 		  latest_load_store;
+	// --------------------------------------------------------------------------------------
 
 	bool opEquals(const ref typeof(this) rhs) const {
         return cpu == rhs.cpu
             && mem == rhs.mem;
     }
-
+    // --------------------------------------------------------------------------------------
     // ============================
-	//  Current Mode is Privileged
+	//  CURRENT MODE IS PRIVILEGED
 	// ============================
 
     // boolean CurrentModeIsPrivileged()
@@ -58,9 +86,17 @@ struct cortex_m_vm(mem_t) {
 	// ----------------------------------------- PC ----------------------------------------- 
 	private bool pc_modified;
 
+	// ========
+	//  GET PC
+	// ========
+
 	uint get_pc() const {
 		return cpu.get_pc();
 	}
+
+	// ===================
+	//  CHECK PC MODIFIED
+	// ===================
 
 	bool check_pc_modified() {
 		bool res = pc_modified;
@@ -68,234 +104,232 @@ struct cortex_m_vm(mem_t) {
 		return res;
 	}
 
+	// ==============
+	//  INCREMENT PC
+	// ==============
+
 	void increment_pc(const uint val) {
 		cpu.increment_pc(val);
 	}
+
+	// =================
+	//  CLEAR THUMB BIT
+	// =================
 
 	void clear_thumb_bit() {
 		cpu.clear_thumb_bit();
 	}
 
+	// =========
+	//  INIT PC
+	// =========
+
 	void init_pc(const uint v) {
 		cpu.set_reg(reg.pc, v);
 	}
 
+	// ==========
+	//  ALIGN PC
+	// ==========
+
 	void align_pc() {
 		cpu.align_pc();
 	}
+	// --------------------------------------------------------------------------------------
+	// ================
+	//  CPU PROPERTIES
+	// ================
 
-	bool in_it_block() {
-		return cpu.in_it_block();
-	}
-
-	exception get_curr_exc() {
-		return cpu.current_exception;
-	}
-
-	void set_curr_exc(const exception exc) {
-		cpu.current_exception = exc;
-	}
-
-	uint get_xpsr() {
-		return cpu.get_xpsr();
-	}
-
-	uint get_ipsr() {
-		return cpu.get_ipsr();
-	}
-
-	uint get_apsr() {
-		return cpu.get_apsr();
-	}
-
-	void set_apsr(const uint v) {
-		cpu.set_apsr(v);
-	}
-
-	void set_fpca(const bool v) {
-		cpu.fpca = v;
-	}
-
-	bool get_sp_sel() const {
-		return cpu.sp_sel;
-	}
-
-	void set_sp_sel(bool v) {
-		cpu.sp_sel = v;
-	}
-
-	void set_fault_mask(bool v) {
-		cpu.fault_mask = v;
-	}
+	mixin cpu_property!"curr_exc";
+	mixin cpu_property!"xpsr";
+	mixin cpu_property!"apsr";
+	mixin cpu_property!"sp_sel";
+	mixin cpu_property!"ge0";
+	mixin cpu_property!"ge1";
+	mixin cpu_property!"ge2";
+	mixin cpu_property!"ge3";
+	mixin cpu_property!"fpca";
+	mixin cpu_property!"basepri";
+	mixin cpu_property!"npriv";
+	mixin cpu_property!"ipsr";
+	mixin cpu_property!"psp";
+	mixin cpu_property!"msp";
+	// --------------------------------------------------------------------------------------
+	// ========
+	//  GET SP
+	// ========
 
 	uint get_sp() {
 		return cpu.get_sp();
 	}
-
-	void set_xpsr(const uint v) {
-		cpu.set_xpsr(v);
-	}
-	// --------------------------------------------------------------------------------------
-
 	// ---------------------------------------- Flags ---------------------------------------
+	// =======
+	//  GET C
+	// =======
 	bool get_c() {
 		return cpu.c;
 	}
 
+	// =======
+	//  SET C
+	// =======
 	void set_c(t)(const t v) {
 		cpu.set_c(v);
 	}
-
+	// --------------------------------------------------------------------------------------
+	// =======
+	//  GET V
+	// =======
 	bool get_v() {
 		return cpu.get_v();
 	}
 
+	// =======
+	//  SET V
+	// =======
 	void set_v(t)(const t v) {
 		cpu.set_v(v);
 	}
-
-	void set_n(t)(const t v) {
-		cpu.set_n(v);
-	}
-
+	// --------------------------------------------------------------------------------------
+	// =======
+	//  GET N
+	// =======
 	bool get_n() {
 		return cpu.get_n();
 	}
 
+	// =======
+	//  SET N
+	// =======
+		void set_n(t)(const t v) {
+		cpu.set_n(v);
+	}
+	// --------------------------------------------------------------------------------------
+	// =======
+	//  GET Z
+	// =======
 	bool get_z() {
 		return cpu.get_z();
 	}
- 
+
+	// =======
+	//  SET N
+	// =======
 	void set_z(t)(t v) if (isIntegral!t) {
     	cpu.set_z(v);
 	}
-
-	bool get_ge0() {
-		return cpu.ge0;
-	}
-
-	bool get_ge1() {
-		return cpu.ge1;
-	}
-
-	bool get_ge2() {
-		return cpu.ge2;
-	}
-
-	bool get_ge3() {
-		return cpu.ge3;
-	}
-
-	void set_ge0(const bool v) {
-		cpu.ge0 = v;
-	}
-
-	void set_ge1(const bool v) {
-		cpu.ge1 = v;
-	}
-
-	void set_ge2(const bool v) {
-		cpu.ge2 = v;
-	}
-
-	void set_ge3(const bool v) {
-		cpu.ge3 = v;
-	}
+	// --------------------------------------------------------------------------------------
+	// =======
+	//  SET Q
+	// =======
 
 	void set_q(const bool v) {
 		cpu.q = v;
 	}
 
-	bool get_fault_mask() {
-		return cpu.fault_mask;
-	}
-
-	bool get_npriv() {
-		return cpu.npriv;
-	}
-
-	void set_npriv(bool v) {
-		cpu.npriv = v;
-	}
+	// ==============
+	//  GET PRI MASK
+	// ==============
 
 	bool get_pri_mask() {
 		return cpu.pri_mask;
 	}
 
-	bool get_fpca() {
-		return cpu.fpca;
+	// ================
+	//  GET FAULT MASK
+	// ================
+
+	uint get_fault_mask() const {
+		return cpu.get_fault_mask();
 	}
 
-	void set_ipsr(const uint ipsr) {
-		cpu.set_ipsr(ipsr);
+	// ================
+	//  SET FAULT MASK
+	// ================
+
+	void set_fault_mask(const bool v) {
+		return cpu.set_fault_mask(v);
 	}
+
+	// ===========
+	//  SET FPSCR
+	// ===========
+
+	void set_fpscr(const uint v) {
+		cpu.set_fpscr(v);
+	}
+	// -------------------------------------- IT BLOCK -------------------------------------- 
+	// =============
+	//  IN IT BLOCK
+	// =============
+
+	bool in_it_block() {
+		return cpu.in_it_block();
+	}
+
+	// ==============
+	//  SET IT BLOCK
+	// ==============
 
 	void set_it_block(const xyz it_block) {
 		cpu.it_block = it_block;
 	}
 
+	// =====================
+	//  INIT IT BLOCK STACK
+	// =====================
+
 	void init_it_block_stack(const condition cond) {
 		cpu.init_it_block_stack(cond);
 	}
+
+	// ====================
+	//  GET IT BLOCK STACK
+	// ====================
 
 	auto get_it_block_stack() {
 		return cpu.it_block_stack;
 	}
 
+	// ======================
+	//  IT BLOCK STACK EMPTY
+	// ======================
+
 	bool it_block_stack_empty() {
 		return cpu.it_block_stack.empty;
 	}
 
+	// =====================
+	//  IT CONDITION IS MET
+	// =====================
+
 	bool it_condition_is_met(T)() {
-	  condition active_cond = cpu.it_block_stack.back;
-      cpu.it_block_stack.removeBack();
-      if (!condition_is_met(active_cond, cpu)) {
-        static if (is(T == instr_16))
-        	increment_pc(2);
-        else static if (is(T == instr_32))
-        	increment_pc(4);
-    	else
-        	static assert(0, "Unknown instruction type");
-        return false;
-      } else {
-      	return true;
-      }
+	    condition active_cond = cpu.it_block_stack.back;
+	    cpu.it_block_stack.removeBack();
+	    if (!condition_is_met(active_cond, cpu)) {
+	        static if (is(T == instr_16))
+	      		increment_pc(2);
+	    	else static if (is(T == instr_32))
+	    		increment_pc(4);
+			else
+	    		static assert(0, "Unknown instruction type");
+	    	return false;
+	  	} else {
+	  		return true;
+	  	}
 	}
-
-	ubyte get_basepri() {
-		return cpu.basepri;
-	}
-
-	void set_basepri(const ubyte v) {
-		cpu.basepri = v;
-	}
-
-	uint get_psp() {
-		return cpu.psp;
-	}
-
-	void set_psp(const uint v) {
-		cpu.psp = v;
-	}
-
-	uint get_msp() {
-		return cpu.msp;
-	}
-
-	void set_msp(const uint v) {
-		cpu.msp = v;
-	}
-
-	void set_fpscr(const uint v) {
-		cpu.set_fpscr(v);
-	}
-
 	// --------------------------------------------------------------------------------------
+	// =========
+	//  GET REG
+	// =========	
 
-	// -------------------------------------------------------------------------------------- 
 	uint get_reg(const reg r) const {
 		return cpu.get_reg(r);
 	}
+
+	// =========
+	//  SET REG
+	// =========
 
 	void set_reg(const reg r, const uint val) {
 		if (r == reg.pc) 
@@ -303,99 +337,168 @@ struct cortex_m_vm(mem_t) {
 		cpu.set_reg(r, val);
 	} 
 	// ---------------------------------------- Memory --------------------------------------
+	// ===================
+	//  PENDSV IS PENDING
+	// ===================
+
 	bool pendsv_is_pending() {
 		auto val = mem.read_word(0xE000ED04);
 		return cast(bool)slice(val, 28, 1);
 	}
 
+	// ==========
+	//  SET VTOR
+	// ==========
+
 	void set_vtor() {
 		mem.set_vtor();
 	}
-
-	void load_half_word(const size_t addr, const ushort val) {
-		mem.write_half_word(addr, val);
-	}
-
+	// --------------------------------------------------------------------------------------
+	// ===========
+	//  LOAD BYTE
+	// ===========
 	void load_byte(const size_t addr, const ubyte val) {
 		mem.write_byte(addr, val);
 	}
 
+	// ================
+	//  LOAD HALF WORD
+	// ================	
+	void load_half_word(const size_t addr, const ushort val) {
+		mem.write_half_word(addr, val);
+	}
+
+	// ===========
+	//  LOAD WORD
+	// ===========	
 	void load_word(const size_t addr, const uint val) {
 		mem.write_word(addr, val);
 	}
-
-	void write_half_word(const size_t addr, const ushort val) {
-		mem.write_half_word(addr, val);
-		log_store(addr, val);
-	}
-
-	void write_byte(const size_t addr, const ubyte val) {
-		mem.write_byte(addr, val);
-		log_store(addr, val);
-	}
-
-	void write_word(const size_t addr, const uint val) {
-		mem.write_word(addr, val);
-		log_store(addr, val);
-	}
-
+	// --------------------------------------------------------------------------------------
+	// ===========
+	//  READ BYTE
+	// ===========	
 	ubyte read_byte(const size_t addr) {
 		immutable val = mem.read_byte(addr);
 		log_load(addr, val);
 		return val;
 	}
 
+	// ============
+	//  WRITE BYTE
+	// ============	
+	void write_byte(const size_t addr, const ubyte val) {
+		mem.write_byte(addr, val);
+		log_store(addr, val);
+	}
+	// --------------------------------------------------------------------------------------
+	// ================
+	//  READ HALF WORD
+	// ================	
 	ushort read_half_word(const size_t addr) {
 		immutable val = mem.read_half_word(addr);
 		log_load(addr, val);
 		return val;
 	}
 
+	// =================
+	//  WRITE HALF WORD
+	// =================	
+	void write_half_word(const size_t addr, const ushort val) {
+		mem.write_half_word(addr, val);
+		log_store(addr, val);
+	}
+	// --------------------------------------------------------------------------------------
+	// ===========
+	//  READ WORD
+	// ===========	
 	uint read_word(const size_t addr) {
 		immutable val = mem.read_word(addr);
 		log_load(addr, val);
 		return val;
 	}
 
+	// ============
+	//  WRITE WORD
+	// ============	
+	void write_word(const size_t addr, const uint val) {
+		mem.write_word(addr, val);
+		log_store(addr, val);
+	}
+	// --------------------------------------------------------------------------------------
+	// ==========
+	//  FLIP BIT
+	// ==========	
+
 	void flip_bit(const uint addr, const uint val) {
 		mem.flip_bit(addr, val);
 	}
+	// --------------------------------------------------------------------------------------
+	// ==============
+	//  GET REG NAME
+	// ==============
 
 	string get_reg_name(const uint addr) {
 		return mem.get_reg_name(addr & ~0x3);
 	}
+	// --------------------------------------------------------------------------------------
+	// ================
+	//  GET RAM ORIGIN
+	// ================
 
 	uint get_ram_origin() {
 		return mem.ram_origin;
 	}
 
+	// ================
+	//  GET RAM LENGTH
+	// ================
+
 	uint get_ram_length() {
 		return mem.ram_length;
 	}
+	// --------------------------------------------------------------------------------------
+	// ==================
+	//  GET FLASH ORIGIN
+	// ==================
 
 	uint get_flash_origin() {
 		return mem.flash_origin;
 	}
 
+	// ==================
+	//  GET FLASH LENGTH
+	// ==================
+
 	uint get_flash_length() {
 		return mem.flash_length;
 	}
-	// --------------------------------------------------------------------------------------
-
 	// ---------------------------------------- Stack ---------------------------------------
+	// =============================
+	//  INCREMENT SP ONE WORD WIDTH
+	// =============================
+
 	void increment_sp_one_word_width() {
         uint current_sp = cpu.get_sp();
         current_sp += 4;
         cpu.set_sp(current_sp);
     }
 
+    // =============================
+	//  DECREMENT SP ONE WORD WIDTH
+	// =============================
+
     void decrement_sp_one_word_width() {
         uint current_sp = cpu.get_sp();
         current_sp -= 4;
         cpu.set_sp(current_sp);
     }
+    // -------------------------------------------------------------------------------------- 
+    // ======
+	//  PUSH
+	// ======
 
-    void push(const reg r) {
+	void push(const reg r) {
     	push(get_reg(r));
     }
 
@@ -404,6 +507,10 @@ struct cortex_m_vm(mem_t) {
         mem.write_word(cpu.get_sp(), val);
         log_push(cpu.get_sp(), val);
     }
+    // -------------------------------------------------------------------------------------- 
+    // =====
+	//  POP
+	// =====
 
     uint pop() {
         immutable res = mem.read_word(cpu.get_sp());
@@ -411,7 +518,11 @@ struct cortex_m_vm(mem_t) {
         increment_sp_one_word_width();
         return res;
     }
-    // --------------------------------------------------------------------------------------
+	// -------------------------------------------------------------------------------------- 
+    // ===============
+	//  GET FUNC NAME
+	// ===============
+
 	string get_func_name(const uint val) {
 		foreach (f; func_map) {
         	if (val >= (f.addr & ~1) && val - (f.addr & ~1) < f.size) {
@@ -420,34 +531,58 @@ struct cortex_m_vm(mem_t) {
     	}
     	return "UNKNOWN";;
 	}
+	// -------------------------------------------------------------------------------------- 
+    // ================
+	//  GET LOG PREFIX
+	// ================
 
 	string get_log_prefix() {
 		return format("[%d][%X][%s]", cpu.get_tick(), 
 									  cpu.get_pc(), 
 									  get_func_name(cpu.get_pc()));
 	}
+	// -------------------------------------------------------------------------------------- 
+    // ========
+	//  LOG PC
+	// ========
 
 	void log_pc() {
 		auto log_file = pc_log();
 		log_file.writeln(get_log_prefix());
 		log_file.flush();
 	}
+	// -------------------------------------------------------------------------------------- 
+    // ==========
+	//  LOG PUSH
+	// ==========
 
 	void log_push(const size_t dest_addr, const uint val) {
 		auto log_file = stack_log();
 		log_file.writeln(get_log_prefix(),format("(%08X pushed to %08X)", val, dest_addr));
 		log_file.flush();
 	}
+	// -------------------------------------------------------------------------------------- 
+    // =========
+	//  LOG POP
+	// =========
 
 	void log_pop(const size_t src_addr, const uint val) {
 		auto log_file = stack_log();
 		log_file.writeln(get_log_prefix(),format("(%08X popped from %08X)", val, src_addr));
 		log_file.flush();
 	}
+	// -------------------------------------------------------------------------------------- 
+    // =======================
+	//  GET LATEST LOAD STORE
+	// =======================
 
 	string get_latest_load_store() const {
 		return latest_load_store;
 	}
+	// -------------------------------------------------------------------------------------- 
+    // ============
+	//  GET FORMAT
+	// ============
 
 	string 
 	get_format
@@ -460,9 +595,9 @@ struct cortex_m_vm(mem_t) {
     	else
     		return "%08X";
     }
-
+    // -------------------------------------------------------------------------------------- 
     // =========
-	//  Log MSR
+	//  LOG MSR
 	// =========
 
 	void 
@@ -477,9 +612,9 @@ struct cortex_m_vm(mem_t) {
 		log_file.writeln(msr_msg);
 		log_file.flush();
 	} 
-
+	// -------------------------------------------------------------------------------------- 
 	// =========
-	//  Log MRS
+	//  LOG MRS
 	// =========
 
 	void 
@@ -494,9 +629,9 @@ struct cortex_m_vm(mem_t) {
 		log_file.writeln(mrs_msg);
 		log_file.flush();
 	}
-
+	// -------------------------------------------------------------------------------------- 
 	// ==========
-	//  Log Load
+	//  LOG LOAD
 	// ==========
 
 	void 
@@ -513,9 +648,9 @@ struct cortex_m_vm(mem_t) {
 		log_file.writeln(load_msg);
 		log_file.flush();
 	}
-
+	// -------------------------------------------------------------------------------------- 
 	// ===========
-	//  Log Store
+	//  LOG STORE
 	// ===========
 
 	void 
@@ -539,9 +674,8 @@ struct cortex_m_vm(mem_t) {
 		log_file.flush();
 	}
  	// -------------------------------------------------------------------------------------- 
-	
 	// ====================
-	//  Execute Next Instr
+	//  EXECUTE NEXT INSTR
 	// ====================
 
 	void execute_next_instr() {
@@ -583,8 +717,12 @@ struct cortex_m_vm(mem_t) {
 		auto i32 = ins.get!instr_32;
 		execute_instr(i32, this);
 	}
+	// -------------------------------------------------------------------------------------- 
+	// ========
+	//  RUN TO
+	// ========
 
-	void run_to(uint addr) {
+	void run_to(const uint addr) {
 		while (1) {
 			execute_next_instr();
 			if (cpu.get_pc() == addr)
