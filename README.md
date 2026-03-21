@@ -33,6 +33,17 @@ For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run
   <img src="assets/demo_clip.gif" width="400"><br>
 </div>
 
+## Tracing
+
+Vortex-M can be used for tracing. 
+
+Three main log files are generated in src/logs:
+```
+load_store_log.txt
+pc_log.txt
+stack_log.txt
+```
+
 ```
 [3733][8014222][SVC_Handler]
 [3734][8014226][SVC_Handler]
