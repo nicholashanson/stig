@@ -15,7 +15,7 @@ enum IPR_BASE  = 0xE000E400;
 // ===========================
 
 bool is_exc_ret_val(const uint val) {
-	return ((val & 0xff00_0000) != 0xff00_0000);
+	return ((val & 0xff00_0000) == 0xff00_0000);
 }
 // --------------------------------------------------------------------------------------
 
@@ -713,13 +713,29 @@ get_execution_priority
 	return priority;
 }
 // --------------------------------------------------------------------------------------
+// ==========
+//  PROPERTY
+// ==========
+
+mixin template property(string name) {
+    enum code =
+        "auto get_" ~ name ~ "() const {\n" ~
+        "    return this." ~ name ~ ";\n" ~
+        "}\n" ~
+        "\n" ~
+        "void set_" ~ name ~ "(typeof(this." ~ name ~ ") v) {\n" ~
+        "    this." ~ name ~ " = v;\n" ~
+        "}\n";
+
+    mixin(code);
+}
+// --------------------------------------------------------------------------------------
 
 // ==============
 //  CORTEX M CPU
 // ==============
 
 struct cortex_m_cpu {
-
 	// ------------------------------ General-Purpose Registers ----------------------------- 
 	uint[16] core_registers;
 
@@ -744,7 +760,7 @@ struct cortex_m_cpu {
 			set_sp(val);
 		else {
 			core_registers[r] = val;
-			if ((r == reg.pc) && is_exc_ret_val(val))
+			if ((r == reg.pc) && !is_exc_ret_val(val))
 				clear_thumb_bit();
 		}
 	}
@@ -780,8 +796,6 @@ struct cortex_m_cpu {
 	void align_pc() {
 		core_registers[reg.pc] &= ~0x3;
 	}
-	// -------------------------------------------------------------------------------------- 
-
 	// ---------------------------------------- Tick ---------------------------------------- 
 	uint tick;
 
@@ -794,8 +808,11 @@ struct cortex_m_cpu {
 	}
 	// ------------------------------------ Stack Pointer ----------------------------------- 
 	bool sp_sel;	// stack pointer select
+	mixin property!"sp_sel";
 	uint msp;		// main stack pointer
+	mixin property!"msp";
 	uint psp;		// process stack pointer
+	mixin property!"psp";
 
 	// ========
 	//  GET SP
@@ -814,36 +831,21 @@ struct cortex_m_cpu {
 	        psp = val;
 	    else
 	        msp = val;
-	}
-	// -------------------------------------------------------------------------------------- 
-	
+	}	
 	// ---------------------------------------- Flags ---------------------------------------
-	bool get_c() const {
-		return c;
-	}
-
-	void set_c(const bool v) {
-		c = v;
-	}
-
-	bool get_v() const {
-		return v;
-	}
-
-	void set_v(const bool v_) {
-		v = v_;
-	}
+	mixin property!"c";
+	mixin property!"v";
 
 	void set_n(const uint v) {
 		n = test_unsigned_neg(v);
 	}
 
-	void set_n(const int v) {
-		n = (v < 0);
-	}
-
 	bool get_n() const {
 		return n;
+	}
+
+	void set_n(const int v) {
+		n = (v < 0);
 	}
 
 	void set_z(t)(t v) if (isIntegral!t) {
@@ -866,8 +868,6 @@ struct cortex_m_cpu {
 			case flag.ge3: ge3 = i; break;
 		}
 	}
-	// -------------------------------------------------------------------------------------- 
-
 	// ---------------------------------------- xPSR ---------------------------------------- 
 	// The Program Status Register (PSR) is a 32-bit register that comprises three 
 	// subregisters:
@@ -882,15 +882,19 @@ struct cortex_m_cpu {
 	bool v;
 	bool q;
 	bool ge0;
+	mixin property!"ge0";
 	bool ge1;
+	mixin property!"ge1";
 	bool ge2;
+	mixin property!"ge2";
 	bool ge3;
+	mixin property!"ge3";
 
 	// ==========
 	//  GET APSR
 	// ==========
 
-	uint get_apsr() {
+	uint get_apsr() const {
 		uint apsr = 0;
 		if (n)   apsr |= (1u << 31);
 	    if (z)   apsr |= (1u << 30);
@@ -921,18 +925,19 @@ struct cortex_m_cpu {
     }
 
 	// IPSR
-	exception current_exception;
+	exception curr_exc;
+	mixin property!"curr_exc";
 
 	// ==========
 	//  GET IPSR
 	// ==========
 
-	uint get_ipsr() {
+	uint get_ipsr() const {
 		uint isr;
-    	if (current_exception == exception.thread_mode)
+    	if (curr_exc == exception.thread_mode)
         	isr = 0;
     	else
-        	isr = cast(uint)current_exception;
+        	isr = cast(uint)curr_exc;
         return (isr & 0x1ff); 
     }
 
@@ -941,15 +946,15 @@ struct cortex_m_cpu {
 	// ==========
 
     void set_ipsr(const uint ipsr) {
-    	immutable val     = slice(ipsr, 0, 8);
-    	current_exception = cast(exception)val;
+    	immutable val = slice(ipsr, 0, 8);
+    	curr_exc      = cast(exception)val;
     }
 
     // ==========
 	//  GET EPSR
 	// ==========
 
-	uint get_epsr() {
+	uint get_epsr() const {
     	return (1u << 24);
 	}
 
@@ -957,7 +962,7 @@ struct cortex_m_cpu {
 	//  GET XPSR
 	// ==========
 
-	uint get_xpsr() {
+	uint get_xpsr() const {
     	return get_apsr() | get_ipsr() | get_epsr();
 	}
 
@@ -969,16 +974,12 @@ struct cortex_m_cpu {
     	set_apsr(xpsr);
     	set_ipsr(xpsr);
     }
-	// --------------------------------------------------------------------------------------
-
 	// --------------------------------------- FPSCR ----------------------------------------
 	void set_fpscr(const uint val) {
 		fpscr = val;
 	}
 
 	uint fpscr;
-	// --------------------------------------------------------------------------------------
-
 	// -------------------------------------- IT Block -------------------------------------- 
 	xyz it_block;
 	Array!condition it_block_stack;
@@ -1011,8 +1012,6 @@ struct cortex_m_cpu {
 		}
 	    it_block_stack.insertBack(cond); 
 	}
-	// --------------------------------------------------------------------------------------
-
 	// -------------------------------------- Control ---------------------------------------
 	// The special-purpose CONTROL register is a 2-bit or 3-bit register defined as follows:
 	//		- nPRIV, bit[0] Defines the execution privilege in Thread mode.
@@ -1041,33 +1040,32 @@ struct cortex_m_cpu {
 	}
 
 	bool npriv;		// defines the execution privilege in Thread mode
+	mixin property!"npriv";
 	bool fpca;		// defines whether the FP extension is active in the current context
-	// --------------------------------------------------------------------------------------
-
+	mixin property!"fpca";
 	// --------------------------- Special-Purpose Mask Registers ---------------------------
-	
 	// ================
 	//  GET FAULT MASK
 	// ================
 
-	uint get_fault_mask() {
+	uint get_fault_mask() const {
 		return fault_mask ? 1 : 0;
+	}
+
+	// ================
+	//  SET FAULT MASK
+	// ================
+
+	void set_fault_mask(const bool v) {
+		fault_mask = v;
 	}
 
 	// ==============
 	//  GET PRI MASK
 	// ==============
 
-	uint get_pri_mask() {
+	uint get_pri_mask() const {
 		return pri_mask ? 1 : 0;
-	}
-
-	// ==============
-	//  GET BASE PRI
-	// ==============
-
-	uint get_base_pri() {
-		return basepri;
 	}
 
 	// The fault mask, a 1-bit register. Setting FAULTMASK to 1 raises the execution 
@@ -1082,6 +1080,7 @@ struct cortex_m_cpu {
 	// required for exception preemption. It has an effect only when BASEPRI has a lower 
 	// value than the unmasked priority level of the currently executing software.
 	ubyte basepri;
+	mixin property!"basepri";
 	// --------------------------------------------------------------------------------------
 }
 
