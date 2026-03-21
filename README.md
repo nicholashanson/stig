@@ -32,4 +32,23 @@ For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run
 <div align="center">
   <img src="assets/demo_clip.gif" width="400"><br>
 </div>
+```
+...
+[3733][8014222][SVC_Handler]
+[3734][8014226][SVC_Handler]
+[3735][801422A][SVC_Handler]
+[3736][80005A4][LedTask2]
+[3737][80005A6][LedTask2]
+[3738][80005A8][LedTask2]
+[3739][80005AA][LedTask2]
+[3740][80005AC][LedTask2]
+[3741][80005AE][LedTask2]
+[3742][80005B0][LedTask2]
+[3743][8004CE2][HAL_GPIO_TogglePin]
+[3744][8004CE4][HAL_GPIO_TogglePin]
+[3745][8004CE6][HAL_GPIO_TogglePin]
+[3746][8004CE8][HAL_GPIO_TogglePin]
+...
+```
+
 
