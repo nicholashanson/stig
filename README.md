@@ -30,6 +30,6 @@ For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run
   dub run -c=cortexm -- ../samples/stm32f4/freertos_blink.elf stm32
 ```
 <div align="center">
-  <img src="assets/demo_.GIF" width="400"><br>
+  <img src="assets/demo_small.gif" width="400"><br>
 </div>
 
