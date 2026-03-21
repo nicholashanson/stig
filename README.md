@@ -32,8 +32,8 @@ For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run
 <div align="center">
   <img src="assets/demo_clip.gif" width="400"><br>
 </div>
+
 ```
-...
 [3733][8014222][SVC_Handler]
 [3734][8014226][SVC_Handler]
 [3735][801422A][SVC_Handler]
@@ -48,7 +48,6 @@ For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run
 [3744][8004CE4][HAL_GPIO_TogglePin]
 [3745][8004CE6][HAL_GPIO_TogglePin]
 [3746][8004CE8][HAL_GPIO_TogglePin]
-...
 ```
 
 
