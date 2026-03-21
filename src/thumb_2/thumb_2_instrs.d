@@ -46,7 +46,7 @@ shift_type get_shift_type(ubyte type, ubyte imm) {
 }
 
 // =======
-//  S
+//  SHIFT
 // =======
 
 uint shift(uint val, shift_type t, uint n, bool carry_in) {
