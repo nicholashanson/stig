@@ -37,22 +37,12 @@ For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run
 
 Vortex-M can be used for tracing. 
 
-Three main log files are generated in src/logs:
+Two main log files are generated in src/logs:
 ```
-load_store_log.txt
 pc_log.txt
-stack_log.txt
-```
-### PC Logging
-PC logging is in this format: 
-```
-[count][program_counter][function_name]
-```
-- [count]: index with no special meaning.
-- [program_counter] : address of the executing instruction.
-- [function_name]: name of the function that the executing function belongs to.
-  
-For example:
+load_store_log.txt
+```  
+pc_log.txt:
 ```
 [3733][8014222][SVC_Handler]
 [3734][8014226][SVC_Handler]
@@ -69,7 +59,7 @@ For example:
 [3745][8004CE6][HAL_GPIO_TogglePin]
 [3746][8004CE8][HAL_GPIO_TogglePin]
 ```
-
+load_store_log.txt:
 ```
 [3736][801422A][SVC_Handler](0xA5A5A5A5 loaded from 0x20000EF8)
 [3736][801422A][SVC_Handler](0x080141B9 loaded from 0x20000EFC)
