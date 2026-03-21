@@ -7,6 +7,11 @@ import thumb_2_opcodes;
 import cortex_m_core;
 
 // ---------------------------------------- Shift ----------------------------------------
+
+// ============
+//  SHIFT TYPE
+// ============
+
 enum shift_type : ubyte {
 	lsl,
 	lsr,
@@ -41,7 +46,7 @@ shift_type get_shift_type(ubyte type, ubyte imm) {
 }
 
 // =======
-//  Shift
+//  S
 // =======
 
 uint shift(uint val, shift_type t, uint n, bool carry_in) {
@@ -66,14 +71,26 @@ uint shift(uint val, shift_type t, uint n, bool carry_in) {
 	}
 }
 
+// ==============
+//  SHIFT RESULT
+// ==============
+
 struct shift_result {
 	uint result;
 	bool carry;
 }
 
+// =========
+//  SHIFT C 
+// =========
+
 shift_result shift_c(uint val, shift_type t, uint n, bool c) {
 	return shift_result(result: shift(val, t, n, c), carry: get_shifter_carry(val, t, n, c));
 }
+
+// ===================
+//  GET SHIFT STRING
+// ===================
 
 string get_shift_string(const ref instr_32 instr) {
 	return instr.shift_n != 0 ? format(", %s #%d", instr.shift_t, instr.shift_n) : "";
@@ -117,12 +134,19 @@ bool get_shifter_carry(uint val, shift_type t, uint n, bool c) {
     }
 }
 // ---------------------------------------------------------------------------------------
+// =======================
+//  ADD WITH CARRY RESULT
+// =======================
 
 struct add_with_carry_result {
 	bool carry;
 	bool overflow;
 	uint result;
 }
+
+// ================
+//  ADD WITH CARRY 
+// ================
 
 add_with_carry_result add_with_carry(const uint x, const uint y, bool carry_in) {
 	ulong unsigned_sum = cast(ulong)x + cast(ulong)y + (carry_in ? 1 : 0);;
@@ -150,9 +174,17 @@ uint rotr(uint value, uint n) {
 
 // ----------------------------------------- SLICE ----------------------------------------
 
+// =====================
+//  DECIMAL TO HEX MASK
+// =====================
+
 uint decimal_to_hex_mask(uint n) {
     return (1u << n) - 1;
 }
+
+// =======
+//  SLICE
+// =======
 
 uint slice(const uint instr, const uint shift, const uint width) {
 	return (instr >> shift) & decimal_to_hex_mask(width);
@@ -160,6 +192,10 @@ uint slice(const uint instr, const uint shift, const uint width) {
 // ---------------------------------------------------------------------------------------
 
 // ------------------------------------- Thumb Expand ------------------------------------
+
+// =====================
+//  THUMB EXPAND RESULT
+// =====================
 
 struct thumb_expand_result {
 	uint imm;
@@ -262,34 +298,60 @@ struct instr_32 {
 	bool 		  n_high;
 }
 // ---------------------------------------------------------------------------------------
+// ============
+//  BYTE TABLE
+// ============
 
 struct byte_table {
     uint        offset;
     uint          addr;
     ubyte[]       data;
 }
-
 // --------------------------------------- Strings ---------------------------------------
+
+// =====================
+//  GET REG LIST STRING
+// =====================
 
 string get_reg_list_string(const ref reg[] reg_list) {
 	return reg_list.map!(r => get_reg_name(r)).join(", ");
 }
 
+// ================
+//  GET IMM STRING
+// ================
+
 string get_imm_string(const uint imm) {
  	return format(", #%d", imm);
 }
+
+// =====================
+//  GET IT BLOCK STRING
+// =====================
 
 string get_it_block_string(const condition cond) {
 	return cond != condition.none ? cond.to!string : "s";
 }
 
+// ======================
+//  GET CONDITION STRING
+// ======================
+
 string get_condition_string(const condition cond) {
 	return cond != condition.none ? cond.to!string : "";
 }
 
+// ============
+//  ADD SUFFIX
+// ============
+
 string add_suffix(const ref instr_32 instr, const condition cond) {
 	return (instr.set_flags ? "s" : "") ~ (cond != condition.none ? cond.to!string : "");
 }
+
+// ==============
+//  GET REG NAME
+// ==============
 
 string get_reg_name(const reg r) {
 	switch (r) {
@@ -299,6 +361,10 @@ string get_reg_name(const reg r) {
 		default     : return r.to!string;
 	}
 }
+
+// =================
+//  GET ADDR STRING
+// =================
 
 string get_addr_string(const ref instr_32 instr) {
     string sign = instr.add ? "" : "-";
@@ -314,5 +380,13 @@ string get_addr_string(const ref instr_32 instr) {
     else if (!instr.index && instr.wback) 
         return format("[%s], %s", rn, imm);
     return "<invalid>";
+}
+// ---------------------------------------------------------------------------------------
+// ============
+//  WORD ALIGN
+// ============
+
+uint word_align(uint val) {
+	return val &= ~3;
 }
 // ---------------------------------------------------------------------------------------

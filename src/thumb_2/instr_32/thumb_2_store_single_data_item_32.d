@@ -162,7 +162,7 @@ execute_strb_imm_t3
 void 
 execute_strb_imm
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable    rn          = vm.get_reg(instr.rn);
 	immutable    imm         = instr.imm;
 	const size_t offset_addr = instr.add   ? rn + imm    : rn - imm;

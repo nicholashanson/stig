@@ -39,8 +39,7 @@ void
 execute_ldr_lit_t1
 (vm_t)
 (const ref instr_16 instr, ref vm_t vm) {
-	uint base 		= vm.get_reg(reg.pc) + 4;
-	base     	   &= ~0x3;   
+	uint base 		= word_align(vm.get_reg(reg.pc));
 	const uint addr = base + instr.imm;
 	const uint data = vm.read_word(addr);
 	vm.set_reg(instr.rt, data);

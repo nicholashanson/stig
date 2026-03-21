@@ -56,8 +56,8 @@ execute_tbb_tbh_t1
 (const ref instr_32 instr, ref vm_t vm) {
 	uint half_words;
 	//const uint rn = cpu.get(instr.rn);
-	immutable  rm   =  vm.get_reg(instr.rm);
-	const uint base = (vm.get_pc() + 4) & ~3;
+	immutable  rm   = vm.get_reg(instr.rm);
+	const uint base = vm.get_reg(reg.pc);
 	const uint addr = base + (instr.is_tbh ? (rm << 1) : rm);
 	half_words = instr.is_tbh ? vm.read_half_word(addr) : vm.read_byte(addr);
 	vm.increment_pc(2 * half_words);

@@ -202,21 +202,21 @@ instr_16 parse_add_imm_t2(const ushort instr) {
 void 
 execute_add_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	execute_add_imm(instr, vm);
 }
 
 void 
 execute_add_imm_t2
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	execute_add_imm(instr, vm);
 }
 
 void 
 execute_add_imm
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable rn  = vm.get_reg(instr.rn);
 	immutable imm = instr.imm;
 	// (result, carry, overflow) = AddWithCarry(R[n], imm32, ‘0’);
@@ -268,7 +268,7 @@ instr_16 parse_add_reg_t1(const ushort instr) {
 void 
 execute_add_reg_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable rn  = vm.get_reg(instr.rn);
 	immutable rm  = vm.get_reg(instr.rm);
 	// (result, carry, overflow) = AddWithCarry(R[n], shifted, ‘0’);
@@ -317,7 +317,7 @@ instr_16 parse_asr_imm_t1(const ushort instr) {
 void 
 execute_asr_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
 
@@ -358,7 +358,7 @@ instr_16 parse_lsl_imm_t1(const ushort instr) {
 void 
 execute_lsl_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
 
@@ -398,7 +398,7 @@ instr_16 parse_lsr_imm_t1(const ushort instr) {
 void 
 execute_lsr_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	execute_shift_instr(instr, vm);
 }
 
@@ -452,21 +452,21 @@ instr_16 parse_sub_imm_t2(const ushort instr) {
 void 
 execute_sub_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	execute_sub_imm(instr, vm);
 }
 
 void 
 execute_sub_imm_t2
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	execute_sub_imm(instr, vm);
 }
 
 void 
 execute_sub_imm
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable rn  = vm.get_reg(instr.rn);
 	immutable imm = instr.imm;
 	// (result, carry, overflow) = AddWithCarry(R[n], NOT(imm32), ‘1’);
@@ -517,7 +517,7 @@ instr_16 parse_mov_imm_t1(const ushort instr) {
 void 
 execute_mov_imm_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable res = instr.imm;
 	if (!vm.in_it_block()) {
 		vm.set_z(res);			// APSR.Z = IsZeroBit(result);

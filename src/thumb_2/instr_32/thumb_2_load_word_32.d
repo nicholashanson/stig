@@ -76,7 +76,7 @@ execute_ldr_imm_t4
 void 
 execute_ldr_imm
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable    rn          = vm.get_reg(instr.rn);
 	immutable    imm         = instr.imm;
 	const size_t offset_addr = instr.add   ? rn + imm    : rn - imm;
@@ -180,11 +180,10 @@ execute_ldr_lit_t2
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	size_t addr;
-	uint   base = vm.get_pc();
-	base        = ((base + 4) & ~3);
+	uint   base = vm.get_reg(reg.pc);
+	base       &= ~3;
 	addr        = instr.add ? base + instr.imm : base - instr.imm;
 	immutable data = vm.read_word(addr);
-	immutable pc   = vm.get_pc();
 	vm.set_reg(instr.rt, data);
 }
 

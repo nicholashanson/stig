@@ -46,7 +46,7 @@ void
 execute_adr_t1
 (vm_t)
 (const ref instr_16 instr, ref vm_t vm) {
-	uint res = vm.get_reg(reg.pc);
+	uint res = word_align(vm.get_reg(reg.pc));
 	res += instr.imm;
 	vm.set_reg(instr.rd, res);
 }

@@ -42,9 +42,9 @@ execute_bl_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	const uint pc  = vm.get_reg(reg.pc);
-	const uint res = ((pc + 4) | 0b1);
+	const uint res = pc | 0b1;
 	vm.set_reg(reg.lr, res);
-	vm.set_reg(reg.pc, pc + instr.offset + 4);
+	vm.set_reg(reg.pc, pc + instr.offset);
 }
 
 // ======================
@@ -173,7 +173,7 @@ execute_msr_t1
 				// CONTROL.nPRIV = R[n]<0>;
 		    	vm.set_npriv(npriv);
 		    	// If CurrentMode == Mode_Thread then
-		    	if (vm.get_current_exception() == exception.thread_mode)
+		    	if (vm.get_curr_exc() == exception.thread_mode)
 		    		// CONTROL.SPSEL = R[n]<1>;
 					vm.set_sp_sel(sp_sel);
 				// if HaveFPExt() then CONTROL.FPCA = R[n]<2>;
@@ -335,8 +335,8 @@ void
 execute_b_t4
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
-	auto pc = vm.get_pc();
-	pc += instr.offset + 4;
+	auto pc = vm.get_reg(reg.pc);
+	pc += instr.offset;
 	vm.set_reg(reg.pc, pc);
 }
 
@@ -377,8 +377,8 @@ execute_b_t3
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	if (condition_is_met(instr.cond, vm.cpu)) {
-		int pc = vm.get_pc();
-		pc += instr.offset + 4;
+		auto pc = vm.get_reg(reg.pc);
+		pc += instr.offset;
 		vm.set_reg(reg.pc, pc);
 	}
 }

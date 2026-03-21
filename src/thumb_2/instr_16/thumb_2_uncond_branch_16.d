@@ -42,7 +42,7 @@ execute_b_t2
 (vm_t)
 (const ref instr_16 instr, ref vm_t vm) {
 	auto pc = vm.get_reg(reg.pc);
-	pc += instr.offset + 4;
+	pc += instr.offset;
 	vm.set_reg(reg.pc, pc);
 }
 

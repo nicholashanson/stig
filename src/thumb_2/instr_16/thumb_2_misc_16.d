@@ -146,9 +146,8 @@ execute_cbnz_t1
 (vm_t)
 (const instr_16 instr, ref vm_t vm) {
 	if (vm.get_reg(instr.rn) != 0) {
-		int pc = vm.get_reg(reg.pc);
+		auto pc = vm.get_reg(reg.pc);
 		pc += instr.offset;
-		pc += 4;
 		vm.set_reg(reg.pc, pc);
 	} 
 }
@@ -184,12 +183,11 @@ instr_16 parse_cbz_t1(const ushort instr) {
 void 
 execute_cbz_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable rn = vm.get_reg(instr.rn);
 	if (rn == 0) {
-		auto pc = vm.get_pc();
+		auto pc = vm.get_reg(reg.pc);
 		pc += instr.offset;
-		pc += 4;
 		vm.set_reg(reg.pc, pc);
 	} 
 }

@@ -73,7 +73,7 @@ execute_b_t1
 (const ref instr_16 instr, ref vm_t vm) {
 	if (condition_is_met(instr.cond, vm.cpu)) {
 		auto pc = vm.get_reg(reg.pc);
-		pc += instr.offset + 4;
+		pc += instr.offset;
 		vm.set_reg(reg.pc, pc);
 	} 
 }

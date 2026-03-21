@@ -91,7 +91,7 @@ instr_16 parse_add_reg_t2(short instr) {
 void 
 execute_add_reg_t2
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable rn  = vm.get_reg(instr.rn);
 	immutable rm  = vm.get_reg(instr.rm);
 	// (result, carry, overflow) = AddWithCarry(R[n], shifted, ‘0’);
@@ -141,7 +141,7 @@ instr_16 parse_blx_t1(const ushort instr) {
 void 
 execute_blx_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable  rm = vm.get_reg(instr.rm);
 	vm.set_reg(reg.lr, vm.get_pc() + 2);
 	vm.set_reg(reg.pc, rm);
@@ -186,9 +186,9 @@ instr_16 parse_bx_t1(const ushort instr) {
 void 
 execute_bx_t1
 (vm_t)
-(const instr_16 instr, ref vm_t vm) {
+(const ref instr_16 instr, ref vm_t vm) {
 	immutable rm = vm.get_reg(instr.rm);
-	if ((rm & 0xff00_0000) == 0xff00_0000) { // (*)
+	if (is_exc_ret_val(rm)) { // (*)
         exc_rtr(rm, vm);
         return;
     }

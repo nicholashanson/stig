@@ -214,3 +214,4 @@ string convert_ldrsh_reg_t2_to_string(const ref instr_32 instr, const condition 
 											  get_reg_name(instr.rm),
 											  get_shift_string(instr));
 }
+// ---------------------------------------------------------------------------------------
