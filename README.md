@@ -70,4 +70,16 @@ For example:
 [3746][8004CE8][HAL_GPIO_TogglePin]
 ```
 
+```
+[3736][801422A][SVC_Handler](0xA5A5A5A5 loaded from 0x20000EF8)
+[3736][801422A][SVC_Handler](0x080141B9 loaded from 0x20000EFC)
+[3736][801422A][SVC_Handler](0x080005A4 loaded from 0x20000F00)
+[3736][80005A4][LedTask2](0x01000000 loaded from 0x20000F04)
+[3740][80005AA][LedTask2](0x00000000 stored into 0x20000EFC)
+[3742][80005AE][LedTask2](0x40020000 loaded from 0x080005C0)
+[3747][8004CE8][HAL_GPIO_TogglePin](0x40020000 stored into 0x20000EE4)
+[3749][8004CEC][HAL_GPIO_TogglePin](0x0000A5A5 loaded from 0x20000EE2)
+[3749][8004CEC][HAL_GPIO_TogglePin](0x0020 stored into 0x20000EE2)
+```
+
 
