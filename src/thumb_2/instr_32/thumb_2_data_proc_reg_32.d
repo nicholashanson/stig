@@ -47,17 +47,6 @@ execute_shift_instr
 	vm.set_reg(instr.rd, res.result);
 }
 // ---------------------------------------------------------------------------------------
-// ===============================
-//  Parse Data Proc Reg Shift Rot
-// ===============================
-
-instr_32 parse_data_proc_reg_shift_rot(const uint instr) {
-	return instr_32(rm: 	   cast(reg )slice(instr,  0, 4), 
-					rd: 	   cast(reg )slice(instr,  8, 4),
-					rn: 	   cast(reg )slice(instr, 16, 4), 
-					set_flags: cast(bool)slice(instr, 20, 1));
-}
-// ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
 // *									  ASR 											 *
@@ -71,7 +60,11 @@ instr_32 parse_data_proc_reg_shift_rot(const uint instr) {
 // First Half-Word: [15:5] 11111010010, [4] S, [3:0] Rn
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000. [3:0] Rm
 instr_32 parse_asr_reg_t2(const uint instr) {
-	return parse_data_proc_reg_shift_rot(instr);
+	return instr_32(rm: 	   cast(reg )slice(instr,  0, 4), 
+				    rd: 	   cast(reg )slice(instr,  8, 4),
+				    rn: 	   cast(reg )slice(instr, 16, 4),
+				    shift_t:   shift_type.asr, 
+				    set_flags: cast(bool)slice(instr, 20, 1));
 }
 
 // =======================
@@ -146,7 +139,11 @@ string convert_uxth_t2_to_string(const ref instr_32 instr, const condition cond)
 // First Half-Word: [15:5] 11111010000, [4] S, [3:0] Rn 
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000, [3:0] Rm
 instr_32 parse_lsl_reg_t2(const uint instr) {
-	return parse_data_proc_reg_shift_rot(instr);
+	return instr_32(rm: 	   cast(reg )slice(instr,  0, 4), 
+				    rd: 	   cast(reg )slice(instr,  8, 4),
+				    rn: 	   cast(reg )slice(instr, 16, 4),
+				    shift_t:   shift_type.lsl, 
+				    set_flags: cast(bool)slice(instr, 20, 1));
 }
 
 // =======================
@@ -180,7 +177,11 @@ string convert_lsl_reg_t2_to_string(const ref instr_32 instr, const condition co
 // First Half-Word: [15:5] 11111010001, [4] S, [3:0] Rn 
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 0000, [3:0] Rm
 instr_32 parse_lsr_reg_t2(const uint instr) {
-	return parse_data_proc_reg_shift_rot(instr);
+		return instr_32(rm: 	   cast(reg )slice(instr,  0, 4), 
+					    rd: 	   cast(reg )slice(instr,  8, 4),
+					    rn: 	   cast(reg )slice(instr, 16, 4),
+					    shift_t:   shift_type.lsr,    
+					    set_flags: cast(bool)slice(instr, 20, 1));
 }
 
 // =======================

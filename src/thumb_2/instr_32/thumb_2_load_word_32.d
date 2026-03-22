@@ -62,14 +62,14 @@ instr_32 parse_ldr_imm_t4(const uint instr) {
 void 
 execute_ldr_imm_t3
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	execute_ldr_imm(instr, vm);
 }
 
 void 
 execute_ldr_imm_t4
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	execute_ldr_imm(instr, vm);
 }
 
@@ -84,8 +84,6 @@ execute_ldr_imm
 	uint         data        = vm.read_word(addr);
 	if (instr.wback)
 		vm.set_reg(instr.rn, cast(uint)offset_addr);
-	if (instr.rt == reg.pc) 
-		data &= ~1;
 	vm.set_reg(instr.rt, data);
 }
 
@@ -138,9 +136,7 @@ execute_ldr_reg_t2
 	immutable    rm      = vm.get_reg(instr.rm);
 	const int    shifted = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
 	const size_t addr    = rn + shifted;
-	uint         data    = vm.read_word(addr);
-	if (instr.rt == reg.pc)
-		data &= ~1;
+	immutable    data    = vm.read_word(addr);
 	vm.set_reg(instr.rt, data);
 }
 
@@ -180,8 +176,7 @@ execute_ldr_lit_t2
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	size_t addr;
-	uint   base = vm.get_reg(reg.pc);
-	base       &= ~3;
+	uint   base = word_align(vm.get_reg(reg.pc));
 	addr        = instr.add ? base + instr.imm : base - instr.imm;
 	immutable data = vm.read_word(addr);
 	vm.set_reg(instr.rt, data);
