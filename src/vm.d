@@ -353,6 +353,52 @@ struct cortex_m_vm(mem_t) {
 	void set_vtor() {
 		mem.set_vtor();
 	}
+
+	// =====================
+	//  SYS TICK IS ENABLED
+	// =====================
+
+	bool sys_tick_is_enabled() {
+		uint v = mem.read_word(SYST_CSR);
+		return cast(bool)(v & 0x1);
+	}
+
+	// ====================
+	//  DECREMENT SYS TICK
+	// ====================
+
+	void decrement_sys_tick() {
+		uint v = mem.read_word(SYST_CVR);		
+		if (v == 0) {
+        	uint reload = mem.read_word(SYST_RVR) & 0x00FFFFFF;
+        	mem.write_word(SYST_CVR, reload);
+		} else {
+			v -= 1;
+			mem.write_word(SYST_CVR, v);
+			if (v == 0) {
+				uint c = mem.read_word(SYST_CSR);
+				c |= 0x00010000;
+				mem.write_word(SYST_CSR, c);
+			}
+		}
+	}
+
+	// =================
+	//  SYS TICK IS DUE
+	// =================
+
+	bool sys_tick_is_due() {
+		return (mem.read_word(SYST_CSR) & 0x00010000) != 0;
+	}
+
+	// =================
+	//  HANDLE SYS TICK
+	// =================
+
+	void handle_sys_tick() {
+		uint reload_val = mem.read_word(SYST_RVR);
+		mem.write_word(SYST_CVR, reload_val & 0x00FFFFFF);
+	}
 	// --------------------------------------------------------------------------------------
 	// ===========
 	//  LOAD BYTE
@@ -681,14 +727,19 @@ struct cortex_m_vm(mem_t) {
 	void execute_next_instr() {
 		log_pc();
 		++cpu.tick;
+		if (cpu.tick == 10000)
+			cpu.tick = 0;
 		if (pendsv_is_pending()) {
 			enter_exec(exception.pendsv_irqn, this);
 			return;
 		}
-		if (cpu.tick == 10000) {
-			//enter_exec(exception.systick_irqn, this);
-			cpu.tick = 0;
-			return;
+		if (sys_tick_is_enabled()) {
+			decrement_sys_tick();			
+			if (sys_tick_is_due()) {
+				handle_sys_tick();	
+				enter_exec(exception.systick_irqn, this);
+				return;
+			}
 		}
 
 	    auto inOpt = current_program.find!(ins => ins._addr == cpu.get_pc());

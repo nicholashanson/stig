@@ -701,6 +701,8 @@ func get_function_from_elf(const string elf_file,
     uint offset          = 0;
     uint addr_offset     = 0;
     while (offset + 2 <= e_func.data.length) {
+        if ((offset + 2 == e_func.data.length) && (read_ul_16(e_func.data, offset) == 0))
+            break;
         ushort first_hw  = read_ul_16(e_func.data, offset);
         uint len         = (first_hw & 0xF800) >= 0xE800 ? 4 : 2; 
         auto bytes       = e_func.data[offset .. offset + len];
@@ -1093,38 +1095,13 @@ st_name_val[] get_configs(const string elf_filename) {
 // =================
 
 int get_pendsv_size(const string elf_filename) {
-    int res               =  0;
-    int lit_pool_size     =  8;
-    int min_mainline_size = 64;
-    res = min_mainline_size;
-    auto configs = get_configs(elf_filename);
-    foreach (config; configs) {
-        switch (config.name) {
-            case "CONFIG_MPU_STACK_GUARD":
-                res += 12;
-                break;
-            case "CONFIG_INSTRUMENT_THREAD_SWITCHING":
-                res += 16;
-                break;
-            case "CONFIG_ARM_STORE_EXC_RETURN":
-                res +=  4;
-                break;
-            case "CONFIG_FPU_SHARING":
-                res += 20;
-                break;
-            case "CONFIG_THREAD_LOCAL_STORAGE": 
-                res +=  6;
-                lit_pool_size += 6;
-                break;
-            case "CONFIG_USERSPACE":
-                res += 12;
-                break;
-            default:
-                break;
-        }
-    }
-    res += lit_pool_size;
-    return res;
+    auto f_s     = get_st_name_val(elf_filename, st_type.stt_func, soc.all);
+    auto pend_sv = get_st_name_val(elf_filename, "z_arm_pendsv");
+    uint next_f_addr = 0xffffffff;
+    foreach (f; f_s)
+        if (f.addr > pend_sv.addr && f.addr < next_f_addr)
+            next_f_addr = f.addr;
+    return next_f_addr - pend_sv.addr;
 } 
 // ------------------------------------------------------------------------------------------
 unittest {

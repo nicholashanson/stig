@@ -5,6 +5,10 @@ import std.format;
 import log;
 import cortex_m_core;
 
+enum SYST_CSR = 0xE000E010;
+enum SYST_RVR = 0xE000E014;
+enum SYST_CVR = 0xE000E018;
+
 // --------------------------------------------------------------------------------------
 // ====================
 //  WRITE BYTE TO WORD
@@ -608,6 +612,56 @@ immutable string[size_t] stm32f4_peripheral_names = [
     0x40026404: "DMA2_HISR"    
 ]; 
 
+enum USART1_DR = 0x40011004;
+enum USART2_DR = 0x40004404;
+enum USART3_DR = 0x40004804;    
+enum USART6_DR = 0x40011404;
+enum FMC_BCR1  = 0xA0000000;
+enum FMC_BCR2  = 0xA0000008;
+enum FMC_BCR3  = 0xA0000010;
+enum FMC_BCR4  = 0xA0000018;
+enum FMC_BTR1  = 0xA0000004;
+enum FMC_BTR2  = 0xA000000C;
+enum FMC_BTR3  = 0xA0000014;
+enum FMC_BTR4  = 0xA000001C;
+enum FMC_BWTR1 = 0xA0000104;
+enum FMC_BWTR2 = 0xA000010C;
+enum FMC_BWTR3 = 0xA0000104;
+enum FMC_BWTR4 = 0xA000010C;
+enum FMC_PCR2  = 0xA0000060;
+enum FMC_PCR3  = 0xA0000080;
+enum FMC_PCR4  = 0xA00000A0;
+enum FMC_SR2   = 0xA0000064;
+enum FMC_SR3   = 0xA0000084;
+enum FMC_SR4   = 0xA00000A4;
+enum FMC_PMEM2 = 0xA0000068;
+enum FMC_PMEM3 = 0xA0000088;
+enum FMC_PMEM4 = 0xA00000A8;
+enum FMC_PATT2 = 0xA000006C;
+enum FMC_PATT3 = 0xA000008C;
+enum FMC_PATT4 = 0xA00000AC;
+enum FMC_PIO4  = 0xA00000B0;
+enum FMC_ECCR2 = 0xA0000074;
+enum FMC_ECCR3 = 0xA0000094;
+enum FMC_SDCR_1= 0xA0000140;
+enum FMC_SDCR_2= 0xA0000144;
+enum FMC_SDTR1 = 0xA0000148;
+enum FMC_SDTR2 = 0xA000014C;
+enum FMC_SDCMR = 0xA0000150;
+enum FMC_SDRTR = 0xA0000154;
+enum FMC_SDSR  = 0xA0000158;
+
+// ==========
+//  USART DR
+// ==========
+
+size_t[] usart_dr = [
+    USART1_DR,
+    USART2_DR,
+    USART3_DR,
+    USART6_DR
+];
+
 // =============
 //  STM32F4 MEM
 // =============
@@ -713,7 +767,6 @@ struct stm32f4_mem {
         0x40000000: 0,          // TIM2_CR1 TIM2 Control Register 1
         0x40000004: 0,          // TIM2_CR2 TIM2 Control Register 2
         0x40000008: 0,          // TIM2_SMCR TIM2 Slave Mode Control Register
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- EXTI ------------------------------------------
         0x40013C00: 0,          // EXTI_IMR
         0x40013C04: 0,          // EXTI_EMR
@@ -721,7 +774,6 @@ struct stm32f4_mem {
         0x40013C0C: 0,          // EXIT_FTSR
         0x40013C10: 0,          // EXTI_SWIER
         0x40013C14: 0,          // EXTI_PR
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- FLASH -----------------------------------------
         0x40023C00: 0,          // FLASH_ACR 
                                 // The Flash access control register is used to enable/disable 
@@ -747,15 +799,14 @@ struct stm32f4_mem {
                                 //      -
                                 //      1110: Fourteen wait states
                                 //      1111: Fifteen wait states
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- USART6 ----------------------------------------
-        0x40011400: 0xC0,       // USART_SR
-        0x40011404: 0,          // USART_DR
-        0x40011408: 0,          // USART_BRR
-        0x4001140C: 0,          // USART_CR1
-        0x40011410: 0,          // USART_CR2
-        0x40011414: 0,          // USART_CR3
-        0x40011418: 0,          // USART_GTPR
+        0x40011400: 0xC0,       // USART6_SR
+        USART6_DR: 0,
+        0x40011408: 0,          // USART6_BRR
+        0x4001140C: 0,          // USART6_CR1
+        0x40011410: 0,          // USART6_CR2
+        0x40011414: 0,          // USART6_CR3
+        0x40011418: 0,          // USART6_GTPR
         // --------------------------------------------------------------------------------------
         0x40013814: 0,
         0x40013C08: 0,          // SYSCFG_EXTICR1
@@ -806,7 +857,7 @@ struct stm32f4_mem {
         // --------------------------------------- RCC ------------------------------------------
         // There are three types of reset, defined as system Reset, power Reset and backup 
         // domain Reset.
-        0x40023800: 0x03333083, // RCC_CR, Reset value: 0x0000XX83 where X is undefined.
+        0x40023800: 0x23333083, // RCC_CR, Reset value: 0x0000XX83 where X is undefined.
                                 // Bit 27 PLLI2SRDY: PLLI2S clock ready flag
                                 // Set by hardware to indicate that the PLLI2S is locked.
                                 //      0: PLLI2S unlocked
@@ -832,8 +883,16 @@ struct stm32f4_mem {
                                 //      1: HSI oscillator ON
         0x40023804: 0x24003010, // RCC_PLLCFGR
                                 // Reset value: 0x2400 3010
+        0x40023808: 0,          // RCC_CFGR
+        0x4002380C: 0,          // RCC clock interrupt register (RCC_CIR)
+        0x40023810: 0,          // RCC_AHB1RSTR
+        0x40023814: 0,          // RCC_AhB2RSTR
+        0x40023818: 0,          // RCC_AHB3RSTR 
+                                // RCC_APB1RSTR
         0x40023824: 0,          // RCC_APB2RSTR
         0x40023830: 0,          // RCC_AHB1ENR Peripheral Clock Enable Register
+        0x40023834: 0,          // RCC_AHB2ENR
+        0x40023838: 0,          // RCC_AHB3ENR
         0x40023840: 0,          // RCC_APB1ENR Peripheral Clock Enable Register
                                 // Bit 28 PWREN: Power interface clock enable
                                 // This bit is set and cleared by software.
@@ -842,6 +901,11 @@ struct stm32f4_mem {
         0x40023844: 0,          // RCC_APB2ENR Peripheral Clock Enable Register
         0x40023850: 0x7EF7B7FF, // RCC_AHB1LPENR
                                 // RCC AHB1 peripheral clock enable in low-power mode register
+        0x40023854: 0,          // RCC_AHB2LPENR
+        0x40023858: 0,          // RCC_AHB3LPENR 
+        0x40023860: 0,          // RCC_APB1LPENR
+        0x40023864: 0,          // RCC_APB2LPENR 
+        0x40023870: 0,          // RCC_BDCR
         0x40023874: 0x0E000000, // RCC_CSR
                                 // RCC clock control & status register (RCC_CSR)
                                 // Reset value: 0x0E00 0000, reset by system reset, except reset 
@@ -856,18 +920,27 @@ struct stm32f4_mem {
                                 // This bit is set and cleared by software.
                                 //      0: LSI RC oscillator OFF
                                 //      1: LSI RC oscillator ON
+        0x40023888: 0,          // RCC_SSCGR
         0x40023884: 0x20003000, // RCC_PLLI2SCFGR
+        0x40023888: 0x24003000, // RCC_PLLSAICFGR
+                                // Reset value: 0x2400 3000
         0x4002388C: 0,          // RCC_DCKCFGR Dedicated Clock Configuration Register
         // --------------------------------------------------------------------------------------
-        // -------------------------------------- USART1 ----------------------------------------
         0x40011000: 0xC0,       // USART1_SR
-        0x40011004: 0,          // USART1_DR
+        USART1_DR: 0,         
         0x40011008: 0,          // USART1_BRR
         0x4001100C: 0,          // USART1_CR1
         0x40011010: 0,          // USART1_CR2
         0x40011014: 0,          // USART1_CR3
-        0x40011024: 0,          // USART1_GPTR
-        // --------------------------------------------------------------------------------------
+        0x40011018: 0,          // USART1_GPTR
+        // -------------------------------------- USART3 ----------------------------------------
+        0x40004800: 0xC0,       // USART3_SR
+        USART3_DR: 0,         
+        0x40004808: 0,          // USART3_BRR
+        0x4000480C: 0,          // USART3_CR1
+        0x40004810: 0,          // USART3_CR2
+        0x40004814: 0,          // USART3_CR3
+        0x40004818: 0,          // USART3_GPTR
         // -------------------------------------- GPIOA -----------------------------------------
         0x40020000: 0,          // GPIOA_MODER
         0x40020004: 0,          // GPIOA_OTYPER
@@ -877,7 +950,6 @@ struct stm32f4_mem {
         0x40020014: 0,          // GPIOA_ODR
         0x40020020: 0,          // GPIOA_AFRL
         0x40020024: 0,          // GPIOA_AFRH
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- GPIOB -----------------------------------------
         0x40020400: 0,          // GPIOB_MODER
         0x40020404: 0,          // GPIOB_OTYPER
@@ -887,7 +959,6 @@ struct stm32f4_mem {
         0x40020414: 0,          // GPIOB_ODR
         0x40020420: 0,          // GPIOB_AFRL
         0x40020424: 0,          // GPIOB_AFRH
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- GPIOC -----------------------------------------
         0x40020800: 0,          // GPIOC_MODER
         0x40020804: 0,          // GPIOC_OTYPER
@@ -897,7 +968,6 @@ struct stm32f4_mem {
         0x40020814: 0,          // GPIOC_ODR
         0x40020820: 0,          // GPIOC_AFRL
         0x40020824: 0,          // GPIOC_AFRH
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- GPIOD -----------------------------------------
         0x40020C00: 0,          // GPIOD_MODER
         0x40020C04: 0,          // GPIOD_OTYPER
@@ -907,7 +977,6 @@ struct stm32f4_mem {
         0x40020C14: 0,          // GPIOD_ODR
         0x40020C20: 0,          // GPIOD_AFRL
         0x40020C24: 0,          // GPIOD_AFRH
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- GPIOE -----------------------------------------
         0x40021000: 0,          // GPIOE_MODER
         0x40021004: 0,          // GPIOE_OTYPER
@@ -917,7 +986,6 @@ struct stm32f4_mem {
         0x40021014: 0,          // GPIOE_ODR
         0x40021020: 0,          // GPIOE_AFRL
         0x40021024: 0,          // GPIOE_AFRH
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- GPIOF -----------------------------------------
         0x40021400: 0,          // GPIOF_MODER
         0x40021404: 0,          // GPIOF_OTYPER
@@ -927,7 +995,6 @@ struct stm32f4_mem {
         0x40021414: 0,          // GPIOF_ODR
         0x40021420: 0,          // GPIOF_AFRL
         0x40021424: 0,          // GPIOF_AFRH
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- GPIOG -----------------------------------------
         0x40021800: 0,          // GPIOG_MODER
         0x40021804: 0,          // GPIOG_OTYPER
@@ -937,7 +1004,6 @@ struct stm32f4_mem {
         0x40021814: 0,          // GPIOG_ODR
         0x40021820: 0,          // GPIOG_AFRL
         0x40021824: 0,          // GPIOG_AFRH
-        // --------------------------------------------------------------------------------------
         // -------------------------------------- GPIOH -----------------------------------------
         0x40021C00: 0,          // GPIOH_MODER
         0x40021C04: 0,          // GPIOH_OTYPER
@@ -947,6 +1013,33 @@ struct stm32f4_mem {
         0x40021C14: 0,          // GPIOH_ODR
         0x40021C20: 0,          // GPIOH_AFRL
         0x40021C24: 0,          // GPIOH_AFRH
+        // -------------------------------------- GPIOI -----------------------------------------
+        0x40022000: 0,          // GPIOI_MODER
+        0x40022004: 0,          // GPIOI_OTYPER
+        0x40022008: 0,          // GPIOI_OSPEEDR
+        0x4002200C: 0,          // GPIOI_PUPDR
+        0x40022010: 0,          // GPIOI_IDR
+        0x40022014: 0,          // GPIOI_ODR
+        0x40022020: 0,          // GPIOI_AFRL
+        0x40022024: 0,          // GPIOI_AFRH
+        // -------------------------------------- GPIOJ -----------------------------------------
+        0x40022400: 0,          // GPIOJ_MODER
+        0x40022404: 0,          // GPIOJ_OTYPER
+        0x40022408: 0,          // GPIOJ_OSPEEDR
+        0x4002240C: 0,          // GPIOJ_PUPDR
+        0x40022410: 0,          // GPIOJ_IDR
+        0x40022414: 0,          // GPIOJ_ODR
+        0x40022420: 0,          // GPIOJ_AFRL
+        0x40022424: 0,          // GPIOJ_AFRH
+        // -------------------------------------- GPIOK -----------------------------------------
+        0x40022800: 0,          // GPIOK_MODER
+        0x40022804: 0,          // GPIOK_OTYPER
+        0x40022808: 0,          // GPIOK_OSPEEDR
+        0x4002280C: 0,          // GPIOK_PUPDR
+        0x40022810: 0,          // GPIOK_IDR
+        0x40022814: 0,          // GPIOK_ODR
+        0x40022820: 0,          // GPIOK_AFRL
+        0x40022824: 0,          // GPIOK_AFRH
         // --------------------------------------------------------------------------------------
         // TIM6
         0x40001000: 0,          // TIM6_CR1   
@@ -990,8 +1083,8 @@ struct stm32f4_mem {
         // communication.
         //  0: Transmission is not complete
         //  1: Transmission is complete
-        0x40004404: 0,  // USART2_DR
-        0x40004404: 0,  // USART2_BRR
+        USART2_DR: 0,  // USART2_DR
+        0x40004408: 0,  // USART2_BRR
         // Bits 15:4 DIV_Mantissa[11:0]: mantissa of USARTDIV
         //  These 12 bits define the mantissa of the USART Divider (USARTDIV)
         0x40004414: 0,  // USART2_CR3
@@ -1039,6 +1132,20 @@ struct stm32f4_mem {
                             //      1: Short debounce time, used for soft connections 
                             //         (2.5 μs)
                             //      Note: Only accessible in host mode.
+        FMC_BCR1:   0,  FMC_BCR2:  0,  FMC_BCR3:  0,  FMC_BCR4:  0,    
+        FMC_BTR1:   0,  FMC_BTR2:  0,  FMC_BTR3:  0,  FMC_BTR4:  0,    
+        FMC_BWTR1:  0,  FMC_BWTR2: 0,  FMC_BWTR3: 0,  FMC_BWTR4: 0,  
+        FMC_PCR2:   0,  FMC_PCR3:  0,  FMC_PCR4:  0,   
+        FMC_SR2:    0,  FMC_SR3:   0,  FMC_SR4:   0,   
+        FMC_PMEM2:  0,  FMC_PMEM3: 0,  FMC_PMEM4: 0,   
+        FMC_PATT2:  0,  FMC_PATT3: 0,  FMC_PATT4: 0,   
+        FMC_PIO4 :  0,   
+        FMC_ECCR2:  0,  FMC_ECCR3: 0,   
+        FMC_SDCR_1: 0, FMC_SDCR_2: 0,  
+        FMC_SDTR1:  0,  FMC_SDTR2: 0,   
+        FMC_SDCMR:  0,   
+        FMC_SDRTR:  0,   
+        FMC_SDSR:   0,    
     ];
 
     void set_vtor() {
@@ -1052,12 +1159,21 @@ struct stm32f4_mem {
     }
 
     uint read_word(size_t addr) {
+        if (addr == 0x40023800) {
+            flip_bit(0x40023800, 25);
+            flip_bit(0x40023800, 27);
+        }
+        if (addr == 0x40023874)
+            flip_bit(0x40023874, 1);
         uint res;
         if (addr >= scb_base) {
             if (auto s = addr in scb) {
                 res = *s;              
             } else {
                 throw new Exception("Invalid access");            
+            }
+            if (addr == SYST_CSR) {
+                scb[SYST_CSR] &= ~0x00010000;
             }
         } else if (addr >= sram_1_origin + sram_1_length) {
             if (auto p = addr in peripherals) {
@@ -1123,6 +1239,9 @@ struct stm32f4_mem {
         if (addr >= scb_base) {
             if (addr in scb) {
                 scb[addr] = val;   
+                if (addr == SYST_CVR) {
+                    scb[SYST_CSR] &= ~0x00010000;
+                }
                 return;           
             } else {
                 throw new Exception("Invalid access");            
@@ -1137,7 +1256,7 @@ struct stm32f4_mem {
                 peripherals[addr] = cfgr;
             } else if (addr == 0x40023874 && val == 0x1) {
                 peripherals[addr] = 0x3;
-            } else if (addr == 0x40011004 || addr == 0x40004404 || addr == 0x40011404) {
+            } else if (usart_dr.canFind(addr)) {
                 auto f = uart_log();
                 f.write(cast(char)(val & 0xff));
                 f.flush();
@@ -1428,6 +1547,9 @@ struct nrf52840_mem {
             } else {
                 throw new Exception("Invalid access");            
             }
+            if (addr == SYST_CSR) {
+                scb[SYST_CSR] &= ~0x00010000;
+            }
         } else if (addr > ram_origin + ram_length) {
             if (auto p = addr in peripherals) {
                 res = *p;              
@@ -1493,6 +1615,9 @@ struct nrf52840_mem {
         if (addr >= scb_base) {
             if (addr in scb) {
                 scb[addr] = val;  
+                if (addr == SYST_CVR) {
+                    scb[SYST_CSR] &= ~0x00010000;
+                }
                 return;            
             } else {
                 throw new Exception("Invalid access");            

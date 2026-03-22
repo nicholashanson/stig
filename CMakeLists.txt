@@ -70,3 +70,14 @@ target_link_libraries(cpu_tui
     ftxui::component
 )
 
+
+
+
+
+
+
+
+
+
+
+
