@@ -1,6 +1,7 @@
 module log;
 
 import std.stdio;
+import std.file;
 
 private static File* load_store_log_ptr = null;
 
@@ -16,6 +17,8 @@ File* load_store_log() {
 private static File* pc_log_ptr = null;
 
 File* pc_log() {
+    if (!exists(__log_dir__)) 
+        mkdir(__log_dir__); 
     if (pc_log_ptr is null) {
         pc_log_ptr = new File(__log_dir__ ~ "pc_log.txt", "w");
     }
