@@ -33,6 +33,13 @@ For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run
   <img src="assets/demo_clip.gif" width="600"><br>
 </div>
 
+## Controls
+
+[DOWN_ARR]  - Increment program counter
+[Z]         - Scroll instruction pad (down)
+[X]         - Scroll instruciton pad (up)
+[SPACE]     - Play/pause
+
 ## Tracing
 
 Vortex-M can be used for tracing. 
