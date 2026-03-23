@@ -8,7 +8,7 @@ uint[scb_reg] scb = [
     NVIC_IABR0:  0, NVIC_IABR1:  0, NVIC_IABR2:  0, NVIC_IABR3:  0, NVIC_IABR4:  0, NVIC_IABR5:  0, 
     NVIC_IABR6:  0, NVIC_IABR7:  0, NVIC_IABR8:  0, NVIC_IABR9:  0, NVIC_IABR10: 0, NVIC_IABR11: 0,
     NVIC_IABR12: 0, NVIC_IABR13: 0, NVIC_IABR14: 0, NVIC_IABR15: 0,
-    // ------------------------------------- NVIC ISR ---------------------------------------                        
+    // ------------------------------------ NVIC ISER ---------------------------------------                        
     NVIC_ISER0:  0, NVIC_ISER1:  0, NVIC_ISER2:  0, NVIC_ISER3:  0, NVIC_ISER4:  0, NVIC_ISER5:  0, 
     NVIC_ISER6:  0, NVIC_ISER7:  0, NVIC_ISER8:  0, NVIC_ISER9:  0, NVIC_ISER10: 0, NVIC_ISER11: 0,
     NVIC_ISER12: 0, NVIC_ISER13: 0, NVIC_ISER14: 0, NVIC_ISER15: 0,
@@ -20,7 +20,7 @@ uint[scb_reg] scb = [
     NVIC_ICPR0:  0, NVIC_ICPR1:  0, NVIC_ICPR2:  0, NVIC_ICPR3:  0, NVIC_ICPR4:  0, NVIC_ICPR5:  0, 
     NVIC_ICPR6:  0, NVIC_ICPR7:  0, NVIC_ICPR8:  0, NVIC_ICPR9:  0, NVIC_ICPR10: 0, NVIC_ICPR11: 0,
     NVIC_ICPR12: 0, NVIC_ICPR13: 0, NVIC_ICPR14: 0, NVIC_ICPR15: 0, 
-    // ------------------------------------- NVIC IPR ---------------------------------------                        
+    // ------------------------------------- NVIC ISR ---------------------------------------                        
     NVIC_ISR0:  0, NVIC_ISR1:  0, NVIC_ISR2:  0, NVIC_ISR3:  0, NVIC_ISR4:  0, NVIC_ISR5:  0, 
     NVIC_ISR6:  0, NVIC_ISR7:  0, NVIC_ISR8:  0, NVIC_ISR9:  0, NVIC_ISR10: 0, NVIC_ISR11: 0,
     NVIC_ISR12: 0, NVIC_ISR13: 0, NVIC_ISR14: 0, NVIC_ISR15: 0, NVIC_ISR16: 0, NVIC_ISR17: 0,
