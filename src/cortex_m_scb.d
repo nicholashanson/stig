@@ -1,23 +1,7 @@
 import scb_defs;
 
-uint[size_t] scb = [
-    // NVIC
-    0xE000E3FC: 0,
-    0xE000ED00: 0,
-    ICSR:  0,          
-    CCR:   0,
-    SHPR3: 0,
-    0xE000ED18: 0,          // System Handler Priority Register 1
-    0xE000ED1C: 0,
-    0xE000ED24: 0,          // System Handler Control and State Register
-                            // Controls and provides the active and pending status of system 
-                            // exceptions.
-                            // [18] USGFAULTENA 0 = Disable UsageFault.
-                            //                  1 = Enable UsageFault.
-                            // [17] BUSFAULTENA 0 = Disable BusFault.
-                            //                  1 = Enable BusFault.
-                            // [16] MEMFAULTENA 0 = Disable MemManage fault.
-                            //                  1 = Enable MemManage fault.
+uint[scb_reg] scb = [
+    CPUID: 0, ICSR:  0, CCR: 0, SHPR1: 0, SHPR2: 0, SHPR3: 0, SHCSR: 0,
     // --------------------------------------- MPU ------------------------------------------
     MPU_TYPE: 0x00000800, MPU_CTRL: 0, MPU_RNR: 0, MPU_RBAR: 0, MPU_RASR: 0, 
     // ------------------------------------- NVIC ABR ---------------------------------------  
@@ -43,19 +27,9 @@ uint[size_t] scb = [
     NVIC_ISR18: 0, NVIC_ISR19: 0, NVIC_ISR20: 0, NVIC_ISR21: 0, NVIC_ISR22: 0, NVIC_ISR23: 0, 
     NVIC_ISR24: 0, NVIC_ISR25: 0,
     // --------------------------------------------------------------------------------------
-    0xE000E3F8: 0,
-    0xE000EF34: 0,
-    VTOR: 0, AIRCR: 0xFA050000, SCR: 0,
-    0xE000ED28: 0,          // CFSR(RW) 0x00000000
-                            // Write a one to a register bit to clear the corresponding fault.
-                            // [31:16] UsageFault Provides information on UsageFault exceptions
-                            // [15:8] BusFault Provides information on BusFault exceptions
-                            // [7:0] MemManage Provides information on MemManage exceptions
-    HFSR: 0,   
+    FPCCR: 0, VTOR:  0, AIRCR: 0xFA050000, SCR: 0, CFSR:  0, HFSR: 0, CPACR: 0,  
     // ------------------------------------- SysTick ----------------------------------------
     SYST_CSR: 0, SYST_RVR: 0, SYST_CVR: 0, SYST_CALIB: 0,
     // --------------------------------------------------------------------------------------
-    CPACR: 0,
-    0xE000E018: 0,
-    0xE0042004: 0           // DBGMCU_CR Debug MCU Configuration Register
+    DBGMCU_CR: 0
 ];

@@ -5,6 +5,7 @@ import std.range;
 import std.traits : isIntegral;
 
 import log;
+import scb_defs;
 import parse_elf;
 import cortex_m_core;
 import memory_sections;

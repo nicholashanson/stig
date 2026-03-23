@@ -1,6 +1,8 @@
 import std.algorithm;
 import std.stdio;
 import std.format;
+import std.traits : EnumMembers;
+import std.conv;
 
 import log;
 import cortex_m_core;
@@ -11,21 +13,21 @@ import scb_defs;
 // ====================
 //  WRITE BYTE TO WORD
 // ====================
-void write_byte_to_word(ref uint[size_t] mem_block, const size_t addr, const ubyte b) {
+void write_byte_to_word(T1,T2)(ref uint[T1] mem_block, const T2 addr, const ubyte b) {
     const size_t word_addr =  addr & ~3;
     const uint   shift     = (addr &  3) * 8;
-    const uint   old       =  mem_block[word_addr];
+    const uint   old       =  mem_block[cast(T1)word_addr];
     const uint   masked    = (old & ~(0xff << shift)) | (b << shift);
-    mem_block[word_addr] = masked;
+    mem_block[cast(T1)word_addr] = masked;
 }
 
 // =====================
 //  READ BYTE FROM WORD
 // =====================
-ubyte read_byte_from_word(ref uint[size_t] mem_block, size_t addr) {
+ubyte read_byte_from_word(T1,T2)(ref uint[T1] mem_block, T2 addr) {
     const size_t word_addr =  addr & ~3;
     const uint   shift     = (addr & 3) * 8;
-    const uint   val       = mem_block[word_addr];
+    const uint   val       = mem_block[cast(T1)word_addr];
     return cast(ubyte)((val >> shift) & 0xff);
 }
 // --------------------------------------------------------------------------------------
@@ -65,60 +67,17 @@ struct tiny_mem {
     void set_vtor() {};
 }
 // --------------------------------------------------------------------------------------
-enum ise_base     = 0xE000E100;
-enum ise_top      = 0xE000E13C;
-enum ice_base     = 0xE000E180;
-enum ice_top      = 0xE000E1BC;
-enum isp_base     = 0xE000E200;
-enum isp_top      = 0xE000E23C;
-enum icpr_base    = 0xE000E280;
-enum icpr_top     = 0xE000E2BC;
-enum iab_base     = 0xE000E300;
-enum iab_top      = 0xE000E33C;
-enum ipr_base     = 0xE000E400;
-enum ipr_top      = 0xE000E5EC;
-// --------------------------------------------------------------------------------------
-// =====================================
-//  SYSTEM CONTROL BLOCK REGISTER NAMES
-// =====================================
-
-immutable string[size_t] scb_reg_names = [
-    0xE000E010:   "SYST_CSR",
-    0xE000E014:   "SYST_RVR",       
-    0xE000E018:   "SYST_CVR",       
-    0xE000E01C: "SYST_CALIB",
-    0xE000ED04:       "ICSR", 
-    0xE000ED08:       "VTOR",
-    0xE000ED10:        "SCR",
-    0xE000ED14:        "CCR",
-    0xE000ED18:      "SHPR1",
-    0xE000ED1C:      "SHPR2", 
-    0xE000ED20:      "SHPR3",
-    0xE000ED24:      "SHCSR",
-    0xE000ED28:       "CFSR",
-    0xE000ED2C:       "HFSR",
-    0xE000ED88:      "CPACR",
-    0xE000ED90:   "MPU_TYPE"
-];
-// --------------------------------------------------------------------------------------
 // ========================================
 //  GET SYSTEM CONTROL BLOCK REGISTER NAME
 // ========================================
 
 string get_scb_reg_name(const uint reg_addr) { 
-    if (reg_addr >= ipr_base && reg_addr <= ipr_top) {
-        return format("NVIC_IPR%d", (reg_addr - ipr_base)  / 4);
-    } 
-    if (reg_addr >= ise_base && reg_addr <= ise_top) {
-        return format("NVIC_ISER%d", (reg_addr - ise_base) / 4);
+    foreach(k; scb.keys)  
+    {
+        if (cast(uint) k == reg_addr)  
+            return k.to!string;        
     }
-    if (reg_addr >= ice_base && reg_addr <= ice_top) {
-        return format("NVIC_ICER%d", (reg_addr - ice_base) / 4);
-    }  
-    if (reg_addr >= isp_base && reg_addr <= isp_top) {
-        return format("NVIC_ISPR%d", (reg_addr - isp_base) / 4);
-    }
-    return scb_reg_names.get(reg_addr, "");;
+    return "";
 }
 // --------------------------------------------------------------------------------------  
 // ================================
@@ -933,7 +892,7 @@ struct stm32f4_mem {
     ];
 
     void set_vtor() {
-        scb[0xE000ED08] = 0x8000000;
+        scb[VTOR] = 0x8000000;
     }
 
     string get_reg_name(const uint reg_addr) {
@@ -951,8 +910,8 @@ struct stm32f4_mem {
             flip_bit(0x40023874, 1);
         uint res;
         if (addr >= scb_base) {
-            if (auto s = addr in scb) {
-                res = *s;              
+            if (cast(scb_reg)addr in scb) {
+                res = scb[cast(scb_reg)addr];              
             } else {
                 throw new Exception("Invalid access");            
             }
@@ -977,9 +936,9 @@ struct stm32f4_mem {
 
     void flip_bit(size_t addr, int bit_pos) {
         if (addr >= scb_base) {
-            uint val = scb[addr];
+            uint val = scb[cast(scb_reg)addr];
             val ^= (1u << bit_pos);
-            scb[addr] = val;
+            scb[cast(scb_reg)addr] = val;
         } else if (addr > ram_origin + ram_length) {
             uint val = peripherals[addr];
             val ^= (1u << bit_pos);
@@ -1021,8 +980,8 @@ struct stm32f4_mem {
 
     void write_word(size_t addr, uint val) {
         if (addr >= scb_base) {
-            if (addr in scb) {
-                scb[addr] = val;   
+            if (cast(scb_reg)addr in scb) {
+                scb[cast(scb_reg)addr] = val;   
                 if (addr == SYST_CVR) {
                     scb[SYST_CSR] &= ~0x00010000;
                 }
@@ -1326,8 +1285,8 @@ struct nrf52840_mem {
         if (nrf52840_always_set.canFind(addr)) 
             return 0x1;
         if (addr >= scb_base) {
-            if (auto s = addr in scb) {
-                res = *s;              
+            if (cast(scb_reg)addr in scb) {
+                res = scb[cast(scb_reg)addr];              
             } else {
                 throw new Exception("Invalid access");            
             }
@@ -1352,9 +1311,9 @@ struct nrf52840_mem {
 
     void flip_bit(size_t addr, int bit_pos) {
         if (addr >= scb_base) {
-            uint val = scb[addr];
+            uint val = scb[cast(scb_reg)addr];
             val ^= (1u << bit_pos);
-            scb[addr] = val;
+            scb[cast(scb_reg)addr] = val;
         } else if (addr > ram_origin + ram_length) {
             uint val = peripherals[addr];
             val ^= (1u << bit_pos);
@@ -1397,8 +1356,8 @@ struct nrf52840_mem {
 
     void write_word(size_t addr, uint val) {
         if (addr >= scb_base) {
-            if (addr in scb) {
-                scb[addr] = val;  
+            if (cast(scb_reg)addr in scb) {
+                scb[cast(scb_reg)addr] = val;  
                 if (addr == SYST_CVR) {
                     scb[SYST_CSR] &= ~0x00010000;
                 }
