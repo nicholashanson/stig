@@ -36,8 +36,11 @@ For example, to run the blink LED FreeRTOS sample, from the src subdirectroy run
 ## Controls
 
 [DOWN_ARR]  - Increment program counter
+
 [Z]         - Scroll instruction pad (down)
+
 [X]         - Scroll instruciton pad (up)
+
 [SPACE]     - Play/pause
 
 ## Tracing
