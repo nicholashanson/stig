@@ -360,7 +360,7 @@ row_view[] get_function_rows(func f) {
             if (i16.op == opcode.ldr_lit_t1) {
                 int base = ins._addr + 4;
                 base &= ~0x3;
-                s ~= format(" @ (%7X)", base + i16.imm);
+                s ~= format(" @ (%X)", base + i16.imm);
             }
         }
         catch (Exception e) {

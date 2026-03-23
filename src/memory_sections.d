@@ -875,17 +875,17 @@ struct stm32f4_mem {
                             //      1: Short debounce time, used for soft connections 
                             //         (2.5 μs)
                             //      Note: Only accessible in host mode.
-        FMC_BCR1:   0,  FMC_BCR2:  0,  FMC_BCR3:  0,  FMC_BCR4:  0,    
-        FMC_BTR1:   0,  FMC_BTR2:  0,  FMC_BTR3:  0,  FMC_BTR4:  0,    
-        FMC_BWTR1:  0,  FMC_BWTR2: 0,  FMC_BWTR3: 0,  FMC_BWTR4: 0,  
-        FMC_PCR2:   0,  FMC_PCR3:  0,  FMC_PCR4:  0,   
-        FMC_SR2:    0,  FMC_SR3:   0,  FMC_SR4:   0,   
-        FMC_PMEM2:  0,  FMC_PMEM3: 0,  FMC_PMEM4: 0,   
-        FMC_PATT2:  0,  FMC_PATT3: 0,  FMC_PATT4: 0,   
+        FMC_BCR1:   0,  FMC_BCR2:   0,  FMC_BCR3:  0,  FMC_BCR4:  0,    
+        FMC_BTR1:   0,  FMC_BTR2:   0,  FMC_BTR3:  0,  FMC_BTR4:  0,    
+        FMC_BWTR1:  0,  FMC_BWTR2:  0,  FMC_BWTR3: 0,  FMC_BWTR4: 0,  
+        FMC_PCR2:   0,  FMC_PCR3:   0,  FMC_PCR4:  0,   
+        FMC_SR2:    0,  FMC_SR3:    0,  FMC_SR4:   0,   
+        FMC_PMEM2:  0,  FMC_PMEM3:  0,  FMC_PMEM4: 0,   
+        FMC_PATT2:  0,  FMC_PATT3:  0,  FMC_PATT4: 0,   
         FMC_PIO4 :  0,   
-        FMC_ECCR2:  0,  FMC_ECCR3: 0,   
-        FMC_SDCR_1: 0, FMC_SDCR_2: 0,  
-        FMC_SDTR1:  0,  FMC_SDTR2: 0,   
+        FMC_ECCR2:  0,  FMC_ECCR3:  0,   
+        FMC_SDCR_1: 0,  FMC_SDCR_2: 0,  
+        FMC_SDTR1:  0,  FMC_SDTR2:  0,   
         FMC_SDCMR:  0,   
         FMC_SDRTR:  0,   
         FMC_SDSR:   0,    
@@ -1073,11 +1073,20 @@ enum QPSI {
     EVENTS_READY = 0x40029100
 }
 
+// =====
+//  ECB
+// =====
+
+enum ECB {
+    EVENTS_ENDECB = 0x4000E100
+}
+
 size_t[] nrf52840_always_set = [
     CLOCK.LFCLKSRC,
     UART0.EVENTS_TXDRDY,
     QPSI.EVENTS_READY,
-    UARTE0.EVENTS_TXSTOPPED
+    UARTE0.EVENTS_TXSTOPPED,
+    ECB.EVENTS_ENDECB
 ];
 
 struct nrf52840_mem {
@@ -1267,6 +1276,14 @@ struct nrf52840_mem {
         0x40029638: 0,          // CINSTRDAT0 0x638 Custom instruction data register 0.
         0x4002963C: 0,          // CINSTRDAT1 0x63C Custom instruction data register 1.
         0x40029640: 0,          // IFTIMING 0x640 SPI interface timing
+        // ECB-----------------------------------------------------------------------------------
+        0x4000E000: 0,          // TASKS_STARTECB 0x000 Start ECB block encrypt
+        0x4000E004: 0,          // TASKS_STOPECB 0x004 Abort a possible executing ECB operation
+        0x4000E100: 0,          // EVENTS_ENDECB 0x100 ECB block encrypt complete
+        0x4000E104: 0,          // EVENTS_ERRORECB 0x104 ECB block encrypt aborted because of a STOPECB task or due to an error
+        0x4000E304: 0,          // INTENSET 0x304 Enable interrupt
+        0x4000E308: 0,          // INTENCLR 0x308 Disable interrupt
+        0x4000E504: 0,          // ECBDATAPTR 0x504 ECB block encrypt memory pointers
     ];
     string[size_t] peripheral_names = [
         0x40011504: "RTC1_COUNTER"

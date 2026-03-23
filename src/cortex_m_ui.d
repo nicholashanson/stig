@@ -222,8 +222,8 @@ void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
         mvwprintw(load_store_pad, load_store_y++, load_store_x, toStringz(s));
     }
 
-    int screen_row     = 0;
-    int col            = 1;
+    int screen_row     =  0;
+    int col            =  1;
     int current_pc_row = -1;
 
     int pc_r = 0;
@@ -371,15 +371,6 @@ void stm32_control_loop(ref runtime_ctrl ctrl, ref cortex_m_vm!stm32f4_mem vm, r
             if (ch == ' ') { 
                 ctrl.is_playing = !ctrl.is_playing;
             }               
-            if (ch == 'p') {
-                vm.flip_bit(0x40023800, 25);
-            }  
-            if (ch == 'y') {
-                vm.flip_bit(0x40023800, 27);
-            }  
-            if (ch == 'l') {
-                vm.flip_bit(0x40023874, 1);
-            }
         }
 
         auto now = MonoTime.currTime;

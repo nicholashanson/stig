@@ -59,7 +59,8 @@ string[] table_names = [
     "bt_ias_cb_area",
     "settings_handler_static_area",
     "device_states",
-    "k_mem_slab_area"
+    "k_mem_slab_area",
+    "crypto_driver_api_area"
 ];
 // --------------------------------------------------------------------------------------
 alias read_fn(T) = T function(const(ubyte)[] data, size_t offset);
