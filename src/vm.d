@@ -343,7 +343,7 @@ struct cortex_m_vm(mem_t) {
 	// ===================
 
 	bool pendsv_is_pending() {
-		auto val = mem.read_word(0xE000ED04);
+		auto val = mem.read_word(ICSR);
 		return cast(bool)slice(val, 28, 1);
 	}
 

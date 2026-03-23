@@ -836,25 +836,46 @@ struct cortex_m_cpu {
 	mixin property!"c";
 	mixin property!"v";
 
-	void set_n(const uint v) {
-		n = test_unsigned_neg(v);
-	}
+	// --------------------------------------------------------------------------------------
+	// =======
+	//  GET N
+	// =======
 
 	bool get_n() const {
 		return n;
 	}
 
+	// =======
+	//  SET N
+	// =======
+
+	void set_n(const uint v) {
+		n = test_unsigned_neg(v);
+	}
+
 	void set_n(const int v) {
 		n = (v < 0);
 	}
-
-	void set_z(t)(t v) if (isIntegral!t) {
-    	z = (v == 0);
-	}
+	// --------------------------------------------------------------------------------------
+	// =======
+	//  GET Z
+	// =======
 
 	bool get_z() const {
 		return z;
 	}
+
+	// =======
+	//  SET Z
+	// =======
+
+	void set_z(t)(t v) if (isIntegral!t) {
+    	z = (v == 0);
+	}
+	// --------------------------------------------------------------------------------------
+	// ===========
+	//  SET FLAGS
+	// ===========
 
 	void set_flag(flag f, bool i) {
 		final switch (f) {
