@@ -8,6 +8,7 @@ import log;
 import cortex_m_core;
 import cortex_m_scb;
 import scb_defs;
+import stm32f4_defs;
 
 // --------------------------------------------------------------------------------------
 // ====================
@@ -600,74 +601,17 @@ struct stm32f4_mem {
         // --------------------------------------- RCC ------------------------------------------
         // There are three types of reset, defined as system Reset, power Reset and backup 
         // domain Reset.
-        0x40023800: 0x23333083, // RCC_CR, Reset value: 0x0000XX83 where X is undefined.
-                                // Bit 27 PLLI2SRDY: PLLI2S clock ready flag
-                                // Set by hardware to indicate that the PLLI2S is locked.
-                                //      0: PLLI2S unlocked
-                                //      1: PLLI2S locked
-                                // Bit 25 PLLRDY: Main PLL (PLL) clock ready flag
-                                // Set by hardware to indicate that PLL is locked.
-                                //      0: PLL unlocked
-                                //      1: PLL locked
-                                // Bit 1 HSIRDY: Internal high-speed clock ready flag
-                                // Set by hardware to indicate that the HSI oscillator is stable. 
-                                // After the HSION bit is cleared, HSIRDY goes low after 6 HSI 
-                                // clock cycles.
-                                //      0: HSI oscillator not ready
-                                //      1: HSI oscillator ready
-                                // Bit 0 HSION: Internal high-speed clock enable
-                                // Set and cleared by software.
-                                // Set by hardware to force the HSI oscillator ON when leaving 
-                                // the Stop or Standby mode or in case of a failure of the HSE 
-                                // oscillator used directly or indirectly as the system clock. 
-                                // This bit cannot be cleared if the HSI is used directly or 
-                                // indirectly as the system clock.
-                                //      0: HSI oscillator OFF
-                                //      1: HSI oscillator ON
-        0x40023804: 0x24003010, // RCC_PLLCFGR
-                                // Reset value: 0x2400 3010
-        0x40023808: 0,          // RCC_CFGR
-        0x4002380C: 0,          // RCC clock interrupt register (RCC_CIR)
-        0x40023810: 0,          // RCC_AHB1RSTR
-        0x40023814: 0,          // RCC_AhB2RSTR
-        0x40023818: 0,          // RCC_AHB3RSTR 
-                                // RCC_APB1RSTR
-        0x40023824: 0,          // RCC_APB2RSTR
-        0x40023830: 0,          // RCC_AHB1ENR Peripheral Clock Enable Register
-        0x40023834: 0,          // RCC_AHB2ENR
-        0x40023838: 0,          // RCC_AHB3ENR
-        0x40023840: 0,          // RCC_APB1ENR Peripheral Clock Enable Register
-                                // Bit 28 PWREN: Power interface clock enable
-                                // This bit is set and cleared by software.
-                                //      0: Power interface clock disabled
-                                //      1: Power interface clock enable
-        0x40023844: 0,          // RCC_APB2ENR Peripheral Clock Enable Register
-        0x40023850: 0x7EF7B7FF, // RCC_AHB1LPENR
-                                // RCC AHB1 peripheral clock enable in low-power mode register
-        0x40023854: 0,          // RCC_AHB2LPENR
-        0x40023858: 0,          // RCC_AHB3LPENR 
-        0x40023860: 0,          // RCC_APB1LPENR
-        0x40023864: 0,          // RCC_APB2LPENR 
-        0x40023870: 0,          // RCC_BDCR
-        0x40023874: 0x0E000000, // RCC_CSR
-                                // RCC clock control & status register (RCC_CSR)
-                                // Reset value: 0x0E00 0000, reset by system reset, except reset 
-                                // Bit 1 LSIRDY: Internal low-speed oscillator ready
-                                // This bit is set and cleared by hardware to indicate when the 
-                                // internal RC 40 kHz oscillator is stable. After the LSION bit 
-                                // is cleared, LSIRDY goes low after 3 LSI clock cycles.
-                                //      0: LSI RC oscillator not ready
-                                //      1: LSI RC oscillator ready
-                                // flags by power reset only
-                                // Bit 0 LSION: Internal low-speed oscillator enable
-                                // This bit is set and cleared by software.
-                                //      0: LSI RC oscillator OFF
-                                //      1: LSI RC oscillator ON
-        0x40023888: 0,          // RCC_SSCGR
-        0x40023884: 0x20003000, // RCC_PLLI2SCFGR
-        0x40023888: 0x24003000, // RCC_PLLSAICFGR
-                                // Reset value: 0x2400 3000
-        0x4002388C: 0,          // RCC_DCKCFGR Dedicated Clock Configuration Register
+        RCC_CR:         0x23333083,  RCC_PLLCFGR:    0x24003010,   RCC_AHB1LPENR: 0x7EF7B7FF, 
+        RCC_AHB1LPENR:  0x7EF7B7FF,  RCC_CSR:        0x0E000000, 
+        RCC_PLLI2SCFGR: 0x20003000,  RCC_PLLSAICFGR: 0x24003000, 
+        RCC_CFGR:      0,  RCC_CIR:       0,        
+        RCC_AHB1RSTR:  0,  RCC_AHB2RSTR:  0, RCC_AHB3RSTR:  0,         
+        RCC_APB2RSTR:  0,  
+        RCC_AHB1ENR :  0,  RCC_AHB2ENR :  0, RCC_AHB3ENR:   0,
+        RCC_APB1ENR :  0,  RCC_APB2ENR :  0,
+        RCC_AHB1LPENR: 0,  RCC_AHB2LPENR: 0, RCC_AHB3LPENR: 0, 
+        RCC_APB1LPENR: 0,  RCC_APB2LPENR: 0,  
+        RCC_BDCR:      0,  RCC_CSR:       0, RCC_SSCGR:     0, RCC_DCKCFGR:   0, 
         // --------------------------------------------------------------------------------------
         0x40011000: 0xC0,       // USART1_SR
         USART1_DR: 0,         
@@ -1054,7 +998,8 @@ enum UART0 {
 // ========
 
 enum UARTE0 {
-    EVENTS_TXSTOPPED = 0x40002158
+    EVENTS_TXSTOPPED = 0x40002158,
+    EVENTS_ENDTX =  0x40002120
 }
 
 // =======
@@ -1086,6 +1031,7 @@ size_t[] nrf52840_always_set = [
     UART0.EVENTS_TXDRDY,
     QPSI.EVENTS_READY,
     UARTE0.EVENTS_TXSTOPPED,
+    UARTE0.EVENTS_ENDTX,        
     ECB.EVENTS_ENDECB
 ];
 
@@ -1175,6 +1121,15 @@ struct nrf52840_mem {
         0x40002150: 0,          // EVENTS_TXSTARTED: UART transmitter has started
         0x40002158: 0,          // EVENTS_TXSTOPPED: Transmitter stopped
         0x40002300: 0,          // INTEN: Enable or disable interrupt
+        0x40002308: 0,          // INTENCLR 0x308 Disable interrupt
+        0x40002480: 0,          // ERRORSRC 0x480 Error source
+                                // This register is read/write one to clear.
+        0x40002534: 0,          // RXD.PTR 0x534 Data pointer
+        0x40002538: 0,          // RXD.MAXCNT 0x538 Maximum number of bytes in receive buffer
+        0x4000253C: 0,          // RXD.AMOUNT 0x53C Number of bytes transferred in the last transaction
+        0x40002544: 0,          // TXD.PTR 0x544 Data pointer
+        0x40002548: 0,          // TXD.MAXCNT 0x548 Maximum number of bytes in transmit buffer
+        0x4000254C: 0,          // TXD.AMOUNT 0x54C Number of bytes transferred in the last transaction
         // RTC-----------------------------------------------------------------------------------
         0x4000B000: 0,          // TASKS_START 0x000 Start RTC COUNTER
         0x4000B004: 0,          // TASKS_STOP 0x004 Stop RTC COUNTER
