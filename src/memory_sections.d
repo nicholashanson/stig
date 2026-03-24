@@ -557,47 +557,6 @@ struct stm32f4_mem {
         0x40013C0C: 0,          // SYSCFG_EXTICR2
         0x40013C10: 0,          // SYSCFG_EXTICR3
         0x40013C14: 0,          // SYSCFG_EXTICR4
-        0x40023808: 0,          // RCC_CFGR
-                                // Bits 15:13 PPRE2: APB high-speed prescaler (APB2)
-                                // Set and cleared by software to control APB high-speed clock 
-                                // division factor.
-                                // Caution: The software has to set these bits correctly not 
-                                // to exceed 90 MHz on this domain.
-                                // The clocks are divided with the new prescaler factor from 1 
-                                // to 16 AHB cycles after PPRE2 write.
-                                //      0xx: AHB clock not divided
-                                //      100: AHB clock divided by 2
-                                //      101: AHB clock divided by 4
-                                //      110: AHB clock divided by 8
-                                //      111: AHB clock divided by 16
-                                // Bits 12:10 PPRE1: APB Low-speed prescaler (APB1)
-                                // Set and cleared by software to control APB low-speed clock 
-                                // division factor.
-                                // Caution: The software has to set these bits correctly not 
-                                // to exceed 45 MHz on this domain.
-                                // The clocks are divided with the new prescaler factor from 
-                                // 1 to 16 AHB cycles after PPRE1 write.
-                                //      0xx: AHB clock not divided
-                                //      100: AHB clock divided by 2
-                                //      101: AHB clock divided by 4
-                                //      110: AHB clock divided by 8
-                                //      111: AHB clock divided by 16
-                                // Bits 3:2 SWS: System clock switch status
-                                // Set and cleared by hardware to indicate which clock source is 
-                                // used as the system clock.
-                                //      00: HSI oscillator used as the system clock
-                                //      01: HSE oscillator used as the system clock
-                                //      10: PLL used as the system clock
-                                //      11: not applicable
-                                // Bits 1:0 SW: System clock switch
-                                // Set and cleared by software to select the system clock source.
-                                // Set by hardware to force the HSI selection when leaving the 
-                                // Stop or Standby mode or in case of failure of the HSE 
-                                // oscillator used directly or  indirectly as the system clock.
-                                //      00: HSI oscillator selected as system clock
-                                //      01: HSE oscillator selected as system clock
-                                //      10: PLL selected as system clock
-                                //      11: not allowed
         // --------------------------------------- RCC ------------------------------------------
         // There are three types of reset, defined as system Reset, power Reset and backup 
         // domain Reset.
@@ -752,6 +711,29 @@ struct stm32f4_mem {
         0x40023820: 0,
         0x40004410: 0,
         0x40004414: 0,
+
+        0x40000C00: 0,
+        0x40000C00: 0,
+        0x40000C04: 0,
+        0x40000C08: 0,
+        0x40000C0C: 0,
+        0x40000C10: 0,
+        0x40000C14: 0,
+        0x40000C18: 0,
+        0x40000C1C: 0,
+        0x40000C20: 0,
+        0x40000C24: 0,
+        0x40000C28: 0,
+        0x40000C2C: 0,
+        0x40000C30: 0,
+        0x40000C34: 0,
+        0x40000C38: 0,
+        0x40000C3C: 0,
+        0x40000C40: 0,
+        0x40000C44: 0,
+        0x40000C48: 0,
+        0x40000C4C: 0,
+        0x40000C50: 0,
         // --------------------------------------------------------------------------------------
         0x40004400: 0xC0, // USART2_SR
         // Reset value: 0x000C000C0
@@ -802,24 +784,7 @@ struct stm32f4_mem {
                             // to the corresponding bit in DMA_LIFCR register.
                             //      0: No transfer complete event on stream x
                             //      1: A transfer complete event occurred on stream x.
-        0x5000000: 0x10000, // OTG_GOTGCTL
-                            // Reset value: 0x00010000
-                            // Bit 21 CURMOD: Current mode of operation
-                            // Indicates the current mode (host or device).
-                            //      0: Device mode
-                            //      1: Host mode
-                            // Bit 20 OTGVER: OTG version
-                            // Selects the OTG revision.
-                            //      0:OTG Version 1.3. OTG1.3 is obsolete for new product development.
-                            //      1:OTG Version 2.0. In this version the core supports only data 
-                            //        line pulsing for SRP.
-                            // Bit 17 DBCT: Long/short debounce time
-                            // Indicates the debounce time of a detected connection.
-                            //      0: Long debounce time, used for physical connections 
-                            //         (100 ms + 2.5 μs)
-                            //      1: Short debounce time, used for soft connections 
-                            //         (2.5 μs)
-                            //      Note: Only accessible in host mode.
+        OTG_GOTGCTL: 0x10000, 
         FMC_BCR1:   0,  FMC_BCR2:   0,  FMC_BCR3:  0,  FMC_BCR4:  0,    
         FMC_BTR1:   0,  FMC_BTR2:   0,  FMC_BTR3:  0,  FMC_BTR4:  0,    
         FMC_BWTR1:  0,  FMC_BWTR2:  0,  FMC_BWTR3: 0,  FMC_BWTR4: 0,  
