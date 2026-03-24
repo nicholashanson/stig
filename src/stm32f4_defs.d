@@ -47,7 +47,48 @@ enum stm32f4_peripheral_reg : uint {
 //      1: HSI oscillator ON
 RCC_CR = 0x40023800,                    
 // Reset value: 0x24003010
-RCC_PLLCFGR = 0x40023804,   
+RCC_PLLCFGR = 0x40023804,  
+// RCC_CFGR
+// Bits 15:13 PPRE2: APB high-speed prescaler (APB2)
+// Set and cleared by software to control APB high-speed clock 
+// division factor.
+// Caution: The software has to set these bits correctly not 
+// to exceed 90 MHz on this domain.
+// The clocks are divided with the new prescaler factor from 1 
+// to 16 AHB cycles after PPRE2 write.
+//      0xx: AHB clock not divided
+//      100: AHB clock divided by 2
+//      101: AHB clock divided by 4
+//      110: AHB clock divided by 8
+//      111: AHB clock divided by 16
+// Bits 12:10 PPRE1: APB Low-speed prescaler (APB1)
+// Set and cleared by software to control APB low-speed clock 
+// division factor.
+// Caution: The software has to set these bits correctly not 
+// to exceed 45 MHz on this domain.
+// The clocks are divided with the new prescaler factor from 
+// 1 to 16 AHB cycles after PPRE1 write.
+//      0xx: AHB clock not divided
+//      100: AHB clock divided by 2
+//      101: AHB clock divided by 4
+//      110: AHB clock divided by 8
+//      111: AHB clock divided by 16
+// Bits 3:2 SWS: System clock switch status
+// Set and cleared by hardware to indicate which clock source is 
+// used as the system clock.
+//      00: HSI oscillator used as the system clock
+//      01: HSE oscillator used as the system clock
+//      10: PLL used as the system clock
+//      11: not applicable
+// Bits 1:0 SW: System clock switch
+// Set and cleared by software to select the system clock source.
+// Set by hardware to force the HSI selection when leaving the 
+// Stop or Standby mode or in case of failure of the HSE 
+// oscillator used directly or  indirectly as the system clock.
+//      00: HSI oscillator selected as system clock
+//      01: HSE oscillator selected as system clock
+//      10: PLL selected as system clock
+//      11: not allowed 
 RCC_CFGR = 0x40023808,          
 // RCC clock interrupt register (RCC_CIR)
 RCC_CIR = 0x4002380C,        
@@ -99,5 +140,24 @@ RCC_PLLI2SCFGR = 0x40023884,
 // Reset value: 0x2400 3000
 RCC_PLLSAICFGR = 0x40023888, 
 // RCC_DCKCFGR Dedicated Clock Configuration Register
-RCC_DCKCFGR = 0x4002388C,         
+RCC_DCKCFGR = 0x4002388C,    
+
+// Reset value: 0x00010000
+// Bit 21 CURMOD: Current mode of operation
+// Indicates the current mode (host or device).
+//      0: Device mode
+//      1: Host mode
+// Bit 20 OTGVER: OTG version
+// Selects the OTG revision.
+//      0:OTG Version 1.3. OTG1.3 is obsolete for new product development.
+//      1:OTG Version 2.0. In this version the core supports only data 
+//        line pulsing for SRP.
+// Bit 17 DBCT: Long/short debounce time
+// Indicates the debounce time of a detected connection.
+//      0: Long debounce time, used for physical connections 
+//         (100 ms + 2.5 μs)
+//      1: Short debounce time, used for soft connections 
+//         (2.5 μs)
+//      Note: Only accessible in host mode.
+OTG_GOTGCTL = 0x50000000,              
 }
