@@ -22,6 +22,7 @@ import log;
 
 string[] table_names = [
     "rodata",
+    ".rodata",
     "_static_thread_data_area",
     "k_heap_area",
     "device_area",
@@ -31,6 +32,7 @@ string[] table_names = [
     "reset_driver_api_area",
     "sw_isr_table",
     "datas",
+    ".data",
     "text",
     ".text",
     "log_msg_ptr_area",

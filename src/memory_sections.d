@@ -1001,8 +1001,8 @@ struct nrf52840_mem {
                 scb[SYST_CSR] &= ~0x00010000;
             }
         } else if (addr > ram_origin + ram_length) {
-            if (auto p = addr in nrf52_peripheral_regs) {
-                res = *p;              
+            if (cast(nrf52_peripheral_reg)addr in nrf52_peripheral_regs) {
+                res = nrf52_peripheral_regs[cast(nrf52_peripheral_reg)addr]; 
             } else {
                 throw new Exception("Invalid access");            
             }
@@ -1022,9 +1022,9 @@ struct nrf52840_mem {
             val ^= (1u << bit_pos);
             scb[cast(scb_reg)addr] = val;
         } else if (addr > ram_origin + ram_length) {
-            uint val = nrf52_peripheral_regs[addr];
+            uint val = nrf52_peripheral_regs[cast(nrf52_peripheral_reg)addr];
             val ^= (1u << bit_pos);
-            nrf52_peripheral_regs[addr] = val;
+            nrf52_peripheral_regs[cast(nrf52_peripheral_reg)addr] = val;
         }
     }
 
@@ -1073,7 +1073,7 @@ struct nrf52840_mem {
                 throw new Exception("Invalid access");            
             }
         } else if (addr >= ram_origin + ram_length) {
-            nrf52_peripheral_regs[addr] = val;
+            nrf52_peripheral_regs[cast(nrf52_peripheral_reg)addr] = val;
         }
         else if (addr >= ram_origin) {
             ram.write_word(addr, val);

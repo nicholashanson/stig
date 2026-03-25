@@ -1,6 +1,6 @@
 import nrf52_defs;
 
-uint[size_t] nrf52_peripheral_regs = [
+uint[nrf52_peripheral_reg] nrf52_peripheral_regs = [
     RTC1_COUNTER: 0,
     // CLOCK---------------------------------------------------------------------------------
     CLOCK_TASKS_HFCLKSTART: 0, CLOCK_TASKS_HFCLKSTOP:     0, CLOCK_TASKS_LFCLKSTART:    0,         
@@ -11,7 +11,9 @@ uint[size_t] nrf52_peripheral_regs = [
     CLOCK_HFCLKRUN:         0, CLOCK_HFCLKSTAT:           0, CLOCK_LFCLKRUN:            0,          
     CLOCK_LFCLKSTAT:        0x00010001, 
     CLOCK_LFCLKSRCCOPY:     0, CLOCK_LFCLKSRC:            0, CLOCK_HFXODEBOUNCE:        0,       
-    CLOCK_CTIV:             0, CLOCK_TRACECONFIG:         0, CLOCK_LFRCMODE:            0,   
+    CLOCK_CTIV:             0, CLOCK_TRACECONFIG:         0, CLOCK_LFRCMODE:            0,
+    // APPROTECT-----------------------------------------------------------------------------
+    APPROTECT_FORCEPROTECT: 0, APPROTECT_DISABLE: 0,   
     // RNG-----------------------------------------------------------------------------------
     RNG_TASKS_START: 0, RNG_TASKS_STOP: 0, RNG_EVENTS_VALRDY: 0,
     RNG_SHORTS:      0, RNG_INTENSET:   0, RNG_INTENCLR:      0,
@@ -33,13 +35,13 @@ uint[size_t] nrf52_peripheral_regs = [
     UARTE0_RXD_PTR:          0, UARTE0_RXD_MAXCNT:       0, UARTE0_RXD_AMOUNT:       0,
     UARTE0_TXD_PTR:          0, UARTE0_TXD_MAXCNT:       0, UARTE0_TXD_AMOUNT:       0,
     // RTC-----------------------------------------------------------------------------------
-    RTC_TASKS_START:      0, RTC_TASKS_STOP:       0, RTC_TASKS_CLEAR:      0,
-    RTC_TASKS_TRIGOVRFLW: 0, RTC_EVENTS_TICK:      0, RTC_EVENTS_OVRFLW:    0,
-    RTC_EVENTS_COMPARE_0: 0, RTC_EVENTS_COMPARE_1: 0, RTC_EVENTS_COMPARE_2: 0,
-    RTC_EVENTS_COMPARE_3: 0, RTC_INTENSET:         0, RTC_INTENCLR:         0,
-    RTC_EVTEN:            0, RTC_EVTENSET:         0, RTC_EVTENCLR:         0,
-    RTC_COUNTER:          0, RTC_PRESCALER:        0, RTC_CC_0:             0,
-    RTC_CC_1:             0, RTC_CC_2:             0, RTC_CC_3:             0,
+    RTC0_TASKS_START:      0, RTC0_TASKS_STOP:       0, RTC0_TASKS_CLEAR:      0,
+    RTC0_TASKS_TRIGOVRFLW: 0, RTC0_EVENTS_TICK:      0, RTC0_EVENTS_OVRFLW:    0,
+    RTC0_EVENTS_COMPARE_0: 0, RTC0_EVENTS_COMPARE_1: 0, RTC0_EVENTS_COMPARE_2: 0,
+    RTC0_EVENTS_COMPARE_3: 0, RTC0_INTENSET:         0, RTC0_INTENCLR:         0,
+    RTC0_EVTEN:            0, RTC0_EVTENSET:         0, RTC0_EVTENCLR:         0,
+    RTC0_COUNTER:          0, RTC0_PRESCALER:        0, RTC0_CC_0:             0,
+    RTC0_CC_1:             0, RTC0_CC_2:             0, RTC0_CC_3:             0,
     // GPIO----------------------------------------------------------------------------------
     GPIO_OUT:        0, GPIO_OUTSET:     0, GPIO_OUTCLR:     0, GPIO_IN:         0, GPIO_DIR: 0, 
     GPIO_DIRSET:     0, GPIO_DIRCLR:     0, GPIO_LATCH:      0, GPIO_DETECTMODE: 0,
@@ -67,5 +69,19 @@ uint[size_t] nrf52_peripheral_regs = [
     // ECB-----------------------------------------------------------------------------------
     ECB_TASKS_STARTECB: 0, ECB_TASKS_STOPECB: 0, ECB_EVENTS_ENDECB: 0,
     ECB_EVENTS_ERROREC: 0, ECB_INTENSET:      0, ECB_INTENCLR:      0,
-    ECB_ECBDATAPTR: 0
+    ECB_ECBDATAPTR:     0,
+    // ACL-----------------------------------------------------------------------------------
+    ACL_0_ADDR: 0, ACL_0_SIZE: 0, ACL_0_PERM: 0,
+    ACL_1_ADDR: 0, ACL_1_SIZE: 0, ACL_1_PERM: 0,
+    ACL_2_ADDR: 0, ACL_2_SIZE: 0, ACL_2_PERM: 0,
+    ACL_3_ADDR: 0, ACL_3_SIZE: 0, ACL_3_PERM: 0,
+    ACL_4_ADDR: 0, ACL_4_SIZE: 0, ACL_4_PERM: 0,
+    ACL_5_ADDR: 0, ACL_5_SIZE: 0, ACL_5_PERM: 0,
+    ACL_6_ADDR: 0, ACL_6_SIZE: 0, ACL_6_PERM: 0,
+    ACL_7_ADDR: 0, ACL_7_SIZE: 0, ACL_7_PERM: 0,
+    // NVMC----------------------------------------------------------------------------------
+    NVMC_READY:            0, NVMC_READYNEXT:           0, NVMC_CONFIG:    0,
+    NVMC_ERASEPAGE:        0, NVMC_ERASEALL:            0, NVMC_ERASEUICR: 0,
+    NVMC_ERASEPAGEPARTIAL: 0, NVMC_ERASEPAGEPARTIALCFG: 0, NVMC_ICACHECNF: 0,
+    NVMC_IHIT:             0, NVMC_IMISS:               0,
 ];

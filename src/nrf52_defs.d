@@ -20,8 +20,50 @@ template generateAliases(alias E)
 mixin(generateAliases!nrf52_peripheral_reg.aliases);
 
 enum nrf52_peripheral_reg : uint {
+// Start RTC COUNTER
+RTC1_TASKS_START = 0x40011000,          
+// Stop RTC COUNTER
+RTC1_TASKS_STOP = 0x40011004,       
+// Clear RTC COUNTER
+RTC1_TASKS_CLEAR = 0x40011008,       
+// Set COUNTER to 0xFFFFF0
+RTC1_TASKS_TRIGOVRFLW = 0x4001100C,     
+// Event on COUNTER increment
+RTC1_EVENTS_TICK = 0x40011100,       
+// Event on COUNTER overflow
+RTC1_EVENTS_OVRFLW = 0x40011104,      
+// Compare event on CC[0] match
+RTC1_EVENTS_COMPARE_0 = 0x40011140,       
+// Compare event on CC[1] match
+RTC1_EVENTS_COMPARE_1 = 0x40011144,      
+// Compare event on CC[2] match
+RTC1_EVENTS_COMPARE_2 = 0x40011148,      
+// Compare event on CC[3] match
+RTC1_EVENTS_COMPARE_3 = 0x4001114C,         
+// Enable interrupt
+RTC1_INTENSET = 0x40011304,       
+// Disable interrupt
+RTC1_INTENCLR = 0x40011308,     
+// Enable or disable event routing
+RTC1_EVTEN = 0x40011340,     
+// Enable event routing
+RTC1_EVTENSET = 0x40011344,       
+// Disable event routing
+RTC1_EVTENCLR = 0x40011348,       
+// Current COUNTER value
 // Reset 0x00000000 
-RTC1_COUNTER = 0x40011504,
+RTC1_COUNTER = 0x40011504,         
+// 12 bit prescaler for COUNTER frequency (32768/(PRESCALER+1)). Must be written when RTC is
+// stopped.
+RTC1_PRESCALER = 0x40011508,         
+// Compare register 0
+RTC1_CC_0 = 0x40011540,        
+// Compare register 1
+RTC1_CC_1 = 0x40011544,        
+// Compare register 2
+RTC1_CC_2 = 0x40011548,        
+// Compare register 3
+RTC1_CC_3 = 0x4001154C,    
 
 // Start HFXO crystal oscillator
 CLOCK_TASKS_HFCLKSTART = 0x40000000,         
@@ -73,7 +115,25 @@ CLOCK_CTIV = 0x40000538,
 // Clocking options for the trace port debug interface
 CLOCK_TRACECONFIG = 0x4000055C,      
 // LFRC mode configuration   
-CLOCK_LFRCMODE = 0x400005B4,      
+CLOCK_LFRCMODE = 0x400005B4,    
+
+// Software force enable APPROTECT mechanism until next reset.
+APPROTECT_FORCEPROTECT = 0x40000550,
+// Software disable APPROTECT mechanism   
+APPROTECT_DISABLE = 0x40000558, 
+
+// Enable DC/DC converter for REG1 stage
+POWER_DCDCEN = 0x40000578,
+// Enable DC/DC converter for REG0 stage 
+POWER_DCDCEN0 = 0x40000580, 
+
+// Event generated from multiple input GPIO pins with SENSE mechanism enabled
+GPIOTE_EVENTS_PORT = 0x4000617C, 
+
+// Channel 19 event endpoint
+PPI_CH_19_EEP = 0x4001F5A8,
+// Channel 19 task endpoint 
+PPI_CH_19_TEP = 0x4001F5AC, 
 
 // Task starting the random number generator
 RNG_TASKS_START = 0x4000D000,        
@@ -297,48 +357,48 @@ QPSI_CINSTRDAT1 = 0x4002963C,
 QPSI_IFTIMING = 0x40029640,
 
 // Start RTC COUNTER
-RTC_TASKS_START = 0x4000B000,          
+RTC0_TASKS_START = 0x4000B000,          
 // Stop RTC COUNTER
-RTC_TASKS_STOP = 0x4000B004,       
+RTC0_TASKS_STOP = 0x4000B004,       
 // Clear RTC COUNTER
-RTC_TASKS_CLEAR = 0x4000B008,       
+RTC0_TASKS_CLEAR = 0x4000B008,       
 // Set COUNTER to 0xFFFFF0
-RTC_TASKS_TRIGOVRFLW = 0x4000B00C,     
+RTC0_TASKS_TRIGOVRFLW = 0x4000B00C,     
 // Event on COUNTER increment
-RTC_EVENTS_TICK = 0x4000B100,       
+RTC0_EVENTS_TICK = 0x4000B100,       
 // Event on COUNTER overflow
-RTC_EVENTS_OVRFLW = 0x4000B104,      
+RTC0_EVENTS_OVRFLW = 0x4000B104,      
 // Compare event on CC[0] match
-RTC_EVENTS_COMPARE_0 = 0x4000B140,       
+RTC0_EVENTS_COMPARE_0 = 0x4000B140,       
 // Compare event on CC[1] match
-RTC_EVENTS_COMPARE_1 = 0x4000B144,      
+RTC0_EVENTS_COMPARE_1 = 0x4000B144,      
 // Compare event on CC[2] match
-RTC_EVENTS_COMPARE_2 = 0x4000B148,      
+RTC0_EVENTS_COMPARE_2 = 0x4000B148,      
 // Compare event on CC[3] match
-RTC_EVENTS_COMPARE_3 = 0x4000B14C,         
+RTC0_EVENTS_COMPARE_3 = 0x4000B14C,         
 // Enable interrupt
-RTC_INTENSET = 0x4000B304,       
+RTC0_INTENSET = 0x4000B304,       
 // Disable interrupt
-RTC_INTENCLR = 0x4000B308,     
+RTC0_INTENCLR = 0x4000B308,     
 // Enable or disable event routing
-RTC_EVTEN = 0x4000B340,     
+RTC0_EVTEN = 0x4000B340,     
 // Enable event routing
-RTC_EVTENSET = 0x4000B344,       
+RTC0_EVTENSET = 0x4000B344,       
 // Disable event routing
-RTC_EVTENCLR = 0x4000B348,       
+RTC0_EVTENCLR = 0x4000B348,       
 // Current COUNTER value
-RTC_COUNTER = 0x4000B504,         
+RTC0_COUNTER = 0x4000B504,         
 // 12 bit prescaler for COUNTER frequency (32768/(PRESCALER+1)). Must be written when RTC is
 // stopped.
-RTC_PRESCALER = 0x4000B508,         
+RTC0_PRESCALER = 0x4000B508,         
 // Compare register 0
-RTC_CC_0 = 0x4000B540,        
+RTC0_CC_0 = 0x4000B540,        
 // Compare register 1
-RTC_CC_1 = 0x4000B544,        
+RTC0_CC_1 = 0x4000B544,        
 // Compare register 2
-RTC_CC_2 = 0x4000B548,        
+RTC0_CC_2 = 0x4000B548,        
 // Compare register 3
-RTC_CC_3 = 0x4000B54C,        
+RTC0_CC_3 = 0x4000B54C,        
 
 // Start ECB block encrypt
 ECB_TASKS_STARTECB = 0x4000E000,         
@@ -353,5 +413,42 @@ ECB_INTENSET = 0x4000E304,
 // Disable interrupt
 ECB_INTENCLR = 0x4000E308,          
 // ECB block encrypt memory pointers 
-ECB_ECBDATAPTR = 0x4000E504,                 
+ECB_ECBDATAPTR = 0x4000E504,   
+
+ACL_0_ADDR = 0x4001E800,  // Start address of region to protect. The start address must be word-aligned.
+ACL_0_SIZE = 0x4001E804,  // Size of region to protect counting from address ACL[0].ADDR. Writing a '0' has no effect.
+ACL_0_PERM = 0x4001E808,  // Access permissions for region 0 as defined by start address ACL[0].ADDR and size ACL[0].SIZE
+ACL_1_ADDR = 0x4001E810,  // Start address of region to protect. The start address must be word-aligned.
+ACL_1_SIZE = 0x4001E814,  // Size of region to protect counting from address ACL[1].ADDR. Writing a '0' has no effect.
+ACL_1_PERM = 0x4001E818,  // Access permissions for region 1 as defined by start address ACL[1].ADDR and size ACL[1].SIZE
+ACL_2_ADDR = 0x4001E820,  // Start address of region to protect. The start address must be word-aligned.
+ACL_2_SIZE = 0x4001E824,  // Size of region to protect counting from address ACL[2].ADDR. Writing a '0' has no effect.
+ACL_2_PERM = 0x4001E828,  // Access permissions for region 2 as defined by start address ACL[2].ADDR and size ACL[2].SIZE
+ACL_3_ADDR = 0x4001E830,  // Start address of region to protect. The start address must be word-aligned.
+ACL_3_SIZE = 0x4001E834,  // Size of region to protect counting from address ACL[3].ADDR. Writing a '0' has no effect.
+ACL_3_PERM = 0x4001E838,  // Access permissions for region 3 as defined by start address ACL[3].ADDR and size ACL[3].SIZE
+ACL_4_ADDR = 0x4001E840,  // Start address of region to protect. The start address must be word-aligned.
+ACL_4_SIZE = 0x4001E844,  // Size of region to protect counting from address ACL[4].ADDR. Writing a '0' has no effect.
+ACL_4_PERM = 0x4001E848,  // Access permissions for region 4 as defined by start address ACL[4].ADDR and size ACL[4].SIZE
+ACL_5_ADDR = 0x4001E850,  // Start address of region to protect. The start address must be word-aligned.
+ACL_5_SIZE = 0x4001E854,  // Size of region to protect counting from address ACL[5].ADDR. Writing a '0' has no effect.
+ACL_5_PERM = 0x4001E858,  // Access permissions for region 5 as defined by start address ACL[5].ADDR and size ACL[5].SIZE
+ACL_6_ADDR = 0x4001E860,  // Start address of region to protect. The start address must be word-aligned.
+ACL_6_SIZE = 0x4001E864,  // Size of region to protect counting from address ACL[6].ADDR. Writing a '0' has no effect.
+ACL_6_PERM = 0x4001E868,  // Access permissions for region 6 as defined by start address ACL[6].ADDR and size ACL[6].SIZE
+ACL_7_ADDR = 0x4001E870,  // Start address of region to protect. The start address must be word-aligned.
+ACL_7_SIZE = 0x4001E874,  // Size of region to protect counting from address ACL[7].ADDR. Writing a '0' has no effect.
+ACL_7_PERM = 0x4001E878,  // Access permissions for region 7 as defined by start address ACL[7].ADDR and size ACL[7].SIZE              
+
+NVMC_READY = 0x4001E400, // Ready flag
+NVMC_READYNEXT = 0x4001E408, // Ready flag
+NVMC_CONFIG = 0x4001E504, // Configuration register
+NVMC_ERASEPAGE = 0x4001E508, // Register for erasing a page in code area
+NVMC_ERASEALL = 0x4001E50C, // Register for erasing all non-volatile user memory
+NVMC_ERASEUICR = 0x4001E514, // Register for erasing user information configuration registers
+NVMC_ERASEPAGEPARTIAL = 0x4001E518, // Register for partial erase of a page in code area
+NVMC_ERASEPAGEPARTIALCFG = 0x4001E51C, // Register for partial erase configuration
+NVMC_ICACHECNF = 0x4001E540, // I-code cache configuration register
+NVMC_IHIT = 0x4001E538, // I-code cache hit counter
+NVMC_IMISS = 0x4001E54C, // I-code cache miss counter
 }
