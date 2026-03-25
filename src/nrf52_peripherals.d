@@ -1,0 +1,71 @@
+import nrf52_defs;
+
+uint[size_t] nrf52_peripheral_regs = [
+    RTC1_COUNTER: 0,
+    // CLOCK---------------------------------------------------------------------------------
+    CLOCK_TASKS_HFCLKSTART: 0, CLOCK_TASKS_HFCLKSTOP:     0, CLOCK_TASKS_LFCLKSTART:    0,         
+    CLOCK_TASKS_LFCLKSTOP:  0, CLOCK_TASKS_CAL:           0, CLOCK_TASKS_CTSTART:       0,     
+    CLOCK_TASKS_CTSTOP:     0, CLOCK_EVENTS_HFCLKSTARTED: 0, CLOCK_EVENTS_LFCLKSTARTED: 0,  
+    CLOCK_EVENTS_DONE:      0, CLOCK_EVENTS_CTTO:         0, CLOCK_EVENTS_CTSTARTED:    0,         
+    CLOCK_EVENTS_CTSTOPPED: 0, CLOCK_INTENSET:            0, CLOCK_INTENCLR:            0,         
+    CLOCK_HFCLKRUN:         0, CLOCK_HFCLKSTAT:           0, CLOCK_LFCLKRUN:            0,          
+    CLOCK_LFCLKSTAT:        0x00010001, 
+    CLOCK_LFCLKSRCCOPY:     0, CLOCK_LFCLKSRC:            0, CLOCK_HFXODEBOUNCE:        0,       
+    CLOCK_CTIV:             0, CLOCK_TRACECONFIG:         0, CLOCK_LFRCMODE:            0,   
+    // RNG-----------------------------------------------------------------------------------
+    RNG_TASKS_START: 0, RNG_TASKS_STOP: 0, RNG_EVENTS_VALRDY: 0,
+    RNG_SHORTS:      0, RNG_INTENSET:   0, RNG_INTENCLR:      0,
+    RNG_CONFIG:      0, RNG_VALUE: 0,
+    // UART0---------------------------------------------------------------------------------
+    UART0_TASKS_STARTRX: 0, UART0_TASKS_STOPRX:  0, UART0_TASKS_STARTTX: 0,       
+    UART0_TASKS_STOPTX:  0, UART0_TASKS_SUSPEND: 0, UART0_EVENTS_CTS:    0,      
+    UART0_EVENTS_NCTS:   0, UART0_EVENTS_RXDRDY: 0, UART0_EVENTS_TXDRDY: 0,        
+    UART0_EVENTS_ERROR:  0, UART0_EVENTS_RXTO:   0, UART0_SHORTS:        0,      
+    UART0_INTENSET:      0, UART0_INTENCLR:      0, UART0_ERRORSRC:      0,         
+    UART0_ENABLE:        0, UART0_PSEL_RTS:      0, UART0_PSEL_TXD:      0,        
+    UART0_PSEL_CTS:      0, UART0_PSEL_RXD:      0, UART0_RXD:           0,        
+    UART0_TXD:           0, UART0_BAUDRATE:      0, UART0_CONFIG:        0, 
+    // UARTE0--------------------------------------------------------------------------------
+    // Universal asynchronous receiver/transmitter with EasyDMA, unit 0
+    UARTE0_TASKS_FLUSHRX:    0, UARTE0_EVENTS_ENDRX:     0, UARTE0_EVENTS_ENDTX:     0, 
+    UARTE0_EVENTS_RXSTARTED: 0, UARTE0_EVENTS_TXSTARTED: 0, UARTE0_EVENTS_TXSTOPPED: 0,
+    UARTE0_INTEN:            0, UARTE0_INTENCLR:         0, UARTE0_ERRORSRC:         0,
+    UARTE0_RXD_PTR:          0, UARTE0_RXD_MAXCNT:       0, UARTE0_RXD_AMOUNT:       0,
+    UARTE0_TXD_PTR:          0, UARTE0_TXD_MAXCNT:       0, UARTE0_TXD_AMOUNT:       0,
+    // RTC-----------------------------------------------------------------------------------
+    RTC_TASKS_START:      0, RTC_TASKS_STOP:       0, RTC_TASKS_CLEAR:      0,
+    RTC_TASKS_TRIGOVRFLW: 0, RTC_EVENTS_TICK:      0, RTC_EVENTS_OVRFLW:    0,
+    RTC_EVENTS_COMPARE_0: 0, RTC_EVENTS_COMPARE_1: 0, RTC_EVENTS_COMPARE_2: 0,
+    RTC_EVENTS_COMPARE_3: 0, RTC_INTENSET:         0, RTC_INTENCLR:         0,
+    RTC_EVTEN:            0, RTC_EVTENSET:         0, RTC_EVTENCLR:         0,
+    RTC_COUNTER:          0, RTC_PRESCALER:        0, RTC_CC_0:             0,
+    RTC_CC_1:             0, RTC_CC_2:             0, RTC_CC_3:             0,
+    // GPIO----------------------------------------------------------------------------------
+    GPIO_OUT:        0, GPIO_OUTSET:     0, GPIO_OUTCLR:     0, GPIO_IN:         0, GPIO_DIR: 0, 
+    GPIO_DIRSET:     0, GPIO_DIRCLR:     0, GPIO_LATCH:      0, GPIO_DETECTMODE: 0,
+    GPIO_PIN_CNF_0:  0, GPIO_PIN_CNF_1:  0, GPIO_PIN_CNF_2:  0, GPIO_PIN_CNF_3:  0,
+    GPIO_PIN_CNF_4:  0, GPIO_PIN_CNF_5:  0, GPIO_PIN_CNF_6:  0, GPIO_PIN_CNF_7:  0,
+    GPIO_PIN_CNF_8:  0, GPIO_PIN_CNF_9:  0, GPIO_PIN_CNF_10: 0, GPIO_PIN_CNF_11: 0,
+    GPIO_PIN_CNF_12: 0, GPIO_PIN_CNF_13: 0, GPIO_PIN_CNF_14: 0, GPIO_PIN_CNF_15: 0,
+    GPIO_PIN_CNF_16: 0, GPIO_PIN_CNF_17: 0, GPIO_PIN_CNF_18: 0, GPIO_PIN_CNF_19: 0,
+    GPIO_PIN_CNF_20: 0, GPIO_PIN_CNF_21: 0, GPIO_PIN_CNF_22: 0, GPIO_PIN_CNF_23: 0,
+    GPIO_PIN_CNF_24: 0, GPIO_PIN_CNF_25: 0, GPIO_PIN_CNF_26: 0, GPIO_PIN_CNF_27: 0,
+    GPIO_PIN_CNF_28: 0, GPIO_PIN_CNF_29: 0, GPIO_PIN_CNF_30: 0, GPIO_PIN_CNF_31: 0,
+    // QPSI----------------------------------------------------------------------------------
+    QPSI_TASKS_ACTIVATE:   0, QPSI_TASKS_READSTART:  0, QPSI_TASKS_WRITESTART: 0,
+    QPSI_TASKS_ERASESTART: 0, QPSI_TASKS_DEACTIVATE: 0, QPSI_EVENTS_READY:     0,    
+    QPSI_INTEN:            0, QPSI_INTENSET:         0, QPSI_INTENCLR:         0,        
+    QPSI_ENABLE:           0, QPSI_READ_SRC:         0, QPSI_READ_DST:         0,        
+    QPSI_READ_CNT:         0, QPSI_WRITE_DST:        0, QPSI_WRITE_SRC:        0,       
+    QPSI_WRITE_CNT:        0, QPSI_ERASE_PTR:        0, QPSI_ERASE_LEN:        0,       
+    QPSI_PSEL_SCK:         0, QPSI_PSEL_CSN:         0, QPSI_PSEL_IO0:         0,        
+    QPSI_PSEL_IO1:         0, QPSI_PSEL_IO2:         0, QPSI_PSEL_IO3:         0,        
+    QPSI_XIPOFFSET:        0, QPSI_IFCONFIG0:        0, QPSI_IFCONFIG1:        0,       
+    QPSI_STATUS:           0, QPSI_DPMDUR:           0, QPSI_ADDRCONF:         0,        
+    QPSI_CINSTRCONF:       0, QPSI_CINSTRDAT0:       0, QPSI_CINSTRDAT1:       0,      
+    QPSI_IFTIMING:         0,        
+    // ECB-----------------------------------------------------------------------------------
+    ECB_TASKS_STARTECB: 0, ECB_TASKS_STOPECB: 0, ECB_EVENTS_ENDECB: 0,
+    ECB_EVENTS_ERROREC: 0, ECB_INTENSET:      0, ECB_INTENCLR:      0,
+    ECB_ECBDATAPTR: 0
+];

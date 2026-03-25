@@ -9,6 +9,8 @@ import cortex_m_core;
 import cortex_m_scb;
 import scb_defs;
 import stm32f4_defs;
+import nrf52_defs;
+import nrf52_peripherals;
 
 // --------------------------------------------------------------------------------------
 // ====================
@@ -951,54 +953,13 @@ struct stm32f4_mem {
     }
 }
 
-// =======
-//  UART0
-// =======
-
-enum UART0 { 
-    EVENTS_TXDRDY = 0x4000211C
-}
-
-// ========
-//  UARTE0
-// ========
-
-enum UARTE0 {
-    EVENTS_TXSTOPPED = 0x40002158,
-    EVENTS_ENDTX =  0x40002120
-}
-
-// =======
-//  CLOCK
-// =======
-
-enum CLOCK {
-    LFCLKSRC = 0x40000518
-}
-
-// ======
-//  QPSI
-// ======
-
-enum QPSI {
-    EVENTS_READY = 0x40029100
-}
-
-// =====
-//  ECB
-// =====
-
-enum ECB {
-    EVENTS_ENDECB = 0x4000E100
-}
-
 size_t[] nrf52840_always_set = [
-    CLOCK.LFCLKSRC,
-    UART0.EVENTS_TXDRDY,
-    QPSI.EVENTS_READY,
-    UARTE0.EVENTS_TXSTOPPED,
-    UARTE0.EVENTS_ENDTX,        
-    ECB.EVENTS_ENDECB
+    CLOCK_LFCLKSRC,
+    UART0_EVENTS_TXDRDY,
+    QPSI_EVENTS_READY,
+    UARTE0_EVENTS_TXSTOPPED,
+    UARTE0_EVENTS_ENDTX,        
+    ECB_EVENTS_ENDECB
 ];
 
 struct nrf52840_mem {
@@ -1012,208 +973,16 @@ struct nrf52840_mem {
     big_mem_section!(flash_origin)  flash;
     mem_section!(16, ficr_origin)    ficr;
     static uint stack_base = ram_origin + ram_length;
-    uint[size_t]   peripherals      = [
-        0x40011504: 0,          // RTC1: COUNTER, Reset 0x00000000 
-        // CLOCK---------------------------------------------------------------------------------
-        0x40000000: 0,          // TASKS_HFCLKSTART; Start HFXO crystal oscillator
-        0x40000004: 0,          // TASKS_HFCLKSTOP; Stop HFXO crystal oscillator
-        0x40000008: 0,          // TASKS_LFCLKSTART; Start LFCLK
-        0x4000000C: 0,          // TASKS_LFCLKSTOP; Stop LFCLK
-        0x40000010: 0,          // TASKS_CAL; Start calibration of LFRC
-        0x40000014: 0,          // TASKS_CTSTART; Start calibration timer
-        0x40000018: 0,          // TASKS_CTSTOP; Stop calibration timer
-        0x40000100: 0,          // EVENTS_HFCLKSTARTED; HFXO crystal oscillator started
-        0x40000104: 0,          // EVENTS_LFCLKSTARTED; LFCLK started
-        0x4000010C: 0,          // EVENTS_DONE; Calibration of LFRC completed
-        0x40000110: 0,          // EVENTS_CTTO; Calibration timer timeout
-        0x40000128: 0,          // EVENTS_CTSTARTED; Calibration timer has been started and is ready to process new tasks
-        0x4000012C: 0,          // EVENTS_CTSTOPPED; Calibration timer has been stopped and is ready to process new tasks
-        0x40000304: 0,          // INTENSET; Enable interrupt
-        0x40000308: 0,          // INTENCLR; Disable interrupt
-        0x40000408: 0,          // HFCLKRUN; Status indicating that HFCLKSTART task has been triggered
-        0x4000040C: 0,          // HFCLKSTAT; HFCLK status
-        0x40000414: 0,          // LFCLKRUN; Status indicating that LFCLKSTART task has been triggered
-        0x40000418: 0x00010001, // LFCLKSTAT; LFCLK status
-        0x4000041C: 0,          // LFCLKSRCCOPY; Copy of LFCLKSRC register, set when LFCLKSTART task was triggered
-        0x40000518: 0,          // LFCLKSRC; Clock source for the LFCLK
-        0x40000528: 0,          // HFXODEBOUNCE; HFXO debounce time. The HFXO is started by triggering the TASKS_HFCLKSTART task.
-        0x40000538: 0,          // CTIV; Calibration timer interval
-                                // This register is retained.
-        0x4000055C: 0,          // TRACECONFIG; Clocking options for the trace port debug interface
-        0x400005B4: 0,          // LFRCMODE; LFRC mode configuration
-        // RNG-----------------------------------------------------------------------------------
-        0x4000D000: 0,          // TASKS_START: Task starting the random number generator
-        0x4000D004: 0,          // TASKS_STOP:  Task stopping the random number generator
-        0x4000D100: 0,          // EVENTS_VALRDY: Event being generated for every new random 
-                                // number written to the VALUE register
-        0x4000D200: 0,          // SHORTS: Shortcuts between local events and tasks
-        0x4000D304: 0,          // INTENSET: Enable interrupt
-        0x4000D308: 0,          // INTENCLR: Disable interrupt
-        0x4000D504: 0,          // CONFIG: Configuration register
-        0x4000D508: 0,          // VALUE: Output random number
-        // UART0---------------------------------------------------------------------------------
-        0x40002000: 0,          // TASKS_STARTRX: Start UART receiver
-        0x40002004: 0,          // TASKS_STOPRX: Stop UART receiver
-        0x40002008: 0,          // TASKS_STARTTX: Start UART transmitter
-        0x4000200C: 0,          // TASKS_STOPTX: Stop UART transmitter
-        0x4000201C: 0,          // TASKS_SUSPEND: Suspend UART
-        0x40002100: 0,          // EVENTS_CTS: CTS is activated (set low). Clear To Send.
-        0x40002104: 0,          // EVENTS_NCTS: CTS is deactivated (set high). Not Clear To Send.
-        0x40002108: 0,          // EVENTS_RXDRDY: Data received in RXD
-        0x4000211C: 0,          // EVENTS_TXDRDY: Data sent from TXD
-        0x40002124: 0,          // EVENTS_ERROR: Error detected
-        0x40002144: 0,          // EVENTS_RXTO: Receiver timeout
-        0x40002200: 0,          // SHORTS: Shortcuts between local events and tasks
-        0x40002304: 0,          // INTENSET: Enable interrupt
-        0x40002308: 0,          // INTENCLR: Disable interrupt
-        0x40002480: 0,          // ERRORSRC: Error source
-        0x40002500: 0,          // ENABLE: Enable UART
-        0x40002508: 0,          // PSEL.RTS: Pin select for RTS
-        0x4000250C: 0,          // PSEL.TXD: Pin select for TXD
-        0x40002510: 0,          // PSEL.CTS: Pin select for CTS
-        0x40002514: 0,          // PSEL.RXD: Pin select for RXD
-        0x40002518: 0,          // RXD: RXD register. Register is cleared on read and the double 
-                                // buffered byte will be moved to RXD if it exists.
-        0x4000251C: 0,          // TXD: TXD register
-        0x40002524: 0,          // BAUDRATE: Baud rate. Accuracy depends on the HFCLK source 
-                                // selected.
-        0x4000256C: 0,          // CONFIG: Configuration of parity and hardware flow control
-        // UARTE0--------------------------------------------------------------------------------
-        // Universal asynchronous receiver/transmitter with EasyDMA, unit 0
-        0x4000202C: 0,          // TASKS_FLUSHRX: Flush RX FIFO into RX buffer
-        0x40002110: 0,          // EVENTS_ENDRX: Receive buffer is filled up
-        0x40002120: 0,          // EVENTS_ENDTX: Last TX byte transmitted
-        0x4000214C: 0,          // EVENTS_RXSTARTED: UART receiver has started
-        0x40002150: 0,          // EVENTS_TXSTARTED: UART transmitter has started
-        0x40002158: 0,          // EVENTS_TXSTOPPED: Transmitter stopped
-        0x40002300: 0,          // INTEN: Enable or disable interrupt
-        0x40002308: 0,          // INTENCLR 0x308 Disable interrupt
-        0x40002480: 0,          // ERRORSRC 0x480 Error source
-                                // This register is read/write one to clear.
-        0x40002534: 0,          // RXD.PTR 0x534 Data pointer
-        0x40002538: 0,          // RXD.MAXCNT 0x538 Maximum number of bytes in receive buffer
-        0x4000253C: 0,          // RXD.AMOUNT 0x53C Number of bytes transferred in the last transaction
-        0x40002544: 0,          // TXD.PTR 0x544 Data pointer
-        0x40002548: 0,          // TXD.MAXCNT 0x548 Maximum number of bytes in transmit buffer
-        0x4000254C: 0,          // TXD.AMOUNT 0x54C Number of bytes transferred in the last transaction
-        // RTC-----------------------------------------------------------------------------------
-        0x4000B000: 0,          // TASKS_START 0x000 Start RTC COUNTER
-        0x4000B004: 0,          // TASKS_STOP 0x004 Stop RTC COUNTER
-        0x4000B008: 0,          // TASKS_CLEAR 0x008 Clear RTC COUNTER
-        0x4000B00C: 0,          // TASKS_TRIGOVRFLW 0x00C Set COUNTER to 0xFFFFF0
-        0x4000B100: 0,          // EVENTS_TICK 0x100 Event on COUNTER increment
-        0x4000B104: 0,          // EVENTS_OVRFLW 0x104 Event on COUNTER overflow
-        0x4000B140: 0,          // EVENTS_COMPARE[0] 0x140 Compare event on CC[0] match
-        0x4000B144: 0,          // EVENTS_COMPARE[1] 0x144 Compare event on CC[1] match
-        0x4000B148: 0,          // EVENTS_COMPARE[2] 0x148 Compare event on CC[2] match
-        0x4000B14C: 0,          // EVENTS_COMPARE[3] 0x14C Compare event on CC[3] match
-        0x4000B304: 0,          // INTENSET 0x304 Enable interrupt
-        0x4000B308: 0,          // INTENCLR 0x308 Disable interrupt
-        0x4000B340: 0,          // EVTEN 0x340 Enable or disable event routing
-        0x4000B344: 0,          // EVTENSET 0x344 Enable event routing
-        0x4000B348: 0,          // EVTENCLR 0x348 Disable event routing
-        0x4000B504: 0,          // COUNTER 0x504 Current COUNTER value
-        0x4000B508: 0,          // PRESCALER 0x508 12 bit prescaler for COUNTER frequency (32768/(PRESCALER+1)). Must be written when RTC is
-                                // stopped.
-        0x4000B540: 0,          // CC[0] 0x540 Compare register 0
-        0x4000B544: 0,          // CC[1] 0x544 Compare register 1
-        0x4000B548: 0,          // CC[2] 0x548 Compare register 2
-        0x4000B54C: 0,          // CC[3] 0x54C Compare register 3
-        // GPIO----------------------------------------------------------------------------------
-        0x50000504: 0,          // OUT: Write GPIO port
-        0x50000508: 0,          // OUTSET: Set individual bits in GPIO port
-        0x5000050C: 0,          // OUTCLR: Clear individual bits in GPIO port
-        0x50000510: 0,          // IN: Read GPIO port
-        0x50000514: 0,          // DIR: Direction of GPIO pins
-        0x50000518: 0,          // DIRSET: DIR set register
-        0x5000051C: 0,          // DIRCLR: DIR clear register
-        0x50000520: 0,          // LATCH: Latch register indicating what GPIO pins that have met the criteria set in the PIN_CNF[n].SENSE
-                                // registers
-        0x50000524: 0,          // DETECTMODE: Select between default DETECT signal behavior and LDETECT mode
-        0x50000700: 0,          // PIN_CNF[0]: Configuration of GPIO pins
-        0x50000704: 0,          // PIN_CNF[1]: Configuration of GPIO pins
-        0x50000708: 0,          // PIN_CNF[2]: Configuration of GPIO pins
-        0x5000070C: 0,          // PIN_CNF[3]: Configuration of GPIO pins
-        0x50000710: 0,          // PIN_CNF[4]: Configuration of GPIO pins
-        0x50000714: 0,          // PIN_CNF[5]: Configuration of GPIO pins
-        0x50000718: 0,          // PIN_CNF[6]: Configuration of GPIO pins
-        0x5000071C: 0,          // PIN_CNF[7]: Configuration of GPIO pins
-        0x50000720: 0,          // PIN_CNF[8]: Configuration of GPIO pins
-        0x50000724: 0,          // PIN_CNF[9]: Configuration of GPIO pins
-        0x50000728: 0,          // PIN_CNF[10]: Configuration of GPIO pins
-        0x5000072C: 0,          // PIN_CNF[11]: Configuration of GPIO pins
-        0x50000730: 0,          // PIN_CNF[12]: Configuration of GPIO pins
-        0x50000734: 0,          // PIN_CNF[13]: Configuration of GPIO pins
-        0x50000738: 0,          // PIN_CNF[14]: Configuration of GPIO pins
-        0x5000073C: 0,          // PIN_CNF[15]: Configuration of GPIO pins
-        0x50000740: 0,          // PIN_CNF[16]: Configuration of GPIO pins
-        0x50000744: 0,          // PIN_CNF[17]: Configuration of GPIO pins
-        0x50000748: 0,          // PIN_CNF[18]: Configuration of GPIO pins
-        0x5000074C: 0,          // PIN_CNF[19]: Configuration of GPIO pins
-        0x50000750: 0,          // PIN_CNF[20]: Configuration of GPIO pins
-        0x50000754: 0,          // PIN_CNF[21]: Configuration of GPIO pins
-        0x50000758: 0,          // PIN_CNF[22]: Configuration of GPIO pins
-        0x5000075C: 0,          // PIN_CNF[23]: Configuration of GPIO pins
-        0x50000760: 0,          // PIN_CNF[24]: Configuration of GPIO pins
-        0x50000764: 0,          // PIN_CNF[25]: Configuration of GPIO pins
-        0x50000768: 0,          // PIN_CNF[26]: Configuration of GPIO pins
-        0x5000076C: 0,          // PIN_CNF[27]: Configuration of GPIO pins
-        0x50000770: 0,          // PIN_CNF[28]: Configuration of GPIO pins
-        0x50000774: 0,          // PIN_CNF[29]: Configuration of GPIO pins
-        0x50000778: 0,          // PIN_CNF[30]: Configuration of GPIO pins
-        0x5000077C: 0,          // PIN_CNF[31]: Configuration of GPIO pins
-        // QPSI----------------------------------------------------------------------------------
-        0x40029000: 0,          // TASKS_ACTIVATE 0x000 Activate QSPI interface
-        0x40029004: 0,          // TASKS_READSTART 0x004 Start transfer from external flash memory to internal RAM
-        0x40029008: 0,          // TASKS_WRITESTART 0x008 Start transfer from internal RAM to external flash memory
-        0x4002900C: 0,          // TASKS_ERASESTART 0x00C Start external flash memory erase operation
-        0x40029010: 0,          // TASKS_DEACTIVATE 0x010 Deactivate QSPI interface
-        0x40029100: 0,          // EVENTS_READY 0x100 QSPI peripheral is ready. This event will be generated as a response to any QSPI task.
-        0x40029300: 0,          // INTEN 0x300 Enable or disable interrupt
-        0x40029304: 0,          // INTENSET 0x304 Enable interrupt
-        0x40029308: 0,          // INTENCLR 0x308 Disable interrupt
-        0x40029500: 0,          // ENABLE 0x500 Enable QSPI peripheral and acquire the pins selected in PSELn registers
-        0x40029504: 0,          // READ.SRC 0x504 Flash memory source address
-        0x40029508: 0,          // READ.DST 0x508 RAM destination address
-        0x4002950C: 0,          // READ.CNT 0x50C Read transfer length
-        0x40029510: 0,          // WRITE.DST 0x510 Flash destination address
-        0x40029514: 0,          // WRITE.SRC 0x514 RAM source address
-        0x40029518: 0,          // WRITE.CNT 0x518 Write transfer length
-        0x4002951C: 0,          // ERASE.PTR 0x51C Start address of flash block to be erased
-        0x40029520: 0,          // ERASE.LEN 0x520 Size of block to be erased.
-        0x40029524: 0,          // PSEL.SCK 0x524 Pin select for serial clock SCK
-        0x40029528: 0,          // PSEL.CSN 0x528 Pin select for chip select signal CSN.
-        0x40029530: 0,          // PSEL.IO0 0x530 Pin select for serial data MOSI/IO0.
-        0x40029534: 0,          // PSEL.IO1 0x534 Pin select for serial data MISO/IO1.
-        0x40029538: 0,          // PSEL.IO2 0x538 Pin select for serial data IO2.
-        0x4002953C: 0,          // PSEL.IO3 0x53C Pin select for serial data IO3.
-        0x40029540: 0,          // XIPOFFSET 0x540 Address offset into the external memory for Execute in Place operation.
-        0x40029544: 0,          // IFCONFIG0 0x544 Interface configuration.
-        0x40029600: 0,          // IFCONFIG1 0x600 Interface configuration.
-        0x40029604: 0,          // STATUS 0x604 Status register.
-        0x40029614: 0,          // DPMDUR 0x614 Set the duration required to enter/exit deep power-down mode (DPM).
-        0x40029624: 0,          // ADDRCONF 0x624 Extended address configuration.
-        0x40029634: 0,          // CINSTRCONF 0x634 Custom instruction configuration register.
-        0x40029638: 0,          // CINSTRDAT0 0x638 Custom instruction data register 0.
-        0x4002963C: 0,          // CINSTRDAT1 0x63C Custom instruction data register 1.
-        0x40029640: 0,          // IFTIMING 0x640 SPI interface timing
-        // ECB-----------------------------------------------------------------------------------
-        0x4000E000: 0,          // TASKS_STARTECB 0x000 Start ECB block encrypt
-        0x4000E004: 0,          // TASKS_STOPECB 0x004 Abort a possible executing ECB operation
-        0x4000E100: 0,          // EVENTS_ENDECB 0x100 ECB block encrypt complete
-        0x4000E104: 0,          // EVENTS_ERRORECB 0x104 ECB block encrypt aborted because of a STOPECB task or due to an error
-        0x4000E304: 0,          // INTENSET 0x304 Enable interrupt
-        0x4000E308: 0,          // INTENCLR 0x308 Disable interrupt
-        0x4000E504: 0,          // ECBDATAPTR 0x504 ECB block encrypt memory pointers
-    ];
-    string[size_t] peripheral_names = [
-        0x40011504: "RTC1_COUNTER"
-    ]; 
 
     string get_reg_name(const uint reg_addr) {
         auto s = get_scb_reg_name(reg_addr);
         if (s != "") return s;
-        return peripheral_names.get(reg_addr, "");
+        foreach(k; nrf52_peripheral_regs.keys)  
+        {
+            if (cast(uint) k == reg_addr)  
+                return k.to!string;        
+        }
+        return "";
     }
 
     void set_vtor() {}
@@ -1232,7 +1001,7 @@ struct nrf52840_mem {
                 scb[SYST_CSR] &= ~0x00010000;
             }
         } else if (addr > ram_origin + ram_length) {
-            if (auto p = addr in peripherals) {
+            if (auto p = addr in nrf52_peripheral_regs) {
                 res = *p;              
             } else {
                 throw new Exception("Invalid access");            
@@ -1253,9 +1022,9 @@ struct nrf52840_mem {
             val ^= (1u << bit_pos);
             scb[cast(scb_reg)addr] = val;
         } else if (addr > ram_origin + ram_length) {
-            uint val = peripherals[addr];
+            uint val = nrf52_peripheral_regs[addr];
             val ^= (1u << bit_pos);
-            peripherals[addr] = val;
+            nrf52_peripheral_regs[addr] = val;
         }
     }
 
@@ -1283,7 +1052,7 @@ struct nrf52840_mem {
             return read_byte_from_word(scb, addr);
         }
         if (addr >= ram_origin + ram_length) {
-            return read_byte_from_word(peripherals, addr);
+            return read_byte_from_word(nrf52_peripheral_regs, addr);
         } 
         if (addr >= ram_origin) {
             return ram.read_byte(addr);
@@ -1304,7 +1073,7 @@ struct nrf52840_mem {
                 throw new Exception("Invalid access");            
             }
         } else if (addr >= ram_origin + ram_length) {
-            peripherals[addr] = val;
+            nrf52_peripheral_regs[addr] = val;
         }
         else if (addr >= ram_origin) {
             ram.write_word(addr, val);
@@ -1320,7 +1089,7 @@ struct nrf52840_mem {
         if (addr >= scb_base) {
             write_byte_to_word(scb, addr, b);
         } else if (addr >= ram_origin + ram_length) {
-            write_byte_to_word(peripherals, addr, b);
+            write_byte_to_word(nrf52_peripheral_regs, addr, b);
         } else if (addr >= ram_origin) {
             ram.write_byte(addr, b);
         } else {
