@@ -251,6 +251,8 @@ FPCCR = 0xE000EF34,
 
 DBGMCU_CR = 0xE0042004,
 
+// The Data Watchpoint and Trace Unit
+DWT = 0xE0001000,
 }             
                             
                             

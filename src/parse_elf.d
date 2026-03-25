@@ -495,8 +495,8 @@ st_name_val[] get_st_name_val(const string elf_file,
             uint size = sym.st_size;
             if (name in func_sizes) 
                 size = cast(uint)func_sizes[name];
-            if (name == "z_arm_pendsv")
-                size = get_pendsv_size(elf_file); 
+            if (size == 0)
+                size = get_func_size(elf_file, name); 
             items ~= st_name_val(name, sym.st_value, size);
         }
     }
@@ -525,9 +525,8 @@ st_name_val get_st_name_val(const string elf_file, const string sym_name) {
         while(end < strdata.length && strdata[end] != 0) end++;
         string name = cast(string) strdata[name_off .. end];
 
-        if (name == sym_name) {
+        if (name == sym_name)
             return st_name_val(name, sym.st_value);
-        }
     }
     return st_name_val();
 }
@@ -592,8 +591,8 @@ elf_func get_elf_func(const string elf_file, const string func_name, const uint 
 
         if (name in func_sizes) 
             size = func_sizes[name]; 
-        if (name == "z_arm_pendsv")
-            size = get_pendsv_size(elf_file); 
+        if (size == 0)
+            size = get_func_size(elf_file, name); 
 
         auto data = file_data[file_offset .. file_offset + size];
         assert(data.length == size, format("%s: sizes are not equal, %d != %d", name, data.length, size));
@@ -1091,26 +1090,28 @@ st_name_val[] get_configs(const string elf_filename) {
     return configs;
 }
 // --------------------------------------------------------------------------------------
-// =================
-//  GET PENDSV SIZE
-// =================
+// ===============
+//  GET FUNC SIZE
+// ===============
 
-int get_pendsv_size(const string elf_filename) {
-    auto f_s     = get_st_name_val(elf_filename, st_type.stt_func, soc.all);
-    auto pend_sv = get_st_name_val(elf_filename, "z_arm_pendsv");
+int get_func_size(const string elf_filename, const string func_name) {
+    auto f_s  = get_st_name_val(elf_filename, st_type.stt_func, soc.all);
+    auto func = get_st_name_val(elf_filename, func_name);
     uint next_f_addr = 0xffffffff;
     foreach (f; f_s)
-        if (f.addr > pend_sv.addr && f.addr < next_f_addr)
+        if (f.addr > func.addr && f.addr < next_f_addr)
             next_f_addr = f.addr;
-    return next_f_addr - pend_sv.addr;
+    if (next_f_addr == 0xffffffff)
+        return 0;
+    return next_f_addr - func.addr;
 } 
 // ------------------------------------------------------------------------------------------
 unittest {
-    // ======================
-    //  TEST GET PENDSV SIZE
-    // ======================
+    // ====================
+    //  TEST GET FUNC SIZE
+    // ====================
     auto filename = "../test/blinky.elf";
-    auto size     = get_pendsv_size(filename);
+    auto size     = get_func_size(filename, "z_arm_pendsv");
     assert(size == 84, format("pendsv size is %d, not 84", size));
     // --------------------------------------------------------------------------------------
 }
