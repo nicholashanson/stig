@@ -1061,6 +1061,20 @@ struct nrf52840_mem {
         }
     }
 
+    void handle_uart() {
+        auto f       = uart_log();
+        uint tx_ptr  = read_word(UARTE0_TXD_PTR);          
+        uint max_cnt = read_word(UARTE0_TXD_MAXCNT);
+
+        assert((tx_ptr >= ram_origin) && tx_ptr < ram_origin + ram_length);
+
+        if (max_cnt == 0) return;
+
+        for (uint i = 0; i < max_cnt; ++i ) 
+            f.write(cast(char)read_byte(tx_ptr + i));
+        f.flush();
+    }
+
     void write_word(size_t addr, uint val) {
         if (addr >= scb_base) {
             if (cast(scb_reg)addr in scb) {
@@ -1074,6 +1088,8 @@ struct nrf52840_mem {
             }
         } else if (addr >= ram_origin + ram_length) {
             nrf52_peripheral_regs[cast(nrf52_peripheral_reg)addr] = val;
+            if (addr == UART0_TASKS_STARTTX)
+                handle_uart();
         }
         else if (addr >= ram_origin) {
             ram.write_word(addr, val);
