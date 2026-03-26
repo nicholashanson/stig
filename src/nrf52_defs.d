@@ -451,4 +451,24 @@ NVMC_ERASEPAGEPARTIALCFG = 0x4001E51C, // Register for partial erase configurati
 NVMC_ICACHECNF = 0x4001E540, // I-code cache configuration register
 NVMC_IHIT = 0x4001E538, // I-code cache hit counter
 NVMC_IMISS = 0x4001E54C, // I-code cache miss counter
+
+// Captures the ISOOUT.PTR and ISOOUT.MAXCNT registers values, and enables receiving of data on
+// ISO endpoint
+USBD_TASKS_STARTISOOUT = 0x40027048, 
+// Allows OUT data stage on control endpoint 0
+USBD_TASKS_EP0RCVOUT = 0x4002704C, 
+// Allows status stage on control endpoint 0
+USBD_TASKS_EP0STATUS = 0x40027050,
+// Stalls data and status stage on control endpoint 0 
+USBD_TASKS_EP0STALL = 0x40027054, 
+// Forces D+ and D- lines into the state defined in the DPDMVALUE register
+USBD_TASKS_DPDMDRIVE = 0x40027058, 
+// Stops forcing D+ and D- lines into any state (USB engine takes control)
+USBD_TASKS_DPDMNODRIVE = 0x4002705C,
+// Signals that a USB reset condition has been detected on USB lines 
+USBD_EVENTS_USBRESET = 0x40027100,
+// Confirms that the EPIN[n].PTR and EPIN[n].MAXCNT, or EPOUT[n].PTR and EPOUT[n].MAXCNT 
+// registers have been captured on all endpoints reported in the EPSTATUS register
+USBD_EVENTS_STARTED = 0x40027104, 
+
 }

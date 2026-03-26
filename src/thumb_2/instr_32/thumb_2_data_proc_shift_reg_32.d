@@ -874,3 +874,59 @@ string convert_rrx_t1_to_string(const ref instr_32 instr, const condition cond) 
 								    	 get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// * 									   MOV											 *
+// ***************************************************************************************
+
+// =====================
+//  Parse MOV(Register)
+// =====================
+
+// MOV{S}<c>.W <Rd>,<Rm>
+instr_32 parse_mov_reg_t3(const uint instr) {
+	return instr_32(set_flags: cast(bool)slice(instr, 20, 1),
+					rm:        cast(reg)slice(instr, 0, 4),
+					rd:        cast(reg)slice(instr, 8, 4));
+}
+
+// =======================
+//  Execute MOV(Register)
+// =======================
+
+void 
+execute_mov_reg_t3
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// result = R[m];
+	uint res = vm.get_reg(instr.rm);
+	// if d == 15 then
+	if (instr.rm == reg.pc) 
+		// ALUWritePC(result); 
+		// setflags is always FALSE here
+		vm.set_reg(reg.pc, res);
+	// else
+	else {
+		// R[d] = result;
+		vm.set_reg(instr.rd, res);
+		// if setflags then
+		if (instr.set_flags) {
+			// APSR.N = result<31>;
+			vm.set_n(res);
+			// APSR.Z = IsZeroBit(result);
+			vm.set_z(res);
+			// APSR.C unchanged
+			// APSR.V unchanged
+		}
+	}
+}
+
+// MOV{S}<c>.W <Rd>,<Rm>
+string convert_mov_reg_t3_to_string(const ref instr_32 instr, const condition cond) {
+	return format("mov%s.w %s, %s", add_suffix(instr, cond),
+									get_reg_name(instr.rd),
+									get_reg_name(instr.rm));
+									  
+}
+// ---------------------------------------------------------------------------------------
