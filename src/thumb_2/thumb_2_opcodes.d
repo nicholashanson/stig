@@ -9,8 +9,7 @@ private uint decimal_to_hex_mask(uint n) {
     return (1u << n) - 1;
 }
 
-enum opcode : ubyte {
-	// pc-rel
+enum opcode : ushort {
 	// store multiple registers
 	stm_t1,
 	// load multiple registers
@@ -48,6 +47,7 @@ enum opcode : ubyte {
 	sbc_reg_t1,
 	mul_t1,
 	orr_reg_t1,
+	ror_reg_t1,
 	// ????
 	mov_reg_t2,
 	// misc
@@ -69,6 +69,10 @@ enum opcode : ubyte {
 	bkpt_t1,
 	if_then_t1,
 	nop_t1,
+	yield_t1,
+	wfe_t1,
+	wfi_t1,
+	sev_t1,
 	// decode special and exchange
 	add_reg_t2,
 	cmp_reg_t2,
@@ -208,6 +212,87 @@ enum opcode : ubyte {
 	ror_reg_t2,
 	// ---> unsigned add
 	uadd8_t1,
+
+
+
+
+
+
+
+
+
+	smuad_t1, 
+	smlad_t1,
+
+	                                                    
+
+	smulw_t1,
+
+	smlaw_t1,
+
+
+
+
+
+
+	smusd_t1,
+	smlsd_t1,
+
+
+
+
+
+	smmul_t1,
+	smmla_t1, 
+	smmls_t1,
+	usada8_t1,
+	usad8_t1,
+	sadd16_t1,
+	sasx_t1,
+	ssax_t1,
+	ssub16_t1,
+	sadd8_t1,
+	ssub8_t1,
+	qadd16_t,
+	qasx_t1,
+
+	qsax_t1,
+	qsub16_t1,
+	qadd8_t1,
+	qsub8_t1,
+	shadd16_t1,
+	shasx_t1,
+	shsax_t1,
+
+	shsub16_t1,
+
+
+
+	shadd8_t1,
+	shsub8_t1,
+
+
+
+	uadd16_t1,
+	uasx_t1,
+
+	usax_t1,
+
+	usub16_t1,
+	usub8_t1,
+	uqadd16_t1,
+
+	uqasx_t1,
+	uqsax_t1,
+	uqsub16_t1,
+	uqadd8_t1,
+	uqsub8_t1,
+	uhadd16_t1,
+	uhasx_t1,
+	uhsax_t1,
+	uhsub16_t1,
+	uhadd8_t1,
+	uhsub8_t1,
 	// misc ops
 	qadd_t1,
 	qdadd_t1,
@@ -233,6 +318,9 @@ enum opcode : ubyte {
 	umlal_t1,
 	umaal_t1,
 	smlal_t1,
+	smlsls_t1,
+	smlalxy_t1,	
+	smlald_t1,
 	// load word
 	ldr_imm_t3,
 	ldr_imm_t4,
@@ -306,6 +394,7 @@ opcode decode_data_proc(const ushort instr) {
 		case 0b1111: return opcode.mvn_reg_t1;
 		case 0b0110: return opcode.sbc_reg_t1;
 		case 0b1011: return opcode.cmn_reg_t1;
+		case 0b0111: return opcode.ror_reg_t1; 
 		default    : break; 
 	}
     return opcode.invalid;
@@ -376,39 +465,82 @@ opcode decode_load_store_single_data_item(const ushort instr) {
 
 opcode decode_misc_16_bit_instrs(const ushort instr) {
     immutable op = slice(instr, 5, 7);
+    // 00000xx Add Immediate to SP ADD (SP plus immediate)
 	if ((op & 0b1111100) == 0) {
 		if (slice(instr, 12, 4) == 0b1010) 
 			return opcode.add_sp_t1;
 		if (slice(instr, 12, 4) == 0b1011) 
 			return opcode.add_sp_t2;
 	}
+	// 101000x Byte-Reverse Word REV
+	if (slice(instr, 6, 6) == 0b101000) 
+		return opcode.rev_t1;
+	// 101001x Byte-Reverse Packed Halfword REV16
 	if (slice(instr, 6, 6) == 0b101001) 
 		return opcode.rev16_t1;
+	// 101011x Byte-Reverse Signed Halfword REVSH
+	if (slice(instr, 6, 6) == 0b101011) 
+		return opcode.revsh_t1;
+	// 001011x Unsigned Extend Byte UXTB
 	if (slice(instr, 6, 6) == 0b001011) 
 		return opcode.uxtb_t1;
+	// 001001x Signed Extend Byte SXTB
 	if (slice(instr, 6, 6) == 0b001001) 
 		return opcode.sxtb_t1;
+	// 001000x Signed Extend Halfword SXTH
 	if (slice(instr, 6, 6) == 0b001000) 
 		return opcode.sxth_t1;
+	// 010xxxx Push Multiple Registers PUSH
 	if (slice(instr, 9, 3) == 0b010) 
 		return opcode.push_t1;
+	// 110xxxx Pop Multiple Registers POP
 	if (slice(instr, 9, 3) == 0b110) 
 		return opcode.pop_t1;
+	// 1111xxx If-Then, and hints
 	if (slice(instr, 8, 4) == 0b1111) 
-		return slice(instr, 0, 8) == 0 ? opcode.nop_t1 : opcode.if_then_t1;
+		return decode_if_then_and_hints(instr);
+	// Subtract Immediate from SP SUB (SP minus immediate)
 	if (slice(instr, 7, 5) == 0b00001) 
 		return opcode.sub_sp_t1;
+	// 0011xxx Compare and Branch on Zero CBNZ, CBZ
 	if ((op & 0b1111000) == 0b0001000 ||
 		(op & 0b1111000) == 0b0011000 ||
 		(op & 0b1111000) == 0b1001000 ||
 		(op & 0b1111000) == 0b1011000) 
     	return slice(instr, 11, 1) == 0 ? opcode.cbz_t1 : opcode.cbnz_t1;
+    // 001010x Unsigned Extend Halfword UXTH 
 	if ((op & 0b1111110) == 0b0010100) 
 		return opcode.uxth_t1;
+	// 0110011 Change Processor State CPS
 	if (op == 0b0110011) 
 		return opcode.cps_t1;
-	if ((op & 0b1111110) == 0b1010000) 
-		return opcode.rev_t1;
+	// 1110xxx Breakpoint BKPT
+	if (slice(instr, 8, 4) == 0b1110)
+		return opcode.bkpt_t1;
+	return opcode.invalid;
+}
+
+opcode decode_if_then_and_hints(const ushort instr) {
+	immutable opb = slice(instr, 0, 4);
+	immutable opa = slice(instr, 4, 4);
+	if (opb != 0x0)
+		// xxxx not 0000 If-Then IT 
+		return opcode.if_then_t1;
+	else {
+		switch (opb) {
+			// 0000 0000 No Operation hint NOP
+			case 0b0000: return opcode.nop_t1;
+			// 0001 0000 Yield hint YIELD 
+			case 0b0001: return opcode.yield_t1;
+			// 0010 0000 Wait for Event hint WFE 
+			case 0b0010: return opcode.wfe_t1;
+			// 0011 0000 Wait for Interrupt hint WFI 
+			case 0b0011: return opcode.wfi_t1;
+			// 0100 0000 Send Event hint SEV
+			case 0b0100: return opcode.sev_t1;
+			default: 	 break;
+		} 
+	}
 	return opcode.invalid;
 }
 
@@ -489,7 +621,6 @@ opcode decode_mnemonic(const ushort instr) {
     	return opcode.adr_t1;
     return opcode.invalid;
 }
-
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
@@ -814,13 +945,40 @@ opcode decode_mult(uint instr) {
 	enum ubyte pc = 0xf;
 	if (op1 == 0b001) {
 		if (ra == pc) 
+			// 1111 Signed Multiply, Halfwords SMULBB, SMULBT, SMULTB, SMULTT (v7E-M)
 			return opcode.smul_t1;
+		// 001 - not 1111 Signed Multiply Accumulate, Halfwords SMLABB, SMLABT, SMLATB, SMLATT (v7E-M)
 		return opcode.smla_t1;
 	}
 	ubyte op12 = cast(ubyte)((op1 << 2) | op2); 
 	switch (op12) {
+		// 000 00 not 1111 Multiply Accumulate MLA
+		// 			  1111 Multiply MUL
 		case 0b00000: return ra == pc ? opcode.mul_t2 : opcode.mla_t1;
+		// 01 - Multiply and Subtract MLS
 		case 0b00001: return opcode.mls_t1;
+		// 010 0x not 1111 Signed Multiply Accumulate Dual SMLAD, SMLADX (v7E-M)
+		// 1111 Signed Dual Multiply Add SMUAD, SMUADX (v7E-M)
+		case 0b01000:
+		case 0b01001: return ra == pc ? opcode.smuad_t1 : opcode.smlad_t1;
+		// 011 0x not 1111 Signed Multiply Accumulate, Word by halfword SMLAWB, SMLAWT (v7E-M)
+		// 1111 Signed Multiply, Word by halfword SMULWB, SMULWT (v7E-M)
+		case 0b01100:
+		case 0b01101: return ra == pc ? opcode.smulw_t1 : opcode.smlaw_t1;
+		// 100 0x not 1111 Signed Multiply Subtract Dual SMLSD, SMLSDX (v7E-M)
+		// 1111 Signed Dual Multiply Subtract SMUSD, SMUSDX (v7E-M)
+   		case 0b10000:
+   		case 0b10001: return ra == pc ? opcode.smusd_t1 : opcode.smlsd_t1;
+		// 101 0x not 1111 Signed Most Significant Word Multiply Accumulate SMMLA, SMMLAR (v7E-M)
+		// 1111 Signed Most Significant Word Multiply SMMUL, SMMULR (v7E-M)
+		case 0b10100:
+		case 0b10101: return ra == pc ? opcode.smmul_t1 : opcode.smmla_t1;
+		// 110 0x - Signed Most Significant Word Multiply Subtract SMMLS, SMMLSR (v7E-M)
+		case 0b11000:
+		case 0b11001: return opcode.smmls_t1;
+		// 111 00 not 1111 Unsigned Sum of Absolute Differences USAD8 (v7E-M)
+		// 1111 Unsigned Sum of Absolute Differences, Accumulate USADA8 (v7E-M)
+		case 0b11100: return ra == pc ? opcode.usada8_t1 : opcode.usad8_t1;
 		default: break;
 	}
 	return opcode.invalid;
@@ -845,6 +1003,110 @@ opcode misc_ops(const uint instr) {
 		case 0b0111: return opcode.revsh_t2;
 		case 0b1000: return opcode.sel_t1;
 		case 0b1100: return opcode.clz_t1;
+	}
+	return opcode.invalid;
+}
+
+// ====================================
+//  Decode Signed Parallel Add and Sub
+// ====================================
+
+opcode decode_signed_parallel_add_and_sub(const uint instr) {
+	immutable  op1  = slice(instr, 20, 3);
+	immutable  op2  = slice(instr,  4, 2);
+	const uint op12 = (op1 << 2) | op2;
+	switch (op12) {
+		// 001 00 Add 16-bit SADD16 v7E-M
+		case 0b00100: return opcode.sadd16_t1;
+		// 010 00 Add, Subtract SASX v7E-M
+		case 0b01000: return opcode.sasx_t1;
+		// 110 00 Subtract, Add SSAX v7E-M
+		case 0b11000: return opcode.ssax_t1;
+		// 101 00 Subtract 16-bit SSUB16 v7E-M
+		case 0b10100: return opcode.ssub16_t1;
+		// 000 00 Add 8-bit SADD8 v7E-M
+		case 0b00000: return opcode.sadd8_t1;
+		// 100 00 Subtract 8-bit SSUB8 v7E-M
+		case 0b10000: return opcode.ssub8_t1;
+		// Saturating instructions
+		// 001 01 Saturating Add 16-bit QADD16 v7E-M
+		case 0b00101: return opcode.qadd16_t;
+		// 010 01 Saturating Add, Subtract QASX v7E-M
+		case 0b01001: return opcode.qasx_t1;
+		// 110 01 Saturating Subtract, Add QSAX v7E-M
+		case 0b11001: return opcode.qsax_t1;
+		// 101 01 Saturating Subtract 16-bit QSUB16 v7E-M
+		case 0b10101: return opcode.qsub16_t1;
+		// 000 01 Saturating Add 8-bit QADD8 v7E-M
+		case 0b00001: return opcode.qadd8_t1;
+		// 100 01 Saturating Subtract 8-bit QSUB8 v7E-M
+		case 0b10001: return opcode.qsub8_t1;
+		// Halving instructions
+		// 001 10 Halving Add 16-bit SHADD16 on page A7-427 v7E-M
+		case 0b00110: return opcode.shadd16_t1;
+		// 010 10 Halving Add, Subtract SHASX on page A7-429 v7E-M
+		case 0b01010: return opcode.shasx_t1;
+		// 110 10 Halving Subtract, Add SHSAX on page A7-430 v7E-M
+		case 0b11010: return opcode.shsax_t1;
+		// 101 10 Halving Subtract 16-bit SHSUB16 on page A7-431 v7E-M
+		case 0b10110: return opcode.shsub16_t1;
+		// 000 10 Halving Add 8-bit SHADD8 on page A7-428 v7E-M
+		case 0b00010: return opcode.shadd8_t1;
+		// 100 10 Halving Subtract 8-bit SHSUB8 on page A7-432 v7E-M
+		case 0b10010: return opcode.shsub8_t1;
+		default:      break;
+	}
+	return opcode.invalid;
+}
+
+// ======================================
+//  Decode Unsigned Parallel Add and Sub
+// ======================================		
+		
+opcode decode_unsigned_parallel_add_and_sub(const uint instr) {
+	immutable  op1  = slice(instr, 20, 3);
+	immutable  op2  = slice(instr,  4, 2);
+	const uint op12 = (op1 << 2) | op2;
+	switch (op12) {		
+		// 001 00 Add 16-bit UADD16 on page A7-525 v7E-M
+		case 0b00100: return opcode.uadd16_t1;
+		// 010 00 Add, Subtract UASX on page A7-527 v7E-M
+		case 0b01000: return opcode.uasx_t1;
+		// 110 00 Subtract, Add USAX on page A7-550 v7E-M
+		case 0b11000: return opcode.usax_t1;
+		// 101 00 Subtract 16-bit USUB16 on page A7-551 v7E-M
+		case 0b10100: return opcode.usub16_t1;
+		// 000 00 Add 8-bit UADD8 on page A7-526 v7E-M
+		case 0b00000: return opcode.uadd8_t1;
+		// 100 00 Subtract 8-bit USUB8 on page A7-552 v7E-M
+		case 0b10000: return opcode.usub8_t1;
+		// Saturating instructions
+		// 001 01 Saturating Add 16-bit UQADD16 on page A7-539 v7E-M
+		case 0b00101: return opcode.uqadd16_t1;
+		// 010 01 Saturating Add, Subtract UQASX on page A7-541 v7E-M
+		case 0b01001: return opcode.uqasx_t1;
+		// 110 01 Saturating Subtract, Add UQSAX on page A7-542 v7E-M
+		case 0b11001: return opcode.uqsax_t1;
+		// 101 01 Saturating Subtract 16-bit UQSUB16 on page A7-543 v7E-M
+		case 0b10101: return opcode.uqsub16_t1;
+		// 000 01 Saturating Add 8-bit UQADD8 on page A7-540 v7E-M
+		case 0b00001: return opcode.uqadd8_t1;
+		// 100 01 Saturating Subtract 8-bit UQSUB8 on page A7-544 v7E-M
+		case 0b10001: return opcode.uqsub8_t1;
+		// Halving instructions
+		// 001 10 Halving Add 16-bit UHADD16 on page A7-530 v7E-M
+		case 0b00110: return opcode.uhadd16_t1;
+		// 010 10 Halving Add, Subtract UHASX on page A7-532 v7E-M
+		case 0b01010: return opcode.uhasx_t1;
+		// 110 10 Halving Subtract, Add UHSAX on page A7-533 v7E-M
+		case 0b11010: return opcode.uhsax_t1;
+		// 101 10 Halving Subtract 16-bit UHSUB16 on page A7-534 v7E-M
+		case 0b10110: return opcode.uhsub16_t1;
+		// 000 10 Halving Add 8-bit UHADD8 on page A7-531 v7E-M
+		case 0b00010: return opcode.uhadd8_t1;
+		// 100 10 Halving Subtract 8-bit UHSUB8 on page A7-535 v7E-M
+		case 0b10010: return opcode.uhsub8_t1;
+		default: break;
 	}
 	return opcode.invalid;
 }
@@ -878,11 +1140,12 @@ opcode decode_data_proc_reg(uint instr) {
 		case 0b01011000: return rn == pc ? opcode.uxtb_t2   : opcode.uxtab_t1;
 		default: break;
 	}
+	// 1xxx 00xx
 	if (((op1 & 0b1000) == 0b1000) && ((op2 & 0b1100) == 0b0000)) {
-		return opcode.uadd8_t1;
+		return decode_signed_parallel_add_and_sub(instr);
 	}
 	if (((op1 & 0b1000) == 0b1000) && ((op2 & 0b1100) == 0b0100)) {
-		return opcode.uadd8_t1;
+		return decode_unsigned_parallel_add_and_sub(instr);
 	}
 	if (((op1 & 0b1100) == 0b1000) && ((op2 & 0b1100) == 0b1000)) {
 		return misc_ops(instr);
@@ -1056,6 +1319,44 @@ enum op2_32 : ubyte {
 	load_byte 				= 0b1100111
 }
 
+opcode decode_long_mult(const uint instr) {
+	immutable op = slice(instr, 20, 3);
+	// 011 1111 Unsigned Divide UDIV
+	if (op == 0b011)
+		return opcode.udiv_t1;
+	// 010 0000 Unsigned Multiply Long UMULL
+	if (op == 0b010) 
+		return opcode.umull_t1;
+	immutable _op1 = slice(instr, 20, 3);
+	immutable _op2 = slice(instr,  4, 4);
+	// 000 0000 Signed Multiply Long SMULL
+	if ((_op1 == 0) && (_op2 == 0)) 
+		return opcode.smull_t1;
+	// 110 0000 Unsigned Multiply Accumulate Long UMLAL
+	if ((_op1 == 0b110) && (_op2 == 0))
+		return opcode.umlal_t1;
+	// 0110 Unsigned Multiply Accumulate Accumulate Long
+	// UMAAL (v7E-M)
+	if ((_op1 == 0b110) && (_op2 == 0b0110))
+		return opcode.umaal_t1;
+	// 100 0000 Signed Multiply Accumulate Long SMLAL
+	if ((_op1 == 0b100) && (_op2 == 0))
+		return opcode.smlal_t1;
+	// 001 1111 Signed Divide SDIV
+	if ((_op1 == 0b001) && (_op2 == 0b1111))
+		return opcode.sdiv_t1;
+	// 101 110x Signed Multiply Subtract Long Dual SMLSLD, SMLSLDX (v7E-M)
+	if ((_op1 == 0b101) && ((_op2 & 0b1110) == 0b1100))
+		return opcode.smlsls_t1;
+	// 10xx Signed Multiply Accumulate Long, Halfwords SMLALBB, SMLALBT, SMLALTB, SMLALTT (v7E-M)
+	if ((_op1 == 0b100) && ((_op2 & 0b1100) == 0b1000))
+		return opcode.smlalxy_t1;	
+	// 110x Signed Multiply Accumulate Long Dual SMLALD, SMLALDX (v7E-M)
+	if ((_op1 == 0b100) && ((_op2 & 0b1110) == 0b1100))
+		return opcode.smlald_t1;	
+	return opcode.invalid;
+}
+	
 opcode decode_mnemonic(const uint instr) {
 	immutable op1 = slice(instr, 27, 2);
 	immutable op2 = slice(instr, 20, 7);
@@ -1085,32 +1386,12 @@ opcode decode_mnemonic(const uint instr) {
 			return decode_data_proc_bin_imm(instr);
 	}
 	if (op1 == op1_32.grp3) {
-		immutable op = slice(instr, 20, 3);
 		// Load halfword, memory hints
 		if ((op2 & op2_32.ldh) == 0b0000011) 
 			return decode_load_half_word(instr);
 		// Long multiply, long multiply accumulate, and divide
-		if ((op2 & op2_32.long_mult) == 0b0111000) {
-			if (op == 0b011)
-				return opcode.udiv_t1;
-			if (op == 0b010) 
-				return opcode.umull_t1;
-		}
-		// 
-		if ((op2 & 0b1111000) == 0b0111000) {
-			immutable _op1 = slice(instr, 20, 3);
-			immutable _op2 = slice(instr,  4, 4);
-			if ((_op1 == 0) && (_op2 == 0)) 
-				return opcode.smull_t1;
-			if ((_op1 == 0b110) && (_op2 == 0))
-				return opcode.umlal_t1;
-			if ((_op1 == 0b110) && (_op2 == 0b0110))
-				return opcode.umaal_t1;
-			if ((_op1 == 0b100) && (_op2 == 0))
-				return opcode.smlal_t1;
-			if ((_op1 == 0b001) && (_op2 == 0b1111))
-				return opcode.sdiv_t1;
-		}
+		if ((op2 & op2_32.long_mult) == 0b0111000) 
+			return decode_long_mult(instr);
 		// Multiply, multiply accumulate, and absolute difference
 		if ((op2 & op2_32.mult) == 0b0110000) 
 			return decode_mult(instr);
@@ -1129,7 +1410,6 @@ opcode decode_mnemonic(const uint instr) {
 	}
 	return opcode.invalid;
 }
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 unittest {
 	struct test_case {

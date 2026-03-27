@@ -732,3 +732,23 @@ string convert_cmn_reg_t1_to_string(const ref instr_16 instr, const condition co
 								  get_reg_name(instr.rm));
 }
 // ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *									   ROR											 *
+// ***************************************************************************************
+
+instr_16 parse_ror_reg_t1(const ushort instr) {
+	return instr_16();
+}
+
+void 
+execute_ror_reg_t1
+(vm_t)
+(const ref instr_16 instr, ref vm_t vm) {
+}
+
+// CMN<c> <Rn>,<Rm>
+string convert_ror_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return "";
+}
+// ---------------------------------------------------------------------------------------

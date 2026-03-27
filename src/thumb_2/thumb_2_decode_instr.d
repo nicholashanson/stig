@@ -206,7 +206,7 @@ unittest {
 		test_case(0xfbb2f3f3, instr_32(op: opcode.udiv_t1,     rd: reg.r3,    rn: reg.r2, 	 rm: reg.r3 					   				   )),	// udiv	r3, r2, r3
 		test_case(0xf3c20208, instr_32(op: opcode.ubfx_t1, 	   rd: reg.r2,    rn: reg.r2, 				   lsb: 0, 					widthm1: 8 )),	// ubfx	r2, r2, #0, #9
 		test_case(0xfb02f303, instr_32(op: opcode.mul_t2, 	   rd: reg.r3,    rn: reg.r2, 	 rm: reg.r3 									   )),	// mul.w	r3, r2, r3
-		test_case(0xfa22f303, instr_32(op: opcode.lsr_reg_t2,  rd: reg.r3,    rn: reg.r2, 	 rm: reg.r3 									   )),  // lsr.w	r3, r2, r3
+		test_case(0xfa22f303, instr_32(op: opcode.lsr_reg_t2,  rd: reg.r3,    rn: reg.r2, 	 rm: reg.r3,   shift_t: shift_type.lsr,		       )),  // lsr.w	r3, r2, r3
 		test_case(0xf4434380, instr_32(op: opcode.orr_imm_t1,  rd: reg.r3,    rn: reg.r3, 	 unexpanded_imm: 3200,			   		imm: 16384 )),	// orr.w	r3, r3, #16384	@ 0x4000
 		test_case(0xf1070314, instr_32(op: opcode.add_imm_t3,  rd: reg.r3,    rn: reg.r7, 										    imm: 20    )),	// add.w	r3, r7, #20
 		test_case(0xf0230310, instr_32(op: opcode.bic_imm_t1,  rd: reg.r3,    rn: reg.r3, 	 unexpanded_imm: 16,					imm: 16    )),	// bic.w	r3, r3, #16

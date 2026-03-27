@@ -372,5 +372,61 @@ void execute_ldrsb_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
+
+void execute_smlsls_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_smlalxy_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_smlald_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
 void execute_invalid(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
+
+void execute_smlsd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_smusd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_smlaw_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_smulw_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_smlad_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_smuad_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_smmul_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_smmla_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_smmls_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_usada8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_usad8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_sadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_sasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ssax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ssub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_sadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ssub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qsax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qsub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_qsub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_shadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_shasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_shsax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_shsub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_shadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_shsub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_usax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_usub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_usub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uqadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uqasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uqsax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uqsub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uqadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uqsub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uhadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uhasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uhsax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uhsub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uhadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_uhsub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+void execute_qadd16_t(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

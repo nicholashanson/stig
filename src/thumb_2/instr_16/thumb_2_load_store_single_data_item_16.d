@@ -654,5 +654,13 @@ execute_ldrsh_reg_t1
 	immutable    data 		 = cast(int)cast(short)vm.read_half_word(addr);
 	vm.set_reg(instr.rt, data);
 }
+
+// LDRSH<c> <Rt>,[<Rn>,<Rm>]
+string convert_ldrsh_reg_t1_to_string(const ref instr_16 instr, const condition cond) {
+	return format("ldrsh%s %s, [%s, %s]", get_condition_string(cond),
+										  get_reg_name(instr.rt),
+										  get_reg_name(instr.rn),
+										  get_reg_name(instr.rm));
+}
 // ---------------------------------------------------------------------------------------
 

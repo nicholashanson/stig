@@ -712,6 +712,21 @@ func get_function_from_elf(const string elf_file,
             addr_offset += 4;
         while (e_func.skipped_addrs.canFind(addr_offset))
             addr_offset += 2;
+        if (len == 2) {
+            auto op = decode_mnemonic(read_ul_16(bytes, 0));
+            if (op == opcode.invalid) {
+                addr_offset += 2;
+                offset      += 2;     
+                continue;
+            }
+        } else { // len == 4
+            auto op = decode_mnemonic(read_ub_32(bytes, 0));
+            if (op == opcode.invalid) {
+                addr_offset += 4;
+                offset      += 4;
+                continue;
+            } 
+        }
         res.instrs  ~= addr_instr(e_func.offset + addr_offset, fetch_instr(bytes));
         offset      += len;
         addr_offset += len;
@@ -832,6 +847,19 @@ bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func,
                     f.literal_pool[lit_offset] = read_ub_32_(data, rel_offset);
                 else 
                     pending_literals[lit_offset] = true;
+            }
+            if (decode_mnemonic(first_hw) == opcode.adr_t1) {
+                auto parsed_instr = decode_instr!(instr_16,ushort)(first_hw);
+                auto next_instr = read_ul_32(data, offset + 2);
+                if (decode_mnemonic(next_instr) != opcode.ldr_reg_t2) {
+                    uint lit_offset = word_align(offset) + 4 + parsed_instr.imm;
+                    words_to_remove[lit_offset] = true;
+                    literal_offsets[lit_offset] = true;
+                    if (lit_offset + 4 < data.length) 
+                         f.literal_pool[e_func.offset + lit_offset] = read_ub_32_(data, lit_offset);
+                    else 
+                        pending_literals[lit_offset] = true;
+                }
             }
         }
         offset += len;
