@@ -315,7 +315,7 @@ void execute_sev_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_dbg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_cmn_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_adr_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_adr_imm_t3(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
 void execute_movt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ror_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 

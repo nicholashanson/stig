@@ -250,6 +250,10 @@ string convert_ubfx_t1_to_string(const ref instr_32 instr, const condition cond)
 }
 // ---------------------------------------------------------------------------------------
 
+// ***************************************************************************************
+// *                                       SUB                                           *
+// ***************************************************************************************
+
 // ======================
 //  Parse SUB(Immediate)
 // ======================
@@ -352,5 +356,49 @@ string convert_sbfx_t1_to_string(const ref instr_32 instr, const condition cond)
                                              get_reg_name(instr.rd),
                                              get_reg_name(instr.rn),
                                              instr.lsb, instr.widthm1 + 1);
+}
+// ---------------------------------------------------------------------------------------
+
+// ***************************************************************************************
+// *                                       ADR                                           *
+// ***************************************************************************************
+
+// ======================
+//  Parse ADR(Immediate)
+// ======================
+
+instr_32 parse_adr_imm_t3(const uint instr) {
+    // imm32 = ZeroExtend(i:imm3:imm8, 32); add = TRUE;
+    immutable i    = slice(instr, 26, 1);
+    immutable imm3 = slice(instr, 12, 3);
+    immutable imm8 = slice(instr,  0, 8);
+    return instr_32(imm: cast(uint)((i << 11) | (imm3 << 8) | imm8),
+                    add: true,
+                    rd:  cast(reg)slice(instr, 8, 4));
+}
+
+// ========================
+//  Execute ADR(Immediate)
+// ========================
+
+void 
+execute_adr_imm_t3
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+    // EncodingSpecificOperations();
+    immutable  pc  = vm.get_reg(reg.pc);
+    immutable  imm = instr.imm;
+    // result = if add then (Align(PC,4) + imm32) else (Align(PC,4) - imm32);
+    const uint res = instr.add ? word_align(pc) + imm : word_align(pc) - imm;
+    // R[d] = result;
+    vm.set_reg(instr.rd, res);
+}
+
+// ADR<c>.W <Rd>,<label>
+// Alternative for encodings T1, T3: ADD<c><q> <Rd>, PC, #<const> 
+string convert_adr_imm_t3_to_string(const ref instr_32 instr, const condition cond) {
+    return format("add%s.w %s, pc%s", get_condition_string(cond),
+                                      get_reg_name(instr.rd),
+                                      get_imm_string(instr.imm));
 }
 // ---------------------------------------------------------------------------------------

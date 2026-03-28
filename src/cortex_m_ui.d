@@ -20,16 +20,21 @@ import thumb_2_instrs;
 import thumb_2_decode_instr;
 import thumb_2_execute_instr;
 import thumb_2_convert_instr_to_string;
+import scb_defs;
 
 WINDOW*       instr_pad;
 WINDOW*         reg_pad;
 WINDOW*        flag_pad;
 WINDOW* instr_pad_frame;
 WINDOW*  load_store_pad;
+WINDOW*         scb_pad;
 bool    pc_moved = true;
 int               start;
 int                 end;
 int visible_lines  = 39;
+
+int view_n        =     0;
+bool view_changed = false;
 
 string[] load_store_buffer;
 
@@ -88,10 +93,11 @@ void append_unique(ref string[] buffer, string next, size_t n) {
         buffer = buffer[1 .. $];
 }
 
-void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
+void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     visible_lines = LINES;
     werase(instr_pad);
     werase(load_store_pad);
+    box(instr_pad_frame, 0, 0);
     box(load_store_pad,  0, 0);
 
     int reg_screen_row   =            1;  
@@ -296,6 +302,42 @@ void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     doupdate();
 }
 
+void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
+    werase(scb_pad);
+    box(scb_pad, 0, 0);
+    int scb_pad_y = 1;
+    void print_reg(REG_T)(const string reg_name, ref int y, ref vm_t vm, REG_T r) {
+        immutable val = vm.peek_word(r);
+        int color = color_for_value(val, vm);    
+        wattron(scb_pad, COLOR_PAIR(color));
+        mvwprintw(scb_pad, y++, 1, toStringz(format("%s %08X", reg_name, val)));
+        wattroff(scb_pad, COLOR_PAIR(color));
+    }
+    mvwprintw(scb_pad, scb_pad_y++, 1, toStringz("System Control Block"));
+    print_reg("VTOR:", scb_pad_y, vm, VTOR);
+    print_reg("CCR: ", scb_pad_y, vm, CCR);
+
+    prefresh(
+        scb_pad,
+        0, 0,            
+        0, 0,           
+        LINES - 1, COLS - 1  
+    );
+
+    doupdate();
+}
+
+void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
+    if (view_changed) {
+        view_changed = false;
+        erase();
+    }
+    if (view_n == 0)
+        draw_screen_0(vm, rows);
+    else 
+        draw_screen_1(vm, rows);
+} 
+
 // ==============
 //  FIND SYMBOLS
 // ==============
@@ -367,6 +409,13 @@ void control_loop(VM_T)(ref runtime_ctrl ctrl, ref VM_T vm, ref row_view[] rows)
             if (ch == KEY_DOWN) {
                 vm.execute_next_instr();
                 pc_moved = true;
+            }
+            if (ch == KEY_RIGHT) {
+                if (view_n == 0) 
+                    view_n = 1;
+                else
+                    view_n = 0;
+                view_changed = true;
             }
             if (ch == ' ') { 
                 ctrl.is_playing = !ctrl.is_playing;
@@ -497,11 +546,13 @@ void main(string[] args) {
     flag_pad       = newpad(             6, COLS / 2 - 2);
     instr_pad      = newpad(         10000,          200);
     load_store_pad = newpad(    LINES - 27, COLS / 2 - 2);
+    scb_pad        = newpad(         LINES,         COLS);
 
     box(reg_pad,         0, 0);
     box(flag_pad,        0, 0);
     box(instr_pad_frame, 0, 0);
     box(load_store_pad,  0, 0);
+    box(scb_pad,         0, 0);
 
     if (soc_s == "nrf") {
         cortex_m_vm!nrf52840_mem vm;

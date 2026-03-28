@@ -465,6 +465,13 @@ struct cortex_m_vm(mem_t) {
 		return val;
 	}
 
+	// ===========
+	//  PEEK WORD
+	// ===========	
+	uint peek_word(const size_t addr) {
+		return mem.read_word(addr);
+	}
+
 	// ============
 	//  WRITE WORD
 	// ============	
@@ -557,7 +564,7 @@ struct cortex_m_vm(mem_t) {
     // -------------------------------------------------------------------------------------- 
     // =====
 	//  POP
-	// =====
+	// =====peek_word
 
     uint pop() {
         immutable res = mem.read_word(cpu.get_sp());
