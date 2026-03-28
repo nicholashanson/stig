@@ -564,7 +564,7 @@ struct cortex_m_vm(mem_t) {
     // -------------------------------------------------------------------------------------- 
     // =====
 	//  POP
-	// =====peek_word
+	// =====
 
     uint pop() {
         immutable res = mem.read_word(cpu.get_sp());
