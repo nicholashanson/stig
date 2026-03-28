@@ -27,6 +27,7 @@ instr_32 parse_data_proc_mod_imm(const uint instr) {
 	return instr_32(rd:  			cast(reg)slice(instr,  8, 4),
 					rn:  			cast(reg)slice(instr, 16, 4),
 					imm: 			thumb_expand_imm(imm_12),
+					set_flags: 		cast(bool)slice(instr, 20, 1),
 					unexpanded_imm: imm_12);
 }
 
@@ -206,7 +207,7 @@ instr_32 parse_and_imm_t1(const uint instr) {
 void 
 execute_and_imm_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable  rn  		  = vm.get_reg(instr.rn);
 	immutable  imm        = instr.unexpanded_imm;
 	immutable  expand_res = thumb_expand_imm_c(cast(ushort)imm, vm.get_c());

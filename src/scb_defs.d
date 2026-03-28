@@ -253,6 +253,10 @@ DBGMCU_CR = 0xE0042004,
 
 // The Data Watchpoint and Trace Unit
 DWT = 0xE0001000,
+
+// Cortex M33
+// Non-secure Access Control Register
+NSACR = 0xE000ED8C 
 }             
                             
                             

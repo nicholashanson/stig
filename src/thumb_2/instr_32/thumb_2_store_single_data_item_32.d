@@ -282,7 +282,7 @@ execute_strh_imm_t3
 void 
 execute_strh_imm
 (vm_t)
-(const instr_32 instr, ref vm_t vm) { 
+(const ref instr_32 instr, ref vm_t vm) { 
 	immutable rn 	  		 = vm.get_reg(instr.rn);
 	immutable rt 	  		 = vm.get_reg(instr.rt);
 	immutable imm     		 = instr.imm;

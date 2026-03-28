@@ -345,7 +345,7 @@ struct runtime_ctrl {
     Duration frame_interval; 
 }
 
-void stm32_control_loop(ref runtime_ctrl ctrl, ref cortex_m_vm!stm32f4_mem vm, ref row_view[] rows) {
+void control_loop(VM_T)(ref runtime_ctrl ctrl, ref VM_T vm, ref row_view[] rows) {
     int ch;
     while (true) {
         ch = getch();
@@ -379,45 +379,6 @@ void stm32_control_loop(ref runtime_ctrl ctrl, ref cortex_m_vm!stm32f4_mem vm, r
             if (delta >= ctrl.interval) {
                 vm.execute_next_instr();
                 pc_moved = true;
-                ctrl.last_time = now;
-            }
-        }
-        draw_screen(vm, rows);
-    }
-}
-
-void nrf_control_loop(ref runtime_ctrl ctrl, ref cortex_m_vm!nrf52840_mem vm, ref row_view[] rows) {
-    int ch;
-    while (true) {
-        ch = getch();
-
-        if (ch != ERR) {
-            if (ch == 'q') {
-                break;
-            }
-            if (ch == 'z') {
-                pc_moved = false;
-                start = max(0, start - 1);
-                end   = start + visible_lines;
-            }
-            if (ch == 'x') {
-                pc_moved = false;
-                end   = min(cast(uint)rows.length, end + 1);
-                start = end - visible_lines;
-            }
-            if (ch == KEY_DOWN) {
-                vm.execute_next_instr();
-            }
-            if (ch == ' ') { 
-                ctrl.is_playing = !ctrl.is_playing;
-            }             
-        }
-
-        auto now = MonoTime.currTime;
-        if (ctrl.is_playing) {
-            auto delta = now - ctrl.last_time; 
-            if (delta >= ctrl.interval) {
-                vm.execute_next_instr();
                 ctrl.last_time = now;
             }
         }
@@ -472,7 +433,7 @@ void main(string[] args) {
         soc_s = args[2];
     }
 
-    if (soc_s != "nrf" && soc_s != "stm32") {
+    if (soc_s != "nrf" && soc_s != "stm32" && soc_s != "nxp") {
         writeln("Unrecognized SoC: ", soc_s);
         return;
     }
@@ -482,6 +443,16 @@ void main(string[] args) {
             entry_point = to!uint(args[3], 16);
         } catch (ConvException e) {
             writeln("Invalid entry point: ", args[3]);
+            return;
+        }
+    }
+
+    uint nth_instance = 0;
+    if (args.length > 4) {
+        try {
+            nth_instance = to!uint(args[4], 16);
+        } catch (ConvException e) {
+            writeln("Invalid nth instance: ", args[4]);
             return;
         }
     }
@@ -536,17 +507,25 @@ void main(string[] args) {
         cortex_m_vm!nrf52840_mem vm;
         load_elf(vm, soc.nrf, target_file_name);
         if (entry_point != 0)
-            vm.run_to(entry_point);
+            vm.run_to(entry_point, nth_instance);
         draw_screen(vm, rows);
-        nrf_control_loop(ctrl, vm, rows);
-    } else {
+        control_loop(ctrl, vm, rows);
+    } else if (soc_s == "stm32") {
         cortex_m_vm!stm32f4_mem vm;
         vm.set_vtor();
         load_elf(vm, soc.stm32, target_file_name);
         if (entry_point != 0)
-            vm.run_to(entry_point);
+            vm.run_to(entry_point, nth_instance);
         draw_screen(vm, rows);
-        stm32_control_loop(ctrl, vm, rows);
+        control_loop(ctrl, vm, rows);
+    } else {
+        cortex_m_vm!rw612_mem vm;
+        vm.set_vtor();
+        load_elf(vm, soc.nxp, target_file_name);
+        if (entry_point != 0)
+            vm.run_to(entry_point, nth_instance);
+        draw_screen(vm, rows);
+        control_loop(ctrl, vm, rows);
     }
 
     endwin();

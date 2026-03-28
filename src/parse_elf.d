@@ -62,8 +62,12 @@ string[] table_names = [
     "settings_handler_static_area",
     "device_states",
     "k_mem_slab_area",
-    "crypto_driver_api_area"
+    "crypto_driver_api_area",
+    "k_event_area",
+    "usbd_context_area",
+    "usbd_class_fs_area"
 ];
+
 // --------------------------------------------------------------------------------------
 alias read_fn(T) = T function(const(ubyte)[] data, size_t offset);
 // --------------------------------------------------------------------------------------
@@ -399,6 +403,7 @@ string[] stm32_start_up = [
 enum soc {
     stm32,
     nrf,
+    nxp,
     all
 }
 // --------------------------------------------------------------------------------------
@@ -715,15 +720,15 @@ func get_function_from_elf(const string elf_file,
         if (len == 2) {
             auto op = decode_mnemonic(read_ul_16(bytes, 0));
             if (op == opcode.invalid) {
-                addr_offset += 2;
-                offset      += 2;     
+                addr_offset += len;
+                offset      += len;     
                 continue;
             }
         } else { // len == 4
             auto op = decode_mnemonic(read_ub_32(bytes, 0));
             if (op == opcode.invalid) {
-                addr_offset += 4;
-                offset      += 4;
+                addr_offset += len;
+                offset      += len;
                 continue;
             } 
         }

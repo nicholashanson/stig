@@ -33,4 +33,7 @@ uint[scb_reg] scb = [
     // --------------------------------------------------------------------------------------
     DBGMCU_CR: 0,
     DWT: 0,
+    // Cortex M33
+    // Non-secure Access Control Register
+    NSACR: 0 
 ];

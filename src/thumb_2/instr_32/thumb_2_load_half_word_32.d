@@ -84,6 +84,15 @@ string convert_ldrsh_imm_t1_to_string(const ref instr_32 instr, const condition 
 										  get_reg_name(instr.rn),
 										  get_imm_string(instr.imm));
 }
+
+// LDRSH<c> <Rt>,[<Rn>,#-<imm8>]
+// LDRSH<c> <Rt>,[<Rn>],#+/-<imm8>
+// LDRSH<c> <Rt>,[<Rn>,#+/-<imm8>]!
+string convert_ldrsh_imm_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldrsh%s.w %s, [%s%s]", get_condition_string(cond),
+										  get_reg_name(instr.rt),
+										  get_addr_string(instr));
+}
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
@@ -139,9 +148,12 @@ string convert_ldrh_reg_t2_to_string(const ref instr_32 instr, const condition c
 
 // LDRH<c>.W <Rt>,[<Rn>{,#<imm12>}]
 instr_32 parse_ldrh_imm_t2(const uint instr) {
-	return instr_32(imm: slice(instr, 0, 12),
-					rt:  cast(reg)slice(instr, 12, 4),
-					rn:  cast(reg)slice(instr, 16, 4));
+	return instr_32(imm:   slice(instr, 0, 12),
+					rt:    cast(reg)slice(instr, 12, 4),
+					rn:    cast(reg)slice(instr, 16, 4),
+					index: true,
+					add:   true);
+	// index = TRUE; add = TRUE; wback = FALSE;
 }
 
 void 
@@ -149,7 +161,7 @@ execute_ldrh_imm_t2
 (vm_t)
 (const ref instr_32 instr, vm_t vm) {
 	// EncodingSpecificOperations();
-	immutable rn      		 = vm.get_reg(instr.rm);
+	immutable rn      		 = vm.get_reg(instr.rn);
 	immutable imm     		 = instr.imm; 
 	// offset_addr = if add then (R[n] + imm32) else (R[n] - imm32);
 	const size_t offset_addr = instr.add   ? rn + imm    : rn - imm; 

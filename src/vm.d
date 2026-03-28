@@ -774,11 +774,16 @@ struct cortex_m_vm(mem_t) {
 	//  RUN TO
 	// ========
 
-	void run_to(const uint addr) {
+	void run_to(const uint addr, const uint nth_instance = 0) {
+		uint it = 0;
 		while (1) {
 			execute_next_instr();
-			if (cpu.get_pc() == addr)
-				break;
+			if (cpu.get_pc() == addr) {
+				if (it == nth_instance)
+					break;
+				else
+					it++;
+			}
 		}
 	}
 	// -------------------------------------------------------------------------------------- 
