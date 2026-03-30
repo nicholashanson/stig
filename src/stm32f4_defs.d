@@ -590,4 +590,27 @@ FMC_SDCMR = 0xA0000150,
 FMC_SDRTR = 0xA0000154,
 FMC_SDSR  = 0xA0000158,
 
+CAN1_MCR = 0x40006400,
+
+// Reset value: 0x0000 0C02
+// Bit 1 SLAK: Sleep acknowledge
+// This bit is set by hardware and indicates to the software that the CAN hardware is now in
+// Sleep mode. This bit acknowledges the Sleep mode request from the software (set SLEEP
+// bit in CAN_MCR register).
+// This bit is cleared by hardware when the CAN hardware has left Sleep mode (to be
+// synchronized on the CAN bus). To be synchronized the hardware has to monitor a
+// sequence of 11 consecutive recessive bits on the CAN RX signal.
+// Note: The process of leaving Sleep mode is triggered when the SLEEP bit in the CAN_MCR
+// register is cleared. Refer to the AWUM bit of the CAN_MCR register description for
+// detailed information for clearing SLEEP bit
+// Bit 0 INAK: Initialization acknowledge
+// This bit is set by hardware and indicates to the software that the CAN hardware is now in
+// initialization mode. This bit acknowledges the initialization request from the software (set
+// INRQ bit in CAN_MCR register).
+// This bit is cleared by hardware when the CAN hardware has left the initialization mode (to
+// be synchronized on the CAN bus). To be synchronized the hardware has to monitor a
+// sequence of 11 consecutive recessive bits on the CAN RX signal.
+CAN1_MSR = 0x40006404,
+CAN1_FMR = 0x40006600,
+CAN1_FS1R = 0x4000660C,
 }

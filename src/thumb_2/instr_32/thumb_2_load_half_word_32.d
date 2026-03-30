@@ -130,8 +130,7 @@ execute_ldrh_reg_t2
  	// if wback then R[n] = offset_addr;
  	// R[t] = ZeroExtend(data, 32);
  	vm.set_reg(instr.rt, cast(uint)data);
- }
-
+}
 
 // LDRH<c>.W <Rt>,[<Rn>,<Rm>{,LSL #<imm2>}]
 string convert_ldrh_reg_t2_to_string(const ref instr_32 instr, const condition cond) {

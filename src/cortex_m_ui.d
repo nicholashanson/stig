@@ -314,8 +314,17 @@ void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
         wattroff(scb_pad, COLOR_PAIR(color));
     }
     mvwprintw(scb_pad, scb_pad_y++, 1, toStringz("System Control Block"));
-    print_reg("VTOR:", scb_pad_y, vm, VTOR);
-    print_reg("CCR: ", scb_pad_y, vm, CCR);
+    print_reg("VTOR:    ", scb_pad_y, vm, VTOR);
+    print_reg("CCR:     ", scb_pad_y, vm, CCR);
+    print_reg("SHPR1:   ", scb_pad_y, vm, SHPR1);
+    print_reg("SHPR2:   ", scb_pad_y, vm, SHPR2);
+    print_reg("SHPR3:   ", scb_pad_y, vm, SHPR3);
+    print_reg("SHCSR:   ", scb_pad_y, vm, SHCSR);
+    print_reg("MPU_TYPE:", scb_pad_y, vm, MPU_TYPE);
+    print_reg("MPU_CTRL:", scb_pad_y, vm, MPU_CTRL);
+    print_reg("MPU_RNR: ", scb_pad_y, vm, MPU_RNR);
+    print_reg("MPU_RBAR:", scb_pad_y, vm, MPU_RBAR);
+    print_reg("MPU_RASR:", scb_pad_y, vm, MPU_RASR);
 
     prefresh(
         scb_pad,

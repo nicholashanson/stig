@@ -311,6 +311,16 @@ struct stm32f4_mem {
     }
 
     uint read_word(size_t addr) {
+        if (addr == CAN1_MSR) {
+            if (stm32f4_peripheral_regs[CAN1_MSR] == 0x00000C02) {
+                stm32f4_peripheral_regs[CAN1_MSR] = 0x00000C03;
+                return stm32f4_peripheral_regs[CAN1_MSR];
+            }
+            if (stm32f4_peripheral_regs[CAN1_MSR] == 0x00000C03) {
+                stm32f4_peripheral_regs[CAN1_MSR] = 0x00000C01;
+                return stm32f4_peripheral_regs[CAN1_MSR];
+            }
+        }
         if (addr == 0x40023800) {
             flip_bit(0x40023800, 25);
             flip_bit(0x40023800, 27);
