@@ -288,7 +288,7 @@ execute_eor_reg_t1
 (const ref instr_16 instr, ref vm_t vm) {
 	immutable  rm  = vm.get_reg(instr.rm);
 	immutable  rn  = vm.get_reg(instr.rn);
-	const uint res = rm & ~rn;
+	const uint res = rm ^ rn;
 	if (!vm.in_it_block()) {
 		vm.set_z(res);
 		vm.set_n(res);
