@@ -156,7 +156,6 @@ execute_ldrexb_t1
 //  Parse STRD
 // ============
 
-enum field_tuples_strd_imm_t1 = [Tuple!(opcode, string[])(opcode.strd_imm_t1, ["rt","rt2","rn","imm"])];
 // STRD<c> <Rt>,<Rt2>,[<Rn>{,#+/-<imm8>}]
 // STRD<c> <Rt>,<Rt2>,[<Rn>],#+/-<imm8>
 // STRD<c> <Rt>,<Rt2>,[<Rn>,#+/-<imm8>]!

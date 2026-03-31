@@ -613,4 +613,18 @@ CAN1_MCR = 0x40006400,
 CAN1_MSR = 0x40006404,
 CAN1_FMR = 0x40006600,
 CAN1_FS1R = 0x4000660C,
+// CAN bit timing register 
+// Address offset: 0x1C
+// Reset value: 0x0123 0000
+CAN1_BTR = 0x4000641C,
+
+// CAN interrupt enable register 
+// Address offset: 0x14
+// Reset value: 0x0000 0000
+CAN1_IER = 0x40006414,
+
+// CAN filter activation register
+// Address offset: 0x21C
+// Reset value: 0x0000 0000
+CAN1_FA1R = 0x4000661C,
 }

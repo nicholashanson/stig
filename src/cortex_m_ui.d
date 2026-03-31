@@ -526,7 +526,8 @@ void main(string[] args) {
     use_default_colors();
 
     start_color();
-    init_color(COLOR_WHITE,  970, 970, 950);
+    //init_color(COLOR_WHITE,  970, 970, 950);
+    init_color(COLOR_WHITE,  992, 964, 890);
     init_color(COLOR_CYAN,   400, 850, 940);
     init_color(COLOR_YELLOW, 900, 860, 450);
     init_color(COLOR_GREEN,  650, 880, 180);
@@ -534,13 +535,32 @@ void main(string[] args) {
     init_color(8,            500, 500, 500);
     init_color(9,            248, 248, 248);
 
-    init_pair(1, COLOR_WHITE,  COLOR_BLACK); 
-    init_pair(2, COLOR_CYAN,   COLOR_BLACK); 
-    init_pair(3, COLOR_YELLOW, COLOR_BLACK); 
-    init_pair(4, COLOR_GREEN,  COLOR_BLACK); 
-    init_pair(5, COLOR_RED,    COLOR_BLACK);
-    init_pair(6, COLOR_WHITE,            8);
-    init_pair(7, COLOR_WHITE,            9); 
+    init_color(10, 152, 545, 824);  
+    init_color(11, 710, 537, 0);    
+    init_color(12, 533, 600, 0);    
+    init_color(13, 862, 196, 180);  
+
+    short bg_color = COLOR_WHITE;
+    short fg_color = COLOR_BLACK;
+    init_pair(1, fg_color,     bg_color); 
+
+    if (bg_color == COLOR_BLACK) {
+        init_pair(2, COLOR_CYAN,   bg_color); 
+        init_pair(3, COLOR_YELLOW, bg_color); 
+        init_pair(4, COLOR_GREEN,  bg_color); 
+        init_pair(5, COLOR_RED,    bg_color);
+    } else {
+        init_pair(2, 10, COLOR_WHITE);
+        init_pair(3, 11, COLOR_WHITE);
+        init_pair(4, 12, COLOR_WHITE);
+        init_pair(5, 13, COLOR_WHITE);
+    }
+    init_pair(6, COLOR_WHITE,         8);
+    init_pair(7, COLOR_WHITE,         9); 
+
+    wbkgd(stdscr, COLOR_PAIR(1));
+    wclear(stdscr);
+    wrefresh(stdscr);
     
     scope(exit) endwin();
     cbreak();
@@ -556,6 +576,13 @@ void main(string[] args) {
     instr_pad      = newpad(         10000,          200);
     load_store_pad = newpad(    LINES - 27, COLS / 2 - 2);
     scb_pad        = newpad(         LINES,         COLS);
+
+    wbkgd(reg_pad,        COLOR_PAIR(1));
+    wbkgd(flag_pad,       COLOR_PAIR(1));
+    wbkgd(instr_pad,      COLOR_PAIR(1));
+    wbkgd(load_store_pad, COLOR_PAIR(1));
+    wbkgd(scb_pad,        COLOR_PAIR(1));
+    wbkgd(instr_pad_frame,COLOR_PAIR(1));
 
     box(reg_pad,         0, 0);
     box(flag_pad,        0, 0);

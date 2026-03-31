@@ -158,7 +158,7 @@ instr_32 parse_ldrh_imm_t2(const uint instr) {
 void 
 execute_ldrh_imm_t2
 (vm_t)
-(const ref instr_32 instr, vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	// EncodingSpecificOperations();
 	immutable rn      		 = vm.get_reg(instr.rn);
 	immutable imm     		 = instr.imm; 
@@ -170,7 +170,7 @@ execute_ldrh_imm_t2
 	immutable data           = vm.read_half_word(addr);
 	// if wback then R[n] = offset_addr;
 	// R[t] = ZeroExtend(data, 32);
-	vm.set_reg(instr.rd, cast(uint)data);
+	vm.set_reg(instr.rt, cast(uint)data);
 }
 
 // LDRH<c>.W <Rt>,[<Rn>{,#<imm12>}]

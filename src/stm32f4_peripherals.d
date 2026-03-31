@@ -96,4 +96,5 @@ uint[stm32f4_peripheral_reg] stm32f4_peripheral_regs = [
     FMC_SDTR1:  0,  FMC_SDTR2:  0,  FMC_SDCMR: 0,  FMC_SDRTR:  0,  FMC_SDSR:   0, 
     // -------------------------------------- CAN1 ------------------------------------------
     CAN1_MCR:   0x00010002, CAN1_MSR: 0x00000C02, CAN1_FMR: 0x2A1C0E01, CAN1_FS1R: 0,
+    CAN1_BTR:   0x01230000, CAN1_IER: 0,          CAN1_FA1R:         0,
 ];

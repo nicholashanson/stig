@@ -21,6 +21,7 @@ import log;
 // =============
 
 string[] table_names = [
+    "can_driver_api_area",
     "rodata",
     ".rodata",
     "_static_thread_data_area",

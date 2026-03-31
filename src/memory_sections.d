@@ -320,6 +320,10 @@ struct stm32f4_mem {
                 stm32f4_peripheral_regs[CAN1_MSR] = 0x00000C01;
                 return stm32f4_peripheral_regs[CAN1_MSR];
             }
+            if (stm32f4_peripheral_regs[CAN1_MSR] == 0x00000C01) {
+                stm32f4_peripheral_regs[CAN1_MSR] = 0x00000C00;
+                return stm32f4_peripheral_regs[CAN1_MSR];
+            }
         }
         if (addr == 0x40023800) {
             flip_bit(0x40023800, 25);
