@@ -1,4 +1,5 @@
 import scb_defs;
+import thumb_2_instrs;
 
 uint[scb_reg] scb = [
     CPUID: 0, ICSR:  0, CCR: 0, SHPR1: 0, SHPR2: 0, SHPR3: 0, SHCSR: 0,
@@ -37,3 +38,84 @@ uint[scb_reg] scb = [
     // Non-secure Access Control Register
     NSACR: 0 
 ];
+
+// --------------------------------------------------------------------------------------
+enum PENDSTSET = 26;
+enum PENDSTCLR = 25;
+enum PENDSVSET = 28;
+enum PENDSVCLR = 27;
+
+struct scb_control {
+    // --------------------------------------------------------------------------------------
+
+    bool st_pending  = false;
+    bool psv_pending = false;
+    // --------------------------------------------------------------------------------------
+    // ===========
+    //  READ ICSR
+    // ===========
+
+    uint read_icsr() {
+        uint val = 0;
+        if (st_pending)
+            val |= (1u << PENDSTSET);
+        if (psv_pending)
+            val |= (1u << PENDSVSET);
+        return val;
+    }
+    // --------------------------------------------------------------------------------------
+    // ============
+    //  WRITE ICSR
+    // ============
+
+    void write_icsr(uint val) {
+        if (slice(val, PENDSTCLR, 1) == 0x1) 
+            st_pending = false;
+        if (slice(val, PENDSTSET, 1) == 0x1)
+            st_pending = true;
+        if (slice(val, PENDSVCLR, 1) == 0x1) 
+            psv_pending = false;
+        if (slice(val, PENDSVSET, 1) == 0x1) 
+            psv_pending = true;
+    }
+    // --------------------------------------------------------------------------------------
+    // ===========
+    //  READ WORD
+    // ===========
+
+    uint read_word(size_t addr) {
+        if (cast(scb_reg)addr in scb) {
+            uint res;
+            if (cast(scb_reg)addr == ICSR) 
+                res = read_icsr();
+            else {
+                res = scb[cast(scb_reg)addr];
+            } 
+            if (addr == SYST_CSR)
+                scb[SYST_CSR] &= ~0x00010000;
+            return res;
+        } else {
+            throw new Exception("Invalid access");            
+        }
+    }
+    // --------------------------------------------------------------------------------------
+    // ============
+    //  WRITE WORD
+    // ============
+
+    void write_word(size_t addr, uint val) {
+        if (cast(scb_reg)addr in scb) {
+            if (cast(scb_reg)addr == ICSR) 
+                return write_icsr(val);
+            scb[cast(scb_reg)addr] = val;   
+            if (addr == SYST_CVR) 
+                scb[SYST_CSR] &= ~0x00010000;
+        } else {
+            throw new Exception("Invalid access");            
+        }
+    }
+    // --------------------------------------------------------------------------------------
+}
+
+scb_control scb_ctrl;
+

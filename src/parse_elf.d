@@ -66,7 +66,9 @@ string[] table_names = [
     "crypto_driver_api_area",
     "k_event_area",
     "usbd_context_area",
-    "usbd_class_fs_area"
+    "usbd_class_fs_area",
+    "sample_driver_api_area",
+    "app_shmem_regions"
 ];
 
 // --------------------------------------------------------------------------------------
@@ -636,10 +638,10 @@ ubyte[] get_function_by_name(const string elf_file, const string func_name) {
     if (text_sec.name == "")
         text_sec = get_section_by_name(elf_file, ".text");
 
-    ubyte[] symdata   = symtab_sec.data;
-    ubyte[] strdata   = strtab_sec.data;
-    uint text_start   = text_sec.addr;
-    ubyte[] text_data = text_sec.data;
+    ubyte[] symdata    = symtab_sec.data;
+    ubyte[] strdata    = strtab_sec.data;
+    uint    text_start = text_sec.addr;
+    ubyte[] text_data  = text_sec.data;
 
     for (size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
         auto sym = get_sym(symdata, pos);
@@ -1150,4 +1152,53 @@ unittest {
     auto size     = get_func_size(filename, "z_arm_pendsv");
     assert(size == 84, format("pendsv size is %d, not 84", size));
     // --------------------------------------------------------------------------------------
+}
+
+// =============
+//  ZEPHYR VARS
+// =============
+
+string[] z_vars = [
+    "announce_remaining",
+    //announced_cycles",
+    "curr_tick",
+    "cycle_count",
+    "last_load",
+    "overflow_cyc",
+    "pending_current",
+    "slice_max_prio",
+    "slice_ticks",
+    "z_sys_post_kernel",
+    "z_arm_tls_ptr"
+];
+
+string[] z_configs = [
+    "CONFIG_IDLE_STACK_SIZE",
+    "CONFIG_ISR_STACK_SIZE",
+    "CONFIG_NUM_COOP_PRIORITIES",
+    "CONFIG_MP_MAX_NUM_CPUS",
+    "CONFIG_NUM_PREEMPT_PRIORITIES",
+    "CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC",
+    "CONFIG_SYS_CLOCK_MAX_TIMEOUT_DAYS",
+    "CONFIG_SYS_CLOCK_TICKS_PER_SEC",
+    "CONFIG_TIMEOUT_64BIT",
+    "CONFIG_TIMESLICE_SIZE"
+];
+
+st_name_val[] get_z_vars(const string elf_file) {
+    st_name_val[] res;
+    foreach (v; z_vars) {
+       auto s = get_st_name_val(elf_file, v);
+       res ~= s;
+    }
+    return res;
+}
+
+st_name_val[] get_z_configs(const string elf_file) {
+    st_name_val[] res;
+    foreach (v; z_configs) {
+       auto s = get_st_name_val(elf_file, v);
+       res ~= s;
+    }
+    return res;
 }

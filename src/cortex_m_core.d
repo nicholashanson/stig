@@ -6,10 +6,13 @@ import std.traits : isIntegral;
 import thumb_2_misc_16;
 import thumb_2_instrs;
 import thumb_2_opcodes;
+import cortex_m_scb;
+import scb_defs;
 
 enum IABR_BASE = 0xE000E300;
 enum IPR_BASE  = 0xE000E400;
-
+enum ISPR_BASE = 0xE000E200;
+// --------------------------------------------------------------------------------------
 // ===========================
 //  IS EXCEPTION RETURN VALUE
 // ===========================
@@ -23,7 +26,6 @@ bool test_unsigned_neg(const uint v) {
 	return (v & 0x8000_0000) != 0;
 }
 // --------------------------------------------------------------------------------------
-
 // ===================
 //  SPECIAL REGISTERS
 // ===================
@@ -80,10 +82,10 @@ enum exception {
 	pendsv_irqn  = 14,
 	systick_irqn = 15
 }
-
+// --------------------------------------------------------------------------------------
 // hardware saved frame
 reg[] hsf = [reg.r0, reg.r1, reg.r2, reg.r3, reg.r12, reg.lr, reg.pc /*, XPSR */];
-
+// --------------------------------------------------------------------------------------
 // ======================
 //  DEACTIVATE EXCEPTION
 // ======================
@@ -95,7 +97,7 @@ deactivate_exc
 	const uint reg_n    = i / 32;
 	const uint reg_addr = IABR_BASE + (reg_n * 4);
 	// ExceptionActive[ReturningExceptionNumber] = ‘0’;
-	uint       reg      = vm.read_word(reg_addr);
+	uint       reg      = vm.peek_word(reg_addr);
 	const uint shift_n  = i % 32;
 	reg                ^= (1u << shift_n);
 	vm.write_word(reg_addr, reg);
@@ -107,7 +109,22 @@ deactivate_exc
 		vm.set_fault_mask(false);
 	// return;
 }
+// --------------------------------------------------------------------------------------
+// ======================
+//  EXCEPTION IS PENDING
+// ======================
 
+bool
+exc_is_pending
+(vm_t)
+(const uint i, ref vm_t vm) {
+	const uint reg_n    = i / 32;
+	const uint reg_addr = ISPR_BASE + (reg_n * 4);
+	uint       reg      = vm.peek_word(reg_addr);
+	const uint shift_n  = i % 32;
+	return cast(bool)slice(reg, shift_n, 1);
+}
+// --------------------------------------------------------------------------------------
 // ===========
 //  POP STACK
 // ===========
@@ -179,7 +196,7 @@ pop_stack
 	// EPSR<26:24,15:10> = psr<26:24,15:10>; // valid EPSR bits loaded from memory
 	// return;
 }
-
+// --------------------------------------------------------------------------------------
 // ==================
 //  EXCEPTION RETURN
 // ==================
@@ -292,7 +309,7 @@ exc_rtr
 	// 		return IPSR is inconsistent
 	// 		return;
 }
-
+// --------------------------------------------------------------------------------------
 // ==============
 //  GET IRQ ADDR
 // ==============
@@ -301,11 +318,11 @@ uint
 get_irq_addr
 (vm_t)
 (const exception irqn, ref vm_t vm) {
-	immutable  vtor_raw     = vm.read_word(0xE000_ED08);
+	immutable  vtor_raw     = vm.peek_word(0xE000_ED08);
 	const uint vector_base  = vtor_raw & 0xFFFF_FF80;
-	return vm.read_word(vector_base + 4 * irqn);
+	return vm.peek_word(vector_base + 4 * irqn);
 }
-
+// --------------------------------------------------------------------------------------
 // ============
 //  PUSH STACK
 // ============
@@ -331,7 +348,7 @@ push_stack
 	// MemA[frameptr+0x1C,4] = (xPSR<31:10>:frameptralign:xPSR<8:0>);
 	vm.write_word(frame_ptr + 28, vm.get_xpsr());
 }
-
+// --------------------------------------------------------------------------------------
 // =============
 //  PUSH TO PSP
 // =============
@@ -342,7 +359,7 @@ push_to_psp
 (ref vm_t vm) {
 	return vm.get_sp_sel() && (vm.get_curr_exc() == exception.thread_mode);
 }
-
+// --------------------------------------------------------------------------------------
 // ===============
 //  GET FRAME PTR
 // ===============
@@ -359,7 +376,7 @@ get_frame_ptr
 		// frameptr = SP_main;
 		return vm.get_msp();
 }
-
+// --------------------------------------------------------------------------------------
 // ============================
 //  GET EXCEPTION RETURN VALUE
 // ============================
@@ -389,24 +406,46 @@ get_exc_rtr_val
 			else 
 				return 0xFFFF_FFE9;
 }
-
+// --------------------------------------------------------------------------------------
 // =========================
 //  SET EXCEPTION AS ACTIVE
 // =========================
 
 void
 set_exc_as_active
-(VM_T)
-(const exception exc, ref VM_T vm) {
+(vm_t)
+(const exception exc, ref vm_t vm) {
 	const uint i        = cast(uint)exc;
 	const uint reg_n    = i / 32;
 	const uint reg_addr = IABR_BASE + (reg_n * 4);
-	uint       reg      = vm.read_word(reg_addr);
+	uint       reg      = vm.peek_word(reg_addr);
 	const uint shift_n  = i % 32;
 	reg                |= (1u << shift_n);
 	vm.write_word(reg_addr, reg);
 }
+// --------------------------------------------------------------------------------------
+// =============================
+//  GET SYSTEM HANDLER PRIORITY
+// =============================
 
+uint get_sys_hdlr_pri(const exception exc) {
+	assert(exc > 3 && exc < 16);
+	uint shpr_base;
+    uint byte_index;
+    if (exc < 8) {
+        shpr_base  = SHPR1;              
+        byte_index = exc - 4;          
+    } else if (exc < 12) {
+        shpr_base  = SHPR2;
+        byte_index = exc - 8;
+    } else {
+        shpr_base  = SHPR3;
+        byte_index = exc - 12;
+    }
+    uint word = scb_ctrl.read_word(shpr_base);      
+    return (word >> (byte_index * 8)) & 0xff; 
+}
+// --------------------------------------------------------------------------------------
 // =================
 //  ENTER EXCEPTION
 // =================
@@ -450,7 +489,9 @@ enter_exec
 	vm.set_sp_sel(false);
 	//* CONTROL.nPRIV unchanged *//
 	if (exc == exception.pendsv_irqn)
-		vm.flip_bit(0xE000_ED04, 28);
+		vm.write_word(ICSR, (1u << PENDSVCLR));
+	if (exc == exception.systick_irqn)
+		vm.write_word(ICSR, (1u << PENDSTCLR));
 }
 // --------------------------------------------------------------------------------------
 
@@ -477,7 +518,7 @@ enum condition : ubyte {
 	invalid = 0xff,
 	none    = 0xff
 }
-
+// --------------------------------------------------------------------------------------
 // ==================
 //  CONDITION IS MET
 // ==================
@@ -502,7 +543,7 @@ bool condition_is_met(condition cond, const ref cortex_m_cpu cpu) {
 		case condition.invalid: assert(false, "Invalid condition");
 	}
 }
-
+// --------------------------------------------------------------------------------------
 // ==============
 //  GET NEGATION
 // ==============
@@ -512,7 +553,7 @@ condition get_negation(condition cond) {
 		return condition.invalid;
 	return cast(condition)(cond ^ 1);
 }
-
+// --------------------------------------------------------------------------------------
 // =========
 //  GET XYZ
 // =========
@@ -614,11 +655,11 @@ exception_is_active
 (const uint i, ref vm_t vm) {
 	const uint reg_n    = i / 32;
 	const uint reg_addr = IABR_BASE + (reg_n * 4);
-	immutable  reg      = vm.read_word(reg_addr);
+	immutable  reg      = vm.peek_word(reg_addr);
 	const uint shift_n  = i % 32;
 	return cast(bool)slice(reg, shift_n, 1);
 }
-
+// --------------------------------------------------------------------------------------
 // ========================
 //  Get Exception Priority
 // ========================
@@ -629,11 +670,79 @@ get_exception_priority
 (const uint i, ref vm_t vm) {
 	const uint reg_n    =  i / 4;
 	const uint reg_addr = IPR_BASE + (reg_n * 4);
-	immutable  reg      = vm.read_word(reg_addr);
+	immutable  reg      = vm.peek_word(reg_addr);
 	const uint shift_n  = (i % 4) * 8;
 	return slice(reg, shift_n, 8);
 }
+// --------------------------------------------------------------------------------------
+// ===============================
+//  Get Highest Pending Exception
+// ===============================
 
+exception 
+get_highest_pending_ext_exc
+(vm_t)
+(ref vm_t vm) {
+	immutable exec_pri  = get_execution_priority(vm); 
+    exception candidate = exception.thread_mode;     
+    int lowest_irqn     = 512;                           
+    foreach (uint i; 0 .. 512) {
+        if (exc_is_pending(i, vm)) {
+            auto pri = get_exception_priority(i, vm);
+            if (pri == cast(uint)exec_pri && i < lowest_irqn) {
+                lowest_irqn = i;
+                candidate = cast(exception)i;
+            }
+        }
+    }
+    return candidate;
+}  
+
+// --------------------------------------------------------------------------------------
+bool is_system_pending
+(vm_t)
+(const exception exc, ref vm_t vm) {
+	switch (exc) {
+		case exception.systick_irqn:
+			return scb_ctrl.st_pending;
+        case exception.pendsv_irqn:
+            return scb_ctrl.psv_pending;
+		default:
+			return false;
+	}
+}
+// --------------------------------------------------------------------------------------
+// ===============================
+//  GET NEXT EXECUTABLE EXCPETION
+// ===============================
+
+exception get_next_executable_exception
+(vm_t)
+(ref vm_t vm) {
+    int curr_exec_pri = get_execution_priority(vm); 
+    exception candidate = exception.thread_mode;
+    int highest_pri = 256; 
+    foreach (uint exc; 4 .. 16) {
+        if (is_system_pending(cast(exception)exc, vm)) {
+            int pri = cast(int)get_sys_hdlr_pri(cast(exception)exc);
+            if (pri < highest_pri && pri < curr_exec_pri) {
+                highest_pri = pri;
+                candidate = cast(exception)exc;
+            }
+        }
+    }
+    foreach (uint i; 0 .. 512) {
+        if (exc_is_pending(i, vm)) {
+            int pri = cast(int)get_exception_priority(i, vm);
+            if (pri < highest_pri && pri < curr_exec_pri) {
+                highest_pri = pri;
+                candidate = cast(exception)(i + 16);
+            }
+        }
+    }
+    return candidate;
+}
+// --------------------------------------------------------------------------------------
 // ========================
 //  Get Execution Priority
 // ========================
@@ -654,7 +763,7 @@ get_execution_priority
 	int boosted_pri = 256;
 
 	// subgroupshift = UInt(BITS(3) AIRCR.PRIGROUP)
-	immutable  aicr 		 = vm.read_word(0xE000ED0C);
+	immutable  aicr 		 = vm.peek_word(0xE000ED0C);
 	const uint sub_grp_shift = slice(aicr, 8, 3);
 	// groupvalue = ‘000000010’ LSL groupshift 
 	// used by priority grouping
@@ -1104,5 +1213,3 @@ struct cortex_m_cpu {
 	mixin property!"basepri";
 	// --------------------------------------------------------------------------------------
 }
-
-

@@ -12,6 +12,7 @@ import stm32f4_defs;
 import stm32f4_peripherals;
 import nrf52_defs;
 import nrf52_peripherals;
+import thumb_2_instrs;
 
 // --------------------------------------------------------------------------------------
 // ====================
@@ -90,6 +91,10 @@ struct tiny_mem {
     void flip_bit(const uint addr, const uint bit){}
     string get_reg_name(const uint addr) { return ""; }
     void set_vtor() {};
+    uint peek_word(size_t addr) {
+        uint res;
+        return res;
+    }
 }
 // --------------------------------------------------------------------------------------
 // ========================================
@@ -310,6 +315,30 @@ struct stm32f4_mem {
         return "";
     }
 
+    uint peek_word(size_t addr) {
+        uint res;
+        if (addr >= scb_base) {
+            if (cast(scb_reg)addr in scb) {
+                res = scb_ctrl.read_word(addr);
+            } else {
+                throw new Exception("Invalid access");            
+            }
+        } else if (addr >= sram_1_origin + sram_1_length) {
+            if (cast(stm32f4_peripheral_reg)addr in stm32f4_peripheral_regs) {
+                res = stm32f4_peripheral_regs[cast(stm32f4_peripheral_reg)addr];                           
+            } else {
+                throw new Exception("Invalid access");            
+            }
+        } else if (addr >= sram_1_origin) {
+            res = sram_1.read_word(addr);
+        } else if (addr >= ram_origin) {
+            res = ram.read_word(addr);
+        } else {
+            res = flash.read_word(addr);
+        }
+        return res;
+    }
+
     uint read_word(size_t addr) {
         if (addr == CAN1_MSR) {
             if (stm32f4_peripheral_regs[CAN1_MSR] == 0x00000C02) {
@@ -333,14 +362,7 @@ struct stm32f4_mem {
             flip_bit(0x40023874, 1);
         uint res;
         if (addr >= scb_base) {
-            if (cast(scb_reg)addr in scb) {
-                res = scb[cast(scb_reg)addr]; 
-            } else {
-                throw new Exception("Invalid access");            
-            }
-            if (addr == SYST_CSR) {
-                scb[SYST_CSR] &= ~0x00010000;
-            }
+            res = scb_ctrl.read_word(addr);
         } else if (addr >= sram_1_origin + sram_1_length) {
             if (cast(stm32f4_peripheral_reg)addr in stm32f4_peripheral_regs) {
                 res = stm32f4_peripheral_regs[cast(stm32f4_peripheral_reg)addr];       
@@ -412,15 +434,7 @@ struct stm32f4_mem {
 
     void write_word(size_t addr, uint val) {
         if (addr >= scb_base) {
-            if (cast(scb_reg)addr in scb) {
-                scb[cast(scb_reg)addr] = val;   
-                if (addr == SYST_CVR) {
-                    scb[SYST_CSR] &= ~0x00010000;
-                }
-                return;           
-            } else {
-                throw new Exception("Invalid access");            
-            }
+            return scb_ctrl.write_word(addr, val);
         } else if (addr >= sram_1_origin + sram_1_length) {
             if (addr == 0x40023808) {
                 uint cfgr = stm32f4_peripheral_regs[cast(stm32f4_peripheral_reg)addr];
@@ -460,7 +474,7 @@ struct stm32f4_mem {
     }
 
     void write_byte(const size_t addr, const uint val) {
-        const ubyte b = cast(ubyte)(val & 0xff);
+        const ubyte b = cast(ubyte)slice(val, 0, 8);
         if (addr >= scb_base) {
             write_byte_to_word(scb, addr, b);
         } else if (addr >= ram_origin + ram_length) {
@@ -512,14 +526,7 @@ struct nrf52840_mem {
         if (nrf52840_always_set.canFind(addr)) 
             return 0x1;
         if (addr >= scb_base) {
-            if (cast(scb_reg)addr in scb) {
-                res = scb[cast(scb_reg)addr];              
-            } else {
-                throw new Exception("Invalid access");            
-            }
-            if (addr == SYST_CSR) {
-                scb[SYST_CSR] &= ~0x00010000;
-            }
+            res = scb_ctrl.read_word(addr);
         } else if (addr > ram_origin + ram_length) {
             if (cast(nrf52_peripheral_reg)addr in nrf52_peripheral_regs) {
                 res = nrf52_peripheral_regs[cast(nrf52_peripheral_reg)addr]; 
@@ -533,6 +540,11 @@ struct nrf52840_mem {
         } else {
             res = flash.read_word(addr);
         }
+        return res;
+    }
+
+    uint peek_word(size_t addr) {
+        uint res;
         return res;
     }
 
@@ -591,11 +603,8 @@ struct nrf52840_mem {
         auto f       = uart_log();
         uint tx_ptr  = read_word(UARTE0_TXD_PTR);          
         uint max_cnt = read_word(UARTE0_TXD_MAXCNT);
-
         assert((tx_ptr >= ram_origin) && tx_ptr < ram_origin + ram_length);
-
         if (max_cnt == 0) return;
-
         for (uint i = 0; i < max_cnt; ++i ) 
             f.write(cast(char)read_byte(tx_ptr + i));
         f.flush();
@@ -603,15 +612,7 @@ struct nrf52840_mem {
 
     void write_word(size_t addr, uint val) {
         if (addr >= scb_base) {
-            if (cast(scb_reg)addr in scb) {
-                scb[cast(scb_reg)addr] = val;  
-                if (addr == SYST_CVR) {
-                    scb[SYST_CSR] &= ~0x00010000;
-                }
-                return;            
-            } else {
-                throw new Exception("Invalid access");            
-            }
+            return scb_ctrl.write_word(addr, val);
         } else if (addr >= ram_origin + ram_length) {
             nrf52_peripheral_regs[cast(nrf52_peripheral_reg)addr] = val;
             if (addr == UART0_TASKS_STARTTX)
@@ -627,16 +628,15 @@ struct nrf52840_mem {
     }
 
     void write_byte(const size_t addr, const uint val) {
-        const ubyte b = cast(ubyte)(val & 0xff);
-        if (addr >= scb_base) {
+        immutable b = cast(ubyte)slice(val, 0, 8);
+        if (addr >= scb_base)
             write_byte_to_word(scb, addr, b);
-        } else if (addr >= ram_origin + ram_length) {
+        else if (addr >= ram_origin + ram_length)
             write_byte_to_word(nrf52_peripheral_regs, addr, b);
-        } else if (addr >= ram_origin) {
+        else if (addr >= ram_origin) 
             ram.write_byte(addr, b);
-        } else {
+        else
             flash.write_byte(addr, b);
-        }
     }
 }
 
@@ -652,15 +652,7 @@ struct rw612_mem {
         if (addr >= scb_base) {
             size_t addrc = addr;
             addrc &= ~0x0002_0000;
-            if (cast(scb_reg)addrc in scb) {
-                scb[cast(scb_reg)addrc] = val;  
-                if (addrc == SYST_CVR) {
-                    scb[SYST_CSR] &= ~0x00010000;
-                }
-                return;            
-            } else {
-                throw new Exception(format("Invalid memory access: %08X", addrc));            
-            }
+            scb_ctrl.write_word(addrc, val);
         } else if (addr >= flash_origin && addr < flash_origin + flash_length) {    
             flash.write_word(addr, val);
         } else if (addr >= ram_origin   && addr < ram_origin   + ram_length) {    
@@ -671,18 +663,9 @@ struct rw612_mem {
     }
     uint read_word(const size_t addr) {
         if (addr >= scb_base) {
-            uint res;
             size_t addrc = addr;
             addrc &= ~0x0002_0000;
-            if (cast(scb_reg)addrc in scb) {
-                res = scb[cast(scb_reg)addrc];              
-            } else {
-                throw new Exception(format("Invalid memory access: %08X", addrc));            
-            }
-            if (addrc == SYST_CSR) {
-                scb[SYST_CSR] &= ~0x00010000;
-            }
-            return res;
+            return scb_ctrl.read_word(addrc);            
         } else if (addr >= flash_origin && addr < flash_origin + flash_length) {    
             return flash.read_word(addr);
         } else if (addr >= ram_origin   && addr < ram_origin   + ram_length) {    
@@ -706,4 +689,8 @@ struct rw612_mem {
     void flip_bit(const uint addr, const uint bit) {}
     string get_reg_name(const uint addr) { return ""; }
     void set_vtor() {}
+    uint peek_word(size_t addr) {
+        uint res;
+        return res;
+    }
 }

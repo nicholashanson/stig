@@ -24,6 +24,14 @@ enum scb_reg : uint {
 // Interrupt Control and State Register
 // Provides software control of the NMI, PendSV, and SysTick 
 // exceptions, and provides interrupt status information.
+// [26] RW PENDSTSET On writes, sets the SysTick exception as pending. On reads, indicates the
+// current state of the exception:
+//      0 = On writes, has no effect. On reads, SysTick is not pending.
+//      1 = On writes, make SysTick exception pending. On reads, SysTick is
+//      pending.
+// [25] WO PENDSTCLR Removes the pending status of the SysTick exception:
+//      0 = No effect.
+//      1 = Remove pending status.
 // [28] RW PENDSVSET On writes, sets the PendSV exception as 
 // pending. 
 // On reads, indicates thecurrent state of the exception:

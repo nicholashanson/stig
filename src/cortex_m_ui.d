@@ -37,6 +37,8 @@ int view_n        =     0;
 bool view_changed = false;
 
 string[] load_store_buffer;
+st_name_val[] z_vars;
+st_name_val[] z_configs;
 
 int frame_h;
 int frame_w;
@@ -133,7 +135,7 @@ void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
             reg_name = vm.get_reg_name(val);
             if (reg_name == "") {
                 foreach (e; vm.objects) {
-                if (e.addr == val) {
+                    if (e.addr == val) {
                         reg_name = e.name;
                         break;
                     }
@@ -316,6 +318,7 @@ void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     mvwprintw(scb_pad, scb_pad_y++, 1, toStringz("System Control Block"));
     print_reg("VTOR:    ", scb_pad_y, vm, VTOR);
     print_reg("CCR:     ", scb_pad_y, vm, CCR);
+    print_reg("ICSR:    ", scb_pad_y, vm, ICSR);
     print_reg("SHPR1:   ", scb_pad_y, vm, SHPR1);
     print_reg("SHPR2:   ", scb_pad_y, vm, SHPR2);
     print_reg("SHPR3:   ", scb_pad_y, vm, SHPR3);
@@ -325,6 +328,29 @@ void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     print_reg("MPU_RNR: ", scb_pad_y, vm, MPU_RNR);
     print_reg("MPU_RBAR:", scb_pad_y, vm, MPU_RBAR);
     print_reg("MPU_RASR:", scb_pad_y, vm, MPU_RASR);
+    print_reg("SYST_CSR:", scb_pad_y, vm, SYST_CSR);
+    print_reg("SYST_RVR:", scb_pad_y, vm, SYST_RVR);
+    print_reg("SYST_CVR:", scb_pad_y, vm, SYST_CVR);
+    mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("BASEPRI %08X", vm.get_basepri())));
+
+    import std.algorithm.iteration : map;
+    import std.algorithm.searching : maxElement;
+
+    auto max_len = z_vars
+        .map!(v => v.name.length)
+        .maxElement;
+    foreach (v; z_vars) {
+        auto name = format("%-*s", max_len + 1, v.name ~ ":");
+        print_reg(name, scb_pad_y, vm, v.addr);
+    }
+
+    auto c_max_len = z_configs
+        .map!(c => c.name.length)
+        .maxElement;
+    foreach (c; z_configs) {
+        auto name = format("%-*s", c_max_len + 1, c.name ~ ":");
+        mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("%s %u", name, c.addr)));
+    }
 
     prefresh(
         scb_pad,
@@ -486,6 +512,9 @@ void main(string[] args) {
     }
 
     target_file_name = first_arg;
+
+    z_vars    = get_z_vars(target_file_name);
+    z_configs = get_z_configs(target_file_name);
 
     if (args.length > 2) {
         soc_s = args[2];

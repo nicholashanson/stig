@@ -84,4 +84,5 @@ uint[nrf52_peripheral_reg] nrf52_peripheral_regs = [
     NVMC_ERASEPAGE:        0, NVMC_ERASEALL:            0, NVMC_ERASEUICR: 0,
     NVMC_ERASEPAGEPARTIAL: 0, NVMC_ERASEPAGEPARTIALCFG: 0, NVMC_ICACHECNF: 0,
     NVMC_IHIT:             0, NVMC_IMISS:               0,
+    USBD_EPOUTEN:          1, USBD_HALTED_EPOUT_0:      0, USBD_EPINEN:    1,
 ];

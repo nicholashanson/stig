@@ -8,6 +8,7 @@ import log;
 import scb_defs;
 import parse_elf;
 import cortex_m_core;
+import cortex_m_scb;
 import memory_sections;
 import thumb_2_instrs;
 import thumb_2_decode_instr;
@@ -31,6 +32,10 @@ struct dummy_mem {
     void flip_bit(const uint addr, const uint bit) {}
     string get_reg_name(const uint addr) { return ""; }
     void set_vtor() {}
+    uint peek_word(size_t addr) {
+        uint res;
+        return res;
+    }
 }
 // --------------------------------------------------------------------------------------
 
@@ -360,7 +365,7 @@ struct cortex_m_vm(mem_t) {
 	// =====================
 
 	bool sys_tick_is_enabled() {
-		uint v = mem.read_word(SYST_CSR);
+		uint v = mem.peek_word(SYST_CSR);
 		return cast(bool)(v & 0x1);
 	}
 
@@ -369,15 +374,15 @@ struct cortex_m_vm(mem_t) {
 	// ====================
 
 	void decrement_sys_tick() {
-		uint v = mem.read_word(SYST_CVR);		
+		uint v = mem.peek_word(SYST_CVR);		
 		if (v == 0) {
-        	uint reload = mem.read_word(SYST_RVR) & 0x00FFFFFF;
+        	uint reload = mem.peek_word(SYST_RVR) & 0x00FFFFFF;
         	mem.write_word(SYST_CVR, reload);
 		} else {
 			v -= 1;
 			mem.write_word(SYST_CVR, v);
 			if (v == 0) {
-				uint c = mem.read_word(SYST_CSR);
+				uint c = mem.peek_word(SYST_CSR);
 				c |= 0x00010000;
 				mem.write_word(SYST_CSR, c);
 			}
@@ -727,6 +732,22 @@ struct cortex_m_vm(mem_t) {
 		log_file.writeln(store_msg);
 		log_file.flush();
 	}
+	// -------------------------------------------------------------------------------------- 
+	// =========
+	//  PEND ST
+	// =========
+
+	void pend_st() {
+		write_word(ICSR,  (1u << PENDSTSET));
+	}
+	// -------------------------------------------------------------------------------------- 
+	// =========
+	//  PEND SV 
+	// =========
+
+	void pend_sv() {
+        write_word(ICSR,  (1u << PENDSVSET));
+	}
  	// -------------------------------------------------------------------------------------- 
 	// ====================
 	//  EXECUTE NEXT INSTR
@@ -737,17 +758,18 @@ struct cortex_m_vm(mem_t) {
 		++cpu.tick;
 		if (cpu.tick == 10000)
 			cpu.tick = 0;
-		if (pendsv_is_pending()) {
-			enter_exec(exception.pendsv_irqn, this);
+		immutable exc = get_next_executable_exception(this);
+		if (exc != exception.thread_mode) {
+			enter_exec(exc, this);
 			return;
 		}
 		if (sys_tick_is_enabled()) {
-			decrement_sys_tick();			
+			decrement_sys_tick();	
 			if (sys_tick_is_due()) {
 				handle_sys_tick();	
-				enter_exec(exception.systick_irqn, this);
+				pend_st();
 				return;
-			}
+			}			
 		}
 
 	    auto inOpt = current_program.find!(ins => ins._addr == cpu.get_pc());
@@ -796,4 +818,28 @@ struct cortex_m_vm(mem_t) {
 	// -------------------------------------------------------------------------------------- 
 }
 
+// --------------------------------------------------------------------------------------
+unittest {
+	stm32f4_vm vm;
+	vm.write_word(ICSR,  (1u << PENDSTSET));
+	vm.write_word(SHPR3, 0x10000000);
+	immutable highest_exc = get_next_executable_exception(vm);
+	assert(highest_exc == exception.systick_irqn);
+
+	vm.set_basepri(0x10);
+	assert(get_next_executable_exception(vm) == exception.thread_mode);
+
+	vm.set_basepri(0x0);
+	assert(get_next_executable_exception(vm) == exception.systick_irqn);
+
+	vm.write_word(SHPR3, 0x10F00000);
+	assert(get_next_executable_exception(vm) == exception.systick_irqn);
+
+	vm.write_word(ICSR,  (1u << PENDSTCLR) | (1u << PENDSVSET));
+	assert(get_next_executable_exception(vm) == exception.pendsv_irqn);	
+
+	vm.set_basepri(0xD0);
+	assert(get_next_executable_exception(vm) == exception.thread_mode);
+}
+// --------------------------------------------------------------------------------------
 

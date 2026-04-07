@@ -470,5 +470,10 @@ USBD_EVENTS_USBRESET = 0x40027100,
 // Confirms that the EPIN[n].PTR and EPIN[n].MAXCNT, or EPOUT[n].PTR and EPOUT[n].MAXCNT 
 // registers have been captured on all endpoints reported in the EPSTATUS register
 USBD_EVENTS_STARTED = 0x40027104, 
-
+// Endpoint OUT enable
+USBD_EPOUTEN = 0x40027514,
+// OUT endpoint halted status.
+USBD_HALTED_EPOUT_0 = 0x40027444, 
+// Endpoint IN enable
+USBD_EPINEN = 0x40027510,
 }
