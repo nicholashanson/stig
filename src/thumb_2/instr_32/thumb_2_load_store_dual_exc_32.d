@@ -90,6 +90,11 @@ instr_32 parse_ldrex_t1(const uint instr) {
 				    imm: slice(instr, 0, 8) << 2); 
 }
 
+instr_32 parse_ldaex_t1(const uint instr) {
+	return instr_32(rt:  cast(reg )slice(instr, 12, 4),
+				    rn:  cast(reg )slice(instr, 16, 4)); 
+}
+
 // ===============
 //  Execute LDREX
 // ===============
@@ -104,12 +109,32 @@ execute_ldrex_t1
 	vm.set_reg(instr.rt, val);
 }
 
+void 
+execute_ldaex_t1
+(vm_t) 
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// address = R[n];
+	immutable addr = vm.get_reg(instr.rn);
+	immutable data = vm.read_word(addr);
+	// SetExclusiveMonitors(address, 4);
+	// R[t] = MemO[address, 4];
+	vm.set_reg(instr.rt, data);
+}
+
 // LDREX<c> <Rt>,[<Rn>{,#<imm8>}]
 string convert_ldrex_t1_to_string(const ref instr_32 instr, const condition cond) {
 	return format("ldrex%s %s, [%s%s]", get_condition_string(cond),
 										get_reg_name(instr.rt),
 										get_reg_name(instr.rn),
 										instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
+
+// LDAEX{<c>}{<q>} <Rt>, [<Rn>]
+string convert_ldaex_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("ldaex%s %s, [%s]", get_condition_string(cond),
+									  get_reg_name(instr.rt),
+									  get_reg_name(instr.rn));
 }
 // ---------------------------------------------------------------------------------------
 

@@ -3,6 +3,7 @@ import std.stdio;
 import std.format;
 import std.traits : EnumMembers;
 import std.conv;
+import core.exception : RangeError;
 
 import log;
 import cortex_m_core;
@@ -21,9 +22,18 @@ import thumb_2_instrs;
 void write_byte_to_word(T1,T2)(ref uint[T1] mem_block, const T2 addr, const ubyte b) {
     const size_t word_addr =  addr & ~3;
     const uint   shift     = (addr &  3) * 8;
-    const uint   old       =  mem_block[cast(T1)word_addr];
+    uint   old;
+    try {
+        old       =  mem_block[cast(T1)word_addr];
+    } catch (RangeError e) { 
+        throw new Exception(format("Invalid access: %08X", addr));
+    }
     const uint   masked    = (old & ~(0xff << shift)) | (b << shift);
-    mem_block[cast(T1)word_addr] = masked;
+    try {
+        mem_block[cast(T1)word_addr] = masked;
+    } catch (RangeError e) { 
+        throw new Exception(format("Invalid access: %08X", addr));
+    }
 }
 
 // =====================
@@ -643,7 +653,6 @@ struct nrf52840_mem {
 struct rw612_mem {
     enum ram_origin   =  0x1000_0000;   
     enum ram_length   =  1024 * 1024;
-
     enum flash_origin  = 0x1800_0000;   
     enum flash_length  = 1024 * 1024; 
     mem_section!(1_200, ram_origin)  sram;
@@ -653,6 +662,15 @@ struct rw612_mem {
             size_t addrc = addr;
             addrc &= ~0x0002_0000;
             scb_ctrl.write_word(addrc, val);
+        } else if (addr >= flash_origin + flash_length) {    
+            //APB_GRP1_MEM_RULE2
+            size_t addrc = addr;
+            if (slice(cast(uint)addr, 28, 4) == 0x5) 
+                addrc &= ~0x1000_0000;
+            if (addrc >= 0x40030000 && addrc < 0x40037FFF)
+                return;
+            else 
+                throw new Exception(format("Invalid memory access: %08X", addr));
         } else if (addr >= flash_origin && addr < flash_origin + flash_length) {    
             flash.write_word(addr, val);
         } else if (addr >= ram_origin   && addr < ram_origin   + ram_length) {    
@@ -665,7 +683,16 @@ struct rw612_mem {
         if (addr >= scb_base) {
             size_t addrc = addr;
             addrc &= ~0x0002_0000;
-            return scb_ctrl.read_word(addrc);            
+            return scb_ctrl.read_word(addrc); 
+        } else if (addr >= flash_origin + flash_length) {    
+            //APB_GRP1_MEM_RULE2
+            size_t addrc = addr;
+            if (slice(cast(uint)addr, 28, 4) == 0x5) 
+                addrc &= ~0x1000_0000;
+            if (addrc >= 0x40030000 && addrc < 0x40037FFF)
+                return 0x0;
+            else 
+                throw new Exception(format("Invalid memory access: %08X", addr));
         } else if (addr >= flash_origin && addr < flash_origin + flash_length) {    
             return flash.read_word(addr);
         } else if (addr >= ram_origin   && addr < ram_origin   + ram_length) {    
@@ -675,13 +702,34 @@ struct rw612_mem {
         }
     }
     void write_byte(const size_t addr, ubyte val) {
-        flash.write_byte(addr, val);
+        immutable b = cast(ubyte)slice(val, 0, 8);
+        if (addr >= scb_base)
+            write_byte_to_word(scb, addr, b);
+        else if (addr >= flash_origin && addr < flash_origin + flash_length) {    
+            flash.write_word(addr, val);
+        } else if (addr >= ram_origin   && addr < ram_origin   + ram_length) {    
+            sram.write_word(addr, val);
+        } else {
+            throw new Exception(format("Invalid memory access: %08X", addr));
+        }
     }
-    ubyte read_byte(const size_t addr) { 
-        return flash.read_byte(addr); 
+    ubyte read_byte(const size_t addr) {
+        if (addr >= scb_base) {
+            return read_byte_from_word(scb, addr);
+        } else if (addr >= flash_origin && addr < flash_origin + flash_length) {    
+            return flash.read_byte(addr);
+        } else if (addr >= ram_origin   && addr < ram_origin   + ram_length) {    
+            return sram.read_byte(addr);
+        } else {
+            throw new Exception(format("Invalid memory access: %08X", addr));
+        }
     }
     void write_half_word(const size_t addr, ushort val) {
-        flash.write_half_word(addr, val);
+        if (addr >= ram_origin   && addr < ram_origin   + ram_length) {
+            sram.write_half_word(addr, val);
+        } else {
+            flash.write_half_word(addr, val);
+        }
     }
     ushort read_half_word(const size_t addr) { 
         return flash.read_half_word(addr); 

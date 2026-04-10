@@ -333,24 +333,24 @@ void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     print_reg("SYST_CVR:", scb_pad_y, vm, SYST_CVR);
     mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("BASEPRI %08X", vm.get_basepri())));
 
-    import std.algorithm.iteration : map;
-    import std.algorithm.searching : maxElement;
-
-    auto max_len = z_vars
-        .map!(v => v.name.length)
-        .maxElement;
-    foreach (v; z_vars) {
-        auto name = format("%-*s", max_len + 1, v.name ~ ":");
-        print_reg(name, scb_pad_y, vm, v.addr);
-    }
-
-    auto c_max_len = z_configs
-        .map!(c => c.name.length)
-        .maxElement;
-    foreach (c; z_configs) {
-        auto name = format("%-*s", c_max_len + 1, c.name ~ ":");
-        mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("%s %u", name, c.addr)));
-    }
+    //import std.algorithm.iteration : map;
+    //import std.algorithm.searching : maxElement;
+//
+    //auto max_len = z_vars
+    //    .map!(v => v.name.length)
+    //    .maxElement;
+    //foreach (v; z_vars) {
+    //    auto name = format("%-*s", max_len + 1, v.name ~ ":");
+    //    print_reg(name, scb_pad_y, vm, v.addr);
+    //}
+//
+    //auto c_max_len = z_configs
+    //    .map!(c => c.name.length)
+    //    .maxElement;
+    //foreach (c; z_configs) {
+    //    auto name = format("%-*s", c_max_len + 1, c.name ~ ":");
+    //    mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("%s %u", name, c.addr)));
+    //}
 
     prefresh(
         scb_pad,
@@ -489,7 +489,7 @@ void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
 }
 
 void main(string[] args) {
-    auto ctrl = runtime_ctrl();
+    auto ctrl           = runtime_ctrl();
     ctrl.last_time      = MonoTime.currTime;
     ctrl.interval       =   dur!"msecs"(30);
     ctrl.last_draw      = MonoTime.currTime;
@@ -569,8 +569,8 @@ void main(string[] args) {
     init_color(12, 533, 600, 0);    
     init_color(13, 862, 196, 180);  
 
-    short bg_color = COLOR_WHITE;
-    short fg_color = COLOR_BLACK;
+    short bg_color = COLOR_BLACK;
+    short fg_color = COLOR_WHITE;
     init_pair(1, fg_color,     bg_color); 
 
     if (bg_color == COLOR_BLACK) {

@@ -1159,30 +1159,30 @@ unittest {
 // =============
 
 string[] z_vars = [
-    "announce_remaining",
+//    "announce_remaining",
     //announced_cycles",
-    "curr_tick",
-    "cycle_count",
-    "last_load",
-    "overflow_cyc",
-    "pending_current",
-    "slice_max_prio",
-    "slice_ticks",
-    "z_sys_post_kernel",
-    "z_arm_tls_ptr"
+//    "curr_tick",
+//    "cycle_count",
+//    "last_load",
+//    "overflow_cyc",
+//    "pending_current",
+//    "slice_max_prio",
+//    "slice_ticks",
+//    "z_sys_post_kernel",
+//    "z_arm_tls_ptr"
 ];
 
 string[] z_configs = [
-    "CONFIG_IDLE_STACK_SIZE",
-    "CONFIG_ISR_STACK_SIZE",
-    "CONFIG_NUM_COOP_PRIORITIES",
-    "CONFIG_MP_MAX_NUM_CPUS",
-    "CONFIG_NUM_PREEMPT_PRIORITIES",
-    "CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC",
-    "CONFIG_SYS_CLOCK_MAX_TIMEOUT_DAYS",
-    "CONFIG_SYS_CLOCK_TICKS_PER_SEC",
-    "CONFIG_TIMEOUT_64BIT",
-    "CONFIG_TIMESLICE_SIZE"
+//    "CONFIG_IDLE_STACK_SIZE",
+//    "CONFIG_ISR_STACK_SIZE",
+//    "CONFIG_NUM_COOP_PRIORITIES",
+//    "CONFIG_MP_MAX_NUM_CPUS",
+//    "CONFIG_NUM_PREEMPT_PRIORITIES",
+//    "CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC",
+//    "CONFIG_SYS_CLOCK_MAX_TIMEOUT_DAYS",
+//    "CONFIG_SYS_CLOCK_TICKS_PER_SEC",
+//    "CONFIG_TIMEOUT_64BIT",
+//    "CONFIG_TIMESLICE_SIZE"
 ];
 
 st_name_val[] get_z_vars(const string elf_file) {

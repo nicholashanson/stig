@@ -104,6 +104,7 @@ enum opcode : ushort {
 	// dual or excusive
 	strex_t1,
 	ldrex_t1,
+	ldaex_t1, // v8-M
 	strd_imm_t1,
 	ldrd_imm_t1,
 	strexb_t1,
@@ -212,36 +213,12 @@ enum opcode : ushort {
 	ror_reg_t2,
 	// ---> unsigned add
 	uadd8_t1,
-
-
-
-
-
-
-
-
-
 	smuad_t1, 
-	smlad_t1,
-
-	                                                    
-
+	smlad_t1,	                                                
 	smulw_t1,
-
 	smlaw_t1,
-
-
-
-
-
-
 	smusd_t1,
 	smlsd_t1,
-
-
-
-
-
 	smmul_t1,
 	smmla_t1, 
 	smmls_t1,
@@ -255,7 +232,6 @@ enum opcode : ushort {
 	ssub8_t1,
 	qadd16_t,
 	qasx_t1,
-
 	qsax_t1,
 	qsub16_t1,
 	qadd8_t1,
@@ -263,25 +239,15 @@ enum opcode : ushort {
 	shadd16_t1,
 	shasx_t1,
 	shsax_t1,
-
 	shsub16_t1,
-
-
-
 	shadd8_t1,
 	shsub8_t1,
-
-
-
 	uadd16_t1,
 	uasx_t1,
-
 	usax_t1,
-
 	usub16_t1,
 	usub8_t1,
 	uqadd16_t1,
-
 	uqasx_t1,
 	uqsax_t1,
 	uqsub16_t1,
@@ -925,6 +891,9 @@ opcode decode_load_store_dual(const uint instr) {
 	if (op1 == 0b00 && op2 == 0b01) {
 		return opcode.ldrex_t1;
 	}
+	if (op1 == 0b01 && op2 == 0b01 && op3 == 0b1110) {
+		return opcode.ldaex_t1;
+	}
 	if (op2 == 0b00 && op1 == 0b00) {
 		return opcode.strex_t1;
 	}
@@ -1520,7 +1489,8 @@ unittest {
 		test_case(0xF3838814,      opcode.msr_t1),
 		test_case(0xf8213012, opcode.strh_reg_t2),
 		test_case(0xeee13a10,     opcode.vmsr_t1),
-		test_case(0xf9b4500c,opcode.ldrsh_imm_t1)
+		test_case(0xf9b4500c,opcode.ldrsh_imm_t1),
+		test_case(0xe8d30fef, 	 opcode.ldaex_t1)
 	];
 
 	foreach (t; tests) {

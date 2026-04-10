@@ -56,6 +56,11 @@ ICSR = 0xE000ED04,
 //      1 = Trapping enabled. 
 CCR = 0xE000ED14,
 
+BFAR = 0xE000ED38,
+
+// MPU Memory Attribute Indirection Register 0
+MPU_MAIR0 = 0xE000EDC0, 
+
 // System Handler Priority Register 3
 // [31:24] PRI_15 Priority of system handler 15, SysTick
 // [23:16] PRI_14 Priority of system handler 14, PendSV
@@ -209,6 +214,13 @@ NVIC_ISR22 = 0xE000E458,
 NVIC_ISR23 = 0xE000E45C,
 NVIC_ISR24 = 0xE000E460,
 NVIC_ISR25 = 0xE000E464,
+NVIC_ISR26 = 0xE000E468,
+NVIC_ISR27 = 0xE000E46C,
+NVIC_ISR28 = 0xE000E470,
+NVIC_ISR29 = 0xE000E474,
+NVIC_ISR30 = 0xE000E478,
+NVIC_ISR31 = 0xE000E47C,
+NVIC_ISR32 = 0xE000E480,
 
 // Vector Table Offset Register(RW)
 VTOR = 0xE000ED08,          

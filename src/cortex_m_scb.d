@@ -1,10 +1,12 @@
+import std.format;
+
 import scb_defs;
 import thumb_2_instrs;
 
 uint[scb_reg] scb = [
-    CPUID: 0, ICSR:  0, CCR: 0, SHPR1: 0, SHPR2: 0, SHPR3: 0, SHCSR: 0,
+    CPUID: 0, ICSR:  0, CCR: 0, SHPR1: 0, SHPR2: 0, SHPR3: 0, SHCSR: 0, BFAR: 0,
     // --------------------------------------- MPU ------------------------------------------
-    MPU_TYPE: 0x00000800, MPU_CTRL: 0, MPU_RNR: 0, MPU_RBAR: 0, MPU_RASR: 0, 
+    MPU_TYPE: 0x00000800, MPU_CTRL: 0, MPU_RNR: 0, MPU_RBAR: 0, MPU_RASR: 0, MPU_MAIR0: 0,
     // ------------------------------------- NVIC ABR ---------------------------------------  
     NVIC_IABR0:  0, NVIC_IABR1:  0, NVIC_IABR2:  0, NVIC_IABR3:  0, NVIC_IABR4:  0, NVIC_IABR5:  0, 
     NVIC_IABR6:  0, NVIC_IABR7:  0, NVIC_IABR8:  0, NVIC_IABR9:  0, NVIC_IABR10: 0, NVIC_IABR11: 0,
@@ -26,7 +28,8 @@ uint[scb_reg] scb = [
     NVIC_ISR6:  0, NVIC_ISR7:  0, NVIC_ISR8:  0, NVIC_ISR9:  0, NVIC_ISR10: 0, NVIC_ISR11: 0,
     NVIC_ISR12: 0, NVIC_ISR13: 0, NVIC_ISR14: 0, NVIC_ISR15: 0, NVIC_ISR16: 0, NVIC_ISR17: 0,
     NVIC_ISR18: 0, NVIC_ISR19: 0, NVIC_ISR20: 0, NVIC_ISR21: 0, NVIC_ISR22: 0, NVIC_ISR23: 0, 
-    NVIC_ISR24: 0, NVIC_ISR25: 0,
+    NVIC_ISR24: 0, NVIC_ISR25: 0, NVIC_ISR26: 0, NVIC_ISR27: 0, NVIC_ISR28: 0, NVIC_ISR29: 0,
+    NVIC_ISR30: 0, NVIC_ISR31: 0, NVIC_ISR32: 0,
     // --------------------------------------------------------------------------------------
     FPCCR: 0, VTOR:  0, AIRCR: 0xFA050000, SCR: 0, CFSR:  0, HFSR: 0, CPACR: 0,  
     // ------------------------------------- SysTick ----------------------------------------
@@ -111,7 +114,7 @@ struct scb_control {
             if (addr == SYST_CVR) 
                 scb[SYST_CSR] &= ~0x00010000;
         } else {
-            throw new Exception("Invalid access");            
+            throw new Exception(format("Invalid access: %08X", addr));            
         }
     }
     // --------------------------------------------------------------------------------------
