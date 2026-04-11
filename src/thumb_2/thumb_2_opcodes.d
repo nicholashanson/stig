@@ -109,6 +109,7 @@ enum opcode : ushort {
 	ldrd_imm_t1,
 	strexb_t1,
 	strexh_t1,
+	stlex_t1, // v8-M
 	tbb_tbh_t1,
 	ldrexb_t1,
 	ldrexh_t1,
@@ -897,6 +898,9 @@ opcode decode_load_store_dual(const uint instr) {
 	if (op2 == 0b00 && op1 == 0b00) {
 		return opcode.strex_t1;
 	}
+	if (op2 == 0b00 && op1 == 0b01 && op3 == 0b1110) {
+		return opcode.stlex_t1;
+	}
 	if (op1 == 0b01 && op2 == 0b01 && ((op3 == 0b0001) | (op3 == 0b0000))) {
 		return opcode.tbb_tbh_t1;
 	}
@@ -1490,7 +1494,8 @@ unittest {
 		test_case(0xf8213012, opcode.strh_reg_t2),
 		test_case(0xeee13a10,     opcode.vmsr_t1),
 		test_case(0xf9b4500c,opcode.ldrsh_imm_t1),
-		test_case(0xe8d30fef, 	 opcode.ldaex_t1)
+		test_case(0xe8d30fef, 	 opcode.ldaex_t1),
+		test_case(0xe8c32fe1,    opcode.stlex_t1)
 	];
 
 	foreach (t; tests) {

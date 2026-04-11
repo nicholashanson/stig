@@ -244,6 +244,12 @@ instr_32 parse_strex_t1(const uint instr) {
 				    imm: slice(instr, 0, 8) << 2); 
 }
 
+instr_32 parse_stlex_t1(const uint instr) {
+	return instr_32(rd:  cast(reg )slice(instr,  0, 4),
+				    rt:  cast(reg )slice(instr, 12, 4),
+				    rn:  cast(reg )slice(instr, 16, 4)); 
+}
+
 // ===============
 //  Execute STREX
 // ===============
@@ -259,6 +265,26 @@ execute_strex_t1
 	vm.set_reg(instr.rd, 0);
 }
 
+// ===============
+//  Execute STLEX
+// ===============
+
+void 
+execute_stlex_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// EncodingSpecificOperations();
+	// address = R[n];
+	immutable addr = vm.get_reg(instr.rn);
+	// if ExclusiveMonitorsPass(address,4) then
+	// MemO[address, 4] = R[t];
+	vm.write_word(addr, vm.get_reg(instr.rt));
+	// R[d] = ZeroExtend('0');
+	vm.set_reg(instr.rd, 0);
+	// else
+	// R[d] = ZeroExtend('1');
+}
+	
 // STREX<c> <Rd>,<Rt>,[<Rn>{,#<imm8>}]
 string convert_strex_t1_to_string(const ref instr_32 instr, const condition cond) {
 	return format("strex%s %s, %s, [%s%s]", get_condition_string(cond),
@@ -266,6 +292,14 @@ string convert_strex_t1_to_string(const ref instr_32 instr, const condition cond
 											get_reg_name(instr.rt),
 											get_reg_name(instr.rn),
 											instr.imm != 0 ? get_imm_string(instr.imm) : "");
+}
+
+// STLEX{<c>}{<q>} <Rd>, <Rt>, [<Rn>]
+string convert_stlex_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("stlex%s %s, %s, [%s]", get_condition_string(cond),
+										  get_reg_name(instr.rd),
+										  get_reg_name(instr.rt),
+										  get_reg_name(instr.rn));
 }
 // ---------------------------------------------------------------------------------------
 
