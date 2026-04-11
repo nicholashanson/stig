@@ -652,10 +652,10 @@ struct nrf52840_mem {
 
 struct rw612_mem {
     enum ram_origin   =  0x1000_0000;   
-    enum ram_length   =  1024 * 1024;
+    enum ram_length   =  0x0013_0000;
     enum flash_origin  = 0x1800_0000;   
     enum flash_length  = 1024 * 1024; 
-    mem_section!(1_200, ram_origin)  sram;
+    mem_section!(1_216, ram_origin)  sram;
     big_mem_section!(flash_origin)  flash;
     void write_word(const size_t addr, uint val) {
         if (addr >= scb_base) {
