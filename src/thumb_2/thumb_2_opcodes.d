@@ -335,7 +335,8 @@ enum opcode : ushort {
 
 	invalid,
 
-	vmsr_t1
+	vmsr_t1,
+	tt_t1
 }
 
 // ==================
@@ -896,6 +897,9 @@ opcode decode_load_store_dual(const uint instr) {
 		return opcode.ldaex_t1;
 	}
 	if (op2 == 0b00 && op1 == 0b00) {
+		if (slice(instr, 12, 4) == 0xF) {
+			return opcode.tt_t1;
+		}
 		return opcode.strex_t1;
 	}
 	if (op2 == 0b00 && op1 == 0b01 && op3 == 0b1110) {
@@ -1495,7 +1499,8 @@ unittest {
 		test_case(0xeee13a10,     opcode.vmsr_t1),
 		test_case(0xf9b4500c,opcode.ldrsh_imm_t1),
 		test_case(0xe8d30fef, 	 opcode.ldaex_t1),
-		test_case(0xe8c32fe1,    opcode.stlex_t1)
+		test_case(0xe8c32fe1,    opcode.stlex_t1),
+		test_case(0xe840f300,       opcode.tt_t1)
 	];
 
 	foreach (t; tests) {
