@@ -669,6 +669,21 @@ struct rw612_mem {
                 addrc &= ~0x1000_0000;
             if (addrc >= 0x40030000 && addrc < 0x40037FFF)
                 return;
+            // CLKCTL0_RULE1
+            // 0x4000 1000--0x4000 1FFF
+            if (addrc >= 0x40001000 && addrc < 0x40001FFF)
+                return;
+            // 0x4000 0000--0x4000 0FFF
+            // RSTCTL0_RULE0
+            if (addrc >= 0x40000000 && addrc < 0x40000FFF)
+                return;
+            // 0x45000000-0x4500FFFF parta (SOC_TOP_MEM_RULE0 - SOC_TOP_MEM_RULE3)
+            if (addrc >= 0x45000000 && addrc < 0x4500FFFF)
+                return;
+            // ITRC_RULE4
+            // 0x4002 4000--0x4002 4FFF
+            if (addrc >= 0x40024000 && addrc < 0x40024FFF)
+                return;
             else 
                 throw new Exception(format("Invalid memory access: %08X", addr));
         } else if (addr >= flash_origin && addr < flash_origin + flash_length) {    
@@ -690,6 +705,25 @@ struct rw612_mem {
             if (slice(cast(uint)addr, 28, 4) == 0x5) 
                 addrc &= ~0x1000_0000;
             if (addrc >= 0x40030000 && addrc < 0x40037FFF)
+                return 0x0;
+            // CLKCTL0_RULE1
+            // 0x4000 1000--0x4000 1FFF
+            if (addrc >= 0x40001000 && addrc < 0x40001FFF)
+                return 0x0;
+            // 0x4000 0000--0x4000 0FFF
+            // RSTCTL0_RULE0
+            if (addrc >= 0x40000000 && addrc < 0x40000FFF)
+                return 0x0;
+            // ELS_RULE7
+            // 0x4000 7000--0x4000 7FFF
+            if (addrc >= 0x40007000 && addrc < 0x40007FFF)
+                return 0x0;
+            // 0x45000000-0x4500FFFF parta (SOC_TOP_MEM_RULE0 - SOC_TOP_MEM_RULE3)
+            if (addrc >= 0x45000000 && addrc < 0x4500FFFF)
+                return 0x0;
+            // ITRC_RULE4
+            // 0x4002 4000--0x4002 4FFF
+            if (addrc >= 0x40024000 && addrc < 0x40024FFF)
                 return 0x0;
             else 
                 throw new Exception(format("Invalid memory access: %08X", addr));
