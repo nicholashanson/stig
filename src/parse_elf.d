@@ -68,7 +68,8 @@ string[] table_names = [
     "usbd_context_area",
     "usbd_class_fs_area",
     "sample_driver_api_area",
-    "app_shmem_regions"
+    "app_shmem_regions",
+    ".ramfunc"
 ];
 
 // --------------------------------------------------------------------------------------
@@ -478,11 +479,6 @@ st_name_val[] get_st_name_val(const string elf_file,
                 else 
                     continue;
             }
-
-            if (_st_type == st_type.stt_func) {
-                if (sym.st_value < text_start || sym.st_value >= text_end)
-                    continue;
-            }
         }
 
         if (!get_size) {
@@ -563,6 +559,29 @@ size_t va_to_file_offset(const ref load_segment[] segs, uint va) {
     }
     throw new Exception(format("VA %08X not in any PT_LOAD segment", va));
 }
+
+elf_section find_section_containing_va(const string elf_file, uint va) {
+    auto e_shnum   = get_e_shnum(elf_file);
+    auto e_shoff   = get_e_shoff(elf_file);
+    auto e_shentsz = get_e_shentsz(elf_file);
+
+    ubyte[] data = cast(ubyte[]) read(elf_file);
+
+    foreach (i; 0 .. e_shnum) {
+        size_t shdr = e_shoff + i * e_shentsz;
+
+        uint sec_addr = read_ul_32(data, shdr + 12);
+        uint sec_off  = read_ul_32(data, shdr + 16);
+        uint sec_size = read_ul_32(data, shdr + 20);
+
+        if (va >= sec_addr && va < sec_addr + sec_size) {
+            return elf_section("", sec_addr, sec_off,
+                data[sec_off .. sec_off + sec_size]);
+        }
+    }
+
+    throw new Exception("VA not found in any section");
+}
 // --------------------------------------------------------------------------------------
 // ==============
 //  GET ELF FUNC
@@ -596,7 +615,15 @@ elf_func get_elf_func(const string elf_file, const string func_name, const uint 
 
         uint func_va = sym.st_value;
         func_va &= ~1u;
-        size_t file_offset = va_to_file_offset(segs, func_va);
+
+        size_t file_offset;
+        try {
+            file_offset = va_to_file_offset(segs, func_va);
+        } catch (Exception) {
+            auto section = find_section_containing_va(elf_file, func_va);
+            file_offset = section.file_offset + (func_va - section.addr);
+        }
+
         size_t size = cast(size_t)sym.st_size;
 
         if (name in func_sizes) 
@@ -1136,9 +1163,12 @@ int get_func_size(const string elf_filename, const string func_name) {
     auto f_s  = get_st_name_val(elf_filename, st_type.stt_func, soc.all);
     auto func = get_st_name_val(elf_filename, func_name);
     uint next_f_addr = 0xffffffff;
-    foreach (f; f_s)
+    foreach (f; f_s) {
+        if ((f.addr & 0xFFFF0000) != (func.addr & 0xFFFF0000))
+            continue;
         if (f.addr > func.addr && f.addr < next_f_addr)
             next_f_addr = f.addr;
+    }
     if (next_f_addr == 0xffffffff)
         return 0;
     return next_f_addr - func.addr;
