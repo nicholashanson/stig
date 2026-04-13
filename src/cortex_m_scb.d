@@ -15,6 +15,8 @@ uint[scb_reg] scb = [
     NVIC_ISER0:  0, NVIC_ISER1:  0, NVIC_ISER2:  0, NVIC_ISER3:  0, NVIC_ISER4:  0, NVIC_ISER5:  0, 
     NVIC_ISER6:  0, NVIC_ISER7:  0, NVIC_ISER8:  0, NVIC_ISER9:  0, NVIC_ISER10: 0, NVIC_ISER11: 0,
     NVIC_ISER12: 0, NVIC_ISER13: 0, NVIC_ISER14: 0, NVIC_ISER15: 0,
+    // ------------------------------------ NVIC ISER ---------------------------------------                        
+    NVIC_ICER1: 0,
     // ------------------------------------- NVIC ISPR --------------------------------------
     NVIC_ISPR0:  0, NVIC_ISPR1:  0, NVIC_ISPR2:  0, NVIC_ISPR3:  0, NVIC_ISPR4:  0, NVIC_ISPR5:  0, 
     NVIC_ISPR6:  0, NVIC_ISPR7:  0, NVIC_ISPR8:  0, NVIC_ISPR9:  0, NVIC_ISPR10: 0, NVIC_ISPR11: 0,
