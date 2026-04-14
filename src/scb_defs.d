@@ -150,7 +150,7 @@ NVIC_ISER9  = 0xE000E124,
 NVIC_ISER10 = 0xE000E128,
 NVIC_ISER11 = 0xE000E12C,
 NVIC_ISER12 = 0xE000E130,
-NVIC_ISER13 = 0xE000E134,
+NVIC_ISER13f = 0xE000E134,
 NVIC_ISER14 = 0xE000E138,
 NVIC_ISER15 = 0xE000E13C,
 
@@ -223,6 +223,12 @@ NVIC_ISR29 = 0xE000E474,
 NVIC_ISR30 = 0xE000E478,
 NVIC_ISR31 = 0xE000E47C,
 NVIC_ISR32 = 0xE000E480,
+
+// Software Triggered Interrupt Register
+// Writing to this register has the same effect as setting the NVIC 
+// ISPR bit corresponding to the interrupt to 1
+// This register applies to implemented external interrupts only.
+STIR = 0xE000EF00,
 
 // Vector Table Offset Register(RW)
 VTOR = 0xE000ED08,          
