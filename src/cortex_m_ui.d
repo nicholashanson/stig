@@ -331,7 +331,7 @@ void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     print_reg("SYST_CSR:", scb_pad_y, vm, SYST_CSR);
     print_reg("SYST_RVR:", scb_pad_y, vm, SYST_RVR);
     print_reg("SYST_CVR:", scb_pad_y, vm, SYST_CVR);
-    mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("BASEPRI %08X", vm.get_basepri())));
+    mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("BASEPRI:  %08X", vm.get_basepri())));
 
     //import std.algorithm.iteration : map;
     //import std.algorithm.searching : maxElement;
