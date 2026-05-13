@@ -149,8 +149,8 @@ struct add_with_carry_result {
 // ================
 
 add_with_carry_result add_with_carry(const uint x, const uint y, bool carry_in) {
-	ulong unsigned_sum = cast(ulong)x + cast(ulong)y + (carry_in ? 1 : 0);;
-	long  signed_sum   = cast(long)cast(int)x + cast(long)cast(int)y + (carry_in ? 1 : 0);;
+	ulong unsigned_sum = cast(ulong)x + cast(ulong)y + (carry_in ? 1 : 0);
+	long  signed_sum   = cast(long)cast(int)x + cast(long)cast(int)y + (carry_in ? 1 : 0);
 	uint  result       = cast(uint)unsigned_sum;
 	bool  carry_out    = unsigned_sum != cast(ulong)result;
 	bool  overflow 	   = cast(long)cast(int)result != signed_sum;
