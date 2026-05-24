@@ -1,5 +1,6 @@
 import std.stdio;
 import std.exception;
+import core.exception : ArraySliceError;
 import std.conv;
 import std.file;
 import std.array;
@@ -19,57 +20,59 @@ import log;
 // =============
 //  TABLE NAMES
 // =============
-
 string[] table_names = [
-    "can_driver_api_area",
-    "rodata",
-    ".rodata",
-    "_static_thread_data_area",
-    "k_heap_area",
-    "device_area",
-    "initlevel",
-    "uart_driver_api_area",
-    "clock_control_driver_api_area",
-    "reset_driver_api_area",
-    "sw_isr_table",
-    "datas",
-    ".data",
-    "text",
-    ".text",
-    "log_msg_ptr_area",
-    "k_sem_area",
-    "log_backend_area",
-    "log_const_area",
-    "log_mpsc_pbuf",
-    "gpio_driver_api_area",
-    "rom_start",
-    "k_msgq_area",
     "adc_driver_api_area",
-    "i2c_driver_api_area",
-    "sensor_driver_api_area",
-    "k_mutex_area",
-    "k_condvar_area",
-    "k_fifo_area",
-    "net_buf_pool_area",
-    ".init_array",
-    "entropy_driver_api_area",
-    "bt_hci_driver_api_area",
-    ".isr_vector",
-    "flash_driver_api_area",
+    "app_shmem_regions",    
     "bt_l2cap_fixed_chan_area",
     "bt_conn_cb_area",
     "bt_gatt_service_static_area",
     "bt_ias_cb_area",
-    "settings_handler_static_area",
-    "device_states",
-    "k_mem_slab_area",
+    "bt_hci_driver_api_area",
+    "can_driver_api_area",
+    "clock_control_driver_api_area",
     "crypto_driver_api_area",
+    "flash_driver_api_area",    
+    "datas",
+    ".data",
+    "device_area",
+    "device_states",
+    "entropy_driver_api_area",
+    "gpio_driver_api_area",
+    "i2c_driver_api_area",
+    ".init_array",
+    "initlevel",
+    ".isr_vector",
+    "k_sem_area",
+    "k_mutex_area",
     "k_event_area",
-    "usbd_context_area",
-    "usbd_class_fs_area",
+    "k_condvar_area",
+    "k_fifo_area",
+    "k_msgq_area",
+    "k_mem_slab_area",
+    "k_heap_area",
+    "log_msg_ptr_area",
+    "log_backend_area",
+    "log_const_area",
+    "log_mpsc_pbuf",
+    "log_mpsc_pbuf_area",
+    "net_buf_pool_area",
+    ".ramfunc",
+    "reset_driver_api_area",
+    "rom_start",
     "sample_driver_api_area",
-    "app_shmem_regions",
-    ".ramfunc"
+    "sensor_driver_api_area",
+    "settings_handler_static_area",
+    "_static_thread_data_area",
+    "sw_isr_table",
+    "reset_driver_api_area",
+    "rodata",
+    ".rodata",
+    "text",
+    ".text",
+    "uart_driver_api_area",
+    "usbd_context_area",
+    "usbd_class_fs_area", 
+    "usbd_class_hs_area", 
 ];
 
 // --------------------------------------------------------------------------------------
@@ -408,6 +411,7 @@ enum soc {
     stm32,
     nrf,
     nxp,
+    s32k16,
     all
 }
 // --------------------------------------------------------------------------------------
@@ -431,6 +435,10 @@ size_t[string] func_sizes = [
     "z_arm_svc"         :36
 ];
 // --------------------------------------------------------------------------------------
+
+enum SHN_UNDEF = 0;
+enum SHN_ABS   = 0xFFF1;
+
 // =================
 //  GET ST NAME VAL
 // =================
@@ -456,6 +464,11 @@ st_name_val[] get_st_name_val(const string elf_file,
 
     for (size_t pos = 0; pos + 16 <= symdata.length; pos += 16) {
         auto sym = get_sym(symdata, pos);
+
+        if (sym.st_shndx == SHN_ABS ||
+            sym.st_shndx == SHN_UNDEF) {
+            continue;
+        }
 
         auto _st_type = get_elf_32_st_type(sym.st_info);
         
@@ -741,8 +754,14 @@ func get_function_from_elf(const string elf_file,
         if ((offset + 2 == e_func.data.length) && (read_ul_16(e_func.data, offset) == 0))
             break;
         ushort first_hw  = read_ul_16(e_func.data, offset);
-        uint len         = (first_hw & 0xF800) >= 0xE800 ? 4 : 2; 
-        auto bytes       = e_func.data[offset .. offset + len];
+        uint len         = (first_hw & 0xF800) >= 0xE800 ? 4 : 2;
+        ubyte[] bytes;
+        try {
+            bytes = e_func.data[offset .. offset + len];
+        }
+        catch (ArraySliceError e) {
+            writeln("Slice failed: " ~ func_name);
+        }
         while (addr_offset in literal_offsets) 
             addr_offset += 4;
         while (e_func.skipped_addrs.canFind(addr_offset))
