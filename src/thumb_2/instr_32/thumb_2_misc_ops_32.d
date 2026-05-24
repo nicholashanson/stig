@@ -181,6 +181,23 @@ execute_revsh_t2
 // ---------------------------------------------------------------------------------------
 
 // ***************************************************************************************
+// *									 REV										     *
+// ***************************************************************************************
+
+// REV<c>.W <Rd>,<Rm>
+instr_32 parse_rev_t2(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr,  0, 4),
+					rd: cast(reg)slice(instr,  8, 4),
+					rn: cast(reg)slice(instr, 16, 4));
+}
+
+// REV<c>.W <Rd>,<Rm>
+string convert_rev_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("rev%s.w %s, %s", get_condition_string(cond),
+									get_reg_name(instr.rd),
+									get_reg_name(instr.rm));
+} 
+// ***************************************************************************************
 // *									REVSH										     *
 // ***************************************************************************************
 
