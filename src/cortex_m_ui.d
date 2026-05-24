@@ -520,7 +520,7 @@ void main(string[] args) {
         soc_s = args[2];
     }
 
-    if (soc_s != "nrf" && soc_s != "stm32" && soc_s != "nxp") {
+    if (soc_s != "nrf" && soc_s != "stm32" && soc_s != "nxp" && soc_s != "s32k16") {
         writeln("Unrecognized SoC: ", soc_s);
         return;
     }
@@ -630,6 +630,14 @@ void main(string[] args) {
         cortex_m_vm!stm32f4_mem vm;
         vm.set_vtor();
         load_elf(vm, soc.stm32, target_file_name);
+        if (entry_point != 0)
+            vm.run_to(entry_point, nth_instance);
+        draw_screen(vm, rows);
+        control_loop(ctrl, vm, rows);
+    } else if (soc_s == "s32k16") {
+        cortex_m_vm!s32k146_mem vm;
+        vm.set_vtor();
+        load_elf(vm, soc.s32k16, target_file_name);
         if (entry_point != 0)
             vm.run_to(entry_point, nth_instance);
         draw_screen(vm, rows);
