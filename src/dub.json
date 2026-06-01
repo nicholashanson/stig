@@ -18,6 +18,12 @@
         },
         {
             "name": "cortexm"
+        },
+        {
+            "name": "lib",
+            "targetType": "dynamicLibrary",
+            "sourceFiles": ["backend_api.d"],
+            "excludedSourceFiles": ["cortex_m_ui.d"]
         }
     ]
 }
