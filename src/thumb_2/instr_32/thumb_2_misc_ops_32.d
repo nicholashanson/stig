@@ -72,7 +72,6 @@ string convert_rbit_t2_to_string(const ref instr_32 instr, const condition cond)
 //  Parse CLZ
 // ===========
 
-enum field_tuples_clz_t1 = [Tuple!(opcode, string[])(opcode.clz_t1, ["rd","rm"])];
 // CLZ<c> <Rd>,<Rm>
 // First Half-Word: [15:4] 111110101011, [3:0] Rm
 // Second Half-Word: [15:12] 1111, [11:8] Rd, [7:4] 1000, [3:0] Rm
