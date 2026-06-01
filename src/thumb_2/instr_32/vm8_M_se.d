@@ -116,4 +116,26 @@ string convert_tt_t1_to_string(const ref instr_32 instr, const condition cond) {
 							     get_reg_name(instr.rn));
 }
 
+instr_32 parse_lda_t1(const uint instr) {
+	return instr_32(rt: cast(reg)slice(instr, 12, 4),
+					rn: cast(reg)slice(instr, 16, 4));
+}
 
+void 
+execute_lda_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// if ConditionPassed() then
+	// EncodingSpecificOperations();
+	// address = R[n];
+	immutable addr = vm.get_reg(instr.rn);
+	// R[t] = MemO[address, 4];
+	vm.set_reg(instr.rt, vm.read_word(addr));
+}
+
+// LDA{<c>}{<q>} <Rt>, [<Rn>]
+string convert_lda_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("lda%s %s, [%s]", get_condition_string(cond),
+							        get_reg_name(instr.rt),
+							        get_reg_name(instr.rn));
+}
