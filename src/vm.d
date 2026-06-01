@@ -329,6 +329,14 @@ struct cortex_m_vm(mem_t) {
 	//  GET REG
 	// =========	
 
+	uint[16] get_core_registers() const {
+		return cpu.get_core_registers();
+	}
+
+	// =========
+	//  GET REG
+	// =========	
+
 	uint get_reg(const reg r) const {
 		return cpu.get_reg(r);
 	}

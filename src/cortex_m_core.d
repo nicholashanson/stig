@@ -848,6 +848,14 @@ struct cortex_m_cpu {
 	// ------------------------------ General-Purpose Registers ----------------------------- 
 	uint[16] core_registers;
 
+	// ====================
+	//  GET CORE REGISTERS
+	// ====================
+
+	uint[16] get_core_registers() const {
+		return core_registers;
+	}
+	// --------------------------------------------------------------------------------------
 	// =========
 	//  GET REG
 	// =========
@@ -859,6 +867,7 @@ struct cortex_m_cpu {
 			return get_pc() + 4;
 		return core_registers[r];
 	}
+	// --------------------------------------------------------------------------------------
 
 	// =========
 	//  SET REG
