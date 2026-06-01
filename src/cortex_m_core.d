@@ -385,26 +385,25 @@ uint
 get_exc_rtr_val
 (vm_t)
 (ref vm_t vm) {
-	// if Mode==Handler then
+	// if Mode==Handler
 	if (vm.get_curr_exc() != exception.thread_mode)
 		// LR = Ones(27):NOT(CONTROL.FPCA):’0001’;
 		if (vm.get_fpca()) 
-			return 0xFFFF_FFF1;
-		else 
 			return 0xFFFF_FFE1;
-	// else
+		else 
+			return 0xFFFF_FFF1;
 	else
 		// LR = Ones(27):NOT(CONTROL.FPCA):’1’:CONTROL.SPSEL:’01’;
 		if (vm.get_fpca()) 
 			if (vm.get_sp_sel())
+				return 0xFFFF_FFED;   
+			else 
+				return 0xFFFF_FFE9;
+		else 
+			if (vm.get_sp_sel())
 				return 0xFFFF_FFFD;
 			else 
 				return 0xFFFF_FFF9;
-		else 
-			if (vm.get_sp_sel())
-				return 0xFFFF_FFED;
-			else 
-				return 0xFFFF_FFE9;
 }
 // --------------------------------------------------------------------------------------
 // =========================
@@ -716,7 +715,8 @@ bool is_system_pending
 //  GET NEXT EXECUTABLE EXCPETION
 // ===============================
 
-exception get_next_executable_exception
+exception 
+get_next_executable_exception
 (vm_t)
 (ref vm_t vm) {
     int curr_exec_pri = get_execution_priority(vm); 
