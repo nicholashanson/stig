@@ -389,9 +389,9 @@ row_view[] get_function_rows(func f) {
     return res;
 }
 
-row_view[] generate_instr_rows(func[] functions) {
+row_view[] generate_instr_rows(func[] funcs) {
     row_view[] res;
-    foreach (f; functions) {
+    foreach (f; funcs) {
         res ~= get_function_rows(f);
         res ~= row_view(type: row_view.kind.blank_line);
     }
