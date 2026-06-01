@@ -21,6 +21,7 @@ import thumb_2_decode_instr;
 import thumb_2_execute_instr;
 import thumb_2_convert_instr_to_string;
 import scb_defs;
+import elf_table_names;
 
 WINDOW*       instr_pad;
 WINDOW*         reg_pad;
@@ -470,7 +471,7 @@ void control_loop(VM_T)(ref runtime_ctrl ctrl, ref VM_T vm, ref row_view[] rows)
     }
 }
 
-void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
+void load_elf_(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
     auto f_s        = get_program_from_elf(target_file_name);
     auto entry_addr = get_elf_entry_point(target_file_name);
     vm.init_pc(entry_addr);
@@ -486,6 +487,26 @@ void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
     vm.func_map = get_st_name_val(target_file_name, st_type.stt_func,   mcu,  false, true);
     vm.objects ~= get_st_name_val(target_file_name, st_type.stt_notype, mcu);
     vm.objects ~= get_st_name_val(target_file_name, st_type.stt_object, mcu);
+}
+
+void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
+    auto e          = new elf_file(target_file_name);
+    auto funcs      = get_program_from_elf(e);
+    auto entry_addr = e.get_elf_entry_point();
+    vm.init_pc(entry_addr);            
+    assert(funcs.length != 0);
+    foreach (fun; funcs) {
+        load_function_into_memory(fun, vm);
+        vm.current_program ~= fun.instrs;
+        vm.func_names ~= fun.name;
+    }
+    assert(vm.current_program.length != 0);
+    foreach (t; table_names) 
+        load_section_into_memory(target_file_name, t, vm);
+    vm.objects  = get_st_name_val(e, st_type.stt_func,   mcu);
+    vm.func_map = get_st_name_val(e, st_type.stt_func,   mcu,  false, true);
+    vm.objects ~= get_st_name_val(e, st_type.stt_notype, mcu);
+    vm.objects ~= get_st_name_val(e, st_type.stt_object, mcu);
 }
 
 void main(string[] args) {
