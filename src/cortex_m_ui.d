@@ -443,7 +443,7 @@ void control_loop(VM_T)(ref runtime_ctrl ctrl, ref VM_T vm, ref row_view[] rows)
                 start = end - visible_lines;
             }
             if (ch == KEY_DOWN) {
-                vm.execute_next_instr();
+                vm.advance_to_next_cycle();
                 pc_moved = true;
             }
             if (ch == KEY_RIGHT) {
@@ -462,7 +462,7 @@ void control_loop(VM_T)(ref runtime_ctrl ctrl, ref VM_T vm, ref row_view[] rows)
         if (ctrl.is_playing) {
             auto delta = now - ctrl.last_time; 
             if (delta >= ctrl.interval) {
-                vm.execute_next_instr();
+                vm.advance_to_next_cycle();
                 pc_moved = true;
                 ctrl.last_time = now;
             }

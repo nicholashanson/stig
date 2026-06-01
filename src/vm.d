@@ -755,31 +755,15 @@ struct cortex_m_vm(mem_t) {
 
 	void pend_sv() {
         write_word(ICSR,  (1u << PENDSVSET));
-	}
+	}	
+	// -------------------------------------------------------------------------------------- 
+
  	// -------------------------------------------------------------------------------------- 
 	// ====================
 	//  EXECUTE NEXT INSTR
 	// ====================
 
 	void execute_next_instr() {
-		log_pc();
-		++cpu.tick;
-		if (cpu.tick == 10000)
-			cpu.tick = 0;
-		immutable exc = get_next_executable_exception(this);
-		if (exc != exception.thread_mode) {
-			enter_exec(exc, this);
-			return;
-		}
-		if (sys_tick_is_enabled()) {
-			decrement_sys_tick();	
-			if (sys_tick_is_due()) {
-				handle_sys_tick();	
-				pend_st();
-				return;
-			}			
-		}
-
 	    auto inOpt = current_program.find!(ins => ins._addr == cpu.get_pc());
 	    if (inOpt is null) {
 	        writeln("Error: PC not found in program");
@@ -806,6 +790,47 @@ struct cortex_m_vm(mem_t) {
 		auto i32 = ins.get!instr_32;
 		execute_instr(i32, this);
 	}
+	// -------------------------------------------------------------------------------------- 
+
+	// -------------------------------------------------------------------------------------- 
+	// =================
+	//  CHECK EXCEPTION
+	// =================
+
+	bool check_exception() {
+		immutable exc = get_next_executable_exception(this);
+		if (exc != exception.thread_mode) {
+			enter_exec(exc, this);
+			return true;
+		}
+		if (sys_tick_is_enabled()) {
+			decrement_sys_tick();	
+			if (sys_tick_is_due()) {
+				handle_sys_tick();	
+				pend_st();
+				return true;
+			}			
+		}
+		return false;
+	}
+	// -------------------------------------------------------------------------------------- 
+
+	// -------------------------------------------------------------------------------------- 
+	// =======================
+	//  ADVANCE TO NEXT CYCLE
+	// =======================
+
+	void advance_to_next_cycle() {
+		log_pc();
+		++cpu.tick;
+		if (cpu.tick == 10000)
+			cpu.tick = 0;
+		if (check_exception()) 
+			return;
+		execute_next_instr();
+	}
+	// -------------------------------------------------------------------------------------- 
+
 	// -------------------------------------------------------------------------------------- 
 	// ================
 	//  SECURITY STATE
