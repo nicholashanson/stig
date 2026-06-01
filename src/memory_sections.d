@@ -658,6 +658,88 @@ struct nrf52840_mem {
     }
 }
 
+
+rw612_peripheral_reg[] rw612_reset_ctl_set = [
+    RSTCTL0_PRSTCTL0_SET,
+    RSTCTL0_PRSTCTL1_SET,
+    RSTCTL0_PRSTCTL2_SET,
+    RSTCTL1_PRSTCTL0_SET,
+    RSTCTL1_PRSTCTL1_SET,
+    RSTCTL1_PRSTCTL2_SET,
+];
+
+rw612_peripheral_reg[] rw612_reset_ctl_clr = [
+    RSTCTL0_PRSTCTL0_CLR,
+    RSTCTL0_PRSTCTL1_CLR,
+    RSTCTL0_PRSTCTL2_CLR,
+    RSTCTL1_PRSTCTL0_CLR,
+    RSTCTL1_PRSTCTL1_CLR,
+    RSTCTL1_PRSTCTL2_CLR,
+];
+
+void handle_reset_ctl_set(const size_t addr, uint val) {
+    switch (cast(rw612_peripheral_reg)addr) {
+        case RSTCTL0_PRSTCTL0_SET:
+            rw612_peripheral_regs[RSTCTL0_PRSTCTL0] |= val;
+            break;
+        case RSTCTL0_PRSTCTL1_SET:
+            rw612_peripheral_regs[RSTCTL0_PRSTCTL1] |= val;
+            break;
+        case RSTCTL0_PRSTCTL2_SET:
+            rw612_peripheral_regs[RSTCTL0_PRSTCTL2] |= val;
+            break;
+        case RSTCTL1_PRSTCTL0_SET:
+            rw612_peripheral_regs[RSTCTL1_PRSTCTL0] |= val;
+            break;
+        case RSTCTL1_PRSTCTL1_SET:
+            rw612_peripheral_regs[RSTCTL1_PRSTCTL1] |= val;
+            break;
+        case RSTCTL1_PRSTCTL2_SET:
+            rw612_peripheral_regs[RSTCTL1_PRSTCTL2] |= val;
+            break;
+        default:
+            break;
+    }
+}
+
+void handle_reset_ctl_clr(const size_t addr, uint val) {
+    uint res;
+    switch (cast(rw612_peripheral_reg)addr) {
+        case RSTCTL0_PRSTCTL0_CLR:
+            res = rw612_peripheral_regs[RSTCTL0_PRSTCTL0] & val;
+            res = ~res;
+            rw612_peripheral_regs[RSTCTL0_PRSTCTL0] = res; 
+            break;
+        case RSTCTL0_PRSTCTL1_CLR:
+            res = rw612_peripheral_regs[RSTCTL0_PRSTCTL1] & val;
+            res = ~res;
+            rw612_peripheral_regs[RSTCTL0_PRSTCTL1] = res;
+            break;
+        case RSTCTL0_PRSTCTL2_CLR:
+            res = rw612_peripheral_regs[RSTCTL0_PRSTCTL2] & val;
+            res = ~res;
+            rw612_peripheral_regs[RSTCTL0_PRSTCTL2] = res;
+            break;
+        case RSTCTL1_PRSTCTL0_CLR:
+            res = rw612_peripheral_regs[RSTCTL1_PRSTCTL0] & val;
+            res = ~res;
+            rw612_peripheral_regs[RSTCTL1_PRSTCTL0] = res; 
+            break;
+        case RSTCTL1_PRSTCTL1_CLR:
+            res = rw612_peripheral_regs[RSTCTL1_PRSTCTL1] & val;
+            res = ~res;
+            rw612_peripheral_regs[RSTCTL1_PRSTCTL1] = res;
+            break;
+        case RSTCTL1_PRSTCTL2_CLR:
+            res = rw612_peripheral_regs[RSTCTL1_PRSTCTL2] & val;
+            res = ~res;
+            rw612_peripheral_regs[RSTCTL1_PRSTCTL2] = res;
+            break;
+        default:
+            break;
+    }
+}
+
 struct rw612_mem {
     enum ram_origin   =  0x1000_0000;   
     enum ram_length   =  0x0013_0000;
@@ -676,6 +758,18 @@ struct rw612_mem {
             //    addrc -= 0x15000000;
             if (slice(cast(uint)addr, 28, 4) == 0x5) 
                 addrc &= ~0x1000_0000;
+            if (addrc == USART3_FIFOWR) {
+                auto f = uart_log();
+                f.write(cast(char)(val & 0xff));
+                f.flush();
+                return;
+            }
+            if (rw612_reset_ctl_set.canFind(addrc)) {
+                return handle_reset_ctl_set(addrc, val);
+            }
+            if (rw612_reset_ctl_clr.canFind(addrc)) {
+                return handle_reset_ctl_clr(addrc, val);
+            }
             //APB_GRP1_MEM_RULE2
             if (addrc >= 0x40030000 && addrc < 0x40037FFF) {
                 if (addrc >= 0x40031000 && addrc < 0x40031128) {
@@ -741,6 +835,26 @@ struct rw612_mem {
             if (slice(cast(uint)addr, 28, 4) == 0x5) 
                 addrc &= ~0x1000_0000;
             //APB_GRP1_MEM_RULE2
+            if (addrc == USB_PLL_Control_0) {
+                return rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] | 0x8000_0000;
+            } 
+            if (addrc == USB_Calibration_Control) {
+                if (rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] == 0x4833_0788) {
+                    uint res = rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] | 0x8000_0000;
+                    rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] = res;
+                    return res;
+                }
+                if (rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] == 0xC833_2788) {
+                    uint res = rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] | 0x0080_0000;
+                    rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] = res;
+                    return res;
+                }
+            } 
+            if (addrc == USB_USBCMD) {
+                if (rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] == 0x0008_0002) {
+                    return rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] ^ 0x2;
+                } 
+            }
             if (addrc >= 0x40030000 && addrc < 0x40037FFF) {
                 if (addrc >= 0x40031000 && addrc < 0x40031128) {
                     try {
