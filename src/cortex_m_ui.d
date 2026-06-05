@@ -53,22 +53,13 @@ void init_frames() {
     frame_x =     COLS / 2;
 }
 
-int color_for_value
-(vm_t)
-(const uint val, ref vm_t vm) {
-    if (val == 0x00000000)
-        return 1;
-    else if (val >= vm.get_ram_origin()   && val <= vm.get_ram_origin()   + vm.get_ram_length()  )
-        return 3;
-    else if (val >= vm.get_flash_origin() && val <= vm.get_flash_origin() + vm.get_flash_length())
-        return 4;
-    else if (val >  vm.get_ram_origin() + vm.get_ram_length())
-        return 5;
-    return 2;
-}
+// --------------------------------------------------------------------------------------
+// ====================
+//  PRINT COLORED LINE
+// ====================
 
 void print_colored_line(WINDOW* win, int row, int col, string line) {
-    auto tokens = split_instr(line);
+    auto tokens = split_instr_line(line);
     int x = col;
     foreach (t; tokens) {
         if (regs.canFind(t)) {
@@ -81,20 +72,116 @@ void print_colored_line(WINDOW* win, int row, int col, string line) {
         x += t.length; 
     }
 }
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ==============
+//  PRINT STRING
+// ==============
+
+void print_string(WINDOW* win, const int x, const int y, string s, int color) {
+    wattron(win, COLOR_PAIR(color)); 
+    mvwprintw(win, y, x, toStringz(s));
+    wattroff(win, COLOR_PAIR(color));
+}
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ===============================
+//  PRINT COLORED LOAD STORE LINE
+// ===============================
+
+void 
+print_colored_load_store_line
+(vm_t)
+(WINDOW* win, vm_t vm, int row, int col, string line) {
+    size_t max_len = COLS / 2 - 5;
+    auto tokens = split_load_store_line(line);
+    int x = col;
+    for (int i = 0; i < tokens.length; ++i) {
+        if (done) {
+            continue;
+        }
+        string v = tokens[i];
+        switch (i) {
+            case 0:
+                print_string(win, row, x, v, 2);
+                x += v.length; 
+                break;
+            case 1:
+                print_string(win, row, x, v, 4);
+                x += v.length; 
+                break;
+            case 2:
+                print_string(win, row, x, v, 4);
+                x += v.length; 
+                break;
+            case 3:
+                print_string(win, row, x, "(", 0);
+                x++;
+                int color = 0;
+                if (v[1] == 'x') {
+                    uint val = to!uint(v[2 .. $], 16);
+                    color = color_for_value(val, vm);
+                }
+                print_string(win, row, x, v, color);
+                x += v.length;
+                break;
+            case 4:
+                x++;
+                print_string(win, row, x, toStringz(v), 0);
+                x += v.length;
+                x++;
+                break;
+            case 5:
+                int color = 0;
+                if (v[1] == 'x') {
+                    uint val = to!uint(v[2 .. $], 16);
+                    color = color_for_value(val, vm);
+                }
+                print_string(win, row, x, v, color);
+                x += v.length;
+                break;
+            case 6:
+                bool skip = false;
+                if (x + v.length > col + max_len - 1) {
+                    size_t delta  = x + v.length - 1 - col - max_len;
+                    v = v[0 .. $ - delta - 3] ~ "...";
+                    skip = true;
+                }
+                print_string(win, row, x, v, 5);
+                x += v.length;
+                if (skip)
+                    continue;
+                print_string(win, row, x, ")", 0);
+                break;
+            default:
+                break;
+        }
+    }
+}
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ===============
+//  APPEND UNIQUE
+// ===============
 
 void append_unique(ref string[] buffer, string next, size_t n) {
     if (next == "") 
         return;
-
-    size_t max_len = COLS / 2 - 5;
-    if (next.length > max_len)
-        next = next[0 .. max_len - 3] ~ "...";
 
     if (buffer.empty || buffer.back != next)
         buffer ~= next;
     while (buffer.length > n)
         buffer = buffer[1 .. $];
 }
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ===============
+//  DRAW SCREEN 0
+// ===============
 
 void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     visible_lines = LINES;
@@ -228,7 +315,8 @@ void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
 
     mvwprintw(load_store_pad, load_store_y++, load_store_x, "Load/Store:");
     foreach (s; load_store_buffer) {
-        mvwprintw(load_store_pad, load_store_y++, load_store_x, toStringz(s));
+        //mvwprintw(load_store_pad, load_store_y++, load_store_x, toStringz(s));
+        print_colored_load_store_line(load_store_pad, vm, load_store_y++, load_store_x, s);
     }
 
     int screen_row     =  0;
@@ -304,6 +392,13 @@ void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     );
     doupdate();
 }
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ===============
+//  DRAW SCREEN 1
+// ===============
+
 
 void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     werase(scb_pad);
@@ -362,6 +457,12 @@ void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
 
     doupdate();
 }
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// =============
+//  DRAW SCREEN
+// =============
 
 void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     if (view_changed) {
@@ -373,7 +474,9 @@ void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     else 
         draw_screen_1(vm, rows);
 } 
+// --------------------------------------------------------------------------------------
 
+// --------------------------------------------------------------------------------------
 // ==============
 //  FIND SYMBOLS
 // ==============
@@ -405,7 +508,9 @@ void find_symbols(const string elf_filename, const string sym, bool show_size = 
     }
     writeln(format("%d matching symbols found", matches.length));
 }
+// --------------------------------------------------------------------------------------
 
+// --------------------------------------------------------------------------------------
 // ==================
 //  GET SECTION SIZE
 // ==================
@@ -414,6 +519,12 @@ void get_section_size(const string elf_filename, const string section_name) {
     auto section = get_section_by_name(elf_filename, section_name);
     writeln(format("%s size: %d", section.name, section.data.length));
 }
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ==============
+//  RUNTIME CTRL
+// ==============
 
 struct runtime_ctrl {
     bool     is_playing = false;
@@ -422,6 +533,12 @@ struct runtime_ctrl {
     MonoTime last_draw;
     Duration frame_interval; 
 }
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ==============
+//  CONTROL LOOP
+// ==============
 
 void control_loop(VM_T)(ref runtime_ctrl ctrl, ref VM_T vm, ref row_view[] rows) {
     int ch;
@@ -470,6 +587,12 @@ void control_loop(VM_T)(ref runtime_ctrl ctrl, ref VM_T vm, ref row_view[] rows)
         draw_screen(vm, rows);
     }
 }
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ==========
+//  LOAD ELF
+// ==========
 
 void load_elf_(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
     auto f_s        = get_program_from_elf(target_file_name);
@@ -508,6 +631,13 @@ void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
     vm.objects ~= get_st_name_val(e, st_type.stt_notype, mcu);
     vm.objects ~= get_st_name_val(e, st_type.stt_object, mcu);
 }
+// --------------------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------------------
+// ======
+//  MAIN
+// ======
+
 
 void main(string[] args) {
     auto ctrl           = runtime_ctrl();
@@ -675,4 +805,6 @@ void main(string[] args) {
 
     endwin();
 }
+// --------------------------------------------------------------------------------------
+
 
