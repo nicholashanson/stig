@@ -34,7 +34,7 @@ int               start;
 int                 end;
 int visible_lines  = 39;
 
-int view_n        =     0;
+int  view_n       =     0;
 bool view_changed = false;
 
 string[] load_store_buffer;
@@ -62,13 +62,10 @@ void print_colored_line(WINDOW* win, int row, int col, string line) {
     auto tokens = split_instr_line(line);
     int x = col;
     foreach (t; tokens) {
-        if (regs.canFind(t)) {
-            wattron(win, COLOR_PAIR(3)); 
+        if (regs.canFind(t)) 
+            print_string(win, row, x, t, 3);
+        else 
             mvwprintw(win, row, x, toStringz(t));
-            wattroff(win, COLOR_PAIR(3));
-        } else {
-            mvwprintw(win, row, x, toStringz(t));
-        }
         x += t.length; 
     }
 }
@@ -79,7 +76,7 @@ void print_colored_line(WINDOW* win, int row, int col, string line) {
 //  PRINT STRING
 // ==============
 
-void print_string(WINDOW* win, const int x, const int y, string s, int color) {
+void print_string(WINDOW* win, const int y, const int x, string s, int color) {
     wattron(win, COLOR_PAIR(color)); 
     mvwprintw(win, y, x, toStringz(s));
     wattroff(win, COLOR_PAIR(color));
@@ -99,9 +96,6 @@ print_colored_load_store_line
     auto tokens = split_load_store_line(line);
     int x = col;
     for (int i = 0; i < tokens.length; ++i) {
-        if (done) {
-            continue;
-        }
         string v = tokens[i];
         switch (i) {
             case 0:
@@ -122,14 +116,14 @@ print_colored_load_store_line
                 int color = 0;
                 if (v[1] == 'x') {
                     uint val = to!uint(v[2 .. $], 16);
-                    color = color_for_value(val, vm);
+                    color = vm.get_val_index(val);
                 }
                 print_string(win, row, x, v, color);
                 x += v.length;
                 break;
             case 4:
                 x++;
-                print_string(win, row, x, toStringz(v), 0);
+                print_string(win, row, x, v, 0);
                 x += v.length;
                 x++;
                 break;
@@ -137,7 +131,7 @@ print_colored_load_store_line
                 int color = 0;
                 if (v[1] == 'x') {
                     uint val = to!uint(v[2 .. $], 16);
-                    color = color_for_value(val, vm);
+                    color = vm.get_val_index(val);
                 }
                 print_string(win, row, x, v, color);
                 x += v.length;
@@ -238,10 +232,8 @@ void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
         } else {
             reg_name = reg_cache[r].s;
         }
-        int color = color_for_value(val, vm);
-        wattron(reg_pad, COLOR_PAIR(color));
-        mvwprintw(reg_pad, reg_y++, reg_x, toStringz(format("%s %08X %s", name, val, reg_name)));
-        wattroff(reg_pad, COLOR_PAIR(color));
+        int color = vm.get_val_index(val);
+        print_string(reg_pad, reg_y++, reg_x, format("%s %08X %s", name, val, reg_name), color);
     };
 
     bool first_flag = true;
@@ -252,9 +244,7 @@ void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
         } else {
             first_flag = false;
         }
-        wattron(flag_pad, COLOR_PAIR(color));
-        mvwprintw(flag_pad, flag_y, flag_x_, toStringz(format("%s %d", name, val)));
-        wattroff(flag_pad, COLOR_PAIR(color));
+        print_string(flag_pad, flag_y, flag_x_, format("%s %d", name, val), color);
     };
 
     // ================
@@ -406,7 +396,7 @@ void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     int scb_pad_y = 1;
     void print_reg(REG_T)(const string reg_name, ref int y, ref vm_t vm, REG_T r) {
         immutable val = vm.peek_word(r);
-        int color = color_for_value(val, vm);    
+        int color = vm.get_val_index(val);    
         wattron(scb_pad, COLOR_PAIR(color));
         mvwprintw(scb_pad, y++, 1, toStringz(format("%s %08X", reg_name, val)));
         wattroff(scb_pad, COLOR_PAIR(color));
@@ -637,7 +627,6 @@ void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
 // ======
 //  MAIN
 // ======
-
 
 void main(string[] args) {
     auto ctrl           = runtime_ctrl();
