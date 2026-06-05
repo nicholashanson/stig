@@ -764,6 +764,12 @@ struct cortex_m_vm(mem_t) {
 	// ====================
 
 	void execute_next_instr() {
+		log_pc();
+		
+		++cpu.tick;
+		if (cpu.tick == 10000)
+			cpu.tick = 0;
+
 	    auto inOpt = current_program.find!(ins => ins._addr == cpu.get_pc());
 	    if (inOpt is null) {
 	        writeln("Error: PC not found in program");
@@ -821,10 +827,6 @@ struct cortex_m_vm(mem_t) {
 	// =======================
 
 	void advance_to_next_cycle() {
-		log_pc();
-		++cpu.tick;
-		if (cpu.tick == 10000)
-			cpu.tick = 0;
 		if (check_exception()) 
 			return;
 		execute_next_instr();
@@ -843,6 +845,8 @@ struct cortex_m_vm(mem_t) {
 
 	security_state curr_state;
 	// -------------------------------------------------------------------------------------- 
+	
+	// -------------------------------------------------------------------------------------- 
 	// ========
 	//  RUN TO
 	// ========
@@ -858,6 +862,25 @@ struct cortex_m_vm(mem_t) {
 					it++;
 			}
 		}
+	}
+	// -------------------------------------------------------------------------------------- 
+
+	// ========
+	//  RUN TO
+	// ========
+
+	int 
+	get_val_index
+	(const uint val) {
+	    if (val == 0x00000000)
+	        return 1;
+	    else if (val >= get_ram_origin()   && val <= get_ram_origin()   + get_ram_length()  )
+	        return 3;
+	    else if (val >= get_flash_origin() && val <= get_flash_origin() + get_flash_length())
+	        return 4;
+	    else if (val >  max(get_ram_origin(), get_flash_origin()))
+	        return 5;
+	    return 2;
 	}
 	// -------------------------------------------------------------------------------------- 
 }
