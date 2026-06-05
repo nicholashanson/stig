@@ -1,9 +1,11 @@
 import std.format;
-import std.conv     : to;
-import std.typecons : tuple, Tuple;
+import std.conv      : to;
+import std.typecons  : tuple, Tuple;
 import std.array;
-import std.traits   : Parameters, ReturnType;
+import std.traits    : Parameters, ReturnType;
 import std.regex;
+import std.string    : indexOf;
+import std.stdio;
 
 import cortex_m_core;
 import memory_sections;
@@ -332,15 +334,27 @@ unittest {
 		);
     }
 }
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------
+// ==========
+//  REG CACHE ITEM
+// ==========
 
 struct reg_cache_item {
     uint    val;
     string    s;
 }
+// ---------------------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------------------
 reg_cache_item[16] reg_cache;
+// ---------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------
+// ==========
+//  ROW VIEW
+// ==========
 
 struct row_view {
     enum kind { func_name, blank_line, instr };
@@ -348,6 +362,12 @@ struct row_view {
     string     s;
     uint    addr;
 }
+// ---------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------
+// ========================
+//  GENERATE FUNCTION ROWS
+// ========================
 
 row_view[] get_function_rows(func f) {
 	row_view[] res;
@@ -388,6 +408,12 @@ row_view[] get_function_rows(func f) {
     }
     return res;
 }
+// ---------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------
+// =====================
+//  GENERATE INSTR ROWS
+// =====================
 
 row_view[] generate_instr_rows(func[] funcs) {
     row_view[] res;
@@ -397,36 +423,110 @@ row_view[] generate_instr_rows(func[] funcs) {
     }
     return res;
 }
+// ---------------------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------------------
 immutable string[] regs = ["r0","r1","r2","r3","r4","r5","r6","r7","r8","r9",
                            "sl","fp","ip","sp","lr","pc"];
+// ---------------------------------------------------------------------------------------                       
 
-string[] split_instr(string s) {
+// ---------------------------------------------------------------------------------------
+// =======================
+//  SPLIT LOAD STORE LINE
+// =======================
+
+string[] split_load_store_line(string s) {
+	enum parenth_pattern = `\[[^\]]*\]|\([^\)]*\)`;
+	auto re = regex(parenth_pattern);
+
+	string[] tokens;
+	size_t last_end = 0;
+
+	foreach (m; matchAll(s, re)) 
+        tokens ~= m.hit;
+
+    assert(tokens.length == 4, format("Number of tokens is %d", tokens.length));
+    auto split_note = split_load_store_note(tokens[3][1 .. $ - 1]);
+    tokens = tokens[0 .. $ - 1];
+    assert(split_note.length >= 4);
+    tokens ~=  split_note[0];
+    tokens ~= (split_note[1] ~ " " ~ split_note[2]);
+    tokens ~=  split_note[3];
+    tokens ~=  split_note[4];
+    return tokens;
+}
+// ---------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------
+// =======================
+//  SPLIT LOAD STORE NOTE
+// =======================
+
+string[] split_load_store_note(string s) {
+    auto res = s.split(" ");
+    assert(res.length == 4);
+
+    string last = res[3];
+    string base;
+    string tag;
+
+    auto lb = last.indexOf('[');
+    if (lb == -1) {
+        base = last;
+        tag = "";
+    } else {
+        base = last[0 .. lb];
+        tag = last[lb .. $]; 
+    }
+    return [res[0], res[1], res[2], base, tag];
+}
+// ---------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------
+unittest {
+	string   test_str  = "[20][8000C08][relocate_vector_table](0x08000000 stored into 0xE000ED08[VTOR])";
+	string   test_str2 = "[1][8001A20][z_arm_reset](0x20001C80 loaded from 0x08001A4C)";
+	string 	 test_str3 = "[7865][8002518][config_enable_default_clocks](0x00000000 loaded from 0x40023840[RCC_APB1ENR])";
+	string[] expected = [
+		"[20]",
+		"[8000C08]",
+		"[relocate_vector_table]",
+		"0x08000000",
+		"stored into",
+		"0xE000ED08",
+		"[VTOR]"
+	];
+	auto res  = split_load_store_line(test_str);
+	auto res2 = split_load_store_line(test_str2);
+	auto res3 = split_load_store_line(test_str3);
+	writeln(res);
+	assert(res == expected);
+}
+// ---------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------
+// ==================
+//  SPLIT INSTR LINE
+// ==================
+
+string[] split_instr_line(string s) {
     enum reg_pattern = `\b(r[0-9]|sl|fp|ip|sp|lr|pc)\b`;
     auto re = regex(reg_pattern);
 
     string[] tokens;
-    size_t lastEnd = 0;
+    size_t last_end = 0;
 
     foreach (m; matchAll(s, re)) {
-        // absolute position of the match in s
         size_t start = cast(size_t)(m.hit.ptr - s.ptr);
         size_t end   = start + m.hit.length;
-
-        // append text before match
-        if (start > lastEnd)
-            tokens ~= s[lastEnd .. start];
-
-        // append the match itself
+        if (start > last_end)
+            tokens ~= s[last_end .. start];
         tokens ~= m.hit;
-
-        lastEnd = end;
+        last_end = end;
     }
-
-    // append anything after the last match
-    if (lastEnd < s.length)
-        tokens ~= s[lastEnd .. $];
-
+    if (last_end < s.length)
+        tokens ~= s[last_end .. $];
     return tokens;
 }
+// ---------------------------------------------------------------------------------------
 
