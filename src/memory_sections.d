@@ -764,80 +764,83 @@ struct rw612_mem {
     big_mem_section!(flash_origin)  flash;
     void write_word(size_t addr, uint val) {
         if (addr >= scb_base) {
-            size_t addrc = addr;
-            addrc &= ~0x0002_0000;
-            scb_ctrl.write_word(addrc, val);
+            addr &= ~0x0002_0000;
+            scb_ctrl.write_word(addr, val);
         } else if (addr >= flash_origin + flash_length) {    
-            size_t addrc = addr;
-            //if (addr >= 0x55000000 && addr < 0x56000000)
-            //    addrc -= 0x15000000;
-            if (slice(cast(uint)addr, 28, 4) == 0x5) 
-                addrc &= ~0x1000_0000;
-            if (addrc == USART3_FIFOWR) {
+            addr = remove_alias(addr);
+            if (addr == USART3_FIFOWR) {
                 auto f = uart_log();
                 f.write(cast(char)(val & 0xff));
                 f.flush();
                 return;
             }
-            if (rw612_reset_ctl_set.canFind(addrc)) {
-                return handle_reset_ctl_set(addrc, val);
+            if (rw612_reset_ctl_set.canFind(addr)) {
+                return handle_reset_ctl_set(addr, val);
             }
-            if (rw612_reset_ctl_clr.canFind(addrc)) {
-                return handle_reset_ctl_clr(addrc, val);
+            if (rw612_reset_ctl_clr.canFind(addr)) {
+                return handle_reset_ctl_clr(addr, val);
             }
             //APB_GRP1_MEM_RULE2
-            if (addrc >= 0x40030000 && addrc < 0x40037FFF) {
-                if (addrc >= 0x40031000 && addrc < 0x40031128) {
-                    rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] = val;
+            if (addr >= 0x40030000 && addr < 0x40037FFF) {
+                if (addr >= 0x40031000 && addr < 0x40031128) {
+                    set_periph_reg(addr, val);
                     return;
                 } else
                     return;
             }
             // CLKCTL0_RULE1
             // 0x4000 1000--0x4000 1FFF
-            if (addrc >= 0x40001000 && addrc < 0x40001FFF)
+            if (addr >= 0x40001000 && addr < 0x40001FFF)
                 return;
             // 0x4000 0000--0x4000 0FFF
             // RSTCTL0_RULE0
-            if (addrc >= 0x40000000 && addrc < 0x40000FFF) {
-                if (addrc >= 0x4000_0000 && addrc <= 0x4000_0078) {
-                    rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] = val;
+            if (addr >= 0x40000000 && addr < 0x40000FFF) {
+                if (addr >= 0x4000_0000 && addr <= 0x4000_0078) {
+                    set_periph_reg(addr, val);
                     return;
                 } else
                     return;
             }
             // 0x45000000-0x4500FFFF parta (SOC_TOP_MEM_RULE0 - SOC_TOP_MEM_RULE3)
-            if (addrc >= 0x45000000 && addrc < 0x4500FFFF)
+            if (addr >= 0x45000000 && addr < 0x4500FFFF)
                 return;
             // ITRC_RULE4
             // 0x4002 4000--0x4002 4FFF
-            if (addrc >= 0x40024000 && addrc < 0x40024FFF)
+            if (addr >= 0x40024000 && addr < 0x40024FFF)
                 return;
             // SYSCTL2_RULE3
             // 0x4000 3000--0x4000 3FFF
-            if (addrc >= 0x4000_3000 && addrc < 0x4000_3FFF) {
-                if (addrc >= 0x4000_3000 && addrc <= 0x4000_3294) {
-                    rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] = val;
-                    if (addrc == PLL_CTRL) {
+            if (addr >= 0x4000_3000 && addr < 0x4000_3FFF) {
+                if (addr >= 0x4000_3000 && addr <= 0x4000_3294) {
+                    set_periph_reg(addr, val);
+                    if (addr == PLL_CTRL) {
                         if (val == 0x00029D01)
-                            rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] = 0x00029D03;
+                            set_periph_reg(addr, 0x00029D03);
                         if (val == 0x0002A323)
-                            rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] = 0x0002A363;
+                            set_periph_reg(addr, 0x0002A363);
                     } 
                     return;
                 } else
                     return;
             }
-            rw612_peripheral_regs[cast(rw612_peripheral_reg)addrc] = val;
-            //throw new Exception(format("Invalid memory access: %08X", addr));
-        } else if (addr >= flash_origin && addr < flash_origin + flash_length) {    
+            set_periph_reg(addr, val);
+        } else if (addr_in_flash(addr)) {    
             flash.write_word(addr, val);
-        } else if (addr >= ram_origin   && addr < ram_origin   + ram_length) {    
+        } else if (addr_in_ram(addr)) {    
             sram.write_word(addr, val);
         } else {
             throw new Exception(format("Invalid memory access: %08X", addr));
         }
     }
+
+    uint get_periph_reg(const size_t addr) { 
+        return rw612_peripheral_regs[cast(rw612_peripheral_reg)addr];
+    }
+
+    void set_periph_reg(const size_t addr, const uint val) {
+        rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = val;
+    }
+
     uint read_word(size_t addr) {
         if (addr >= scb_base) {
             size_t addrc = addr;
@@ -847,29 +850,29 @@ struct rw612_mem {
             addr = remove_alias(addr);
             //APB_GRP1_MEM_RULE2
             if (addr == USB_PLL_Control_0) {
-                return rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] | 0x8000_0000;
+                return get_periph_reg(addr) | 0x8000_0000;
             } 
             if (addr == USB_Calibration_Control) {
-                if (rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] == 0x4833_0788) {
-                    uint res = rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] | 0x8000_0000;
-                    rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = res;
+                if (get_periph_reg(addr) == 0x4833_0788) {
+                    uint res = get_periph_reg(addr) | 0x8000_0000;
+                    set_periph_reg(addr, res);
                     return res;
                 }
-                if (rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] == 0xC833_2788) {
-                    uint res = rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] | 0x0080_0000;
-                    rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = res;
+                if (get_periph_reg(addr) == 0xC833_2788) {
+                    uint res = get_periph_reg(addr) | 0x0080_0000;
+                    set_periph_reg(addr, res);
                     return res;
                 }
             } 
             if (addr == USB_USBCMD) {
-                if (rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] == 0x0008_0002) {
-                    return rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] ^ 0x2;
+                if (get_periph_reg(addr) == 0x0008_0002) {
+                    return get_periph_reg(addr) ^ 0x2;
                 } 
             }
             if (addr >= 0x40030000 && addr < 0x40037FFF) {
                 if (addr >= 0x40031000 && addr < 0x40031128) {
                     try {
-                        return rw612_peripheral_regs[cast(rw612_peripheral_reg)addr];
+                        return get_periph_reg(addr);
                     } catch (RangeError e) { 
                         throw new Exception(format("Invalid access: %08X", addr));
                     }
@@ -891,8 +894,8 @@ struct rw612_mem {
                         throw new Exception(format("Invalid access: %08X", addr));
                     }
                     if (addr == PRSTCTL2) {
-                        val = rw612_peripheral_regs[cast(rw612_peripheral_reg)addr];
-                        rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x04000005;
+                        val = get_periph_reg(addr);
+                        set_periph_reg(addr, 0x04000005);
                     }
                     return val;
                 } else
@@ -915,7 +918,7 @@ struct rw612_mem {
                 if (addr >= 0x4000_3000 && addr <= 0x4000_3294) {
                     uint val;
                     try {
-                         val = rw612_peripheral_regs[cast(rw612_peripheral_reg)addr];
+                         val = get_periph_reg(addr);
                     } catch (RangeError e) { 
                         throw new Exception(format("Invalid access: %08X", addr));
                     }
@@ -925,44 +928,43 @@ struct rw612_mem {
             }
             uint val;
             try {
-                val = rw612_peripheral_regs[cast(rw612_peripheral_reg)addr];
+                val = get_periph_reg(addr);
                 static int reset_state = 0;
                 if (addr == RSTCTL1_PRSTCTL1) {
                     switch (reset_state) {
-                        case 0: // initial
-                                reset_state = 1;
-                                rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x80010002;
-                                return 0x80010002;
+                        case 0: 
+                            reset_state = 1;
+                            set_periph_reg(addr, 0x80010002);
+                            return 0x80010002;
                             break;
                         case 1: // clear phase
-                                reset_state = 2;
-                                rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x80010002;
-                                return 0x80010002;
+                            reset_state = 2;
+                            set_periph_reg(addr, 0x80010002);
+                            return 0x80010002;
                             break;
                         case 2: // re-arm phase
-                                reset_state = 3;
-                                rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x80010001;
-                                return 0x80010001;
-                     
+                            reset_state = 3;
+                            set_periph_reg(addr, 0x80010001);
+                            return 0x80010001;
                             break;
                         case 3: // re-arm phase         
-                                reset_state = 4;
-                                rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x80010002;
-                                return 0x80010002;
+                            reset_state = 4;
+                            set_periph_reg(addr, 0x80010002);
+                            return 0x80010002;
                             break;
                         case 4: // re-arm phase
                             reset_state = 5;
-                            rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x80010001;
+                            set_periph_reg(addr, 0x80010001);
                             return 0x80010002;
                             break;
                         case 5: // re-arm phase
                             reset_state = 6;
-                            rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x80010000;
+                            set_periph_reg(addr, 0x80010000);
                             return 0x80010000;
                             break;
                         case 6: // re-arm phase
                             reset_state = 7;
-                            rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x80010020;
+                            set_periph_reg(addr, 0x80010020);
                             return 0x80010002;
                             break;
                         case 7:
@@ -972,7 +974,7 @@ struct rw612_mem {
                 }
                 if (addr == RSTCTL1_PRSTCTL2) {
                     if (val == 0xC000_011F) {
-                        rw612_peripheral_regs[cast(rw612_peripheral_reg)addr] = 0x8000_011F;
+                        set_periph_reg(addr, 0x8000_011F);
                         return 0x8000_011F;
                     }
                 }
