@@ -338,6 +338,7 @@ void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
     if (first_draw) {
         mvwprintw(load_store_pad, load_store_y++, load_store_x, "Load/Store:");
     }
+    load_store_y++;
     if (vm.load_store_occured) {
         auto latest_load_store = vm.get_latest_load_store();
         append_unique(load_store_buffer, latest_load_store, load_store_height - 5);
@@ -376,32 +377,59 @@ void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
             start = end - visible_lines;
         }
 
-        if (old_start != start) 
+        if (old_start != start) { 
             werase(instr_pad);
+            instr_view_changed = true;
+        }
     }
 
     if (instr_view_changed) {
          werase(instr_pad);
     }
 
-    if (pc_moved || instr_view_changed) {
+    static uint last_pc_row;
+    static uint pc_screen_row;
+    static uint last_pc_screen_row;
+    if (instr_view_changed || first_draw) {
         for (int j = start; j < end; ++j) {
             auto r = rows[j];
             if (r.type == row_view.kind.func_name) 
                 mvwprintw(instr_pad, screen_row++, col, toStringz(r.s));
             if (r.type == row_view.kind.instr) {
                 if (r.addr == vm.get_pc()) {
-                    wattron(instr_pad, A_REVERSE);
                     current_pc_row = j;
-                    mvwprintw(instr_pad, screen_row++, col, toStringz(r.s));
+                    pc_screen_row = screen_row;
+                    wattron(instr_pad, A_REVERSE);
+                    mvwprintw(instr_pad, pc_screen_row, col, toStringz(rows[current_pc_row].s));
                     wattroff(instr_pad, A_REVERSE);
-                } else
-                print_colored_line(instr_pad, screen_row++, col, r.s);
+                    screen_row++;
+                } else {
+                    print_colored_line(instr_pad, screen_row++, col, r.s);
+                }
             }
             if (r.type == row_view.kind.blank_line) 
                 screen_row++;
         }
+    } else {
+        if (pc_moved) {
+            for (int j = start; j < end; ++j) {
+                auto r = rows[j];
+                if (r.type == row_view.kind.instr) {
+                    if (r.addr == vm.get_pc()) {
+                        current_pc_row = j;
+                        pc_screen_row = screen_row;
+                    }
+                }
+                screen_row++;
+            }
+            wattron(instr_pad, A_REVERSE);
+            mvwprintw(instr_pad, pc_screen_row, col, toStringz(rows[current_pc_row].s));
+            wattroff(instr_pad, A_REVERSE);
+            print_colored_line(instr_pad, last_pc_screen_row++, col, rows[last_pc_row].s);
+        }
     }
+    last_pc_screen_row = pc_screen_row;
+    last_pc_row = current_pc_row;
 
     wnoutrefresh(stdscr);
     prefresh(
