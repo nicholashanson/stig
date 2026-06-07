@@ -73,6 +73,38 @@ struct cortex_m_vm(mem_t) {
 	st_name_val[] objects;
 	st_name_val[] func_map;
 	string 		  latest_load_store;
+	bool 	      load_store_occured;
+
+	// --------------------------------------------------------------------------------------
+	// ============
+	//  LAST INSTR
+	// ============
+	struct last_instr_t {
+		reg[16] touched_regs;
+		flag[4] touched_flags;
+
+		void touch_reg(reg r) {
+			touched_regs[num_touched_regs++] = r;
+		}
+
+		void touch_flag(flag f) {
+			touched_flags[num_touched_flags++] = f;
+		}
+
+		void reset() {
+			for (int i = 0; i < touched_regs.length; ++i)
+				touched_regs[i] = reg.none;
+			for (int i = 0; i < touched_flags.length; ++i)
+				touched_flags[i] = flag.none;
+			num_touched_flags = 0;
+			num_touched_regs  = 0;
+		}
+
+		ubyte num_touched_flags;
+		ubyte num_touched_regs;
+	}
+
+	last_instr_t last_instr;
 	// --------------------------------------------------------------------------------------
 
 	bool opEquals(const ref typeof(this) rhs) const {
@@ -181,6 +213,7 @@ struct cortex_m_vm(mem_t) {
 	// =======
 	void set_c(t)(const t v) {
 		cpu.set_c(v);
+		last_instr.touch_flag(flag.c);
 	}
 	// --------------------------------------------------------------------------------------
 	// =======
@@ -195,6 +228,7 @@ struct cortex_m_vm(mem_t) {
 	// =======
 	void set_v(t)(const t v) {
 		cpu.set_v(v);
+		last_instr.touch_flag(flag.v);
 	}
 	// --------------------------------------------------------------------------------------
 	// =======
@@ -209,6 +243,7 @@ struct cortex_m_vm(mem_t) {
 	// =======
 	void set_n(t)(const t v) {
 		cpu.set_n(v);
+		last_instr.touch_flag(flag.n);
 	}
 	// --------------------------------------------------------------------------------------
 	// =======
@@ -223,6 +258,7 @@ struct cortex_m_vm(mem_t) {
 	// =======
 	void set_z(t)(t v) if (isIntegral!t) {
     	cpu.set_z(v);
+    	last_instr.touch_flag(flag.z);
 	}
 	// --------------------------------------------------------------------------------------
 	// =======
@@ -349,6 +385,7 @@ struct cortex_m_vm(mem_t) {
 		if (r == reg.pc) 
 			pc_modified = true;
 		cpu.set_reg(r, val);
+		last_instr.touch_reg(r);
 	} 
 	// ---------------------------------------- Memory --------------------------------------
 	// ===================
@@ -676,6 +713,7 @@ struct cortex_m_vm(mem_t) {
 		string msr_msg = get_log_prefix() ~ format("(0x" ~ s ~ " stored into %s)", 
 												    val, spec_reg);
 		latest_load_store = msr_msg;
+		load_store_occured = true;
 		log_file.writeln(msr_msg);
 		log_file.flush();
 	} 
@@ -693,6 +731,7 @@ struct cortex_m_vm(mem_t) {
 		string mrs_msg = get_log_prefix() ~ format("(0x" ~ s ~ " loaded from %s)", 
 												    val, spec_reg);
 		latest_load_store = mrs_msg;
+		load_store_occured = true;
 		log_file.writeln(mrs_msg);
 		log_file.flush();
 	}
@@ -712,6 +751,7 @@ struct cortex_m_vm(mem_t) {
 												    val, src_addr, 
 												    reg_name != "" ? "[" ~ reg_name ~ "]" : "");
 		latest_load_store = load_msg;
+		load_store_occured = true;
 		log_file.writeln(load_msg);
 		log_file.flush();
 	}
@@ -737,6 +777,7 @@ struct cortex_m_vm(mem_t) {
 												     val, target_addr, 
 												     reg_name != "" ? "[" ~ reg_name ~ "]" : "");
     	latest_load_store = store_msg;
+    	load_store_occured = true;
 		log_file.writeln(store_msg);
 		log_file.flush();
 	}

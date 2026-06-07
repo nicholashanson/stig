@@ -56,6 +56,7 @@ execute_instr
 (const t instr, ref vm_t vm) {
 
     vm.check_pc_modified(); // make sure pc_modified flag is cleared
+    vm.last_instr.reset();
 
     bool handled = false;
 

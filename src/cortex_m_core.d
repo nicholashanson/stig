@@ -637,7 +637,8 @@ enum xyz {
 // ======
 enum flag {
   	z, c, n, v,
-  	ge0, ge1, ge2, ge3
+  	ge0, ge1, ge2, ge3,
+  	none
 }
 
 // ***************************************************************************************
@@ -997,14 +998,15 @@ struct cortex_m_cpu {
 
 	void set_flag(flag f, bool i) {
 		final switch (f) {
-			case flag.z  : z   = i; break;
-			case flag.n  : n   = i; break;
-			case flag.v  : v   = i; break;
-			case flag.c  : c   = i; break;
-			case flag.ge0: ge0 = i; break;
-			case flag.ge1: ge1 = i; break;
-			case flag.ge2: ge2 = i; break;
-			case flag.ge3: ge3 = i; break;
+			case flag.z   : z   = i; break;
+			case flag.n   : n   = i; break;
+			case flag.v   : v   = i; break;
+			case flag.c   : c   = i; break;
+			case flag.ge0 : ge0 = i; break;
+			case flag.ge1 : ge1 = i; break;
+			case flag.ge2 : ge2 = i; break;
+			case flag.ge3 : ge3 = i; break;
+			case flag.none:          break;
 		}
 	}
 	// ---------------------------------------- xPSR ---------------------------------------- 
