@@ -513,7 +513,7 @@ enum soc {
 // ============
 
 size_t[string] func_sizes = [
-    "__start"           :52,
+    //"__start"           :52,
     "__aeabi_uldivmod"  :48,
     "__aeabi_read_tp"   :12,
     "LoopFillZerobss"   :38,
@@ -605,7 +605,7 @@ st_name_val[] get_st_name_val(const string elf_file,
             }
         } else {
             uint size = sym.st_size;
-            if (name in func_sizes) 
+            if (size == 0 && name in func_sizes) 
                 size = cast(uint)func_sizes[name];
             if (size == 0)
                 size = get_func_size(elf_file, name); 
@@ -731,7 +731,7 @@ st_name_val[] get_st_name_val(ref elf_file elf,
             }
         } else {
             uint size = sym.st_size;
-            if (name in func_sizes) 
+            if (size == 0 && name in func_sizes) 
                 size = cast(uint)func_sizes[name];
             if (size == 0)
                 size = get_func_size(elf.get_file_name(), name); 
@@ -859,7 +859,7 @@ elf_func get_elf_func(const string elf_file, const string func_name, const uint 
 
         size_t size = cast(size_t)sym.st_size;
 
-        if (name in func_sizes) 
+        if (size == 0 && name in func_sizes) 
             size = func_sizes[name]; 
         if (size == 0)
             size = get_func_size(elf_file, name); 
@@ -905,7 +905,7 @@ elf_func get_elf_func(ref elf_file elf, const string func_name, const uint addr)
 
         size_t size = cast(size_t)sym.st_size;
 
-        if (name in func_sizes) 
+        if (size == 0 && name in func_sizes) 
             size = func_sizes[name]; 
         if (size == 0)
             size = get_func_size(elf.get_file_name(), name); 
@@ -1026,6 +1026,7 @@ func get_function_from_elf(const string elf_file,
         ushort first_hw  = read_ul_16(e_func.data, offset);
         uint len         = (first_hw & 0xF800) >= 0xE800 ? 4 : 2;
         ubyte[] bytes;
+        assert(e_func.data.length != 0);
         try {
             bytes = e_func.data[offset .. offset + len];
         }
