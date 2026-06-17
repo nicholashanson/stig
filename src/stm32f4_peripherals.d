@@ -38,7 +38,10 @@ uint[stm32f4_peripheral_reg] stm32f4_peripheral_regs = [
     USART6_GTPR:  0,      
     // --------------------------------------- UART7 ----------------------------------------
     UART7_SR: 0xC0, UART7_DR: 0, UART7_BRR: 0, UART7_CR1: 0, UART7_CR2: 0, UART7_CR3: 0,          
-    UART7_GTPR:  0,     
+    UART7_GTPR:  0,    
+
+    USART2_SR: 0xC0, USART2_DR: 0, USART2_BRR: 0, USART2_CR1: 0, USART2_CR2: 0, USART2_CR3: 0,          
+    USART2_GTPR:  0, 
     // -------------------------------------- GPIOA -----------------------------------------
     GPIOA_MODER: 0, GPIOA_OTYPER: 0, GPIOA_OSPEEDR: 0, GPIOA_PUPDR: 0, GPIOA_IDR: 0,
     GPIOA_ODR:   0, GPIOA_AFRL:   0, GPIOA_AFRH:    0,
