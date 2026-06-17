@@ -21,6 +21,7 @@ enum shift_type : ubyte {
 	none,
 	invalid
 }
+// ---------------------------------------------------------------------------------------
 
 // ================
 //  GET SHIFT TYPE
@@ -44,6 +45,7 @@ shift_type get_shift_type(ubyte type, ubyte imm) {
 			return shift_type.invalid;
 	}
 }
+// ---------------------------------------------------------------------------------------
 
 // =======
 //  SHIFT
@@ -63,6 +65,8 @@ uint shift(uint val, shift_type t, uint n, bool carry_in) {
 			n &= 31; 
 			if (n == 0) return val;
 			return (val >>> n) | (val << (32 - n));
+		case shift_type.rrx:
+    		return (val >>> 1) | (carry_in ? 0x8000_0000 : 0);
 		case shift_type.none:
 			return val;
 		case shift_type.invalid:
@@ -70,6 +74,7 @@ uint shift(uint val, shift_type t, uint n, bool carry_in) {
 			assert(false, "Invalid shift type");
 	}
 }
+// ---------------------------------------------------------------------------------------
 
 // ==============
 //  SHIFT RESULT
@@ -79,6 +84,7 @@ struct shift_result {
 	uint result;
 	bool carry;
 }
+// ---------------------------------------------------------------------------------------
 
 // =========
 //  SHIFT C 
@@ -87,6 +93,7 @@ struct shift_result {
 shift_result shift_c(uint val, shift_type t, uint n, bool c) {
 	return shift_result(result: shift(val, t, n, c), carry: get_shifter_carry(val, t, n, c));
 }
+// ---------------------------------------------------------------------------------------
 
 // ===================
 //  GET SHIFT STRING
