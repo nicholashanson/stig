@@ -25,29 +25,13 @@ import thumb_2_convert_instr_to_string;
 import scb_defs;
 import elf_table_names;
 
-WINDOW*       instr_pad;
-WINDOW*         reg_pad;
-WINDOW*        flag_pad;
-WINDOW* instr_pad_frame;
-WINDOW*  load_store_pad;
-WINDOW*         scb_pad;
-bool    pc_moved = true;
-int               start;
-int                 end;
-int visible_lines  = 39;
+import screen_view;
+import control_loop;
 
-int  view_n             =     0;
-bool view_changed       = false;
-bool instr_view_changed = false;
-
-string[] load_store_buffer;
 st_name_val[] z_vars;
 st_name_val[] z_configs;
 
-int frame_h;
-int frame_w;
-int frame_y;
-int frame_x;
+int speed = 0;
 
 void init_frames() {
     frame_h =    LINES - 2;
@@ -56,492 +40,13 @@ void init_frames() {
     frame_x =     COLS / 2;
 }
 
-// --------------------------------------------------------------------------------------
-// ====================
-//  PRINT COLORED LINE
-// ====================
-
-void print_colored_line(WINDOW* win, int row, int col, string line) {
-    auto tokens = split_instr_line(line);
-    int x = col;
-    foreach (t; tokens) {
-        if (regs.canFind(t)) 
-            print_string(win, row, x, t, 3);
-        else 
-            mvwprintw(win, row, x, toStringz(t));
-        x += t.length; 
-    }
-}
-// --------------------------------------------------------------------------------------
+screen_t ui;
 
 // --------------------------------------------------------------------------------------
-// ==============
-//  PRINT STRING
-// ==============
 
-void print_string(WINDOW* win, const int y, const int x, string s, int color) {
-    wattron(win, COLOR_PAIR(color)); 
-    mvwprintw(win, y, x, toStringz(s));
-    wattroff(win, COLOR_PAIR(color));
-}
-// --------------------------------------------------------------------------------------
-
-// --------------------------------------------------------------------------------------
-// ===============================
-//  PRINT COLORED LOAD STORE LINE
-// ===============================
-
-void 
-print_colored_load_store_line
-(vm_t)
-(WINDOW* win, vm_t vm, int row, int col, string line) {
-    size_t max_len = COLS / 2 - 5;
-    auto tokens = split_load_store_line(line);
-    int x = col;
-    for (int i = 0; i < tokens.length; ++i) {
-        string v = tokens[i];
-        switch (i) {
-            case 0:
-                print_string(win, row, x, v, 2);
-                x += v.length; 
-                break;
-            case 1:
-                print_string(win, row, x, v, 4);
-                x += v.length; 
-                break;
-            case 2:
-                print_string(win, row, x, v, 4);
-                x += v.length; 
-                break;
-            case 3:
-                print_string(win, row, x, "(", 0);
-                x++;
-                int color = 0;
-                if (v[1] == 'x') {
-                    uint val = to!uint(v[2 .. $], 16);
-                    color = vm.get_val_index(val);
-                }
-                print_string(win, row, x, v, color);
-                x += v.length;
-                break;
-            case 4:
-                x++;
-                print_string(win, row, x, v, 0);
-                x += v.length;
-                x++;
-                break;
-            case 5:
-                int color = 0;
-                if (v[1] == 'x') {
-                    uint val = to!uint(v[2 .. $], 16);
-                    color = vm.get_val_index(val);
-                }
-                print_string(win, row, x, v, color);
-                x += v.length;
-                break;
-            case 6:
-                bool skip = false;
-                if (x + v.length > col + max_len - 1) {
-                    size_t delta  = x + v.length - 1 - col - max_len;
-                    v = v[0 .. $ - delta - 3] ~ "...";
-                    skip = true;
-                }
-                print_string(win, row, x, v, 5);
-                x += v.length;
-                if (skip)
-                    continue;
-                print_string(win, row, x, ")", 0);
-                break;
-            default:
-                break;
-        }
-    }
-}
-// --------------------------------------------------------------------------------------
-
-// --------------------------------------------------------------------------------------
-// ===============
-//  APPEND UNIQUE
-// ===============
-
-void append_unique(ref string[] buffer, string next, size_t n) {
-    if (next == "") 
-        return;
-
-    if (buffer.empty || buffer.back != next)
-        buffer ~= next;
-    while (buffer.length > n)
-        buffer = buffer[1 .. $];
-}
-// --------------------------------------------------------------------------------------
-
-string[16] reg_pad_str = ["r0: ", "r1: ", "r2: ", "r3: ", "r4: ", "r5: ",                        
-                          "r6: ", "r7: ", "r8: ", "r9: ", "r10:", "r11:",                        
-                          "r12:", "sp: ", "lr: ", "pc: "];                        
-// --------------------------------------------------------------------------------------
 // ===============
 //  DRAW SCREEN 0
 // ===============
-
-void draw_screen_0(vm_t)(ref vm_t vm, const ref row_view[] rows) {
-    static bool first_draw = true;
-    visible_lines = LINES;
-    werase(load_store_pad);
-    box(load_store_pad,  0, 0);
-    bool instr_pad_moved = false;
-
-    int reg_screen_row   =            1;  
-    int reg_screen_col   =            1;   
-    int reg_height       =           21;    
-    int reg_width        = COLS / 2 - 2;      
-
-    int flag_screen_row = reg_height -1;   
-    int flag_screen_col =             1;   
-    int flag_height     =             8;     
-    int flag_width      =  COLS / 2 - 2;
-
-    int load_store_screen_row = reg_height + 5;   
-    int load_store_screen_col =              1;   
-    int load_store_height     =     LINES - 25;  
-    int load_store_width      =   COLS / 2 - 2;
-
-    int reg_x        = 1;
-    int reg_y        = 1;
-    int flag_y       = 1;
-    int flag_x       = 1;
-    int load_store_x = 1;
-    int load_store_y = 1;
-    int reg_y_base;
-
-    auto print_reg = (string name, reg r, ref vm_t vm) {
-        uint val; 
-        if (r == reg.pc) 
-            val = vm.get_pc();
-        else
-            val = vm.get_reg(r);
-        string reg_name; 
-        if (reg_cache[r].val != val) {
-            reg_name = vm.get_reg_name(val);
-            if (reg_name == "") {
-                foreach (e; vm.objects) {
-                    if (e.addr == val) {
-                        reg_name = e.name;
-                        break;
-                    }
-                }
-            }
-            const int reg_name_width = COLS / 2 - 18;
-            if (reg_name.length < reg_name_width) {
-                reg_name ~= replicate(" ", reg_name_width - reg_name.length);
-            }
-            reg_cache[r].s   = reg_name;
-            reg_cache[r].val = val;
-        } else {
-            reg_name = reg_cache[r].s;
-        }
-        int color = vm.get_val_index(val);
-        print_string(reg_pad, reg_y++, reg_x, format("%s %08X %s", name, val, reg_name), color);
-    };
-
-    auto print_reg_at = (string name, reg r, ref vm_t vm) {
-        uint val; 
-        if (r == reg.pc) 
-            val = vm.get_pc();
-        else
-            val = vm.get_reg(r);
-        string reg_name; 
-        if (reg_cache[r].val != val) {
-            reg_name = vm.get_reg_name(val);
-            if (reg_name == "") {
-                foreach (e; vm.objects) {
-                    if (e.addr == val) {
-                        reg_name = e.name;
-                        break;
-                    }
-                }
-            }
-            const int reg_name_width = COLS / 2 - 18;
-            if (reg_name.length < reg_name_width) {
-                reg_name ~= replicate(" ", reg_name_width - reg_name.length);
-            }
-            reg_cache[r].s   = reg_name;
-            reg_cache[r].val = val;
-        } else {
-            reg_name = reg_cache[r].s;
-        }
-        int color = vm.get_val_index(val);
-        print_string(reg_pad, reg_y_base + cast(int)r, reg_x, format("%s %08X %s", name, val, reg_name), color);
-    };
-
-    bool first_flag = true;
-    auto print_flag = (string name, bool val, const int flag_x_) {
-        int color  = val ? 4 : 1;
-        if (!first_flag && (flag_x_ == 1)) {
-            ++flag_y;
-        } else {
-            first_flag = false;
-        }
-        print_string(flag_pad, flag_y, flag_x_, format("%s %d", name, val), color);
-    };
-
-    // ================
-    //  CORE REGISTERS
-    // ================
-
-    if (first_draw) {
-        mvwprintw(reg_pad, reg_y++, reg_x, "Core Registers:");
-        for (int i = 0; i < 16; ++i) {
-            print_reg(reg_pad_str[i], cast(reg)i, vm);
-        }
-    } else {
-        reg_y++;
-        reg_y_base = reg_y;
-        foreach (r; vm.last_instr.touched_regs) {
-            if (r == reg.none)
-                break;
-            print_reg_at(reg_pad_str[cast(ubyte)r], r, vm);
-        }
-        reg_y = reg_y_base + 16;
-    }
-    
-    // ==============
-    //  FLAG COLUMNS
-    // ==============
-
-    int flag_col_1 =                    1;
-    int flag_col_2 =  flag_width      / 4;
-    int flag_col_3 =  flag_width      / 2;
-    int flag_col_4 = (flag_width / 4) * 3; 
-
-    // =======
-    //  FLAGS
-    // =======
-        
-    mvwprintw(flag_pad,     flag_y++,        flag_x,          "Flags:");
-    print_flag("z:",                            vm.get_z(), flag_col_1);
-    print_flag("n:",                            vm.get_n(), flag_col_2);
-    print_flag("c:",                            vm.get_c(), flag_col_3);
-    print_flag("v:",                            vm.get_v(), flag_col_4);
-    print_flag("ge0:",                        vm.get_ge0(), flag_col_1);
-    print_flag("ge1:",                        vm.get_ge1(), flag_col_2);
-    print_flag("ge2:",                        vm.get_ge2(), flag_col_3);
-    print_flag("ge3:",                        vm.get_ge3(), flag_col_4);
-    print_flag("SPSEL:",                   vm.get_sp_sel(), flag_col_1);
-    print_flag("NPRIV:",                    vm.get_npriv(), flag_col_2);
-    print_flag("FAULTMASK:", cast(bool)vm.get_fault_mask(), flag_col_3);
-    print_flag("PRIMASK:",               vm.get_pri_mask(), flag_col_4);
-
-    // ============
-    //  LOAD/STORE
-    // ============
-
-    if (first_draw) {
-        mvwprintw(load_store_pad, load_store_y++, load_store_x, "Load/Store:");
-    }
-    load_store_y++;
-    if (vm.load_store_occured) {
-        auto latest_load_store = vm.get_latest_load_store();
-        append_unique(load_store_buffer, latest_load_store, load_store_height - 5);
-        foreach (s; load_store_buffer) {
-            //mvwprintw(load_store_pad, load_store_y++, load_store_x, toStringz(s));
-            print_colored_load_store_line(load_store_pad, vm, load_store_y++, load_store_x, s);
-        }
-    }
-
-    int screen_row     =  0;
-    int col            =  1;
-    int current_pc_row = -1;
-
-    int pc_r = 0;
-    foreach (r; rows) {
-        if (r.addr == vm.get_pc()) {
-            current_pc_row = pc_r;
-        }
-        pc_r++;
-    }
-
-    if (pc_moved) {
-        int old_start = start;
-        bool pad_is_focused = (current_pc_row >= start) && (current_pc_row < end);
-
-        if (!pad_is_focused) {
-            start = max(0,              current_pc_row - 5);
-            end   = min(start + visible_lines, rows.length);
-        }
-
-        int bottom_margin =  5;
-        int distance_to_bottom = end - current_pc_row;
-        if (distance_to_bottom < bottom_margin) {
-            int delta = bottom_margin - distance_to_bottom;
-            end   = min(end + delta, rows.length);
-            start = end - visible_lines;
-        }
-
-        if (old_start != start) { 
-            werase(instr_pad);
-            instr_view_changed = true;
-        }
-    }
-
-    if (instr_view_changed) {
-         werase(instr_pad);
-    }
-
-    static uint last_pc_row;
-    static uint pc_screen_row;
-    static uint last_pc_screen_row;
-    if (instr_view_changed || first_draw) {
-        for (int j = start; j < end; ++j) {
-            auto r = rows[j];
-            if (r.type == row_view.kind.func_name) 
-                mvwprintw(instr_pad, screen_row++, col, toStringz(r.s));
-            if (r.type == row_view.kind.instr) {
-                if (r.addr == vm.get_pc()) {
-                    current_pc_row = j;
-                    pc_screen_row = screen_row;
-                    wattron(instr_pad, A_REVERSE);
-                    mvwprintw(instr_pad, pc_screen_row, col, toStringz(rows[current_pc_row].s));
-                    wattroff(instr_pad, A_REVERSE);
-                    screen_row++;
-                } else {
-                    print_colored_line(instr_pad, screen_row++, col, r.s);
-                }
-            }
-            if (r.type == row_view.kind.blank_line) 
-                screen_row++;
-        }
-    } else {
-        if (pc_moved) {
-            for (int j = start; j < end; ++j) {
-                auto r = rows[j];
-                if (r.type == row_view.kind.instr) {
-                    if (r.addr == vm.get_pc()) {
-                        current_pc_row = j;
-                        pc_screen_row = screen_row;
-                    }
-                }
-                screen_row++;
-            }
-            wattron(instr_pad, A_REVERSE);
-            mvwprintw(instr_pad, pc_screen_row, col, toStringz(rows[current_pc_row].s));
-            wattroff(instr_pad, A_REVERSE);
-            print_colored_line(instr_pad, last_pc_screen_row++, col, rows[last_pc_row].s);
-        }
-    }
-    last_pc_screen_row = pc_screen_row;
-    last_pc_row = current_pc_row;
-
-    wnoutrefresh(stdscr);
-    prefresh(
-        load_store_pad,
-        0,                                                                                        0,
-        load_store_screen_row,                                                load_store_screen_col,
-        load_store_screen_row + load_store_height - 1, load_store_screen_col + load_store_width - 1
-    );
-    prefresh(
-        reg_pad,
-        0,                                                            0,                     
-        reg_screen_row,                                  reg_screen_col,   
-        reg_screen_row + reg_height - 1, reg_screen_col + reg_width - 1 
-    );
-    prefresh(
-        flag_pad,
-        0,                                                                0,                     
-        flag_screen_row,                                    flag_screen_col,   
-        flag_screen_row + flag_height - 1, flag_screen_col + flag_width - 1 
-    );
-    wnoutrefresh(instr_pad_frame);
-    prefresh(instr_pad,
-             0,                                         0,          
-             frame_y + 1,                     frame_x + 1,     
-             frame_y + frame_h - 2, frame_x + frame_w - 2  
-    );
-    doupdate();
-    first_draw = false;
-    instr_view_changed = false;
-}
-// --------------------------------------------------------------------------------------
-
-// --------------------------------------------------------------------------------------
-// ===============
-//  DRAW SCREEN 1
-// ===============
-
-void draw_screen_1(vm_t)(ref vm_t vm, const ref row_view[] rows) {
-    werase(scb_pad);
-    box(scb_pad, 0, 0);
-    int scb_pad_y = 1;
-    void print_reg(REG_T)(const string reg_name, ref int y, ref vm_t vm, REG_T r) {
-        immutable val = vm.peek_word(r);
-        int color = vm.get_val_index(val);    
-        wattron(scb_pad, COLOR_PAIR(color));
-        mvwprintw(scb_pad, y++, 1, toStringz(format("%s %08X", reg_name, val)));
-        wattroff(scb_pad, COLOR_PAIR(color));
-    }
-    mvwprintw(scb_pad, scb_pad_y++, 1, toStringz("System Control Block"));
-    print_reg("VTOR:    ", scb_pad_y, vm, VTOR);
-    print_reg("CCR:     ", scb_pad_y, vm, CCR);
-    print_reg("ICSR:    ", scb_pad_y, vm, ICSR);
-    print_reg("SHPR1:   ", scb_pad_y, vm, SHPR1);
-    print_reg("SHPR2:   ", scb_pad_y, vm, SHPR2);
-    print_reg("SHPR3:   ", scb_pad_y, vm, SHPR3);
-    print_reg("SHCSR:   ", scb_pad_y, vm, SHCSR);
-    print_reg("MPU_TYPE:", scb_pad_y, vm, MPU_TYPE);
-    print_reg("MPU_CTRL:", scb_pad_y, vm, MPU_CTRL);
-    print_reg("MPU_RNR: ", scb_pad_y, vm, MPU_RNR);
-    print_reg("MPU_RBAR:", scb_pad_y, vm, MPU_RBAR);
-    print_reg("MPU_RASR:", scb_pad_y, vm, MPU_RASR);
-    print_reg("SYST_CSR:", scb_pad_y, vm, SYST_CSR);
-    print_reg("SYST_RVR:", scb_pad_y, vm, SYST_RVR);
-    print_reg("SYST_CVR:", scb_pad_y, vm, SYST_CVR);
-    mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("BASEPRI:  %08X", vm.get_basepri())));
-
-    //import std.algorithm.iteration : map;
-    //import std.algorithm.searching : maxElement;
-//
-    //auto max_len = z_vars
-    //    .map!(v => v.name.length)
-    //    .maxElement;
-    //foreach (v; z_vars) {
-    //    auto name = format("%-*s", max_len + 1, v.name ~ ":");
-    //    print_reg(name, scb_pad_y, vm, v.addr);
-    //}
-//
-    //auto c_max_len = z_configs
-    //    .map!(c => c.name.length)
-    //    .maxElement;
-    //foreach (c; z_configs) {
-    //    auto name = format("%-*s", c_max_len + 1, c.name ~ ":");
-    //    mvwprintw(scb_pad, scb_pad_y++, 1, toStringz(format("%s %u", name, c.addr)));
-    //}
-
-    prefresh(
-        scb_pad,
-        0, 0,            
-        0, 0,           
-        LINES - 1, COLS - 1  
-    );
-
-    doupdate();
-}
-// --------------------------------------------------------------------------------------
-
-// --------------------------------------------------------------------------------------
-// =============
-//  DRAW SCREEN
-// =============
-
-void draw_screen(vm_t)(ref vm_t vm, const ref row_view[] rows) {
-    if (view_changed) {
-        view_changed = false;
-        erase();
-    }
-    if (view_n == 0)
-        draw_screen_0(vm, rows);
-    else 
-        draw_screen_1(vm, rows);
-} 
-// --------------------------------------------------------------------------------------
 
 // --------------------------------------------------------------------------------------
 // ==============
@@ -585,86 +90,6 @@ void find_symbols(const string elf_filename, const string sym, bool show_size = 
 void get_section_size(const string elf_filename, const string section_name) {
     auto section = get_section_by_name(elf_filename, section_name);
     writeln(format("%s size: %d", section.name, section.data.length));
-}
-// --------------------------------------------------------------------------------------
-
-// --------------------------------------------------------------------------------------
-// ==============
-//  RUNTIME CTRL
-// ==============
-
-struct runtime_ctrl {
-    bool     is_playing = false;
-    MonoTime last_time;
-    Duration interval;       
-    MonoTime last_draw;
-    Duration frame_interval; 
-}
-// --------------------------------------------------------------------------------------
-
-// --------------------------------------------------------------------------------------
-// ==============
-//  CONTROL LOOP
-// ==============
-
-void control_loop(VM_T)(ref runtime_ctrl ctrl, ref VM_T vm, ref row_view[] rows) {
-    int ch;
-    bool dirty = false;
-    while (true) {
-        ch = getch();
-
-        if (ch != ERR) {
-            if (ch == 'q') {
-                break;
-            }
-            if (ch == 'z') {
-                pc_moved = false;
-                start = max(0, start - 1);
-                end   = start + visible_lines;
-                instr_view_changed = true;
-                dirty = true;
-            }
-            if (ch == 'x') {
-                pc_moved = false;
-                end   = min(cast(uint)rows.length, end + 1);
-                start = end - visible_lines;
-                instr_view_changed = true;
-                dirty = true;
-            }
-            if (ch == KEY_DOWN) {
-                vm.advance_to_next_cycle();
-                pc_moved = true;
-                dirty    = true;
-            }
-            if (ch == KEY_RIGHT) {
-                if (view_n == 0) 
-                    view_n = 1;
-                else
-                    view_n = 0;
-                view_changed = true;
-                dirty = true;
-            }
-            if (ch == ' ') { 
-                ctrl.is_playing = !ctrl.is_playing;
-                dirty = true;
-            }               
-        }
-
-        auto now = MonoTime.currTime;
-        if (ctrl.is_playing) {
-            auto delta = now - ctrl.last_time; 
-            if (delta >= ctrl.interval) {
-                vm.advance_to_next_cycle();
-                pc_moved = true;
-                ctrl.last_time = now;
-                dirty = true;
-            }
-        }
-        if (dirty) 
-            draw_screen(vm, rows);
-        dirty = false;
-        Thread.sleep(10.msecs);
-    }
 }
 // --------------------------------------------------------------------------------------
 
@@ -827,58 +252,42 @@ void main(string[] args) {
 
     timeout(20);
 
-    instr_pad_frame = newwin(frame_h, frame_w, frame_y, frame_x);
-
-    reg_pad        = newpad(        19, COLS / 2 - 2);
-    flag_pad       = newpad(         6, COLS / 2 - 2);
-    instr_pad      = newpad(     10000,          200);
-    load_store_pad = newpad(LINES - 27, COLS / 2 - 2);
-    scb_pad        = newpad(     LINES,         COLS);
-
-    wbkgd(reg_pad,        COLOR_PAIR(1));
-    wbkgd(flag_pad,       COLOR_PAIR(1));
-    wbkgd(instr_pad,      COLOR_PAIR(1));
-    wbkgd(load_store_pad, COLOR_PAIR(1));
-    wbkgd(scb_pad,        COLOR_PAIR(1));
-    wbkgd(instr_pad_frame,COLOR_PAIR(1));
-
-    box(reg_pad,         0, 0);
-    box(flag_pad,        0, 0);
-    box(instr_pad_frame, 0, 0);
-    box(load_store_pad,  0, 0);
-    box(scb_pad,         0, 0);
+    ui.init();
+    ui.init_pads();
+    ui.set_bkgd();
+    ui.draw_boxes();
 
     if (soc_s == "nrf") {
         cortex_m_vm!nrf52840_mem vm;
         load_elf(vm, soc.nrf, target_file_name);
         if (entry_point != 0)
             vm.run_to(entry_point, nth_instance);
-        draw_screen(vm, rows);
-        control_loop(ctrl, vm, rows);
+        draw_screen(vm, ctrl, ui, rows);
+        ctrl_loop(ctrl, ui, vm, rows);
     } else if (soc_s == "stm32") {
         cortex_m_vm!stm32f4_mem vm;
         vm.set_vtor();
         load_elf(vm, soc.stm32, target_file_name);
         if (entry_point != 0)
             vm.run_to(entry_point, nth_instance);
-        draw_screen(vm, rows);
-        control_loop(ctrl, vm, rows);
+        draw_screen(vm, ctrl, ui, rows);
+        ctrl_loop(ctrl, ui, vm, rows);
     } else if (soc_s == "s32k16") {
         cortex_m_vm!s32k146_mem vm;
         vm.set_vtor();
         load_elf(vm, soc.s32k16, target_file_name);
         if (entry_point != 0)
             vm.run_to(entry_point, nth_instance);
-        draw_screen(vm, rows);
-        control_loop(ctrl, vm, rows);
+        draw_screen(vm, ctrl, ui, rows);
+        ctrl_loop(ctrl, ui, vm, rows);
     } else {
         cortex_m_vm!rw612_mem vm;
         vm.set_vtor();
         load_elf(vm, soc.nxp, target_file_name);
         if (entry_point != 0)
             vm.run_to(entry_point, nth_instance);
-        draw_screen(vm, rows);
-        control_loop(ctrl, vm, rows);
+        draw_screen(vm, ctrl, ui, rows);
+        ctrl_loop(ctrl, ui, vm, rows);
     }
 
     endwin();
