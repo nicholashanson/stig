@@ -1191,7 +1191,8 @@ bool[uint] extract_literal_pool(const string elf_file, ref elf_func e_func,
                     auto cmp_instr = read_ul_16(data, cmp_offset);
                     cmp_imm = decode_instr!(instr_16,ushort)(cmp_instr).imm;  
                 } else { 
-                    auto cmp_instr = read_ul_32(data, cmp_offset);
+                    //auto cmp_instr = read_ul_32(data, cmp_offset);
+                    auto cmp_instr = read_ub_32(data, cmp_offset);
                     cmp_imm = decode_instr!(instr_32,uint)(cmp_instr).imm; 
                 }
                 uint entries     = cmp_imm + 1;
@@ -1336,7 +1337,8 @@ bool[uint] extract_literal_pool(ref elf_file elf, ref elf_func e_func,
                     auto cmp_instr = read_ul_16(data, cmp_offset);
                     cmp_imm = decode_instr!(instr_16,ushort)(cmp_instr).imm;  
                 } else { 
-                    auto cmp_instr = read_ul_32(data, cmp_offset);
+                    //auto cmp_instr = read_ul_32(data, cmp_offset);
+                    auto cmp_instr = read_ub_32(data, cmp_offset);
                     cmp_imm = decode_instr!(instr_32,uint)(cmp_instr).imm; 
                 }
                 uint entries     = cmp_imm + 1;

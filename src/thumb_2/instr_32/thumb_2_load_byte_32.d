@@ -316,7 +316,25 @@ void execute_dbg_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_cmn_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_adr_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
+// MOVT<c> <Rd>,#<imm16>
+instr_32 parse_movt_t1(const uint instr) {
+	immutable imm8  = slice(instr,  0, 8);
+	immutable imm3  = slice(instr, 12, 3);
+	immutable imm4  = slice(instr, 16, 4);
+	immutable i     = slice(instr, 26, 1);
+	immutable imm16 = (imm4 << 10) | (i << 9) | (imm3 << 8) | imm8;
+	return instr_32(rd:  cast(reg)slice(instr, 8, 4),
+					imm: imm16);
+}
+
 void execute_movt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+string convert_movt_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("movt%s %s%s", get_condition_string(cond),
+								 get_reg_name(instr.rd),
+								 get_imm_string(instr.imm));
+}
+
 void execute_ror_imm_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 
@@ -388,7 +406,28 @@ void execute_smlaw_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_smulw_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_smlad_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_smuad_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_smmul_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+// SMMUL{R}<c> <Rd>,<Rn>,<Rm>
+instr_32 parse_smmul_t1(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr,  0, 4),
+					rd: cast(reg)slice(instr,  8, 4),
+					rn: cast(reg)slice(instr, 16, 4));
+}
+
+void 
+execute_smmul_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+
+}
+
+string convert_smmul_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("smmul%s %s, %s, %s", get_condition_string(cond),
+										get_reg_name(instr.rd),
+										get_reg_name(instr.rn),
+										get_reg_name(instr.rm));
+}
+
 void execute_smmla_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_smmls_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_usada8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

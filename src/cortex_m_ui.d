@@ -705,6 +705,7 @@ void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
     assert(vm.current_program.length != 0);
     foreach (t; table_names) 
         load_section_into_memory(target_file_name, t, vm);
+    vm.set_msp(vm.read_word(0x8000000));
     vm.objects  = get_st_name_val(e, st_type.stt_func,   mcu);
     vm.func_map = get_st_name_val(e, st_type.stt_func,   mcu,  false, true);
     vm.objects ~= get_st_name_val(e, st_type.stt_notype, mcu);
