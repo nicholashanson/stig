@@ -12,8 +12,9 @@ struct instr_panel {
    int               start;
    int                 end;
    int visible_lines  = 39;
-   int curr_pc_row =    -1;
+   int curr_pc_row    = -1;
    uint curr_pc;
+   uint last_pc = -1; 
    int last_pc_screen_row;
    int last_pc_row;
    int col;
@@ -86,44 +87,47 @@ struct instr_panel {
                if (r.type == row_view.kind.blank_line) 
                    screen_row++;
            }
-       } else {
-           if (ctrl.pc_moved) {
-               for (int j = start; j < end; ++j) {
-                   auto r = rows[j];
-                   if (r.type == row_view.kind.instr) {
-                       if (r.addr == curr_pc) {
-                           curr_pc_row = j;
-                           pc_screen_row = screen_row;
-                       }
-                   }
-                   screen_row++;
-               }
-               wattron(instr_pad, A_REVERSE);
-               mvwprintw(instr_pad, pc_screen_row, col, toStringz(rows[curr_pc_row].s));
-               wattroff(instr_pad, A_REVERSE);
-               print_colored_reg_line(instr_pad, last_pc_screen_row++, col, rows[last_pc_row].s);
-           }
-       }
-       last_pc_screen_row = pc_screen_row;
-       last_pc_row = curr_pc_row;
-   }
+        } else {
+            if (ctrl.pc_moved) {
+                for (int j = start; j < end; ++j) {
+                    auto r = rows[j];
+                    if (r.type == row_view.kind.instr) {
+                        if (r.addr == curr_pc) {
+                            curr_pc_row = j;
+                            pc_screen_row = screen_row;
+                        } 
+                    }
+                    screen_row++;
+                }
+                wattron(instr_pad, A_REVERSE);
+                mvwprintw(instr_pad, pc_screen_row, col, toStringz(rows[curr_pc_row].s));
+                wattroff(instr_pad, A_REVERSE);
+                print_colored_reg_line(instr_pad, last_pc_screen_row++, col, rows[last_pc_row].s);
+            }
+        }
+        last_pc_screen_row = pc_screen_row;
+        last_pc_row = curr_pc_row;
+    }
 
-   void draw(ref runtime_ctrl ctrl, const uint pc, const ref row_view[] rows) {
-      screen_row = 0;
-      col        = 1;
-      curr_pc = pc;
-      curr_pc_row = get_curr_pc_row(rows);
-      update_instr_range(ctrl, rows);
-      clear_instrs(ctrl);
-      draw_instrs(ctrl, rows);
-   }
+    void draw(ref runtime_ctrl ctrl, const uint pc, const ref row_view[] rows) {
+        if (last_pc == pc) 
+            return;
+        screen_row = 0;
+        col        = 1;
+        curr_pc = pc;
+        curr_pc_row = get_curr_pc_row(rows);
+        update_instr_range(ctrl, rows);
+        clear_instrs(ctrl);
+        draw_instrs(ctrl, rows);
+        last_pc = curr_pc;
+    }
 
-   void refresh() {
-      wnoutrefresh(instr_pad_frame);
-      prefresh(instr_pad,
-         0,                                         0,          
-         frame_y + 1,                     frame_x + 1,     
-         frame_y + frame_h - 2, frame_x + frame_w - 2  
-      );
-   }
+    void refresh() {
+        wnoutrefresh(instr_pad_frame);
+        prefresh(instr_pad,
+            0,                                         0,          
+            frame_y + 1,                     frame_x + 1,     
+            frame_y + frame_h - 2, frame_x + frame_w - 2  
+        );
+    }
 }
