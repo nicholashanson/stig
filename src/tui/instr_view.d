@@ -13,8 +13,8 @@ struct instr_panel {
    int                 end;
    int visible_lines  = 39;
    int curr_pc_row    = -1;
+   int last_pc        = -1; 
    uint curr_pc;
-   uint last_pc = -1; 
    int last_pc_screen_row;
    int last_pc_row;
    int col;

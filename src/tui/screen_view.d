@@ -14,6 +14,11 @@ import core.thread : Thread;
 import core.time   : msecs;
 import std.range;
 
+// --------------------------------------------------------------------------------------
+// ===============
+//  DRAW SCREEN 0
+// ===============
+
 void 
 draw_screen_0
 (vm_t)

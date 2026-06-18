@@ -18,7 +18,7 @@ struct flag_panel {
     bool first_flag = true;
 
     void init(int reg_height) {
-    	flag_screen_row = reg_height - 1;    
+    	flag_screen_row =  reg_height - 1;    
 		flag_width      =  COLS / 2 - 2;
 		flag_col_2      =  flag_width      / 4;
 		flag_col_3      =  flag_width      / 2;
@@ -41,6 +41,7 @@ struct flag_panel {
     draw_flags
     (vm_t)
     (ref vm_t vm) {
+    	flag_y = 1;
     	mvwprintw(flag_pad,     flag_y++,        flag_x,          "Flags:");
 	    print_flag("z:",                            vm.get_z(), flag_col_1);
 	    print_flag("n:",                            vm.get_n(), flag_col_2);
@@ -54,6 +55,7 @@ struct flag_panel {
 	    print_flag("NPRIV:",                    vm.get_npriv(), flag_col_2);
 	    print_flag("FAULTMASK:", cast(bool)vm.get_fault_mask(), flag_col_3);
 	    print_flag("PRIMASK:",               vm.get_pri_mask(), flag_col_4);
+	    first_flag = true;
     }
 
     void refresh() {
