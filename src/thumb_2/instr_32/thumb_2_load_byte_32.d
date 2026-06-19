@@ -322,12 +322,26 @@ instr_32 parse_movt_t1(const uint instr) {
 	immutable imm3  = slice(instr, 12, 3);
 	immutable imm4  = slice(instr, 16, 4);
 	immutable i     = slice(instr, 26, 1);
-	immutable imm16 = (imm4 << 10) | (i << 9) | (imm3 << 8) | imm8;
+	immutable imm16 = (imm4 << 12) | (i << 11) | (imm3 << 8) | imm8;
 	return instr_32(rd:  cast(reg)slice(instr, 8, 4),
 					imm: imm16);
 }
 
-void execute_movt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void 
+execute_movt_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// if ConditionPassed() then
+	// EncodingSpecificOperations();
+	uint imm = instr.imm;
+	imm = (imm << 16);
+	// R[d]<31:16> = imm16;
+	uint val = vm.get_reg(instr.rd);
+	val &= 0x0000ffff;
+	const uint res = imm | val;
+	vm.set_reg(instr.rd, res);
+	// R[d]<15:0> unchanged
+}
 
 string convert_movt_t1_to_string(const ref instr_32 instr, const condition cond) {
 	return format("movt%s %s%s", get_condition_string(cond),
