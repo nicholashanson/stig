@@ -1181,7 +1181,7 @@ opcode decode_floating_point(const uint instr) {
 			// 32-bit transfer between ARM core and extension registers
 			return (A == 0b111) ? opcode.vmrs_t1 : opcode.invalid; 
 		default: 
-			assert(0, "Unrecognized floating-point instruction");
+			assert(0, format("Unrecognized floating-point instruction: %08X", instr));
 	} 
 	return opcode.invalid;
 }

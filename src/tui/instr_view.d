@@ -109,25 +109,25 @@ struct instr_panel {
         last_pc_row = curr_pc_row;
     }
 
-    void draw(ref runtime_ctrl ctrl, const uint pc, const ref row_view[] rows) {
-        if (last_pc == pc) 
-            return;
-        screen_row = 0;
-        col        = 1;
-        curr_pc = pc;
-        curr_pc_row = get_curr_pc_row(rows);
-        update_instr_range(ctrl, rows);
-        clear_instrs(ctrl);
-        draw_instrs(ctrl, rows);
-        last_pc = curr_pc;
-    }
+   void draw(ref runtime_ctrl ctrl, const uint pc, const ref row_view[] rows) {
+      if (last_pc == pc) 
+         return;
+      screen_row = 0;
+      col        = 1;
+      curr_pc = pc;
+      curr_pc_row = get_curr_pc_row(rows);
+      update_instr_range(ctrl, rows);
+      clear_instrs(ctrl);
+      draw_instrs(ctrl, rows);
+      last_pc = curr_pc;
+   }
 
-    void refresh() {
-        wnoutrefresh(instr_pad_frame);
-        prefresh(instr_pad,
-            0,                                         0,          
-            frame_y + 1,                     frame_x + 1,     
-            frame_y + frame_h - 2, frame_x + frame_w - 2  
-        );
-    }
+   void refresh() {
+      wnoutrefresh(instr_pad_frame);
+      prefresh(instr_pad,
+         0,                                         0,          
+         frame_y + 1,                     frame_x + 1,     
+         frame_y + frame_h - 2, frame_x + frame_w - 2  
+      );
+   }
 }

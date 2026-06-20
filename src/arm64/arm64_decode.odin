@@ -489,6 +489,14 @@ decode_HINT_test :: proc(t: ^testing.T) {
 }
 
 @(test)
+decode_MOV_test :: proc(t: ^testing.T) {
+	instr: u32 = 0xd2800082
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.mov_z_64, msg)
+}
+
+@(test)
 decode_STP_test :: proc(t: ^testing.T) {
 	instr: u32 = 0xa9bf7bfd
 	op: a64_opcode = get_opcode(instr)
