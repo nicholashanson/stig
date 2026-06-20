@@ -7,40 +7,11 @@ import "core:testing"
 // =====
 
 reg :: enum {
-	x0, 
-	x1, 
-	x2,
-	x3,
-	x4,
-	x5,
-	x6,
-	x7,
-	x8,
-	x9,
-	x10, 
-	x11,
-	x12,
-	x13,
-	x14,
-	x15,
-	x16,
-	x17,
-	x18,
-	x19,
-	x20,
-	x21,
-	x22,
-	x23,
-	x24,
-	x25,
-	x26,
-	x27,
-	x28,
-	x29,
-	x30,
-	x31
+	x0,   x1,  x2,  x3,  x4,  x5,  x6,  x7,  x8,  x9, x10, x11, x12, x13, x14, x15,
+	x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31
 }
 
+// ---------------------------------------------------------------------------------------
 ds :: enum {
 	_32 = 32,
 	_64 = 64
@@ -54,10 +25,31 @@ arm64_instr :: struct {
     d:                reg,
     n:                reg,
     m:                reg,
+    t:                reg,
+    t2:   			  reg,
     ext_type: extend_type,
     shift:            u32,
-    datasize:          ds
+    datasize:          ds,
+    post_index:      bool,
+    wback:           bool,
+    offset:           i64,
 }
+// ---------------------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------------------
+// ============
+// SignExtend()
+// ============
+// bits(N) SignExtend(bits(M) x, integer N)
+sign_extend :: proc($R: typeid, x: $T) -> R {
+	// assert N >= M;
+    when size_of(R) < size_of(T) {
+        #panic("sign_extend: destination type is smaller than source type");
+    }
+	// return Replicate(x<M-1>, N-M) : x;
+	return cast(R)x;
+}
+
 // ---------------------------------------------------------------------------------------
 // =============
 //  EXTEND TYPE
@@ -198,7 +190,7 @@ lsl :: proc(x: $T, shift: u32) -> T {
 		return x
 	} else {
 		// (result, -) = LSL_C(x, shift);
-		return lsl_c(x, shift).result
+		return cast(T) lsl_c(x, shift).result
 	}
 	// return result;
 }
@@ -284,6 +276,37 @@ parse_add_ext :: proc(instr: u32) -> arm64_instr {
 		datasize = ds._32 if slice(instr, 31, 1) == 0 else ds._64,
 		// constant ExtendType extend_type = DecodeRegExtend(option);
 		ext_type = decode_reg_extend(slice(instr, 13, 3)) 
+	}
+}
+
+// ==============
+//  PARSE STP 64
+// ==============
+// STP <Xt1>, <Xt2>, [<Xn|SP>, #<imm>]!
+parse_stp_64_pre_index :: proc(instr: u32) -> arm64_instr {
+	parsed_instr 		    := parse_stp(instr)
+	parsed_instr.wback 		 = true
+	parsed_instr.post_index  = false
+	return parsed_instr
+}
+
+parse_stp :: proc(instr: u32) -> arm64_instr {
+	// if L:opc<0> == '01' || opc == '11' then UNDEFINED;
+	// integer scale = 2 + UInt(opc<1>);
+	scale := 2 + slice(instr, 31, 1)
+	imm7  := slice(instr, 15, 7)
+	return arm64_instr {
+		// integer n = UInt(Rn);
+		n 		 = reg(slice(instr, 5, 5)),
+		// integer t = UInt(Rt);
+		t 		 = reg(slice(instr, 0, 5)),
+		// integer t2 = UInt(Rt2);
+		t2       = reg(slice(instr, 10, 5)),
+		// integer datasize = 8 << scale;
+		datasize = ds._32 if (8 << scale) == 2 else ds._64,
+		// bits(64) offset = LSL(SignExtend(imm7, 64), scale);
+		offset   = lsl(sign_extend(i64, imm7), scale),
+		// boolean tag_checked = wback || n != 31;
 	}
 }
 // ---------------------------------------------------------------------------------------
