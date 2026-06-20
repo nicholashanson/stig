@@ -67,6 +67,11 @@ extend_type :: enum {
 	invalid
 }
 
+// ---------------------------------------------------------------------------------------
+// =============
+//  LEN IN BITS
+// =============
+
 len_in_bits :: proc(ext: extend_type) -> u32 {
     switch ext {
         case extend_type.sxtb, extend_type.uxtb: return 8
@@ -278,7 +283,7 @@ parse_add_ext :: proc(instr: u32) -> arm64_instr {
 		ext_type = decode_reg_extend(slice(instr, 13, 3)) 
 	}
 }
-
+// ---------------------------------------------------------------------------------------
 // ==============
 //  PARSE STP 64
 // ==============

@@ -11,6 +11,9 @@ a64_opcode :: enum(u32) {
 	ubfm_32,
 	// add/subtract extended register
 	add_ext_64,
+	// add/sub imm
+	add_imm_32,  adds_imm_32, sub_imm_32, subs_imm_32, add_imm_64,
+	adds_imm_64, sub_imm_64,  subs_imm_64,
 	// loigical shifted register
 	and_shift_reg_32, bic_shift_reg_32,  orr_shift_reg_32,  orn_shift_reg_32, eor_shift_reg_32,
 	eon_shift_reg_32, ands_shift_reg_32, bics_shift_reg_32, and_shift_reg_64, bic_shift_reg_64,
@@ -298,6 +301,20 @@ decode_pc_rel :: proc(instr: u32) -> a64_opcode {
 // ====================
 
 decode_add_sub_imm :: proc(instr: u32) -> a64_opcode {
+	sf 		 := slice(instr, 31, 1)
+	op 		 := slice(instr, 30, 1)
+	S  		 := slice(instr, 29, 1)
+	combined := (sf << 2) | (op << 1) | S;
+	switch combined {
+		case 0b000: return a64_opcode.add_imm_32 
+		case 0b001: return a64_opcode.adds_imm_32
+		case 0b010: return a64_opcode.sub_imm_32
+		case 0b011: return a64_opcode.subs_imm_32
+		case 0b100: return a64_opcode.add_imm_64
+		case 0b101: return a64_opcode.adds_imm_64
+		case 0b110: return a64_opcode.sub_imm_64
+		case 0b111: return a64_opcode.subs_imm_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -467,6 +484,16 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.stp_64_pre_index : return "stp_64_pre_index"
 		// unconditional branch (register)
 	 	case a64_opcode.ret              : return "ret"
+	 	// add/sub imm
+	 	case a64_opcode.add_imm_32 	     : return "add_imm_32"					
+		case a64_opcode.adds_imm_32		 : return "adds_imm_32"					
+		case a64_opcode.sub_imm_32		 : return "sub_imm_32"				
+		case a64_opcode.subs_imm_32		 : return "subs_imm_32"					
+		case a64_opcode.add_imm_64		 : return "add_imm_64"				
+		case a64_opcode.adds_imm_64		 : return "adds_imm_64"					
+		case a64_opcode.sub_imm_64		 : return "sub_imm_64"				
+		case a64_opcode.subs_imm_64		 : return "subs_imm_64"					
+
 		case a64_opcode.invalid			 : return "invalid"
     }
     return ""
