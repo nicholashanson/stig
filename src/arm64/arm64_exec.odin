@@ -8,7 +8,8 @@ import "core:testing"
 
 reg :: enum {
 	x0,   x1,  x2,  x3,  x4,  x5,  x6,  x7,  x8,  x9, x10, x11, x12, x13, x14, x15,
-	x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31
+	x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31,
+	sp = x31,
 }
 
 // ---------------------------------------------------------------------------------------
@@ -33,6 +34,7 @@ arm64_instr :: struct {
     post_index:      bool,
     wback:           bool,
     offset:           i64,
+    imm:			  u32,
 }
 // ---------------------------------------------------------------------------------------
 
@@ -314,6 +316,24 @@ parse_stp :: proc(instr: u32) -> arm64_instr {
 		// boolean tag_checked = wback || n != 31;
 	}
 }
+
+// Add (immediate) adds a register value and an optionally-shifted immediate value, and writes the result to the
+// destination register.
+// This instruction is used by the alias MOV (to/from SP).
+// ADD <Xd|SP>, <Xn|SP>, #<imm>{, <shift>}
+parse_add_imm_64 :: proc(instr: u32) -> arm64_instr {
+	sf := slice(instr, 31, 1)
+	return arm64_instr {
+		// integer d = UInt(Rd);
+		d  			= reg(slice(instr, 0, 5)),
+		// integer n = UInt(Rn);
+		n 			= reg(slice(instr, 5, 5)),
+		// integer datasize = if sf == '1' then 64 else 32;
+		datasize    = ds._32 if (sf == 0) else ds._64,
+		// bits(datasize) imm;
+		imm         = slice(instr, 10, 12),
+	}
+}
 // ---------------------------------------------------------------------------------------
 // ==============
 //  EXEC ADD EXT
@@ -343,7 +363,7 @@ exec_add_ext :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
 // ---------------------------------------------------------------------------------------
 
 @(test)
-decode_ADD_EXT_test :: proc(t: ^testing.T) {
+execute_ADD_EXT_test :: proc(t: ^testing.T) {
     vm: cortex_a_vm = cortex_a_vm{}
     set_reg(&vm, reg.x0, 0x1000, ds._64)        
     set_reg(&vm, reg.x1, 0x20,   ds._64)          
@@ -358,4 +378,15 @@ decode_ADD_EXT_test :: proc(t: ^testing.T) {
     expected: u64 = 0x1000 + 0x20 
     actual:   u64 = get_reg(&vm, reg.x2, ds._64)
     assert(actual == expected)
+}
+
+@(test) 
+parse_ADD_IMM_64 :: proc(t: ^testing.T) {
+	actual := parse_add_imm_64(0x910003fd)
+	expected: arm64_instr
+	expected.n   = reg.sp 
+	expected.d   = reg.x29
+	expected.imm = 0
+	expected.datasize = ds._64
+	assert(actual == expected)
 }
