@@ -35,6 +35,8 @@ arm64_instr :: struct {
     wback:           bool,
     offset:           i64,
     imm:			  u32,
+    shift_t:   shift_type,
+    shift_n:          u32,
 }
 // ---------------------------------------------------------------------------------------
 
@@ -67,6 +69,32 @@ extend_type :: enum {
 	sxtx,    
 	uxtx,    
 	invalid
+}
+// ---------------------------------------------------------------------------------------
+// ============
+//  SHIFT TYPE
+// ============
+
+shift_type :: enum {
+	lsl,
+	lsr,
+	asr,
+	ror,
+	invalid,
+}
+// ---------------------------------------------------------------------------------------
+// ==============
+//  DECODE SHIFT
+// ==============
+
+decode_shift :: proc(op: u32) -> shift_type {
+	switch op {
+		case 0b00: return shift_type.lsl
+		case 0b01: return shift_type.lsr 
+		case 0b10: return shift_type.asr 
+		case 0b11: return shift_type.ror
+	}
+	return shift_type.invalid
 }
 
 // ---------------------------------------------------------------------------------------
@@ -334,6 +362,28 @@ parse_add_imm_64 :: proc(instr: u32) -> arm64_instr {
 		imm         = slice(instr, 10, 12),
 	}
 }
+
+// Bitwise OR (shifted register) performs a bitwise (inclusive) OR of a register value and an optionally-shifted register
+// value, and writes the result to the destination register.
+// This instruction is used by the alias MOV (register).
+parse_orr_shift_reg_64 :: proc(instr: u32) -> arm64_instr {
+	sf := slice(instr, 31, 1)
+	return arm64_instr {
+		// integer d = UInt(Rd);
+		d 			= reg(slice(instr,  0, 5)),
+		// integer n = UInt(Rn);
+		n           = reg(slice(instr,  5, 5)),
+		// integer m = UInt(Rm);
+		m 			= reg(slice(instr, 16, 5)),
+		// integer datasize = if sf == '1' then 64 else 32;
+		datasize    = ds._32 if (sf == 0) else ds._64,
+		// if sf == '0' && imm6<5> == '1' then UNDEFINED;
+		// ShiftType shift_type = DecodeShift(shift);
+		shift_t     = decode_shift(slice(instr, 22, 2)),
+		// integer shift_amount = UInt(imm6);
+		shift_n     = slice(instr, 10, 6),
+	}
+}
 // ---------------------------------------------------------------------------------------
 // ==============
 //  EXEC ADD EXT
@@ -381,12 +431,27 @@ execute_ADD_EXT_test :: proc(t: ^testing.T) {
 }
 
 @(test) 
-parse_ADD_IMM_64 :: proc(t: ^testing.T) {
+parse_ADD_IMM_64_test :: proc(t: ^testing.T) {
 	actual := parse_add_imm_64(0x910003fd)
 	expected: arm64_instr
 	expected.n   = reg.sp 
 	expected.d   = reg.x29
 	expected.imm = 0
+	expected.datasize = ds._64
+	assert(actual == expected)
+}
+
+@(test)
+parse_ORR_SHIFT_REG_64_test :: proc(t: ^testing.T) {
+	// aa0003e3 	mov	x3, x0
+	actual := parse_orr_shift_reg_64(0xaa0003e3)
+	expected: arm64_instr
+	expected.shift_t  = shift_type.lsl
+	expected.shift_n  = 0
+	expected.imm      = 0
+	expected.n        = reg.sp 
+	expected.d        = reg.x3
+	expected.m        = reg.x0
 	expected.datasize = ds._64
 	assert(actual == expected)
 }
