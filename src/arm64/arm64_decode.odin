@@ -424,9 +424,9 @@ decode_unconditional_branch_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid;
 }
 
-// =================================
-//  DECODE UNCONDITIONAL BRANCH IMM
-// =================================
+// ===============================
+//  DECODE CONDITIONAL BRANCH IMM
+// ===============================
 
 decode_conditional_branch_imm :: proc(instr: u32) -> a64_opcode {
 	o0 := slice(instr,  4, 1)
