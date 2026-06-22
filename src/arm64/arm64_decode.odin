@@ -4,8 +4,9 @@ import "core:fmt"
 import "core:strings"
 import "core:testing"
 
+// ---------------------------------------------------------------------------------------
 a64_opcode :: enum(u32) {
-	hint,
+	hint, b, bl,
 	mov_z_64,
 	// bitfield
 	ubfm_32,
@@ -28,6 +29,7 @@ a64_opcode :: enum(u32) {
 	ret,
 	invalid
 }
+// ---------------------------------------------------------------------------------------
 
 // Store Pair of Registers calculates an address from a base register value and an immediate offset, and 
 // stores two 32-bit words or two 64-bit doublewords to the calculated address, from two registers.
@@ -41,7 +43,7 @@ decode_stp :: proc(instr: u32) -> a64_opcode {
 	}
 	return a64_opcode.invalid;
 }
-
+// ---------------------------------------------------------------------------------------
 // =================
 //  DECODE BITFIELD
 // =================
@@ -57,7 +59,7 @@ decode_bitfield :: proc(instr: u32) -> a64_opcode {
 	// 1 01 1 BFM — 64-bit
 	// 1 10 1 UBFM — 64-bit
 }
-
+// ---------------------------------------------------------------------------------------
 // ==============================
 //  DECODE LOAD STORE REG OFFSET
 // ==============================
@@ -76,7 +78,7 @@ decode_load_store_reg_offset :: proc(instr: u32) -> a64_opcode {
 	} 
 	return a64_opcode.invalid
 }
-
+// ---------------------------------------------------------------------------------------
 // ========================
 //  DECODE LOAD AND STORES
 // ========================
@@ -95,7 +97,7 @@ decode_load_and_stores :: proc(instr: u32) -> a64_opcode {
 	}
 	return a64_opcode.invalid
 }
-
+// ---------------------------------------------------------------------------------------
 // ============
 //  GET OPCODE
 // ============
@@ -123,7 +125,7 @@ get_opcode :: proc(instr: u32) -> a64_opcode {
 
 	return a64_opcode.invalid
 }
-
+// ---------------------------------------------------------------------------------------
 // ==========================
 //  DECODE LOGICAL SHIFT REG
 // ==========================
@@ -169,7 +171,7 @@ decode_logical_shift_reg :: proc(instr: u32) -> a64_opcode {
 	}
 	return a64_opcode.invalid
 }
-
+// ---------------------------------------------------------------------------------------
 // ==================
 //  DECODE POC 2 SRC
 // ==================
@@ -177,7 +179,7 @@ decode_logical_shift_reg :: proc(instr: u32) -> a64_opcode {
 decode_proc_2_src :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
-
+// ---------------------------------------------------------------------------------------
 // ==================
 //  DECODE POC 1 SRC
 // ==================
@@ -185,7 +187,7 @@ decode_proc_2_src :: proc(instr: u32) -> a64_opcode {
 decode_proc_1_src :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
-
+// ---------------------------------------------------------------------------------------
 // ============================
 //  DECODE ADD/SUB SHIFTED REG
 // ============================
@@ -193,7 +195,7 @@ decode_proc_1_src :: proc(instr: u32) -> a64_opcode {
 decode_add_sub_shifted_reg :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
-
+// ---------------------------------------------------------------------------------------
 // ========================
 //  DECODE ADD/SUB EXT REG
 // ========================
@@ -210,7 +212,7 @@ decode_add_sub_ext_reg :: proc(instr: u32) -> a64_opcode {
 	// 1 1 1 00 SUBS (extended register) — 64-bit
 	// return a64_opcode.invalid
 }
-
+// ---------------------------------------------------------------------------------------
 // ======================
 //  DECODE ADD/SUB CARRY
 // ======================
@@ -405,6 +407,21 @@ decode_unconditional_branch_reg :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.ret
 }
 
+// =================================
+//  DECODE UNCONDITIONAL BRANCH IMM
+// =================================
+
+decode_unconditional_branch_imm :: proc(instr: u32) -> a64_opcode {
+	op := slice(instr, 31, 1)
+	if ( (op == 0b0) ) {
+		return a64_opcode.b;
+	}
+	if ( (op == 0b1) ) {
+		return a64_opcode.bl;
+	}
+	return a64_opcode.invalid;
+}
+
 // =================
 //  DECODE BRANCHES
 // =================
@@ -444,6 +461,9 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 	// 111 00xxxxxxxx1xxx xxxxx UNALLOCATED
 	// 111 1xxxxxxxxxxxxx xxxxx UNALLOCATED
 	// x00 xxxxxxxxxxxxxx xxxxx Unconditional branch (immediate)
+	if ( (op0 & 0b011) == 0b000 ) {
+		return decode_unconditional_branch_imm(instr);
+	} 
 	// x01 0xxxxxxxxxxxxx xxxxx Compare and branch (immediate)
 	return a64_opcode.hint;
 }
@@ -455,6 +475,8 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 opcode_to_string :: proc(op: a64_opcode) -> string {
     #partial switch op {
     	case a64_opcode.hint 			 : return "hint"
+    	case a64_opcode.b                : return "b"
+    	case a64_opcode.bl               : return "bl"
     	case a64_opcode.mov_z_64		 : return "mov_z_64"
     	// loigical shifted register
     	case a64_opcode.and_shift_reg_32 : return "and_shift_reg_32"
@@ -531,6 +553,13 @@ decode_STP_test :: proc(t: ^testing.T) {
 	assert(op == a64_opcode.stp_64_pre_index, msg)
 }
 
+@(test)
+decode_BL_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x97fffff7
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.bl, msg)
+}
 
 
 
