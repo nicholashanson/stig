@@ -28,6 +28,9 @@ a64_opcode :: enum(u32) {
 	bics_shift_reg_64,
 	// load/store register (register offset)
 	ldr_reg_32,		  ldr_reg_simd_fp,	
+	// add shift reg
+	add_shift_reg_32,  adds_shift_reg_32, sub_shift_reg_32, subs_shift_reg_32, add_shift_reg_64,
+	adds_shift_reg_64, sub_shift_reg_64,  subs_shift_reg_64,
 
 	stp_32_pre_index, stp_64_pre_index, stp_64_post_index, stp_64_offset,
 
@@ -199,6 +202,25 @@ decode_data_proc_1_src_imm :: proc(instr: u32) -> a64_opcode {
 // ============================
 
 decode_add_sub_shifted_reg :: proc(instr: u32) -> a64_opcode {
+	sf_op_S := slice(instr, 29, 3)
+	switch sf_op_S {
+		// 0 0 0 ADD (shifted register) — 32-bit
+		case 0b000: return a64_opcode.add_shift_reg_32
+		// 0 0 1 ADDS (shifted register) — 32-bit
+		case 0b001: return a64_opcode.adds_shift_reg_32
+		// 0 1 0 SUB (shifted register) — 32-bit
+		case 0b010: return a64_opcode.sub_shift_reg_32
+		// 0 1 1 SUBS (shifted register) — 32-bit
+		case 0b011: return a64_opcode.subs_shift_reg_32
+		// 1 0 0 ADD (shifted register) — 64-bit
+		case 0b100: return a64_opcode.add_shift_reg_64
+		// 1 0 1 ADDS (shifted register) — 64-bit
+		case 0b101: return a64_opcode.adds_shift_reg_64
+		// 1 1 0 SUB (shifted register) — 64-bit
+		case 0b110: return a64_opcode.sub_shift_reg_64
+		// 1 1 1 SUBS (shifted register) — 64-bit
+		case 0b111: return a64_opcode.subs_shift_reg_64
+	}
 	return a64_opcode.invalid
 }
 // ---------------------------------------------------------------------------------------
@@ -615,6 +637,16 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.rev_32 			 : return "rev_32" 
 		case a64_opcode.rev_64			 : return "rev_64"
 
+		// add/sub shift reg
+		case a64_opcode.add_shift_reg_32	: return "add_shift_reg_32"
+		case a64_opcode.adds_shift_reg_32	: return "adds_shift_reg_32"
+		case a64_opcode.sub_shift_reg_32	: return "sub_shift_reg_32"
+		case a64_opcode.subs_shift_reg_32	: return "subs_shift_reg_32"
+		case a64_opcode.add_shift_reg_64	: return "add_shift_reg_64"
+		case a64_opcode.adds_shift_reg_64	: return "adds_shift_reg_64"
+		case a64_opcode.sub_shift_reg_64	: return "sub_shift_reg_64"
+		case a64_opcode.subs_shift_reg_64	: return "subs_shift_reg_64"
+
 		case a64_opcode.invalid			 : return "invalid"
     }
     return ""
@@ -683,4 +715,13 @@ decode_CLZ_32_test :: proc(t: ^testing.T) {
 	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
 	assert(op == a64_opcode.clz_32, msg)
 }
+
+@(test)
+decode_SUB_SHIFT_REG_32_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x4b000021
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.sub_shift_reg_32, msg)
+}
+
 
