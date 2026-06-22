@@ -9,7 +9,9 @@ a64_opcode :: enum(u32) {
 	// conditional branch imm
 	b_cond, bc_cond,
 	hint, b, bl,
-	mov_z_64,
+	// mov_wide_imm
+	mov_z_32, mov_k_32, mov_n_32,
+	mov_z_64, mov_k_64, mov_n_64,
 	// bitfield
 	ubfm_32,
 	// add/subtract extended register
@@ -278,9 +280,31 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 decode_mov_wide_imm :: proc(instr: u32) -> a64_opcode {
 	sf:  u32 = (instr >> 31) & 0x1
 	opc: u32 = (instr >> 29) & 0x3
-	if sf == 0b1 && opc == 0b10 {
+	hw:  u32 = (instr >> 21) & 0x3
+	// 1 10 MOVZ — 64-bit
+ 	if sf == 0b1 && opc == 0b10 {
 		return a64_opcode.mov_z_64
-	} 
+	}
+	// 0 10 0x MOVZ — 32-bit
+	if sf == 0b0 && opc == 0b10 && (hw & 0b10) == 0b00 { 
+	 	return a64_opcode.mov_z_32
+	}
+	// 00 0x MOVN — 32-bit
+	if sf == 0b0 && opc == 0b00 && (hw & 0b10) == 0b00 { 
+	 	return a64_opcode.mov_n_32
+	}
+	// 0 11 0x MOVK — 32-bit
+	if sf == 0b0 && opc == 0b11 && (hw & 0b10) == 0b00 { 
+		return a64_opcode.mov_k_32
+	}
+	// 1 00 MOVN — 64-bit
+	if sf == 0b1 && opc == 0b00 { 
+	 	return a64_opcode.mov_n_64
+	}
+	// 1 11 MOVK — 64-bit
+	if sf == 0b1 && opc == 0b11 { 
+	 	return a64_opcode.mov_k_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -501,7 +525,13 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
     	case a64_opcode.hint 			 : return "hint"
     	case a64_opcode.b                : return "b"
     	case a64_opcode.bl               : return "bl"
+    	// mov wide immu
     	case a64_opcode.mov_z_64		 : return "mov_z_64"
+    	case a64_opcode.mov_z_32   		 : return "mov_z_32" 
+    	case a64_opcode.mov_k_32 		 : return "mov_k_32" 
+    	case a64_opcode.mov_n_32		 : return "mov_n_32"
+		case a64_opcode.mov_k_64		 : return "mov_k_64"
+		case a64_opcode.mov_n_64		 : return "mov_n_64"
     	// loigical shifted register
     	case a64_opcode.and_shift_reg_32 : return "and_shift_reg_32"
 		case a64_opcode.bic_shift_reg_32 : return "bic_shift_reg_32"
@@ -592,4 +622,13 @@ decode_BCOND_test :: proc(t: ^testing.T) {
 	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
 	assert(op == a64_opcode.b_cond, msg)
 }
+
+@(test)
+decode_MOV_Z_32_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x528003e1
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.mov_z_32, msg)
+}
+
 
