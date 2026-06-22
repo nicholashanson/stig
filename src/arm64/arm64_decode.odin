@@ -9,6 +9,8 @@ a64_opcode :: enum(u32) {
 	// conditional branch imm
 	b_cond, bc_cond,
 	hint, b, bl,
+	// data proc one source
+	rbit_32, rbit_64, rev16_32, rev16_64, clz_32, clz_64, cls_32, cls_64, rev32, rev_32, rev_64,
 	// mov_wide_imm
 	mov_z_32, mov_k_32, mov_n_32,
 	mov_z_64, mov_k_64, mov_n_64,
@@ -188,7 +190,7 @@ decode_proc_2_src :: proc(instr: u32) -> a64_opcode {
 //  DECODE POC 1 SRC
 // ==================
 
-decode_proc_1_src :: proc(instr: u32) -> a64_opcode {
+decode_data_proc_1_src_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 // ---------------------------------------------------------------------------------------
@@ -248,7 +250,7 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	}
 	// 1 1 0110 xxxxxx Data-processing (1 source)
 	if ( (op0 == 0b1) && (op1 == 0b1) && (op2 == 0b0110)) {
-		return decode_proc_1_src(instr)
+		return decode_data_proc_1_src_reg(instr)
 	}
 	// x 0 0xxx xxxxxx Logical (shifted register)
 	if ( (op1 == 0b0) && (op2 & 0b1000) == 0b0000) {
@@ -312,7 +314,37 @@ decode_mov_wide_imm :: proc(instr: u32) -> a64_opcode {
 //  DECODE DATA PROC 1 SRC
 // ========================
 
-decode_data_proc_1_src :: proc(instr: u32) -> a64_opcode {
+decode_data_proc_1_src_reg :: proc(instr: u32) -> a64_opcode {
+	sf       := slice(instr, 31, 1)
+	S        := slice(instr, 29, 1)
+	opcode2  := slice(instr, 16, 5)
+	opcode   := slice(instr, 10, 6)
+	combined := (sf << 12) | (S << 11) | (opcode2 << 6) | opcode;
+	switch combined {
+		// 0 0 00000 000000 RBIT — 32-bit -
+		case 0b0000000000000: return a64_opcode.rbit_32
+		// 0 0 00000 000001 REV16 — 32-bit -
+		case 0b0000000000001: return a64_opcode.rev16_32
+		// 0 0 00000 000010 REV — 32-bit -
+		case 0b0000000000010: return a64_opcode.rev_32
+		// 0 0 00000 000011 UNALLOCATED -
+		// 0 0 00000 000100 CLZ — 32-bit -
+		case 0b0000000000100: return a64_opcode.clz_32
+		// 0 0 00000 000101 CLS — 32-bit -
+		case 0b0000000000101: return a64_opcode.cls_32
+		// 1 0 00000 000000 RBIT — 64-bit -
+		case 0b1000000000000: return a64_opcode.rbit_64
+		// 1 0 00000 000001 REV16 — 64-bit -
+		case 0b1000000000001: return a64_opcode.rev16_64
+		// 1 0 00000 000010 REV32 -
+		case 0b1000000000010: return a64_opcode.rev32
+		// 1 0 00000 000011 REV — 64-bit -
+		case 0b1000000000011: return a64_opcode.rev_64
+		// 1 0 00000 000100 CLZ — 64-bit -
+		case 0b1000000000100: return a64_opcode.clz_64
+		// 1 0 00000 000101 CLS — 64-bit
+		case 0b1000000000101: return a64_opcode.cls_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -387,7 +419,7 @@ decode_data_proc_imm :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 29) & 0x3
 	// 11 111x Data-processing (1 source immediate)
 	if ( (op1 == 0b11) && ( op1 & 0b1110 == 0b1110)) {
-		return decode_data_proc_1_src(instr)
+		return decode_data_proc_1_src_imm(instr)
 	}
 	// xx 00xx PC-rel. addressing
 	if ( (op1 & 0b1100) == 0b0000 ) {
@@ -568,7 +600,20 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.add_imm_64		 : return "add_imm_64"				
 		case a64_opcode.adds_imm_64		 : return "adds_imm_64"					
 		case a64_opcode.sub_imm_64		 : return "sub_imm_64"				
-		case a64_opcode.subs_imm_64		 : return "subs_imm_64"					
+		case a64_opcode.subs_imm_64		 : return "subs_imm_64"		
+
+		// data proc one src
+		case a64_opcode.rbit_32			 : return "rbit_32"
+		case a64_opcode.rbit_64 		 : return "rbit_64" 
+		case a64_opcode.rev16_32 		 : return "rev16_32" 
+		case a64_opcode.rev16_64 		 : return "rev16_64" 
+		case a64_opcode.clz_32			 : return "clz_32"
+		case a64_opcode.clz_64 			 : return "clz_64" 
+		case a64_opcode.cls_32 			 : return "cls_32" 
+		case a64_opcode.cls_64 			 : return "cls_64" 
+		case a64_opcode.rev32 			 : return "rev32" 
+		case a64_opcode.rev_32 			 : return "rev_32" 
+		case a64_opcode.rev_64			 : return "rev_64"
 
 		case a64_opcode.invalid			 : return "invalid"
     }
@@ -631,4 +676,11 @@ decode_MOV_Z_32_test :: proc(t: ^testing.T) {
 	assert(op == a64_opcode.mov_z_32, msg)
 }
 
+@(test)
+decode_CLZ_32_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x5ac01000
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.clz_32, msg)
+}
 
