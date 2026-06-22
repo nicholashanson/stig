@@ -6,6 +6,8 @@ import "core:testing"
 
 // ---------------------------------------------------------------------------------------
 a64_opcode :: enum(u32) {
+	// conditional branch imm
+	b_cond, bc_cond,
 	hint, b, bl,
 	mov_z_64,
 	// bitfield
@@ -422,6 +424,22 @@ decode_unconditional_branch_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid;
 }
 
+// =================================
+//  DECODE UNCONDITIONAL BRANCH IMM
+// =================================
+
+decode_conditional_branch_imm :: proc(instr: u32) -> a64_opcode {
+	o0 := slice(instr,  4, 1)
+	o1 := slice(instr, 24, 1)
+	if ( (o0 == 0b0) && (o1 == 0b0) ) {
+		return a64_opcode.b_cond;
+	}
+	if ( (o0 == 0b0) && (o1 == 0b1) ) {
+		return a64_opcode.bc_cond;
+	}
+	return a64_opcode.invalid;
+}
+
 // =================
 //  DECODE BRANCHES
 // =================
@@ -430,6 +448,9 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 29) &    0x7
 	op1: u32 = (instr >> 12) & 0x3fff
 	// 010 00xxxxxxxxxxxx xxxxx Conditional branch (immediate)
+	if ( (op0 == 0b010) && (op1 & 0b10000000000000) == 0b00000000000000) {
+		return decode_conditional_branch_imm(instr)
+	}
 	// 010 01xxxxxxxxxxxx xxxxx Miscellaneous branch (immediate)
 	// 011 00xxxxxxxx1xxx xxxxx Compare bytes/halfwords in registers and
 	// branch
@@ -474,6 +495,9 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 
 opcode_to_string :: proc(op: a64_opcode) -> string {
     #partial switch op {
+    	// condtional branch imm
+    	case a64_opcode.b_cond           : return "b_cond"
+    	case a64_opcode.bc_cond          : return "bc_cond"
     	case a64_opcode.hint 			 : return "hint"
     	case a64_opcode.b                : return "b"
     	case a64_opcode.bl               : return "bl"
@@ -561,5 +585,11 @@ decode_BL_test :: proc(t: ^testing.T) {
 	assert(op == a64_opcode.bl, msg)
 }
 
-
+@(test)
+decode_BCOND_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x54000260
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.b_cond, msg)
+}
 
