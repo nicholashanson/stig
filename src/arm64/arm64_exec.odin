@@ -2,6 +2,7 @@ package parse_elf
 
 import "core:testing"
 
+// ---------------------------------------------------------------------------------------
 // =====
 //  REG
 // =====
@@ -267,9 +268,9 @@ add_with_carry_result :: struct {
 	v     : bool
 }
 
-// ===============
-//  ADD ITH CARRY
-// ===============
+// ================
+//  ADD WITH CARRY
+// ================
 
 // (bits(N), bits(4)) AddWithCarry(bits(N) x, bits(N) y, bit carry_in)
 add_with_carry :: proc(x: $T, y: T, carry_in: bool) -> add_with_carry_result {
@@ -344,10 +345,10 @@ parse_stp :: proc(instr: u32) -> arm64_instr {
 		// boolean tag_checked = wback || n != 31;
 	}
 }
-
-// Add (immediate) adds a register value and an optionally-shifted immediate value, and writes the result to the
-// destination register.
-// This instruction is used by the alias MOV (to/from SP).
+// ---------------------------------------------------------------------------------------
+// Add (immediate) adds a register value and an optionally-shifted immediate value, and 
+// writes the result to the destination register. This instruction is used by the alias 
+// MOV (to/from SP).
 // ADD <Xd|SP>, <Xn|SP>, #<imm>{, <shift>}
 parse_add_imm_64 :: proc(instr: u32) -> arm64_instr {
 	sf := slice(instr, 31, 1)
@@ -363,8 +364,9 @@ parse_add_imm_64 :: proc(instr: u32) -> arm64_instr {
 	}
 }
 
-// Bitwise OR (shifted register) performs a bitwise (inclusive) OR of a register value and an optionally-shifted register
-// value, and writes the result to the destination register.
+// ---------------------------------------------------------------------------------------
+// Bitwise OR (shifted register) performs a bitwise (inclusive) OR of a register value and 
+// an optionally-shifted register value, and writes the result to the destination register.
 // This instruction is used by the alias MOV (register).
 parse_orr_shift_reg_64 :: proc(instr: u32) -> arm64_instr {
 	sf := slice(instr, 31, 1)
@@ -455,3 +457,4 @@ parse_ORR_SHIFT_REG_64_test :: proc(t: ^testing.T) {
 	expected.datasize = ds._64
 	assert(actual == expected)
 }
+// ---------------------------------------------------------------------------------------
