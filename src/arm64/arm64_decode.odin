@@ -6,8 +6,14 @@ import "core:testing"
 
 // ---------------------------------------------------------------------------------------
 a64_opcode :: enum(u32) {
+	// conditional branch imm
+	b_cond, bc_cond,
 	hint, b, bl,
-	mov_z_64,
+	// data proc one source
+	rbit_32, rbit_64, rev16_32, rev16_64, clz_32, clz_64, cls_32, cls_64, rev32, rev_32, rev_64,
+	// mov_wide_imm
+	mov_z_32, mov_k_32, mov_n_32,
+	mov_z_64, mov_k_64, mov_n_64,
 	// bitfield
 	ubfm_32,
 	// add/subtract extended register
@@ -22,6 +28,9 @@ a64_opcode :: enum(u32) {
 	bics_shift_reg_64,
 	// load/store register (register offset)
 	ldr_reg_32,		  ldr_reg_simd_fp,	
+	// add shift reg
+	add_shift_reg_32,  adds_shift_reg_32, sub_shift_reg_32, subs_shift_reg_32, add_shift_reg_64,
+	adds_shift_reg_64, sub_shift_reg_64,  subs_shift_reg_64,
 
 	stp_32_pre_index, stp_64_pre_index, stp_64_post_index, stp_64_offset,
 
@@ -184,7 +193,7 @@ decode_proc_2_src :: proc(instr: u32) -> a64_opcode {
 //  DECODE POC 1 SRC
 // ==================
 
-decode_proc_1_src :: proc(instr: u32) -> a64_opcode {
+decode_data_proc_1_src_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 // ---------------------------------------------------------------------------------------
@@ -193,6 +202,25 @@ decode_proc_1_src :: proc(instr: u32) -> a64_opcode {
 // ============================
 
 decode_add_sub_shifted_reg :: proc(instr: u32) -> a64_opcode {
+	sf_op_S := slice(instr, 29, 3)
+	switch sf_op_S {
+		// 0 0 0 ADD (shifted register) — 32-bit
+		case 0b000: return a64_opcode.add_shift_reg_32
+		// 0 0 1 ADDS (shifted register) — 32-bit
+		case 0b001: return a64_opcode.adds_shift_reg_32
+		// 0 1 0 SUB (shifted register) — 32-bit
+		case 0b010: return a64_opcode.sub_shift_reg_32
+		// 0 1 1 SUBS (shifted register) — 32-bit
+		case 0b011: return a64_opcode.subs_shift_reg_32
+		// 1 0 0 ADD (shifted register) — 64-bit
+		case 0b100: return a64_opcode.add_shift_reg_64
+		// 1 0 1 ADDS (shifted register) — 64-bit
+		case 0b101: return a64_opcode.adds_shift_reg_64
+		// 1 1 0 SUB (shifted register) — 64-bit
+		case 0b110: return a64_opcode.sub_shift_reg_64
+		// 1 1 1 SUBS (shifted register) — 64-bit
+		case 0b111: return a64_opcode.subs_shift_reg_64
+	}
 	return a64_opcode.invalid
 }
 // ---------------------------------------------------------------------------------------
@@ -244,7 +272,7 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	}
 	// 1 1 0110 xxxxxx Data-processing (1 source)
 	if ( (op0 == 0b1) && (op1 == 0b1) && (op2 == 0b0110)) {
-		return decode_proc_1_src(instr)
+		return decode_data_proc_1_src_reg(instr)
 	}
 	// x 0 0xxx xxxxxx Logical (shifted register)
 	if ( (op1 == 0b0) && (op2 & 0b1000) == 0b0000) {
@@ -276,9 +304,31 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 decode_mov_wide_imm :: proc(instr: u32) -> a64_opcode {
 	sf:  u32 = (instr >> 31) & 0x1
 	opc: u32 = (instr >> 29) & 0x3
-	if sf == 0b1 && opc == 0b10 {
+	hw:  u32 = (instr >> 21) & 0x3
+	// 1 10 MOVZ — 64-bit
+ 	if sf == 0b1 && opc == 0b10 {
 		return a64_opcode.mov_z_64
-	} 
+	}
+	// 0 10 0x MOVZ — 32-bit
+	if sf == 0b0 && opc == 0b10 && (hw & 0b10) == 0b00 { 
+	 	return a64_opcode.mov_z_32
+	}
+	// 00 0x MOVN — 32-bit
+	if sf == 0b0 && opc == 0b00 && (hw & 0b10) == 0b00 { 
+	 	return a64_opcode.mov_n_32
+	}
+	// 0 11 0x MOVK — 32-bit
+	if sf == 0b0 && opc == 0b11 && (hw & 0b10) == 0b00 { 
+		return a64_opcode.mov_k_32
+	}
+	// 1 00 MOVN — 64-bit
+	if sf == 0b1 && opc == 0b00 { 
+	 	return a64_opcode.mov_n_64
+	}
+	// 1 11 MOVK — 64-bit
+	if sf == 0b1 && opc == 0b11 { 
+	 	return a64_opcode.mov_k_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -286,7 +336,37 @@ decode_mov_wide_imm :: proc(instr: u32) -> a64_opcode {
 //  DECODE DATA PROC 1 SRC
 // ========================
 
-decode_data_proc_1_src :: proc(instr: u32) -> a64_opcode {
+decode_data_proc_1_src_reg :: proc(instr: u32) -> a64_opcode {
+	sf       := slice(instr, 31, 1)
+	S        := slice(instr, 29, 1)
+	opcode2  := slice(instr, 16, 5)
+	opcode   := slice(instr, 10, 6)
+	combined := (sf << 12) | (S << 11) | (opcode2 << 6) | opcode;
+	switch combined {
+		// 0 0 00000 000000 RBIT — 32-bit -
+		case 0b0000000000000: return a64_opcode.rbit_32
+		// 0 0 00000 000001 REV16 — 32-bit -
+		case 0b0000000000001: return a64_opcode.rev16_32
+		// 0 0 00000 000010 REV — 32-bit -
+		case 0b0000000000010: return a64_opcode.rev_32
+		// 0 0 00000 000011 UNALLOCATED -
+		// 0 0 00000 000100 CLZ — 32-bit -
+		case 0b0000000000100: return a64_opcode.clz_32
+		// 0 0 00000 000101 CLS — 32-bit -
+		case 0b0000000000101: return a64_opcode.cls_32
+		// 1 0 00000 000000 RBIT — 64-bit -
+		case 0b1000000000000: return a64_opcode.rbit_64
+		// 1 0 00000 000001 REV16 — 64-bit -
+		case 0b1000000000001: return a64_opcode.rev16_64
+		// 1 0 00000 000010 REV32 -
+		case 0b1000000000010: return a64_opcode.rev32
+		// 1 0 00000 000011 REV — 64-bit -
+		case 0b1000000000011: return a64_opcode.rev_64
+		// 1 0 00000 000100 CLZ — 64-bit -
+		case 0b1000000000100: return a64_opcode.clz_64
+		// 1 0 00000 000101 CLS — 64-bit
+		case 0b1000000000101: return a64_opcode.cls_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -361,7 +441,7 @@ decode_data_proc_imm :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 29) & 0x3
 	// 11 111x Data-processing (1 source immediate)
 	if ( (op1 == 0b11) && ( op1 & 0b1110 == 0b1110)) {
-		return decode_data_proc_1_src(instr)
+		return decode_data_proc_1_src_imm(instr)
 	}
 	// xx 00xx PC-rel. addressing
 	if ( (op1 & 0b1100) == 0b0000 ) {
@@ -422,6 +502,22 @@ decode_unconditional_branch_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid;
 }
 
+// ===============================
+//  DECODE CONDITIONAL BRANCH IMM
+// ===============================
+
+decode_conditional_branch_imm :: proc(instr: u32) -> a64_opcode {
+	o0 := slice(instr,  4, 1)
+	o1 := slice(instr, 24, 1)
+	if ( (o0 == 0b0) && (o1 == 0b0) ) {
+		return a64_opcode.b_cond;
+	}
+	if ( (o0 == 0b0) && (o1 == 0b1) ) {
+		return a64_opcode.bc_cond;
+	}
+	return a64_opcode.invalid;
+}
+
 // =================
 //  DECODE BRANCHES
 // =================
@@ -430,6 +526,9 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 29) &    0x7
 	op1: u32 = (instr >> 12) & 0x3fff
 	// 010 00xxxxxxxxxxxx xxxxx Conditional branch (immediate)
+	if ( (op0 == 0b010) && (op1 & 0b10000000000000) == 0b00000000000000) {
+		return decode_conditional_branch_imm(instr)
+	}
 	// 010 01xxxxxxxxxxxx xxxxx Miscellaneous branch (immediate)
 	// 011 00xxxxxxxx1xxx xxxxx Compare bytes/halfwords in registers and
 	// branch
@@ -474,10 +573,19 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 
 opcode_to_string :: proc(op: a64_opcode) -> string {
     #partial switch op {
+    	// condtional branch imm
+    	case a64_opcode.b_cond           : return "b_cond"
+    	case a64_opcode.bc_cond          : return "bc_cond"
     	case a64_opcode.hint 			 : return "hint"
     	case a64_opcode.b                : return "b"
     	case a64_opcode.bl               : return "bl"
+    	// mov wide immu
     	case a64_opcode.mov_z_64		 : return "mov_z_64"
+    	case a64_opcode.mov_z_32   		 : return "mov_z_32" 
+    	case a64_opcode.mov_k_32 		 : return "mov_k_32" 
+    	case a64_opcode.mov_n_32		 : return "mov_n_32"
+		case a64_opcode.mov_k_64		 : return "mov_k_64"
+		case a64_opcode.mov_n_64		 : return "mov_n_64"
     	// loigical shifted register
     	case a64_opcode.and_shift_reg_32 : return "and_shift_reg_32"
 		case a64_opcode.bic_shift_reg_32 : return "bic_shift_reg_32"
@@ -514,7 +622,30 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.add_imm_64		 : return "add_imm_64"				
 		case a64_opcode.adds_imm_64		 : return "adds_imm_64"					
 		case a64_opcode.sub_imm_64		 : return "sub_imm_64"				
-		case a64_opcode.subs_imm_64		 : return "subs_imm_64"					
+		case a64_opcode.subs_imm_64		 : return "subs_imm_64"		
+
+		// data proc one src
+		case a64_opcode.rbit_32			 : return "rbit_32"
+		case a64_opcode.rbit_64 		 : return "rbit_64" 
+		case a64_opcode.rev16_32 		 : return "rev16_32" 
+		case a64_opcode.rev16_64 		 : return "rev16_64" 
+		case a64_opcode.clz_32			 : return "clz_32"
+		case a64_opcode.clz_64 			 : return "clz_64" 
+		case a64_opcode.cls_32 			 : return "cls_32" 
+		case a64_opcode.cls_64 			 : return "cls_64" 
+		case a64_opcode.rev32 			 : return "rev32" 
+		case a64_opcode.rev_32 			 : return "rev_32" 
+		case a64_opcode.rev_64			 : return "rev_64"
+
+		// add/sub shift reg
+		case a64_opcode.add_shift_reg_32	: return "add_shift_reg_32"
+		case a64_opcode.adds_shift_reg_32	: return "adds_shift_reg_32"
+		case a64_opcode.sub_shift_reg_32	: return "sub_shift_reg_32"
+		case a64_opcode.subs_shift_reg_32	: return "subs_shift_reg_32"
+		case a64_opcode.add_shift_reg_64	: return "add_shift_reg_64"
+		case a64_opcode.adds_shift_reg_64	: return "adds_shift_reg_64"
+		case a64_opcode.sub_shift_reg_64	: return "sub_shift_reg_64"
+		case a64_opcode.subs_shift_reg_64	: return "subs_shift_reg_64"
 
 		case a64_opcode.invalid			 : return "invalid"
     }
@@ -560,3 +691,37 @@ decode_BL_test :: proc(t: ^testing.T) {
 	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
 	assert(op == a64_opcode.bl, msg)
 }
+
+@(test)
+decode_BCOND_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x54000260
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.b_cond, msg)
+}
+
+@(test)
+decode_MOV_Z_32_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x528003e1
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.mov_z_32, msg)
+}
+
+@(test)
+decode_CLZ_32_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x5ac01000
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.clz_32, msg)
+}
+
+@(test)
+decode_SUB_SHIFT_REG_32_test :: proc(t: ^testing.T) {
+	instr: u32 = 0x4b000021
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.sub_shift_reg_32, msg)
+}
+
+
