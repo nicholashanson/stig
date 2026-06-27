@@ -87,22 +87,200 @@ decode_load_store_reg_offset :: proc(instr: u32) -> a64_opcode {
 	} 
 	return a64_opcode.invalid
 }
+
+decode_cmp_and_swap_pair :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_adv_simd_ld_st_mult_structs :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_adv_simd_ld_st_mult_structs_post_indexed :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_adv_simd_ld_st_single_struct :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_adv_simd_ld_st_single_struct_post_indexed :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_mem_tags :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_excl_pair :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_excl_reg :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_ordered :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_cmp_and_swap :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ldapr_strl_unscaled_imm :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_reg_lit :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_mem_cpy_set :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_no_alloc_pair :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_reg_pair_post_indexed :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_reg_pair_offset :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_reg_pair_pre_indexed :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.stp_64_pre_index
+}
+decode_ld_st_unscaled_imm :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_reg_imm_post_indexed :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_reg_unpriv :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_reg_imm_pre_indexed :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_atomic_mem_ops :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_reg_reg_offset :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_ld_st_reg_pac :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+} 
+decode_ld_st_unsigned_imm :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
 // ---------------------------------------------------------------------------------------
 // ========================
 //  DECODE LOAD AND STORES
 // ========================
 
 decode_load_and_stores :: proc(instr: u32) -> a64_opcode {
-	op0: u32 = (instr >> 28) & 0xf 
-	op1: u32 = (instr >> 26) & 0x1 
-	op2: u32 = (instr >> 10) & 0x7fff
-	op3: u32 = (instr >> 23) & 0x3
-	// xx11 x 0xx1xxxxxxxxx10
-	if ( ((op0 & 0b0011) == 0b0011) && ((op2 & 0b100100000000011) == 0b000100000000010) ) {
-		return decode_load_store_reg_offset(instr)
-	} 
-	if ( (op3 == 0b11)) {
-		return a64_opcode.stp_64_pre_index
+	op0 := slice(instr, 28, 4)
+	op1 := slice(instr, 26, 1)
+	op2 := slice(instr, 23, 2)
+	op3 := slice(instr, 16, 6)
+	op4 := slice(instr, 10, 2)
+	// 0x00 0 00 1xxxxx Compare and swap pair
+	if ( ( (op0 & 0b1011) == 0b0000 ) && (op1 == 0b0) && (op2 == 0b00) && ( (op3 & 0b100000) == 0b100000 ) ) {
+		return decode_cmp_and_swap_pair(instr)
+	}
+	// 0x00 1 00 000000 Advanced SIMD load/store multiple structures
+	if ( ( (op0 & 0b1011) == 0b0000 ) && (op1 == 0b1) && (op2 == 0b00) && (op3 == 0b000000) ) {
+		return decode_adv_simd_ld_st_mult_structs(instr)
+	}
+	// 0x00 1 01 0xxxxx Advanced SIMD load/store multiple structures (post-indexed)
+	if ( ( (op0 & 0b1011) == 0b0000 ) && (op1 == 0b1) && (op2 == 0b01) && ( (op3 & 0b100000) == 0b000000 ) ) {
+		return decode_adv_simd_ld_st_mult_structs_post_indexed(instr)
+	}
+	// 0x00 1 0x 1xxxxx UNALLOCATED
+	// 0x00 1 10 x00000 Advanced SIMD load/store single structure
+	if ( ( (op0 & 0b1011) == 0b0000 ) && (op1 == 0b1) && (op2 == 0b10) && ( (op3 & 0b100000) == 0b000000 ) ) {
+		return decode_adv_simd_ld_st_single_struct(instr)
+	}
+	// 0x00 1 11 Advanced SIMD load/store single structure (post-indexed)
+	if ( ( (op0 & 0b1011) == 0b0000 ) && (op1 == 0b1) && (op2 == 0b11) ) {
+		return decode_adv_simd_ld_st_single_struct_post_indexed(instr)
+	}
+	// 0x00 1 x0 x1xxxx UNALLOCATED
+	// 0x00 1 x0 xx1xxx UNALLOCATED
+	// 0x00 1 x0 xxx1xx UNALLOCATED
+	// 0x00 1 x0 xxxx1x UNALLOCATED
+	// 0x00 1 x0 xxxxx1 UNALLOCATED
+	// 1101 0 1x 1xxxxx Load/store memory tags
+	if ( ( (op0 == 0b1101) ) && (op1 == 0b0) && ( (op2 & 0b10) == 0b10 ) && ( (op3 & 0b100000) == 0b100000 ) ) {
+		return decode_ld_st_mem_tags(instr)
+	}
+	// 1x00 0 00 1xxxxx Load/store exclusive pair
+	if ( ( (op0 & 0b1011) == 0b1000 ) && (op1 == 0b0) && (op2 == 0b00) && ( (op3 & 0b100000) == 0b1000000 ) ) {
+		return decode_ld_st_excl_pair(instr)
+	}
+	// 1x00 1 UNALLOCATED
+	// xx00 0 00 0xxxxx Load/store exclusive register
+	if ( ( (op0 & 0b0011) == 0b0000 ) && (op1 == 0b0) && (op2 == 0b00) && ( (op3 & 0b100000) == 0b0000000 ) ) {
+		return decode_ld_st_excl_reg(instr)
+	}
+	// xx00 0 01 0xxxxx Load/store ordered
+	if ( ( (op0 & 0b0011) == 0b0000 ) && (op1 == 0b0) && (op2 == 0b01) && ( (op3 & 0b100000) == 0b0000000 ) ) {
+		return decode_ld_st_ordered(instr)
+	}
+	// xx00 0 01 1xxxxx Compare and swap
+	if ( ( (op0 & 0b0011) == 0b0000 ) && (op1 == 0b0) && (op2 == 0b01) && ( (op3 & 0b100000) == 0b1000000 ) ) {
+		return decode_cmp_and_swap(instr)
+	}
+	// xx01 0 1x 0xxxxx 00 LDAPR/STLR (unscaled immediate)
+	if ( ( (op0 & 0b0011) == 0b0001 ) && (op1 == 0b0) && ( (op2 & 0b10) == 0b10 ) && ( (op3 & 0b100000) == 0b0000000 ) && (op4 == 0b00) ) {
+		return decode_ldapr_strl_unscaled_imm(instr)
+	}
+	// xx01 0x Load register (literal)
+	if ( ( (op0 & 0b0011) == 0b0001 ) && ( (op1 & 0b10) == 0b00 ) ) {
+		return decode_ld_reg_lit(instr)
+	}
+	// xx01 1x 0xxxxx 01 Memory Copy and Memory Set
+	if ( ( (op0 & 0b0011) == 0b0001 ) && ( (op2 & 0b10) == 0b10 ) && ( (op3 & 0b100000) == 0b0000000 ) && (op4 == 0b01) ) {
+		return decode_mem_cpy_set(instr)
+	}
+	// xx10 00 Load/store no-allocate pair (offset)
+	if ( ( (op0 & 0b0011) == 0b0010 ) && (op2 == 0b00) ) {
+		return decode_ld_st_no_alloc_pair(instr)
+	}
+	// xx10 01 Load/store register pair (post-indexed)
+	if ( ( (op0 & 0b0011) == 0b0010 ) && (op2 == 0b01) ) {
+		return decode_ld_st_reg_pair_post_indexed(instr)
+	}
+	// xx10 10 Load/store register pair (offset)
+	if ( ( (op0 & 0b0011) == 0b0010 ) && (op2 == 0b10) ) {
+		return decode_ld_st_reg_pair_offset(instr)
+	}
+	// xx10 11 Load/store register pair (pre-indexed)
+	if ( ( (op0 & 0b0011) == 0b0010 ) && (op2 == 0b11) ) {
+		return decode_ld_st_reg_pair_pre_indexed(instr)
+	}
+	// xx11 0x 0xxxxx 00 Load/store register (unscaled immediate)
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 ) && ( (op3 & 0b100000) == 0b100000 ) && (op4 == 0b00) ) {
+		return decode_ld_st_unscaled_imm(instr)
+	}
+	// xx11 0x 0xxxxx 01 Load/store register (immediate post-indexed)
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 )  && ( (op3 & 0b100000) == 0b000000 ) && (op4 == 0b01) ) {
+		return decode_ld_st_reg_imm_post_indexed(instr)
+	}
+	// xx11 0x 0xxxxx 10 Load/store register (unprivileged)
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 )  && ( (op3 & 0b100000) == 0b000000 ) && (op4 == 0b10) ) {
+		return decode_ld_st_reg_unpriv(instr)
+	}
+	// xx11 0x 0xxxxx 11 Load/store register (immediate pre-indexed)
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 )  && ( (op3 & 0b100000) == 0b000000 ) && (op4 == 0b11) ) {
+		return decode_ld_st_reg_imm_pre_indexed(instr)
+	}
+	// xx11 0x 1xxxxx 00 Atomic memory operations
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 )  && ( (op3 & 0b100000) == 0b100000 ) && (op4 == 0b00) ) {
+		return decode_atomic_mem_ops(instr)
+	}
+	// xx11 0x 1xxxxx 10 Load/store register (register offset)
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 )  && ( (op3 & 0b100000) == 0b100000 ) && (op4 == 0b10) ) {
+		return decode_ld_st_reg_reg_offset(instr)
+	}
+	// xx11 0x 1xxxxx x1 Load/store register (pac)
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 )  && ( (op3 & 0b100000) == 0b100000 ) &&  ( (op4 & 0b01) == 0b01 ) ) {
+		return decode_ld_st_reg_pac(instr)
+	}
+	// xx11 1x Load/store register (unsigned immediate)
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b10 ) ) {
+		return decode_ld_st_unsigned_imm(instr)
 	}
 	return a64_opcode.invalid
 }
