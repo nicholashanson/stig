@@ -28,6 +28,8 @@ a64_opcode :: enum(u32) {
 	bics_shift_reg_64,
 	// load/store register (register offset)
 	ldr_reg_32,		  ldr_reg_simd_fp,	
+	// load/store register (unsigned immediate)
+	ldr_imm_32,
 	// add shift reg
 	add_shift_reg_32,  adds_shift_reg_32, sub_shift_reg_32, subs_shift_reg_32, add_shift_reg_64,
 	adds_shift_reg_64, sub_shift_reg_64,  subs_shift_reg_64,
@@ -73,7 +75,7 @@ decode_bitfield :: proc(instr: u32) -> a64_opcode {
 //  DECODE LOAD STORE REG OFFSET
 // ==============================
 
-decode_load_store_reg_offset :: proc(instr: u32) -> a64_opcode {
+decode_ld_st_reg_reg_offset :: proc(instr: u32) -> a64_opcode {
 	size: u32 = (instr >> 30) & 0x3 
 	VR:   u32 = (instr >> 26) & 0x1
 	opc:  u32 = (instr >> 22) & 0x3
@@ -84,7 +86,7 @@ decode_load_store_reg_offset :: proc(instr: u32) -> a64_opcode {
 	// 10 1 01 xxx xxxxx LDR (register, SIMD&FP) — 32-bit FEAT_FP
 	if ((size == 0b10) && (VR == 0b1) && (opc == 0b01)) {
 		return a64_opcode.ldr_reg_simd_fp
-	} 
+	}
 	return a64_opcode.invalid
 }
 
@@ -154,14 +156,11 @@ decode_ld_st_reg_imm_pre_indexed :: proc(instr: u32) -> a64_opcode {
 decode_atomic_mem_ops :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
-decode_ld_st_reg_reg_offset :: proc(instr: u32) -> a64_opcode {
-	return a64_opcode.invalid
-}
 decode_ld_st_reg_pac :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 } 
 decode_ld_st_unsigned_imm :: proc(instr: u32) -> a64_opcode {
-	return a64_opcode.invalid
+	return a64_opcode.ldr_imm_32
 }
 
 // ---------------------------------------------------------------------------------------
@@ -825,9 +824,21 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.sub_shift_reg_64	: return "sub_shift_reg_64"
 		case a64_opcode.subs_shift_reg_64	: return "subs_shift_reg_64"
 
+
+		// load/store register (unsigned immediate)
+		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
+
 		case a64_opcode.invalid			 : return "invalid"
     }
     return ""
+}
+
+@(test)
+decode_LDR_REG_32_test :: proc(t: ^testing.T) {
+	instr: u32 = 0xb8616800
+	op: a64_opcode = get_opcode(instr)
+	msg: string = fmt.aprint("Decoded opcode:", opcode_to_string(op))
+	assert(op == a64_opcode.ldr_reg_32, msg)
 }
 
 @(test)
