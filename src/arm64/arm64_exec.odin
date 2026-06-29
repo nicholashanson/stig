@@ -314,9 +314,9 @@ parse_add_ext :: proc(instr: u32) -> arm64_instr {
 	}
 }
 // ---------------------------------------------------------------------------------------
-// ==============
-//  PARSE STP 64
-// ==============
+// ========================
+//  PARSE STP 64 PRE INDEX
+// ========================
 // STP <Xt1>, <Xt2>, [<Xn|SP>, #<imm>]!
 parse_stp_64_pre_index :: proc(instr: u32) -> arm64_instr {
 	parsed_instr 		    := parse_stp(instr)
@@ -324,6 +324,10 @@ parse_stp_64_pre_index :: proc(instr: u32) -> arm64_instr {
 	parsed_instr.post_index  = false
 	return parsed_instr
 }
+// ---------------------------------------------------------------------------------------
+// ============
+//  PASRSE STP
+// ============
 
 parse_stp :: proc(instr: u32) -> arm64_instr {
 	// if L:opc<0> == '01' || opc == '11' then UNDEFINED;
@@ -344,68 +348,65 @@ parse_stp :: proc(instr: u32) -> arm64_instr {
 		// boolean tag_checked = wback || n != 31;
 	}
 }
+// ---------------------------------------------------------------------------------------
+// ====================
+//  CHECK SP ALIGNMENT
+// ====================
 
 check_sp_alignment ::proc() -> bool {
 	return true
 }
+// ---------------------------------------------------------------------------------------
+// ============
+//  INSTR FLAG
+// ============
 
 instr_flag :: enum(u8) {
 	wback,
 	post_index,
 }
+// ---------------------------------------------------------------------------------------
+// ============
+//  CHECK FLAG
+// ============
 
 check_flag ::proc(instr: arm64_instr, flag: instr_flag) -> bool {
 	switch (flag) {
-		case instr_flag.wback: 		return instr.wback
+		case instr_flag.wback: 		   return instr.wback
 		case instr_flag.post_index:    return instr.post_index
 	}
 	return false
 
 }
+// ---------------------------------------------------------------------------------------
+// ==============
+//  EXEC STP EXT
+// ==============
 
 exec_stp_ext :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
-	// bits(64) address;
 	addr : u64
-	// bits(datasize) data1;
-	// bits(datasize) data2;
-	
-	// constant integer dbytes = datasize DIV 8;
 	dbytes : u8 = 4 if instr.datasize == ds._32 else 8
 	
-	// if HaveMTE2Ext() then
-	// SetTagCheckedInstruction(tag_checked);
+	// if HaveMTE2Ext() then SetTagCheckedInstruction(tag_checked);
 	
-	// if n == 31 then
 	if instr.n == reg.sp {
-		// CheckSPAlignment();
 		check_sp_alignment();
-		// address = SP[];
 		addr = get_reg(vm, reg.sp)
 	} else {
-		// address = X[n];
 		addr = get_reg(vm, instr.n)
 	}
-	// if !postindex then
 	if check_flag(instr, instr_flag.post_index) {
-		// address = address + offset;
 		addr += transmute(u64)instr.offset
 	}
-	// if rt_unknown && t == n then
-	// data1 = bits(datasize) UNKNOWN;
-	// else
-	// data1 = X[t];
-	data1 := get_reg(vm, instr.t)
-	// if rt_unknown && t2 == n then
-	// data2 = bits(datasize) UNKNOWN;
-	// else
-	// data2 = X[t2];
-	data2 := get_reg(vm, instr.t2)
+	// if rt_unknown && t == n then data1 = bits(datasize) UNKNOWN;
+	data1 := get_reg(vm, instr.t, instr.datasize)
+	// if rt_unknown && t2 == n then ata2 = bits(datasize) UNKNOWN;
+	data2 := get_reg(vm, instr.t2, instr.datasize)
 	// if HaveLSE2Ext() then
 	if has_lse2_ext(vm) {
 		// bits(2*datasize) full_data;
-		// if BigEndian(AccType_NORMAL) then
+		// if BigEndian(AccType_NORMAL) then full_data = data1:data2;
 		if true {
-			// full_data = data1:data2;
 		} else {
 			// full_data = data2:data1;
 			full_data := u64((u64(data2) << 32) | u64(data1))
@@ -418,19 +419,19 @@ exec_stp_ext :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
 		// Mem[address+dbytes, dbytes, AccType_NORMAL] = data2;
 		write(vm, addr + u64(dbytes), dbytes, acc_type.normal, data2)
 	}
-	// if wback then
 	if check_flag(instr, instr_flag.wback) {
 		// if postindex then address = address + offset;
-		// if n == 31 then
 		if instr.n == reg.sp { 
-			// SP[] = address;
 			set_reg(vm, reg.sp, addr)
 		} else {
-			// X[n] = address;
 			set_reg(vm, instr.n, addr)
 		}
 	}
 }
+// ---------------------------------------------------------------------------------------
+// ==================
+//  PARSE ADD IMM 64
+// ==================
 
 // Add (immediate) adds a register value and an optionally-shifted immediate value, and writes the result to the
 // destination register.
@@ -449,6 +450,10 @@ parse_add_imm_64 :: proc(instr: u32) -> arm64_instr {
 		imm         = slice(instr, 10, 12),
 	}
 }
+// ---------------------------------------------------------------------------------------
+// ========================
+//  PARSE ORR SHIFT REG 64
+// ========================
 
 // Bitwise OR (shifted register) performs a bitwise (inclusive) OR of a register value and an optionally-shifted register
 // value, and writes the result to the destination register.
