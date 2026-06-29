@@ -267,9 +267,9 @@ add_with_carry_result :: struct {
 	v     : bool
 }
 
-// ===============
-//  ADD ITH CARRY
-// ===============
+// ================
+//  ADD WITH CARRY
+// ================
 
 // (bits(N), bits(4)) AddWithCarry(bits(N) x, bits(N) y, bit carry_in)
 add_with_carry :: proc(x: $T, y: T, carry_in: bool) -> add_with_carry_result {
@@ -342,6 +342,93 @@ parse_stp :: proc(instr: u32) -> arm64_instr {
 		// bits(64) offset = LSL(SignExtend(imm7, 64), scale);
 		offset   = lsl(sign_extend(i64, imm7), scale),
 		// boolean tag_checked = wback || n != 31;
+	}
+}
+
+check_sp_alignment ::proc() -> bool {
+	return true
+}
+
+instr_flag :: enum(u8) {
+	wback,
+	post_index,
+}
+
+check_flag ::proc(instr: arm64_instr, flag: instr_flag) -> bool {
+	switch (flag) {
+		case instr_flag.wback: 		return instr.wback
+		case instr_flag.post_index:    return instr.post_index
+	}
+	return false
+
+}
+
+exec_stp_ext :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
+	// bits(64) address;
+	addr : u64
+	// bits(datasize) data1;
+	// bits(datasize) data2;
+	
+	// constant integer dbytes = datasize DIV 8;
+	dbytes : u8 = 4 if instr.datasize == ds._32 else 8
+	
+	// if HaveMTE2Ext() then
+	// SetTagCheckedInstruction(tag_checked);
+	
+	// if n == 31 then
+	if instr.n == reg.sp {
+		// CheckSPAlignment();
+		check_sp_alignment();
+		// address = SP[];
+		addr = get_reg(vm, reg.sp)
+	} else {
+		// address = X[n];
+		addr = get_reg(vm, instr.n)
+	}
+	// if !postindex then
+	if check_flag(instr, instr_flag.post_index) {
+		// address = address + offset;
+		addr += transmute(u64)instr.offset
+	}
+	// if rt_unknown && t == n then
+	// data1 = bits(datasize) UNKNOWN;
+	// else
+	// data1 = X[t];
+	data1 := get_reg(vm, instr.t)
+	// if rt_unknown && t2 == n then
+	// data2 = bits(datasize) UNKNOWN;
+	// else
+	// data2 = X[t2];
+	data2 := get_reg(vm, instr.t2)
+	// if HaveLSE2Ext() then
+	if has_lse2_ext(vm) {
+		// bits(2*datasize) full_data;
+		// if BigEndian(AccType_NORMAL) then
+		if true {
+			// full_data = data1:data2;
+		} else {
+			// full_data = data2:data1;
+			full_data := u64((u64(data2) << 32) | u64(data1))
+			// Mem[address, 2*dbytes, AccType_NORMAL, TRUE] = full_data;
+			write(vm, addr, 2 * dbytes, acc_type.normal, full_data, true)
+		}
+	} else {
+		// Mem[address, dbytes, AccType_NORMAL] = data1;
+		write(vm, addr, dbytes, acc_type.normal, data1)
+		// Mem[address+dbytes, dbytes, AccType_NORMAL] = data2;
+		write(vm, addr + u64(dbytes), dbytes, acc_type.normal, data2)
+	}
+	// if wback then
+	if check_flag(instr, instr_flag.wback) {
+		// if postindex then address = address + offset;
+		// if n == 31 then
+		if instr.n == reg.sp { 
+			// SP[] = address;
+			set_reg(vm, reg.sp, addr)
+		} else {
+			// X[n] = address;
+			set_reg(vm, instr.n, addr)
+		}
 	}
 }
 

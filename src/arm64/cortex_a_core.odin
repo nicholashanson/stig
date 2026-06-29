@@ -7,6 +7,9 @@ cpu_flags :: struct {
 	v: bool
 }
 
+acc_type :: enum(u8) {
+	normal,
+}
 
 // ***************************************************************************************
 // *					              CORTEX A CPU  									 *
@@ -53,4 +56,12 @@ set_reg :: proc(self: ^cortex_a_vm, r: reg, val: u64, datasize: ds = ds._64) {
 
 set_sp :: proc(self: ^cortex_a_vm, val: u64) {
 	set_reg(self, reg.x31, val)
+}
+
+has_lse2_ext :: proc(self: ^cortex_a_vm) -> bool {
+	return false
+}
+
+write :: proc(self: ^cortex_a_vm, addr: u64, dbytes: u8, acc: acc_type, data: $T, be: bool = false) {
+	return
 }

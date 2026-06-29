@@ -26,7 +26,7 @@ draw_screen_0
     werase(s.load_store.load_store_pad);
     box(s.load_store.load_store_pad, 0, 0);
     box(s.instr.instr_pad_frame, 0, 0);
-    bool instr_pad_moved = false;
+    //bool instr_pad_moved = false;
     s.reg.draw(ctrl, vm);
     s.flag.draw_flags(vm);
     s.load_store.draw(vm);
