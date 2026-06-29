@@ -229,7 +229,6 @@ lsl :: proc(x: $T, shift: u32) -> T {
 	}
 	// return result;
 }
-
 // ---------------------------------------------------------------------------------------
 shift_result :: struct {
 	result:    u64,
@@ -476,25 +475,41 @@ parse_orr_shift_reg_64 :: proc(instr: u32) -> arm64_instr {
 		shift_n     = slice(instr, 10, 6),
 	}
 }
+
+orr :: proc(op1: $T, op2: T) -> T {
+	return op1 | op2
+}
+
+shift_reg :: proc(x: $T, shift_t: shift_type, shift_n: u32) -> T {
+	return T(0)
+}
+
+exec_orr_shift_reg :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
+	// bits(datasize) operand1 = X[n];
+	op1 := get_reg(vm, instr.n, instr.datasize)
+	// bits(datasize) operand2 = ShiftReg(m, shift_type, shift_amount);
+	op2 := shift_reg(get_reg(vm, instr.n, instr.datasize), instr.shift_t, instr.shift_n)
+	// bits(datasize) result;
+	// result = operand1 OR operand2;
+	res := orr(op1, op2)
+	// X[d] = result;
+	set_reg(vm, instr.d, res)
+}
 // ---------------------------------------------------------------------------------------
 // ==============
 //  EXEC ADD EXT
 // ==============
 
 exec_add_ext :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
-	// constant bits(datasize) operand1 = 
-	// if n == 31 
-	// then SP[datasize] else X[n, datasize];
+	// constant bits(datasize) operand1 = if n == 31 then SP[datasize] else X[n, datasize];
 	op1       := get_reg(vm, instr.n, instr.datasize)
-    // constant bits(datasize) operand2 = 
-    // ExtendReg(m, extend_type, shift, datasize);
+    // constant bits(datasize) operand2 = ExtendReg(m, extend_type, shift, datasize);
     unext_op2 := get_reg(vm, instr.m) 
     op2       := extend_reg(unext_op2, instr.ext_type, instr.shift, u32(instr.datasize))
 	// bits(datasize) result;
 	// (result, -) = AddWithCarry(operand1, operand2, '0');
 	add_res   := add_with_carry(op1, op2, false)
-	// if d == 31 then
-	if (instr.d == reg.x31) {
+	if (instr.d == reg.sp) {
 		// SP[64] = ZeroExtend(result, 64);
 		set_sp(vm, u64(add_res.result))
 	} else {
