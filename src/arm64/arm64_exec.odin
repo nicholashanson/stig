@@ -564,16 +564,11 @@ exec_add_ext :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 
 exec_ldr_reg :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	dbytes : u8 = 4 if instr.datasize == ds._32 else 8
-
-	// bits(64) offset = ExtendReg(m, extend_type, shift);
-	m := get_reg(vm, instr.m, ds._64)
+	m      := get_reg(vm, instr.m, ds._64)
 	offset := extend_reg_m(vm, instr)
-	// bits(64) address;
-	addr : u64
-	// bits(datasize) data;
+	addr   : u64
 	// if HaveMTE2Ext() then
 	// SetTagCheckedInstruction(TRUE);
-	// if n == 31 then CheckSPAlignment(); address = SP[];
 	if instr.n == reg.sp {
 		check_sp_alignment()
 		addr = get_reg(vm, reg.sp, ds._64)
@@ -582,7 +577,7 @@ exec_ldr_reg :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	}
 	// address = address + offset;
 	addr += transmute(u64)instr.offset
-	// data = Mem[address, datasize DIV 8, AccType_NORMAL];
+	// bits(datasize) data = Mem[address, datasize DIV 8, AccType_NORMAL];
 	data := read(vm, addr, dbytes, acc_type.normal)
 	// X[t] = ZeroExtend(data, regsize);
 	set_reg(vm, instr.t, zero_extend_to(data, instr.regsize))
