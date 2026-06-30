@@ -15,7 +15,7 @@ a64_opcode :: enum(u32) {
 	mov_z_32, mov_k_32, mov_n_32,
 	mov_z_64, mov_k_64, mov_n_64,
 	// bitfield
-	ubfm_32,
+	ubfm_32, sbfm_32, bfm_32, sbfm_64, bfm_64, ubfm_64,
 	// add/subtract extended register
 	add_ext_64,
 	// add/sub imm
@@ -60,15 +60,33 @@ decode_stp :: proc(instr: u32) -> a64_opcode {
 // =================
 
 decode_bitfield :: proc(instr: u32) -> a64_opcode {
-	// 0 00 0 SBFM — 32-bit
-	// 0 01 0 BFM — 32-bit
-	// 0 10 0 UBFM — 32-bit
-	return a64_opcode.ubfm_32
-	// 0 11 0 UNALLOCATED
-	// 1 xx 0 UNALLOCATED
-	// 1 00 1 SBFM — 64-bit
-	// 1 01 1 BFM — 64-bit
-	// 1 10 1 UBFM — 64-bit
+	sf  	 := slice(instr, 31, 1)
+	opc 	 := slice(instr, 29, 2)
+	N   	 := slice(instr, 22, 1)
+	combined := (sf << 3) | (opc << 1) | N
+	switch (combined) {
+		case 0b0000:
+			// 0 00 0 SBFM — 32-bit
+			return a64_opcode.sbfm_32
+		case 0b0010:	
+			// 0 01 0 BFM — 32-bit
+			return a64_opcode.bfm_32
+		case 0b0100:
+			// 0 10 0 UBFM — 32-bit
+			return a64_opcode.ubfm_32
+		// 0 11 0 UNALLOCATED
+		// 1 xx 0 UNALLOCATED
+		case 0b1001:
+			// 1 00 1 SBFM — 64-bit
+			return a64_opcode.sbfm_64
+			// 1 01 1 BFM — 64-bit
+		case 0b1011:
+			return a64_opcode.bfm_64
+		case 0b1101:
+			// 1 10 1 UBFM — 64-bit
+			return a64_opcode.ubfm_64
+	}
+	return a64_opcode.invalid
 }
 // ---------------------------------------------------------------------------------------
 // ==============================
@@ -787,6 +805,11 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.add_ext_64       : return "add_ext_64"
 		// bitfield
 		case a64_opcode.ubfm_32			 : return "ubfm_32"
+		case a64_opcode.sbfm_32			 : return "sbfm_32"
+		case a64_opcode.bfm_32			 : return "bfm_32"
+		case a64_opcode.sbfm_64			 : return "sbfm_64"
+		case a64_opcode.bfm_64			 : return "bfm_64"
+		case a64_opcode.ubfm_64			 : return "ubfm_64"		
 
 		case a64_opcode.stp_64_pre_index : return "stp_64_pre_index"
 		// unconditional branch (register)
