@@ -480,6 +480,20 @@ parse_add_imm_64 :: proc(instr: u32) -> arm64_instr {
 		imm         = slice(instr, 10, 12),
 	}
 }
+
+// ---------------------------------------------------------------------------------------
+// ==============
+//  EXEC ADD IMM
+// ==============
+
+exec_add_imm :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	// bits(datasize) result;
+	// bits(datasize) operand1 = if n == 31 then SP[] else X[n];
+	op1     := get_reg(vm, instr.n, instr.datasize)
+	// (result, -) = AddWithCarry(operand1, imm, '0');
+	add_res := add_with_carry(op1, u64(instr.imm), false)
+	set_reg(vm, instr.d, add_res.result, instr.datasize)
+}
 // ---------------------------------------------------------------------------------------
 // ========================
 //  PARSE ORR SHIFT REG 64
@@ -548,7 +562,7 @@ exec_add_ext :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	// bits(datasize) result;
 	// (result, -) = AddWithCarry(operand1, operand2, '0');
 	add_res   := add_with_carry(op1, op2, false)
-	if (instr.d == reg.sp) {
+	if instr.d == reg.sp {
 		// SP[64] = ZeroExtend(result, 64);
 		set_sp(vm, u64(add_res.result))
 	} else {
