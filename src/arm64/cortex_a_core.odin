@@ -65,3 +65,7 @@ has_lse2_ext :: proc(self: ^cortex_a_vm) -> bool {
 write :: proc(self: ^cortex_a_vm, addr: u64, dbytes: u8, acc: acc_type, data: $T, be: bool = false) {
 	return
 }
+
+read :: proc(self: ^cortex_a_vm, addr: u64, dbytes: u8, acc: acc_type) -> u64 {
+	return 0
+}

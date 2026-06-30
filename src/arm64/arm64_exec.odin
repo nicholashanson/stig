@@ -17,6 +17,11 @@ ds :: enum {
 	_32 = 32,
 	_64 = 64
 }
+
+rs :: enum {
+	_32 = 32,
+	_64 = 64
+}
 // ---------------------------------------------------------------------------------------
 // =============
 //  ARM64 INSTR
@@ -31,6 +36,7 @@ arm64_instr :: struct {
     ext_type: extend_type,
     shift:            u32,
     datasize:          ds,
+    regsize:           rs,
     post_index:      bool,
     wback:           bool,
     offset:           i64,
@@ -54,6 +60,31 @@ sign_extend :: proc($R: typeid, x: $T) -> R {
 	return cast(R)x;
 }
 
+// ============
+// ZeroExtend()
+// ============
+// bits(N) ZeroExtend(bits(M) x, integer N)
+zero_extend :: proc($R: typeid, x: $T) -> R {
+	// assert N >= M;
+	when size_of(R) < size_of(T) {
+        #panic("zero_extend: destination type is smaller than source type");
+    }
+    // return Zeros(N-M) : x;
+    when size_of(T) == 4 {
+        return cast(R)cast(u32)x;
+    } else when size_of(T) == 8 {
+        return cast(R)cast(u64)x;
+    } else {
+        #panic("zero_extend: unsupported integer size");
+    }
+}
+
+zero_extend_to :: proc(x: $T, regsize: rs) -> u64 {
+	if regsize == rs._32 {
+        return u64(u32(x)) 
+    }
+    return u64(x)
+}
 // ---------------------------------------------------------------------------------------
 // =============
 //  EXTEND TYPE
@@ -497,15 +528,23 @@ exec_orr_shift_reg :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
 }
 // ---------------------------------------------------------------------------------------
 // ==============
+//  EXTEND REG M
+// ==============
+
+extend_reg_m :: proc(vm: ^cortex_a_vm, instr: ^arm64_instr) -> u64 {
+	m := get_reg(vm, instr.m, ds._64)
+	return extend_reg(m, instr.ext_type, instr.shift, u32(instr.datasize))
+} 
+// ---------------------------------------------------------------------------------------
+// ==============
 //  EXEC ADD EXT
 // ==============
 
-exec_add_ext :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
+exec_add_ext :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	// constant bits(datasize) operand1 = if n == 31 then SP[datasize] else X[n, datasize];
 	op1       := get_reg(vm, instr.n, instr.datasize)
     // constant bits(datasize) operand2 = ExtendReg(m, extend_type, shift, datasize);
-    unext_op2 := get_reg(vm, instr.m) 
-    op2       := extend_reg(unext_op2, instr.ext_type, instr.shift, u32(instr.datasize))
+    op2       := extend_reg_m(vm, instr)
 	// bits(datasize) result;
 	// (result, -) = AddWithCarry(operand1, operand2, '0');
 	add_res   := add_with_carry(op1, op2, false)
@@ -516,6 +555,37 @@ exec_add_ext :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
 		// X[d, datasize] = result;
 		set_reg(vm, instr.d, add_res.result, instr.datasize)
 	}
+}
+
+// ---------------------------------------------------------------------------------------
+// ==============
+//  EXEC LDR REG
+// ==============
+
+exec_ldr_reg :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	dbytes : u8 = 4 if instr.datasize == ds._32 else 8
+
+	// bits(64) offset = ExtendReg(m, extend_type, shift);
+	m := get_reg(vm, instr.m, ds._64)
+	offset := extend_reg_m(vm, instr)
+	// bits(64) address;
+	addr : u64
+	// bits(datasize) data;
+	// if HaveMTE2Ext() then
+	// SetTagCheckedInstruction(TRUE);
+	// if n == 31 then CheckSPAlignment(); address = SP[];
+	if instr.n == reg.sp {
+		check_sp_alignment()
+		addr = get_reg(vm, reg.sp, ds._64)
+	} else {
+		addr = get_reg(vm, instr.n, ds._64)
+	}
+	// address = address + offset;
+	addr += transmute(u64)instr.offset
+	// data = Mem[address, datasize DIV 8, AccType_NORMAL];
+	data := read(vm, addr, dbytes, acc_type.normal)
+	// X[t] = ZeroExtend(data, regsize);
+	set_reg(vm, instr.t, zero_extend_to(data, instr.regsize))
 }
 // ---------------------------------------------------------------------------------------
 
@@ -531,7 +601,7 @@ execute_ADD_EXT_test :: proc(t: ^testing.T) {
     instr.datasize = ds._64
     instr.ext_type = extend_type.uxtb 
     instr.shift    = 0
-    exec_add_ext(instr, &vm)
+    exec_add_ext(&instr, &vm)
     expected: u64 = 0x1000 + 0x20 
     actual:   u64 = get_reg(&vm, reg.x2, ds._64)
     assert(actual == expected)
