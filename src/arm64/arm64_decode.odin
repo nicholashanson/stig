@@ -36,6 +36,10 @@ a64_opcode :: enum(u32) {
 
 	stp_32_pre_index, stp_64_pre_index, stp_64_post_index, stp_64_offset,
 
+
+	udiv_32, sdiv_32, lslv_32, lsrv_32, asrv_32, rorv_32, udiv_64, sdiv_64, lslv_64, lsrv_64, asrv_64,
+	rorv_64, subps,
+
 	// unconditional branch (register)
 	ret,
 	invalid
@@ -380,7 +384,71 @@ decode_logical_shift_reg :: proc(instr: u32) -> a64_opcode {
 //  DECODE POC 2 SRC
 // ==================
 
-decode_proc_2_src :: proc(instr: u32) -> a64_opcode {
+decode_data_proc_2_src :: proc(instr: u32) -> a64_opcode {
+	sf       := slice(instr, 31, 1)
+	S        := slice(instr, 29, 1)
+	opcode   := slice(instr, 10, 6)
+	combined := (sf << 7) | (S << 6) | opcode;
+	switch (combined) {
+	// 1 01xxxx UNALLOCATED -
+	// 0 000000 UNALLOCATED -
+		case 0b00000010:
+			// 0 0 000010 UDIV — 32-bit -
+			return a64_opcode.udiv_32
+		case 0b00000011:
+			// 0 0 000011 SDIV — 32-bit -
+			return a64_opcode.sdiv_32
+	// 0 0 00010x UNALLOCATED -
+		case 0b00001000:
+			// 0 0 001000 LSLV — 32-bit -
+			return a64_opcode.lslv_32
+		case 0b00001001:
+			// 0 0 001001 LSRV — 32-bit -
+			return a64_opcode.lsrv_32
+		case 0b00001010:
+			// 0 0 001010 ASRV — 32-bit -
+			return a64_opcode.asrv_32
+		case 0b00001011:
+			// 0 0 001011 RORV — 32-bit -
+			return a64_opcode.rorv_32
+	// 0 0 001100 UNALLOCATED -
+	// 0 0 010x11 UNALLOCATED -
+	// 0 0 010000 CRC32B, CRC32H, CRC32W, CRC32X — CRC32B -
+	// 0 0 010001 CRC32B, CRC32H, CRC32W, CRC32X — CRC32H -
+	// 0 0 010010 CRC32B, CRC32H, CRC32W, CRC32X — CRC32W -
+	// 0 0 010100 CRC32CB, CRC32CH, CRC32CW, CRC32CX — CRC32CB -
+	// 0 0 010101 CRC32CB, CRC32CH, CRC32CW, CRC32CX — CRC32CH -
+	// 0 0 010110 CRC32CB, CRC32CH, CRC32CW, CRC32CX — CRC32CW -
+	// 1 0 000000 SUBP FEAT_MTE
+		case 0b10000010:
+			// 1 0 000010 UDIV — 64-bit -
+			return a64_opcode.udiv_64
+		case 0b10000011:	
+			// 1 0 000011 SDIV — 64-bit -
+			return a64_opcode.sdiv_64
+	// 1 0 000100 IRG FEAT_MTE
+	// 1 0 000101 GMI FEAT_MTE
+		case 0b10001000:
+			// 1 0 001000 LSLV — 64-bit -
+			return a64_opcode.lslv_64
+		case 0b10001001:
+			// 1 0 001001 LSRV — 64-bit -
+			return a64_opcode.lsrv_64
+		case 0b10001010:
+			// 1 0 001010 ASRV — 64-bit -
+			return a64_opcode.asrv_64
+		case 0b10001011:
+			// 1 0 001011 RORV — 64-bit -
+			return a64_opcode.rorv_64
+	// 1 0 001100 PACGA FEAT_PAuth
+	// 1 0 010xx0 UNALLOCATED -
+	// 1 0 010x0x UNALLOCATED -
+	// 1 0 010011 CRC32B, CRC32H, CRC32W, CRC32X — CRC32X -
+	// 1 0 010111 CRC32CB, CRC32CH, CRC32CW, CRC32CX — CRC32CX -
+		case 0b11000000:
+			// 1 1 000000 SUBPS 
+			return a64_opcode.subps
+	}
 	return a64_opcode.invalid
 }
 // ---------------------------------------------------------------------------------------
@@ -463,7 +531,7 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	op3: u32 = (instr >> 10) & 0x3f
 	// 0 1 0110 xxxxxx Data-processing (2 source)
 	if ( (op0 == 0b0) && (op1 == 0b1) && (op2 == 0b0110)) {
-		return decode_proc_2_src(instr)
+		return decode_data_proc_2_src(instr)
 	}
 	// 1 1 0110 xxxxxx Data-processing (1 source)
 	if ( (op0 == 0b1) && (op1 == 0b1) && (op2 == 0b0110)) {
@@ -809,7 +877,7 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.bfm_32			 : return "bfm_32"
 		case a64_opcode.sbfm_64			 : return "sbfm_64"
 		case a64_opcode.bfm_64			 : return "bfm_64"
-		case a64_opcode.ubfm_64			 : return "ubfm_64"		
+		case a64_opcode.ubfm_64			 : return "ubfm_64"			
 
 		case a64_opcode.stp_64_pre_index : return "stp_64_pre_index"
 		// unconditional branch (register)
