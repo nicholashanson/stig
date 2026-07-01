@@ -383,31 +383,6 @@ void execute_ldrsh_t1
 }
 
 
-
-
-// Floating-point Status and Control Register, FPSCR
-void 
-execute_vmrs_t1
-(vm_t)
-(const ref instr_32 instr, ref vm_t vm) {
-	//if ConditionPassed() then
-	//EncodingSpecificOperations();
-	//ExecuteFPCheck();
-	//SerializeVFP();
-	//VFPExcBarrier();
-	//if t == 15 then
-	//APSR.N = FPSCR.N;
-	//APSR.Z = FPSCR.Z;
-	//APSR.C = FPSCR.C;
-	//APSR.V = FPSCR.V;
-	//else
-	//R[t] = FPSCR;
-}
-
-
-
-
-
 void execute_ldrsh_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrsh_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 

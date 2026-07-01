@@ -83,7 +83,7 @@ instr_32 parse_msr_t1(const uint instr) {
 void 
 execute_msr_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	immutable rn = vm.get_reg(instr.rn);
 	switch (instr.spec_reg) {
 		// All fields read as zero using an MRS instruction, and the 
@@ -117,7 +117,6 @@ execute_msr_t1
 					vm.log_msr("APSR", _nzcvqg);
 					break;
 			}
-			
 			break;
 		case special_reg.BASEPRI:
 			// if CurrentModeIsPrivileged() then 
@@ -222,7 +221,7 @@ instr_32 parse_mrs_t1(const uint instr) {
 void 
 execute_mrs_t1
 (vm_t)
-(const instr_32 instr, ref vm_t vm) {
+(const ref instr_32 instr, ref vm_t vm) {
 	// R[d] = 0;
 	vm.set_reg(instr.rd, 0);
 	switch (instr.spec_reg) {
