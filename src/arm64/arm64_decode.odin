@@ -27,7 +27,11 @@ a64_opcode :: enum(u32) {
 	orr_shift_reg_64, orn_shift_reg_64,  eor_shift_reg_64,  eon_shift_reg_64, ands_shift_reg_64, 
 	bics_shift_reg_64,
 	// load/store register (register offset)
-	ldr_reg_32,		  ldr_reg_simd_fp,	
+	ldr_reg_32,		  			 ldr_reg_simd_fp,				strb_reg_ext_reg, 				strb_reg_shift_reg,
+	ldr_reg_ext_reg,  			 ldrb_reg_shift_reg, 			ldrsb_reg_64_ext_reg_offset, 	ldrsb_reg_64_shift_reg_offset,
+	ldrsb_reg_32_ext_reg_offset, ldrsb_reg_32_shift_reg_offset, str_reg_simd_fp,  				ldrh_reg, 					 
+	ldrsh_reg_64, 				 ldrsh_reg_32,                  str_reg_32, 				    ldrsw_reg,		  		     
+	ldr_reg_64,                  prfm,
 	// load/store register (unsigned immediate)
 	ldr_imm_32,
 	// add shift reg
@@ -98,16 +102,114 @@ decode_bitfield :: proc(instr: u32) -> a64_opcode {
 // ==============================
 
 decode_ld_st_reg_reg_offset :: proc(instr: u32) -> a64_opcode {
-	size: u32 = (instr >> 30) & 0x3 
-	VR:   u32 = (instr >> 26) & 0x1
-	opc:  u32 = (instr >> 22) & 0x3
-	// 10 0 01 xxx xxxxx
-	if ((size == 0b10) && (VR == 0b0) && (opc == 0b01)) {
-		return a64_opcode.ldr_reg_32
-	} 
-	// 10 1 01 xxx xxxxx LDR (register, SIMD&FP) — 32-bit FEAT_FP
-	if ((size == 0b10) && (VR == 0b1) && (opc == 0b01)) {
-		return a64_opcode.ldr_reg_simd_fp
+	size     := slice(instr, 30, 2) 
+	VR       := slice(instr, 26, 1)
+	opc      := slice(instr, 22, 2)
+	option   := slice(instr, 13, 3)
+	combined := (size << 3) | (VR << 2) | opc
+	switch (combined) {
+		case 0b00000:
+			if option != 0b011 {
+			// 00 0 00 != 011 STRB (register) — extended register
+				return a64_opcode.strb_reg_ext_reg
+			} else {
+			// 00 0 00 011 STRB (register) — shifted register
+				return a64_opcode.strb_reg_shift_reg
+			}
+		case 0b00001:	
+			// 00 0 01 != 011 LDRB (register) — extended register
+			if option != 0b011 {
+				return a64_opcode.ldr_reg_ext_reg
+			} else {
+			// 00 0 01 011 LDRB (register) — shifted register
+				return a64_opcode.ldrb_reg_shift_reg
+			}
+		case 0b00010:
+			// 00 0 10 != 011 LDRSB (register) — 64-bit with extended register offset
+			if option != 0b011 {
+				return a64_opcode.ldrsb_reg_64_ext_reg_offset
+			} else {
+			// 00 0 10 011 LDRSB (register) — 64-bit with shifted register offset
+				return a64_opcode.ldrsb_reg_64_shift_reg_offset
+			}
+		case 0b00011:
+			// 00 0 11 != 011 LDRSB (register) — 32-bit with extended register offset
+			if option != 011 {
+				return a64_opcode.ldrsb_reg_32_ext_reg_offset
+			} else {
+			// 00 0 11 011 LDRSB (register) — 32-bit with shifted register offset
+				return a64_opcode.ldrsb_reg_32_shift_reg_offset
+			}
+		case 0b00100:
+			// 00 1 00 != 011 STR (register, SIMD&FP)
+			if option != 0b011 {
+				return a64_opcode.str_reg_simd_fp
+			} else {
+			// 00 1 00 011 STR (register, SIMD&FP)
+				return a64_opcode.str_reg_simd_fp
+			}
+		case 0b00101:
+			// 00 1 01 != 011 LDR (register, SIMD&FP)
+			if option != 0b011 {
+				return a64_opcode.ldr_reg_simd_fp
+			} else {
+			// 00 1 01 011 LDR (register, SIMD&FP)
+				return a64_opcode.ldr_reg_simd_fp
+			}
+			// 00 1 10 STR (register, SIMD&FP)
+		case 0b00110:
+			return a64_opcode.str_reg_simd_fp
+			// 00 1 11 LDR (register, SIMD&FP)
+		case 0b00111:
+			return a64_opcode.ldr_reg_simd_fp
+			// 01 0 00 STRH (register)
+		case 0b01001:
+			// 01 0 01 LDRH (register)
+			return a64_opcode.ldrh_reg
+			// 01 0 10 LDRSH (register) — 64-bit
+		case 0b01010:
+			return a64_opcode.ldrsh_reg_64
+			// 01 0 11 LDRSH (register) — 32-bit
+		case 0b01011:
+			return a64_opcode.ldrsh_reg_32
+			// 01 1 00 STR (register, SIMD&FP)
+		case 0b01100:
+			return a64_opcode.str_reg_simd_fp
+			// 01 1 01 LDR (register, SIMD&FP)
+		case 0b01101:
+			return a64_opcode.ldr_reg_simd_fp
+	// 1x 0 11 UNALLOCATED
+	// 1x 1 1x UNALLOCATED
+			// 10 0 00 STR (register) — 32-bit
+		case 0b10000:
+			return a64_opcode.str_reg_32
+			// 10 0 01 LDR (register) — 32-bit
+		case 0b10001:
+			return a64_opcode.ldr_reg_32
+			// 10 0 10 LDRSW (register)
+		case 0b10010:
+			return a64_opcode.ldrsw_reg
+			// 10 1 00 STR (register, SIMD&FP)
+		case 0b10100:
+			return a64_opcode.str_reg_simd_fp
+		// 10 1 01 LDR (register, SIMD&FP)
+		case 0b10101:
+			return a64_opcode.ldr_reg_simd_fp
+		// 11 0 00 STR (register) — 64-bit
+		case 0b11000:
+			return a64_opcode.str_reg_32
+		// 11 0 01 LDR (register) — 64-bit
+		case 0b11001:
+			return a64_opcode.ldr_reg_64
+		// 11 0 10 PRFM (register)
+		case 0b11010:
+			return a64_opcode.prfm
+		// 11 1 00 STR (register, SIMD&FP)	
+		case 0b11100:
+			return a64_opcode.str_reg_simd_fp
+		// 11 1 01 LDR (register, SIMD&FP)
+		case 0b11101:
+			return a64_opcode.ldr_reg_simd_fp
 	}
 	return a64_opcode.invalid
 }
