@@ -43,6 +43,9 @@ a64_opcode :: enum(u32) {
 	udiv_32, sdiv_32, lslv_32, lsrv_32, asrv_32, rorv_32, udiv_64, sdiv_64, lslv_64, lsrv_64, asrv_64,
 	rorv_64, subps,
 
+	// load/store register pair offset
+	stp_32, ldp_32, stp_simd_fp, ldp_simd_fp, stgp, ldpsw, stp_64, ldp_64, stp_simd_fp_128, ldp_simd_fp_128,
+
 	// load/store unprivileged
 	sttrb,  ldtrb,   ldtrsb_64, ldtrsb_32, sttrh, ldtrh, ldtrsh_64, ldtrsh_32, sttr_32, ldtr_32,
 	ldtrsw, sttr_64, ldtr_64,
@@ -260,9 +263,76 @@ decode_ld_st_no_alloc_pair :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 decode_ld_st_reg_pair_post_indexed :: proc(instr: u32) -> a64_opcode {
+	opc 	 := slice(instr, 30, 2)
+	V   	 := slice(instr, 26, 1)
+	L   	 := slice(instr, 22, 1)
+	combined := (opc << 2) | (V << 1) | L
+	switch (combined) {
+		// 00 0 0 STP — 32-bit -
+		case 0b0000: return a64_opcode.stp_32
+		// 00 0 1 LDP — 32-bit -
+		case 0b0001: return a64_opcode.ldp_32
+		// 00 1 0 STP (SIMD&FP) — 32-bit -
+		case 0b0010: return a64_opcode.stp_simd_fp
+		// 00 1 1 LDP (SIMD&FP) — 32-bit -
+		case 0b0011: return a64_opcode.ldp_simd_fp
+		// 01 0 0 STGP FEAT_MTE
+		case 0b0100: return a64_opcode.stgp
+		// 01 0 1 LDPSW -
+		case 0b0101: return a64_opcode.ldpsw
+		// 01 1 0 STP (SIMD&FP) — 64-bit -
+		case 0b0110: return a64_opcode.stp_simd_fp
+		// 01 1 1 LDP (SIMD&FP) — 64-bit -
+		case 0b0111: return a64_opcode.ldp_simd_fp
+		// 10 0 0 STP — 64-bit -
+		case 0b1000: return a64_opcode.stp_64
+		// 10 0 1 LDP — 64-bit -
+		case 0b1001: return a64_opcode.ldp_64
+		// 10 1 0 STP (SIMD&FP) — 128-bit -
+		case 0b1010: return a64_opcode.stp_simd_fp_128
+		// 10 1 1 LDP (SIMD&FP) — 128-bit -
+		case 0b1011: return a64_opcode.ldp_simd_fp_128
+		// 11 UNALLOCATED
+	} 
 	return a64_opcode.invalid
 }
+// ---------------------------------------------------------------------------------------
+// ===================================
+//  DECODE LOAD STORE REG PAIR OFFSET
+// ===================================
+
 decode_ld_st_reg_pair_offset :: proc(instr: u32) -> a64_opcode {
+	opc 	 := slice(instr, 30, 2)
+	V   	 := slice(instr, 26, 1)
+	L   	 := slice(instr, 22, 1)
+	combined := (opc << 2) | (V << 1) | L
+	switch (combined) {
+		// 00 0 0 STP — 32-bit -
+		case 0b0000: return a64_opcode.stp_32
+		// 00 0 1 LDP — 32-bit -
+		case 0b0001: return a64_opcode.ldp_32
+		// 00 1 0 STP (SIMD&FP) — 32-bit -
+		case 0b0010: return a64_opcode.stp_simd_fp
+		// 00 1 1 LDP (SIMD&FP) — 32-bit -
+		case 0b0011: return a64_opcode.ldp_simd_fp
+		// 01 0 0 STGP FEAT_MTE
+		case 0b0100: return a64_opcode.stgp
+		// 01 0 1 LDPSW -
+		case 0b0101: return a64_opcode.ldpsw
+		// 01 1 0 STP (SIMD&FP) — 64-bit -
+		case 0b0110: return a64_opcode.stp_simd_fp
+		// 01 1 1 LDP (SIMD&FP) — 64-bit -
+		case 0b0111: return a64_opcode.ldp_simd_fp
+		// 10 0 0 STP — 64-bit -
+		case 0b1000: return a64_opcode.stp_64
+		// 10 0 1 LDP — 64-bit -
+		case 0b1001: return a64_opcode.ldp_64
+		// 10 1 0 STP (SIMD&FP) — 128-bit -
+		case 0b1010: return a64_opcode.stp_simd_fp_128
+		// 10 1 1 LDP (SIMD&FP) — 128-bit -
+		case 0b1011: return a64_opcode.ldp_simd_fp_128
+		// 11 UNALLOCATED
+	} 
 	return a64_opcode.invalid
 }
 decode_ld_st_reg_pair_pre_indexed :: proc(instr: u32) -> a64_opcode {
@@ -1077,6 +1147,18 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.ldtrsw 			: return "ldtrsw"
 		case a64_opcode.sttr_64 		: return "sttr_64"
 		case a64_opcode.ldtr_64  		: return "ldtr_64"
+
+		// load/store register pair offset
+		case a64_opcode.stp_32			  : return "stp_32"
+		case a64_opcode.ldp_32 			  : return "ldp_32"
+		case a64_opcode.stp_simd_fp       : return "stp_simd_fp"
+		case a64_opcode.ldp_simd_fp       : return "ldp_simd_fp"
+		case a64_opcode.stgp           	  : return "stgp"
+		case a64_opcode.ldpsw             : return "ldpsw"
+		case a64_opcode.stp_64    		  : return "stp_64"
+		case a64_opcode.ldp_64 			  : return "ldp_64"
+		case a64_opcode.stp_simd_fp_128   : return "stp_simd_fp_128"
+		case a64_opcode.ldp_simd_fp_128   : return "ldp_simd_fp_128"
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
