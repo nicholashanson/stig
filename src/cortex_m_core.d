@@ -133,11 +133,8 @@ void
 pop_stack
 (vm_t)
 (uint frame_ptr, const uint exc_return, ref vm_t vm) {
-	// if HaveFPExt() && EXC_RETURN<4> == ‘0’ then
-	// framesize = 0x68;
-	// forcealign = ‘1’;
-	// else
-	// framesize = 0x20;
+	// if HaveFPExt() && EXC_RETURN<4> == ‘0’ then framesize = 0x68; forcealign = ‘1’;
+	// else framesize = 0x20;
 	const uint frame_size = 32;
 	// forcealign = CCR.STKALIGN;
 	// R[0] = MemA[frameptr,4];

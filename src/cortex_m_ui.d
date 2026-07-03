@@ -98,24 +98,6 @@ void get_section_size(const string elf_filename, const string section_name) {
 //  LOAD ELF
 // ==========
 
-void load_elf_(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
-    auto f_s        = get_program_from_elf(target_file_name);
-    auto entry_addr = get_elf_entry_point(target_file_name);
-    vm.init_pc(entry_addr);
-    foreach (f; f_s) {
-        load_function_into_memory(f, vm);
-        vm.current_program ~= f.instrs;
-        vm.func_names ~= f.name;
-    }
-    foreach (t; table_names) {
-        load_section_into_memory(target_file_name, t, vm);
-    }
-    vm.objects  = get_st_name_val(target_file_name, st_type.stt_func,   mcu);
-    vm.func_map = get_st_name_val(target_file_name, st_type.stt_func,   mcu,  false, true);
-    vm.objects ~= get_st_name_val(target_file_name, st_type.stt_notype, mcu);
-    vm.objects ~= get_st_name_val(target_file_name, st_type.stt_object, mcu);
-}
-
 void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
     auto e          = new elf_file(target_file_name);
     auto funcs      = get_program_from_elf(e);
@@ -130,7 +112,8 @@ void load_elf(vm_t)(ref vm_t vm, soc mcu, const string target_file_name) {
     assert(vm.current_program.length != 0);
     foreach (t; table_names) 
         load_section_into_memory(target_file_name, t, vm);
-    vm.set_msp(vm.peek_word(0x8000000));
+    if (mcu == soc.stm32)
+        vm.set_msp(vm.peek_word(0x8000000));
     vm.objects  = get_st_name_val(e, st_type.stt_func,   mcu);
     vm.func_map = get_st_name_val(e, st_type.stt_func,   mcu,  false, true);
     vm.objects ~= get_st_name_val(e, st_type.stt_notype, mcu);

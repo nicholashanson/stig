@@ -40,9 +40,12 @@ a64_opcode :: enum(u32) {
 
 	stp_32_pre_index, stp_64_pre_index, stp_64_post_index, stp_64_offset,
 
-
 	udiv_32, sdiv_32, lslv_32, lsrv_32, asrv_32, rorv_32, udiv_64, sdiv_64, lslv_64, lsrv_64, asrv_64,
 	rorv_64, subps,
+
+	// load/store unprivileged
+	sttrb,  ldtrb,   ldtrsb_64, ldtrsb_32, sttrh, ldtrh, ldtrsh_64, ldtrsh_32, sttr_32, ldtr_32,
+	ldtrsw, sttr_64, ldtr_64,
 
 	// unconditional branch (register)
 	ret,
@@ -271,9 +274,52 @@ decode_ld_st_unscaled_imm :: proc(instr: u32) -> a64_opcode {
 decode_ld_st_reg_imm_post_indexed :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
+
+// ---------------------------------------------------------------------------------------
+// ==============================
+//  DECODE LOAD STORE REG UNPRIV
+// ==============================
+
 decode_ld_st_reg_unpriv :: proc(instr: u32) -> a64_opcode {
+	size     := slice(instr, 31, 2)
+	V        := slice(instr, 26, 1)
+	opc      := slice(instr, 22, 2)
+	combined := (size << 3) | (V << 2) | opc
+	// 1 UNALLOCATED
+	switch (combined) {
+		// 00 0 00 STTRB
+		case 0b00000: return a64_opcode.sttrb
+		// 00 0 01 LDTRB
+		case 0b00001: return a64_opcode.ldtrb
+		// 00 0 10 LDTRSB — 64-bit
+		case 0b00010: return a64_opcode.ldtrsb_64
+		// 00 0 11 LDTRSB — 32-bit
+		case 0b00011: return a64_opcode.ldtrsb_32
+		// 01 0 00 STTRH
+		case 0b01000: return a64_opcode.sttrh
+		// 01 0 01 LDTRH
+		case 0b01001: return a64_opcode.ldtrh
+		// 01 0 10 LDTRSH — 64-bit
+		case 0b01010: return a64_opcode.ldtrsh_64
+		// 01 0 11 LDTRSH — 32-bit
+		case 0b01011: return a64_opcode.ldtrsh_32
+		// 1x 0 11 UNALLOCATED
+		// 10 0 00 STTR — 32-bit
+		case 0b10000: return a64_opcode.sttr_32
+		// 10 0 01 LDTR — 32-bit
+		case 0b10001: return a64_opcode.ldtr_32
+		// 10 0 10 LDTRSW
+		case 0b10010: return a64_opcode.ldtrsw
+		// 11 0 00 STTR — 64-bit
+		case 0b11000: return a64_opcode.sttr_64
+		// 11 0 01 LDTR — 64-bit
+		case 0b11001: return a64_opcode.ldtr_64
+		// 11 0 10 UNALLOCATED
+	}
 	return a64_opcode.invalid
 }
+// ---------------------------------------------------------------------------------------
+
 decode_ld_st_reg_imm_pre_indexed :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
@@ -1017,6 +1063,20 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.sub_shift_reg_64	: return "sub_shift_reg_64"
 		case a64_opcode.subs_shift_reg_64	: return "subs_shift_reg_64"
 
+		// load/store unprivileged
+		case a64_opcode.sttrb			: return "sttrb"
+		case a64_opcode.ldtrb 			: return "ldtrb"
+		case a64_opcode.ldtrsb_64       : return "ldtrsb_64"
+		case a64_opcode.ldtrsb_32       : return "ldtrsb_32"
+		case a64_opcode.sttrh           : return "sttrh"
+		case a64_opcode.ldtrh           : return "ldtrh"
+		case a64_opcode.ldtrsh_64  		: return "ldtrsh_64"
+		case a64_opcode.ldtrsh_32 		: return "ldtrsh_32"
+		case a64_opcode.sttr_32    		: return "sttr_32"
+		case a64_opcode.ldtr_32 		: return "ldtr_32"
+		case a64_opcode.ldtrsw 			: return "ldtrsw"
+		case a64_opcode.sttr_64 		: return "sttr_64"
+		case a64_opcode.ldtr_64  		: return "ldtr_64"
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
