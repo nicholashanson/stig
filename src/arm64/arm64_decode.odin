@@ -50,6 +50,8 @@ a64_opcode :: enum(u32) {
 	sttrb,  ldtrb,   ldtrsb_64, ldtrsb_32, sttrh, ldtrh, ldtrsh_64, ldtrsh_32, sttr_32, ldtr_32,
 	ldtrsw, sttr_64, ldtr_64,
 
+	adr, adrp,
+
 	// unconditional branch (register)
 	ret,
 	invalid
@@ -856,7 +858,13 @@ decode_data_proc_1_src_reg :: proc(instr: u32) -> a64_opcode {
 // ===============
 
 decode_pc_rel :: proc(instr: u32) -> a64_opcode {
-	return a64_opcode.invalid
+	op := slice(instr, 31, 1)
+	if (op == 0) { 
+		return a64_opcode.adr 
+	} 
+	else { 
+		return a64_opcode.adrp
+	}
 }
 
 // ====================
@@ -1162,6 +1170,9 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
+
+		case a64_opcode.adr 		: return "adr"
+		case a64_opcode.adrp  		: return "adrp"
 
 		case a64_opcode.invalid			 : return "invalid"
     }
