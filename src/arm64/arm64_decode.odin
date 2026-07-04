@@ -52,6 +52,9 @@ a64_opcode :: enum(u32) {
 
 	and_imm_32, orr_imm_32, eor_imm_32, ands_imm_32, and_imm_64, orr_imm_64, eor_imm_64, ands_imm_64,
 
+	// conditional select (under data processing register)
+	csel_32, csinc_32, csinv_32, csneg_32, csel_64, csinc_64, csinv_64, csneg_64,
+
 	adr, adrp,
 
 	// unconditional branch (register)
@@ -742,6 +745,35 @@ decode_add_sub_checked_ptr :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+decode_conditional_select :: proc(instr: u32) -> a64_opcode {
+	sf  	 := slice(instr, 31, 1)
+	op  	 := slice(instr, 30, 1)
+	S   	 := slice(instr, 29, 1)
+	op2      := slice(instr, 10, 2)
+	combined := (sf << 4) | (op << 3) | (S << 2) | op2
+	switch (combined) {
+		// 1x UNALLOCATED
+		// 1 UNALLOCATED
+		// 0 0 0 00 CSEL — 32-bit
+		case 0b00000: return a64_opcode.csel_32
+		// 0 0 0 01 CSINC — 32-bit
+		case 0b00001: return a64_opcode.csinc_32
+		// 0 1 0 00 CSINV — 32-bit
+		case 0b01000: return a64_opcode.csinv_32
+		// 0 1 0 01 CSNEG — 32-bit
+		case 0b01001: return a64_opcode.csneg_32
+		// 1 0 0 00 CSEL — 64-bit
+		case 0b10000: return a64_opcode.csel_64 
+		// 1 0 0 01 CSINC — 64-bit
+		case 0b10001: return a64_opcode.csinc_64
+		// 1 1 0 00 CSINV — 64-bit
+		case 0b11000: return a64_opcode.csinv_64
+		// 1 1 0 01 CSNEG — 64-bit
+		case 0b11001: return a64_opcode.csneg_64
+	}
+	return a64_opcode.invalid
+}
+
 // ======================
 //  DECODE DATA PROC REG
 // ======================
@@ -751,6 +783,9 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	op1: u32 = (instr >> 28) &  0x1
 	op2: u32 = (instr >> 21) &  0xf
 	op3: u32 = (instr >> 10) & 0x3f
+	if ( (op1 == 0b1) && (op2 == 0b0100) ) {
+		return decode_conditional_select(instr)
+	}
 	// 0 1 0110 xxxxxx Data-processing (2 source)
 	if ( (op0 == 0b0) && (op1 == 0b1) && (op2 == 0b0110)) {
 		return decode_data_proc_2_src(instr)
@@ -1199,6 +1234,14 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.orr_imm_64          : return "orr_imm_64"
 		case a64_opcode.eor_imm_64          : return "eor_imm_64"
 		case a64_opcode.ands_imm_64  		: return "ands_imm_64"
+
+		case a64_opcode.csel_32			: return "csel_32"
+		case a64_opcode.csinc_32 		: return "csinc_32"
+		case a64_opcode.csneg_32        : return "csneg_32"
+		case a64_opcode.csel_64         : return "csel_64"
+		case a64_opcode.csinc_64        : return "csinc_64"
+		case a64_opcode.csinv_64        : return "csinv_64"
+		case a64_opcode.csneg_64  		: return "csneg_64"
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
