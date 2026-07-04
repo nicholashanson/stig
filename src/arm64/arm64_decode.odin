@@ -50,6 +50,8 @@ a64_opcode :: enum(u32) {
 	sttrb,  ldtrb,   ldtrsb_64, ldtrsb_32, sttrh, ldtrh, ldtrsh_64, ldtrsh_32, sttr_32, ldtr_32,
 	ldtrsw, sttr_64, ldtr_64,
 
+	and_imm_32, orr_imm_32, eor_imm_32, ands_imm_32, and_imm_64, orr_imm_64, eor_imm_64, ands_imm_64,
+
 	adr, adrp,
 
 	// unconditional branch (register)
@@ -910,6 +912,28 @@ decode_min_max_imm :: proc(instr: u32) -> a64_opcode {
 // ====================
 
 decode_logical_imm :: proc(instr: u32) -> a64_opcode {
+	sf  	 := slice(instr, 31, 1)
+	opc      := slice(instr, 29, 2)
+	combined := (sf << 2) | opc
+	switch (combined) {
+		// 0 1 UNALLOCATED
+		// 0 00 0 AND (immediate) — 32-bit
+		case 0b000: return a64_opcode.and_imm_32
+		// 0 01 0 ORR (immediate) — 32-bit
+		case 0b001: return a64_opcode.orr_imm_32
+		// 0 10 0 EOR (immediate) — 32-bit
+		case 0b010: return a64_opcode.eor_imm_32
+		// 0 11 0 ANDS (immediate) — 32-bit
+		case 0b011: return a64_opcode.ands_imm_32
+		// 1 00 AND (immediate) — 64-bit
+		case 0b100: return a64_opcode.and_imm_64
+		// 1 01 ORR (immediate) — 64-bit
+		case 0b101: return a64_opcode.orr_imm_64
+		// 1 10 EOR (immediate) — 64-bit
+		case 0b110: return a64_opcode.eor_imm_64
+		// 1 11 ANDS (immediate) — 64-bit
+		case 0b111: return a64_opcode.ands_imm_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -1167,6 +1191,14 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.ldp_64 			  : return "ldp_64"
 		case a64_opcode.stp_simd_fp_128   : return "stp_simd_fp_128"
 		case a64_opcode.ldp_simd_fp_128   : return "ldp_simd_fp_128"
+
+		case a64_opcode.and_imm_32			: return "and_imm_32"
+		case a64_opcode.orr_imm_32 			: return "orr_imm_32"
+		case a64_opcode.ands_imm_32         : return "ands_imm_32"
+		case a64_opcode.and_imm_64          : return "and_imm_64"
+		case a64_opcode.orr_imm_64          : return "orr_imm_64"
+		case a64_opcode.eor_imm_64          : return "eor_imm_64"
+		case a64_opcode.ands_imm_64  		: return "ands_imm_64"
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
