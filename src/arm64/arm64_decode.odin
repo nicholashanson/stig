@@ -64,6 +64,11 @@ a64_opcode :: enum(u32) {
     madd_32, msub_32, madd_64, msub_64, smaddl,
 	smsubl,  smulh,   umaddl,  umsubl,  umulh,
 
+	sturb, 			  ldurb,           ldursb_64,       ldursb_32,       stur_simd_fp_8,  ldur_simd_fp_8,  stur_simd_fp_128,
+	ldur_simd_fp_128, sturh,           ldurh,           ldursh_64,       ldursh_32,       stur_simd_fp_16, ldur_simd_fp_16,
+	stur_32, 		  ldur_32,         ldursw,          stur_simd_fp_32, ldur_simd_fp_32, stur_64,         ldur_64,
+	prfum,            stur_simd_fp_64, ldur_simd_fp_64,
+
 	// unconditional branch (register)
 	ret,
 	invalid
@@ -391,6 +396,62 @@ decode_ld_st_reg_pair_pre_indexed :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.stp_64_pre_index
 }
 decode_ld_st_unscaled_imm :: proc(instr: u32) -> a64_opcode {
+	size     := slice(instr, 30, 2)
+	V        := slice(instr, 26, 1)
+	opc      := slice(instr, 22, 2) 
+	combined := (size << 3) | (V << 2) | opc
+	switch (combined) {
+		// 00 0 00 STURB
+		case 0b00000: return a64_opcode.sturb
+		// 00 0 01 LDURB
+		case 0b00001: return a64_opcode.ldurb
+		// 00 0 10 LDURSB — 64-bit
+		case 0b00010: return a64_opcode.ldursb_64
+		// 00 0 11 LDURSB — 32-bit
+		case 0b00011: return a64_opcode.ldursb_32
+		// 00 1 00 STUR (SIMD&FP) — 8-bit
+		case 0b00100: return a64_opcode.stur_simd_fp_8
+		// 00 1 01 LDUR (SIMD&FP) — 8-bit
+		case 0b00101: return a64_opcode.ldur_simd_fp_8
+		// 00 1 10 STUR (SIMD&FP) — 128-bit
+		case 0b00110: return a64_opcode.stur_simd_fp_128
+		// 00 1 11 LDUR (SIMD&FP) — 128-bit
+		case 0b00111: return a64_opcode.ldur_simd_fp_128
+		// 01 0 00 STURH
+		case 0b01000: return a64_opcode.sturh
+		// 01 0 01 LDURH
+		case 0b01001: return a64_opcode.ldurh
+		// 01 0 10 LDURSH — 64-bit
+		case 0b01010: return a64_opcode.ldursh_64
+		// 01 0 11 LDURSH — 32-bit
+		case 0b01011: return a64_opcode.ldursh_32
+		// 01 1 00 STUR (SIMD&FP) — 16-bit
+		case 0b01100: return a64_opcode.stur_simd_fp_16
+		// 01 1 01 LDUR (SIMD&FP) — 16-bit
+		case 0b01101: return a64_opcode.ldur_simd_fp_16
+		// 1x 0 11 UNALLOCATED
+		// 1x 1 1x UNALLOCATED
+		// 10 0 00 STUR — 32-bit
+		case 0b10000: return a64_opcode.stur_32 
+		// 10 0 01 LDUR — 32-bit
+		case 0b10001: return a64_opcode.ldur_32
+		// 10 0 10 LDURSW
+		case 0b10010: return a64_opcode.ldursw
+		// 10 1 00 STUR (SIMD&FP) — 32-bit
+		case 0b10100: return a64_opcode.stur_simd_fp_32
+		// 10 1 01 LDUR (SIMD&FP) — 32-bit
+		case 0b10101: return a64_opcode.ldur_simd_fp_32
+		// 11 0 00 STUR — 64-bit
+		case 0b11000: return a64_opcode.stur_64
+		// 11 0 01 LDUR — 64-bit
+		case 0b11001: return a64_opcode.ldur_64
+		// 11 0 10 PRFUM
+		case 0b11010: return a64_opcode.prfum
+		// 11 1 00 STUR (SIMD&FP) — 64-bit
+		case 0b11100: return a64_opcode.stur_simd_fp_64 
+		// 11 1 01 LDUR (SIMD&FP) — 64-bit
+		case 0b11101: return a64_opcode.ldur_simd_fp_64
+	}
 	return a64_opcode.invalid
 }
 decode_ld_st_reg_imm_post_indexed :: proc(instr: u32) -> a64_opcode {
@@ -542,7 +603,7 @@ decode_load_and_stores :: proc(instr: u32) -> a64_opcode {
 		return decode_ld_st_reg_pair_pre_indexed(instr)
 	}
 	// xx11 0x 0xxxxx 00 Load/store register (unscaled immediate)
-	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 ) && ( (op3 & 0b100000) == 0b100000 ) && (op4 == 0b00) ) {
+	if ( ( (op0 & 0b0011) == 0b0011 ) && ( (op2 & 0b10) == 0b00 ) && ( (op3 & 0b100000) == 0b000000 ) && (op4 == 0b00) ) {
 		return decode_ld_st_unscaled_imm(instr)
 	}
 	// xx11 0x 0xxxxx 01 Load/store register (immediate post-indexed)
