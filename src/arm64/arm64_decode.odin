@@ -73,7 +73,11 @@ a64_opcode :: enum(u32) {
 	strh_imm,  ldrh_imm,           ldrsh_imm_64,       ldrsh_imm_32, str_imm_simd_fp_16, ldr_imm_simd_fp_16, str_imm_32,         ldr_imm_32,
     ldrsw_imm, ldr_imm_simd_fp_32, str_imm_64,   	   ldr_imm_64,   str_imm_simd_fp_64, ldr_imm_simd_fp_64,
 
-    ccmn_32, ccmp_32, ccmn_64, ccmp_64,
+    ccmn_reg_32, ccmp_reg_32, ccmn_reg_64, ccmp_reg_64,
+    ccmn_imm_32, ccmp_imm_32, ccmn_imm_64, ccmp_imm_64,
+
+    adc_32, adcs_32, sbc_32, sbcs_32,
+	adc_64, adcs_64, sbc_64, sbcs_64,
 
 	// unconditional branch (register)
 	ret,
@@ -902,6 +906,25 @@ decode_add_sub_ext_reg :: proc(instr: u32) -> a64_opcode {
 // ======================
 
 decode_add_sub_carry :: proc(instr: u32) -> a64_opcode {
+	sf_op_S := slice(instr, 29, 3)
+	switch (sf_op_S) {
+		// 0 0 0 ADC — 32-bit
+		case 0b000: return a64_opcode.adc_32
+		// 0 0 1 ADCS — 32-bit
+		case 0b001: return a64_opcode.adcs_32
+		// 0 1 0 SBC — 32-bit
+		case 0b010: return a64_opcode.sbc_32
+		// 0 1 1 SBCS — 32-bit
+		case 0b011: return a64_opcode.sbcs_32
+		// 1 0 0 ADC — 64-bit
+		case 0b100: return a64_opcode.adc_64
+		// 1 0 1 ADCS — 64-bit
+		case 0b101: return a64_opcode.adcs_64
+		// 1 1 0 SBC — 64-bit
+		case 0b110: return a64_opcode.sbc_64
+		// 1 1 1 SBCS — 64-bit
+	    case 0b111: return a64_opcode.sbcs_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -992,13 +1015,33 @@ decode_cond_cmp_reg :: proc(instr: u32) -> a64_opcode {
 	combined := (sf << 4) | (op << 3) | (S << 2) | (o2 << 1) | o3 
 	switch (combined) {
 		// 0 0 1 0 0 CCMN (register) — 32-bit
-		case 0b00100: return a64_opcode.ccmn_32
+		case 0b00100: return a64_opcode.ccmn_reg_32
 		// 0 1 1 0 0 CCMP (register) — 32-bit
-		case 0b01100: return a64_opcode.ccmp_32
+		case 0b01100: return a64_opcode.ccmp_reg_32
 		// 1 0 1 0 0 CCMN (register) — 64-bit
-		case 0b10100: return a64_opcode.ccmn_64
+		case 0b10100: return a64_opcode.ccmn_reg_64
 		// 1 1 1 0 0 CCMP (register) — 64-bit
-		case 0b11100: return a64_opcode.ccmp_64
+		case 0b11100: return a64_opcode.ccmp_reg_64
+	}
+	return a64_opcode.invalid
+}
+
+decode_cond_cmp_imm :: proc(instr: u32) -> a64_opcode {
+	sf 		 := slice(instr, 31, 1)
+	op 		 := slice(instr, 30, 1)
+	S  		 := slice(instr, 29, 1)
+	o2 		 := slice(instr, 10, 1)
+	o3 		 := slice(instr,  4, 1)
+	combined := (sf << 4) | (op << 3) | (S << 2) | (o2 << 1) | o3 
+	switch (combined) {
+		// 0 0 1 0 0 CCMN (immediate) — 32-bit
+		case 0b00100: return a64_opcode.ccmn_imm_32
+		// 0 1 1 0 0 CCMP (immediate) — 32-bit
+		case 0b01100: return a64_opcode.ccmp_imm_32
+		// 1 0 1 0 0 CCMN (immediate) — 64-bit
+		case 0b10100: return a64_opcode.ccmn_imm_64
+		// 1 1 1 0 0 CCMP (immediate) — 64-bit
+		case 0b11100: return a64_opcode.ccmp_imm_64
 	}
 	return a64_opcode.invalid
 }
@@ -1050,6 +1093,10 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	// 1 0010 xxxx0x Conditional compare (register)
 	if ( (op1 == 0b1) && (op2 == 0b0010) && ((op3 & 0b000010) == 0b000000)) {
 		return decode_cond_cmp_reg(instr)
+	}
+	// 1 0010 xxxx0x Conditional compare (register)
+	if ( (op1 == 0b1) && (op2 == 0b0010) && ((op3 & 0b000010) == 0b000010)) {
+		return decode_cond_cmp_imm(instr)
 	}
 	return a64_opcode.invalid
 }
@@ -1508,10 +1555,15 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.ldlar_64  		: return "ldlar_64"
 		case a64_opcode.ldar_64  		: return "ldar_64"
 
-		case a64_opcode.ccmn_32  		: return "ccmn_32"
-		case a64_opcode.ccmp_32  		: return "ccmp_32"
-		case a64_opcode.ccmn_64  		: return "ccmn_64"
-		case a64_opcode.ccmp_64  		: return "ccmp_64"
+		case a64_opcode.ccmn_reg_32  		: return "ccmn_reg_32"
+		case a64_opcode.ccmp_reg_32  		: return "ccmp_reg_32"
+		case a64_opcode.ccmn_reg_64  		: return "ccmn_reg_64"
+		case a64_opcode.ccmp_reg_64  		: return "ccmp_reg_64"
+
+		case a64_opcode.ccmn_imm_32  		: return "ccmn_imm_32"
+		case a64_opcode.ccmp_imm_32  		: return "ccmp_imm_32"
+		case a64_opcode.ccmn_imm_64  		: return "ccmn_imm_64"
+		case a64_opcode.ccmp_imm_64  		: return "ccmp_imm_64"
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
