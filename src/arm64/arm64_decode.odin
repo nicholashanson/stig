@@ -33,7 +33,7 @@ a64_opcode :: enum(u32) {
 	ldrsh_reg_64, 				 ldrsh_reg_32,                  str_reg_32, 				    ldrsw_reg,		  		     
 	ldr_reg_64,                  prfm,
 	// load/store register (unsigned immediate)
-	ldr_imm_32,
+
 	// add shift reg
 	add_shift_reg_32,  adds_shift_reg_32, sub_shift_reg_32, subs_shift_reg_32, add_shift_reg_64,
 	adds_shift_reg_64, sub_shift_reg_64,  subs_shift_reg_64,
@@ -68,6 +68,12 @@ a64_opcode :: enum(u32) {
 	ldur_simd_fp_128, sturh,           ldurh,           ldursh_64,       ldursh_32,       stur_simd_fp_16, ldur_simd_fp_16,
 	stur_32, 		  ldur_32,         ldursw,          stur_simd_fp_32, ldur_simd_fp_32, stur_64,         ldur_64,
 	prfum,            stur_simd_fp_64, ldur_simd_fp_64,
+
+	strb_imm,  ldrb_imm, 		   ldrsb_imm_64,       ldrsb_imm_32, str_imm_simd_fp_8,  ldr_imm_simd_fp_8,  str_imm_simd_fp_32, ldr_simd_fp_128,
+	strh_imm,  ldrh_imm,           ldrsh_imm_64,       ldrsh_imm_32, str_imm_simd_fp_16, ldr_imm_simd_fp_16, str_imm_32,         ldr_imm_32,
+    ldrsw_imm, ldr_imm_simd_fp_32, str_imm_64,   	   ldr_imm_64,   str_imm_simd_fp_64, ldr_imm_simd_fp_64,
+
+    ccmn_32, ccmp_32, ccmn_64, ccmp_64,
 
 	// unconditional branch (register)
 	ret,
@@ -455,6 +461,62 @@ decode_ld_st_unscaled_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 decode_ld_st_reg_imm_post_indexed :: proc(instr: u32) -> a64_opcode {
+	size     := slice(instr, 30, 2)
+	V        := slice(instr, 26, 1)
+	opc      := slice(instr, 22, 2)
+	combined := (size << 3) | (V << 2) | opc
+	switch (combined) {
+		// x1 1 1x UNALLOCATED
+		// 00 0 00 STRB (immediate)
+		case 0b00000: return a64_opcode.strb_imm
+		// 00 0 01 LDRB (immediate)
+		case 0b00001: return a64_opcode.ldrb_imm
+		// 00 0 10 LDRSB (immediate) — 64-bit
+		case 0b00010: return a64_opcode.ldrsb_imm_64
+		// 00 0 11 LDRSB (immediate) — 32-bit
+		case 0b00011: return a64_opcode.ldrsb_imm_32
+		// 00 1 00 STR (immediate, SIMD&FP) — 8-bit
+		case 0b00100: return a64_opcode.str_imm_simd_fp_8
+		// 00 1 01 LDR (immediate, SIMD&FP) — 8-bit
+		case 0b00101: return a64_opcode.ldr_imm_simd_fp_8
+		// 00 1 10 STR (immediate, SIMD&FP) — 128-bit
+		case 0b00110: return a64_opcode.str_imm_simd_fp_32
+		// 00 1 11 LDR (immediate, SIMD&FP) — 128-bit
+		case 0b00111: return a64_opcode.ldr_simd_fp_128
+		// 01 0 00 STRH (immediate)
+		case 0b01000: return a64_opcode.strh_imm
+		// 01 0 01 LDRH (immediate)
+		case 0b01001: return a64_opcode.ldrh_imm
+		// 01 0 10 LDRSH (immediate) — 64-bit
+		case 0b01010: return a64_opcode.ldrsh_imm_64
+		// 01 0 11 LDRSH (immediate) — 32-bit
+		case 0b01011: return a64_opcode.ldrsh_imm_32
+		// 01 1 00 STR (immediate, SIMD&FP) — 16-bit
+		case 0b01100: return a64_opcode.str_imm_simd_fp_16
+		// 01 1 01 LDR (immediate, SIMD&FP) — 16-bit
+		case 0b01101: return a64_opcode.ldr_imm_simd_fp_16
+		// 1x 0 11 UNALLOCATED
+		// 1x 1 1x UNALLOCATED
+		// 10 0 00 STR (immediate) — 32-bit
+		case 0b10000: return a64_opcode.str_imm_32
+		// 10 0 01 LDR (immediate) — 32-bit
+		case 0b10001: return a64_opcode.ldr_imm_32
+		// 10 0 10 LDRSW (immediate)
+		case 0b10010: return a64_opcode.ldrsw_imm
+		// 10 1 00 STR (immediate, SIMD&FP) — 32-bit
+		case 0b10100: return a64_opcode.str_imm_simd_fp_32
+		// 10 1 01 LDR (immediate, SIMD&FP) — 32-bit
+		case 0b10101: return a64_opcode.ldr_imm_simd_fp_32
+		// 11 0 00 STR (immediate) — 64-bit
+		case 0b11000: return a64_opcode.str_imm_64
+		// 11 0 01 LDR (immediate) — 64-bit
+		case 0b11001: return a64_opcode.ldr_imm_64 
+		// 11 0 10 UNALLOCATED
+		// 11 1 00 STR (immediate, SIMD&FP) — 64-bit
+		case 0b11100: return a64_opcode.str_imm_simd_fp_64
+		// 11 1 01 LDR (immediate, SIMD&FP) — 64-bit
+		case 0b11101: return a64_opcode.ldr_imm_simd_fp_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -921,6 +983,26 @@ decode_data_proc_3_src :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+decode_cond_cmp_reg :: proc(instr: u32) -> a64_opcode {
+	sf 		 := slice(instr, 31, 1)
+	op 		 := slice(instr, 30, 1)
+	S  		 := slice(instr, 29, 1)
+	o2 		 := slice(instr, 10, 1)
+	o3 		 := slice(instr,  4, 1)
+	combined := (sf << 4) | (op << 3) | (S << 2) | (o2 << 1) | o3 
+	switch (combined) {
+		// 0 0 1 0 0 CCMN (register) — 32-bit
+		case 0b00100: return a64_opcode.ccmn_32
+		// 0 1 1 0 0 CCMP (register) — 32-bit
+		case 0b01100: return a64_opcode.ccmp_32
+		// 1 0 1 0 0 CCMN (register) — 64-bit
+		case 0b10100: return a64_opcode.ccmn_64
+		// 1 1 1 0 0 CCMP (register) — 64-bit
+		case 0b11100: return a64_opcode.ccmp_64
+	}
+	return a64_opcode.invalid
+}
+
 // ======================
 //  DECODE DATA PROC REG
 // ======================
@@ -961,9 +1043,13 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	if ( (op1 == 0b1) && (op2 == 0b0000) && ((op3 & 0b111000) == 0b001000)) {
 		return decode_add_sub_checked_ptr(instr)
 	}
-	// x 1 0000 001xxx Add/subtract (checked pointer)
+	// 1 1xxx Data-processing (3 source)
 	if ( (op1 == 0b1) && ((op2 & 0b1000) == 0b1000) ) {
 		return decode_data_proc_3_src(instr)
+	}
+	// 1 0010 xxxx0x Conditional compare (register)
+	if ( (op1 == 0b1) && (op2 == 0b0010) && ((op3 & 0b000010) == 0b000000)) {
+		return decode_cond_cmp_reg(instr)
 	}
 	return a64_opcode.invalid
 }
@@ -1421,6 +1507,11 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.stlr_64  		: return "stlr_64"
 		case a64_opcode.ldlar_64  		: return "ldlar_64"
 		case a64_opcode.ldar_64  		: return "ldar_64"
+
+		case a64_opcode.ccmn_32  		: return "ccmn_32"
+		case a64_opcode.ccmp_32  		: return "ccmp_32"
+		case a64_opcode.ccmn_64  		: return "ccmn_64"
+		case a64_opcode.ccmp_64  		: return "ccmp_64"
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
