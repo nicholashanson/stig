@@ -57,6 +57,10 @@ a64_opcode :: enum(u32) {
 
 	adr, adrp,
 
+	// load/store ordered
+	stllrb,   stlrb,   ldlarb,   ldarb,   stllrh,   stlrh,   ldlarh,   ldarh,
+    stllr_32, stlr_32, ldlar_32, ldar_32, stllr_64, stlr_64, ldlar_64, ldar_64,
+
 	// unconditional branch (register)
 	ret,
 	invalid
@@ -252,6 +256,44 @@ decode_ld_st_excl_reg :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 decode_ld_st_ordered :: proc(instr: u32) -> a64_opcode {
+	size     := slice(instr, 30, 2)
+	L        := slice(instr, 22, 1)
+	o0       := slice(instr, 15, 1)
+	combined := (size << 2) | (L << 1) | o0
+	switch (combined) {
+		// 00 0 0 STLLRB FEAT_LOR
+		case 0b0000: return a64_opcode.stllrb
+		// 00 0 1 STLRB -
+		case 0b0001: return a64_opcode.stlrb
+		// 00 1 0 LDLARB FEAT_LOR
+		case 0b0010: return a64_opcode.ldlarb
+		// 00 1 1 LDARB -
+		case 0b0011: return a64_opcode.ldarb
+		// 01 0 0 STLLRH FEAT_LOR
+		case 0b0100: return a64_opcode.stllrh
+		// 01 0 1 STLRH -
+		case 0b0101: return a64_opcode.stlrh
+		// 01 1 0 LDLARH FEAT_LOR
+		case 0b0110: return a64_opcode.ldlarh
+		// 01 1 1 LDARH -
+		case 0b0111: return a64_opcode.ldarh
+		// 10 0 0 STLLR — 32-bit FEAT_LOR
+		case 0b1000: return a64_opcode.stllr_32
+		// 10 0 1 STLR — 32-bit -
+		case 0b1001: return a64_opcode.stlr_32
+		// 10 1 0 LDLAR — 32-bit FEAT_LOR
+		case 0b1010: return a64_opcode.ldlar_32
+		// 10 1 1 LDAR — 32-bit -
+		case 0b1011: return a64_opcode.ldar_32
+		// 11 0 0 STLLR — 64-bit FEAT_LOR
+		case 0b1100: return a64_opcode.stllr_64
+		// 11 0 1 STLR — 64-bit -
+		case 0b1101: return a64_opcode.stlr_64
+		// 11 1 0 LDLAR — 64-bit FEAT_LOR
+		case 0b1110: return a64_opcode.ldlar_64
+		// 11 1 1 LDAR — 64-bit
+		case 0b1111: return a64_opcode.ldar_64
+	}
 	return a64_opcode.invalid
 }
 decode_cmp_and_swap :: proc(instr: u32) -> a64_opcode {
@@ -1242,6 +1284,23 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.csinc_64        : return "csinc_64"
 		case a64_opcode.csinv_64        : return "csinv_64"
 		case a64_opcode.csneg_64  		: return "csneg_64"
+
+		case a64_opcode.stllrb			: return "stllrb"
+		case a64_opcode.stlrb 			: return "stlrb"
+		case a64_opcode.ldlarb        	: return "ldlarb"
+		case a64_opcode.ldarb         	: return "ldarb"
+		case a64_opcode.stllrh        	: return "stllrh"
+		case a64_opcode.stlrh        	: return "stlrh"
+		case a64_opcode.ldlarh  		: return "ldlarh"
+		case a64_opcode.ldarh        	: return "ldarh"
+		case a64_opcode.stllr_32        : return "stllr_32"
+		case a64_opcode.stlr_32        	: return "stlr_32"
+		case a64_opcode.ldlar_32  		: return "ldlar_32"
+		case a64_opcode.ldar_32  		: return "ldar_32"
+		case a64_opcode.stllr_64  		: return "stllr_64"
+		case a64_opcode.stlr_64  		: return "stlr_64"
+		case a64_opcode.ldlar_64  		: return "ldlar_64"
+		case a64_opcode.ldar_64  		: return "ldar_64"
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
