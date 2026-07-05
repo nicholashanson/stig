@@ -61,6 +61,9 @@ a64_opcode :: enum(u32) {
 	stllrb,   stlrb,   ldlarb,   ldarb,   stllrh,   stlrh,   ldlarh,   ldarh,
     stllr_32, stlr_32, ldlar_32, ldar_32, stllr_64, stlr_64, ldlar_64, ldar_64,
 
+    madd_32, msub_32, madd_64, msub_64, smaddl,
+	smsubl,  smulh,   umaddl,  umsubl,  umulh,
+
 	// unconditional branch (register)
 	ret,
 	invalid
@@ -816,6 +819,47 @@ decode_conditional_select :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 
+// ========================
+//  DECODE DATA PROC 3 SRC
+// ========================
+
+decode_data_proc_3_src :: proc(instr: u32) -> a64_opcode {
+	sf   	 := slice(instr, 31, 1)
+	op54 	 := slice(instr, 29, 2)
+	op31 	 := slice(instr, 21, 3)
+	o0   	 := slice(instr, 15, 1)
+	combined := (sf << 6) | (op54 << 4) | (op31 << 1) | o0
+ 	switch (combined) {
+ 		// 0 00 000 0 MADD — 32-bit
+ 		case 0b0000000: return a64_opcode.madd_32
+		// 0 00 000 1 MSUB — 32-bit
+		case 0b0000001: return a64_opcode.msub_32
+		// 0 00 001 0 UNALLOCATED
+		// 0 00 001 1 UNALLOCATED
+		// 0 00 010 0 UNALLOCATED
+		// 0 00 101 0 UNALLOCATED
+		// 0 00 101 1 UNALLOCATED
+		// 0 00 110 0 UNALLOCATED
+		// 1 00 000 0 MADD — 64-bit
+		case 0b1000000: return a64_opcode.madd_64
+		// 1 00 000 1 MSUB — 64-bit
+		case 0b1000001: return a64_opcode.msub_64
+		// 1 00 001 0 SMADDL
+		case 0b1000010: return a64_opcode.smaddl
+		// 1 00 001 1 SMSUBL
+		case 0b1000011: return a64_opcode.smsubl
+		// 1 00 010 0 SMULH
+		case 0b1000100: return a64_opcode.smulh
+		// 1 00 101 0 UMADDL
+		case 0b1001010: return a64_opcode.umaddl
+		// 1 00 101 1 UMSUBL
+		case 0b1001011: return a64_opcode.umsubl
+		// 1 00 110 0 UMULH
+		case 0b1001100: return a64_opcode.umulh
+	}
+	return a64_opcode.invalid
+}
+
 // ======================
 //  DECODE DATA PROC REG
 // ======================
@@ -855,6 +899,10 @@ decode_data_proc_reg :: proc(instr: u32) -> a64_opcode {
 	// x 1 0000 001xxx Add/subtract (checked pointer)
 	if ( (op1 == 0b1) && (op2 == 0b0000) && ((op3 & 0b111000) == 0b001000)) {
 		return decode_add_sub_checked_ptr(instr)
+	}
+	// x 1 0000 001xxx Add/subtract (checked pointer)
+	if ( (op1 == 0b1) && ((op2 & 0b1000) == 0b1000) ) {
+		return decode_data_proc_3_src(instr)
 	}
 	return a64_opcode.invalid
 }
@@ -1284,6 +1332,17 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.csinc_64        : return "csinc_64"
 		case a64_opcode.csinv_64        : return "csinv_64"
 		case a64_opcode.csneg_64  		: return "csneg_64"
+
+		case a64_opcode.madd_32			: return "madd_32"
+		case a64_opcode.msub_32 		: return "msub_32"
+		case a64_opcode.madd_64         : return "madd_64"
+		case a64_opcode.msub_64         : return "msub_64"
+		case a64_opcode.smaddl          : return "smaddl"
+		case a64_opcode.smsubl          : return "smsubl"
+		case a64_opcode.smulh  	 	    : return "smulh"
+		case a64_opcode.umaddl          : return "umaddl"
+		case a64_opcode.umsubl          : return "umsubl"
+		case a64_opcode.umulh  	 	    : return "umulh"
 
 		case a64_opcode.stllrb			: return "stllrb"
 		case a64_opcode.stlrb 			: return "stlrb"
