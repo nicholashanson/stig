@@ -79,6 +79,19 @@ a64_opcode :: enum(u32) {
     adc_32, adcs_32, sbc_32, sbcs_32,
 	adc_64, adcs_64, sbc_64, sbcs_64,
 
+	fmov,
+
+	ldaddb,     ldclrb,      ldeorb,      ldsetb,      ldsmaxb,     ldsminb,   ldumaxb,    lduminb,    swpb,       ldaddlb,    ldclrlb,     ldeorlb,     ldsetlb,     ldsmaxlb,    ldsminlb,
+    ldumaxlb,   lduminlb,    swplb,       ldaddab,     ldclrab,     ldrorab,   ldsetab,    ldsmaxab,   ldsminab,   ldumaxab,   lduminab,    swpab,       lrcpc,       ldaddalb,    ldclralb,
+    ldeoralb,   ldsetalb,    ldsmaxalb,   ldsminalb,   ldumaxalb,   lduminalb, swpalb,     ldaddh,     ldclrh,     ldeorh,     ldseth,      ldsmaxh,     ldsminh,     ldumaxh,     lduminh,
+    swph,       ldaddlh,     ldclrlh,     ldeorlh,     ldsetlh,     ldsmaxlh,  ldsminlh,   ldumaxlh,   lduminlh,   swplh,      ldaddah,     ldclralh,    ldeorah,     ldsetah,     ldsmaxah,
+    ldsminah,   ldumaxah,    lduminah,    swpah,       ldaprh,      ldaddalh,  ldclrah,    ldeoralh,   ldsetalh,   ldsmaxalh,  ldminalh,    ldumaxalh,   lduminalh,   swpalh,      ldadd_32,
+    ldclr_32,   ldeor_32,    ldset_32,    ldsmax_32,   ldsmin_32,   ldumax_32, ldumin_32,  swp_32,     ldaddl_32,  ldclrl_32,  ldeorl_32,   ldsetl_32,   ldsmaxl_32,  ldsminl_32,  ldumaxl_32,
+    lduminl_32, swpl_32,     ldadda_32,   ldclra_32,   ldeora_32,   ldseta_32, ldsmaxa_32, ldsmina_32, ldumaxa_32, ldumina_32, swpa_32,     ldapr_32,    ldaddal,     ldclral,     ldeoral_32,
+	ldsetal_32, ldsmaxal_32, ldsminal_32, ldumaxal_32, lduminal_32, swpal_32,  ldadd_64,   ldclr_64,   ldeor_64,   ldset_64,   ldsmax_64,   ldsmin_64,   ldumax_64,   ldumin_64,   swp_64,
+	st64bv0,    st64bv,      ldaddl_64,   ldclrl_64,   ldeorl_64,   ldsetl_64, ldsmaxl_64, ldsminl_64, ldumaxl_64, lduminl_64, swpl_64,     ldadda_64,   ldclra_64,   ldeora_64,   ldseta_64,
+	ldsmaxa_64, ldsmina_64,  ldumaxa_64,  ldumina_64,  swpa_64,     ldapr_64,  ldaddal_64, ldclral_64, ldeoral_64, ldsetal_64, ldsmaxal_64, ldsminal_64, ldumaxal_64, lduminal_64, swpal_64,
+
 	// unconditional branch (register)
 	ret,
 	invalid
@@ -573,6 +586,330 @@ decode_ld_st_reg_imm_pre_indexed :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 decode_atomic_mem_ops :: proc(instr: u32) -> a64_opcode {
+	size 	 := slice(instr, 30, 2)
+	V    	 := slice(instr, 26, 1)
+	A    	 := slice(instr, 23, 1)
+	R    	 := slice(instr, 22, 1)
+	Rs   	 := slice(instr, 16, 5)
+	o3   	 := slice(instr, 15, 1)
+	opc  	 := slice(instr, 12, 3)
+	combined := (size << 7) | (V << 6) | (A << 5) | (R << 4) | (o3 << 3) | opc 
+	switch (combined) {
+		// 00 0 0 0 0 000 LDADDB, LDADDAB, LDADDALB, LDADDLB — LDADDB FEAT_LSE
+		case 0b000000000: return a64_opcode.ldaddb
+		// 00 0 0 0 0 001 LDCLRB, LDCLRAB, LDCLRALB, LDCLRLB — LDCLRB FEAT_LSE
+		case 0b000000001: return a64_opcode.ldclrb
+		// 00 0 0 0 0 010 LDEORB, LDEORAB, LDEORALB, LDEORLB — LDEORB FEAT_LSE
+		case 0b000000010: return a64_opcode.ldeorb
+		// 00 0 0 0 0 011 LDSETB, LDSETAB, LDSETALB, LDSETLB — LDSETB FEAT_LSE
+		case 0b000000011: return a64_opcode.ldsetb
+		// 00 0 0 0 0 100 LDSMAXB, LDSMAXAB, LDSMAXALB, LDSMAXLB — LDSMAXB FEAT_LSE
+		case 0b000000100: return a64_opcode.ldsmaxb
+		// 00 0 0 0 0 101 LDSMINB, LDSMINAB, LDSMINALB, LDSMINLB — LDSMINB FEAT_LSE
+		case 0b000000101: return a64_opcode.ldsminb
+		// 00 0 0 0 0 110 LDUMAXB, LDUMAXAB, LDUMAXALB, LDUMAXLB — LDUMAXB FEAT_LSE
+		case 0b000000110: return a64_opcode.ldumaxb
+		// 00 0 0 0 0 111 LDUMINB, LDUMINAB, LDUMINALB, LDUMINLB — LDUMINB FEAT_LSE
+		case 0b000000111: return a64_opcode.lduminb
+		// 00 0 0 0 1 000 SWPB, SWPAB, SWPALB, SWPLB — SWPB FEAT_LSE
+		case 0b000001000: return a64_opcode.swpb 
+		// 00 0 0 0 1 001 UNALLOCATED -
+		// 00 0 0 0 1 010 UNALLOCATED -
+		// 00 0 0 0 1 011 UNALLOCATED -
+		// 00 0 0 0 1 101 UNALLOCATED -
+		// 00 0 0 1 0 000 LDADDB, LDADDAB, LDADDALB, LDADDLB — LDADDLB FEAT_LSE
+		case 0b000010000: return a64_opcode.ldaddlb
+		// 00 0 0 1 0 001 LDCLRB, LDCLRAB, LDCLRALB, LDCLRLB — LDCLRLB FEAT_LSE
+		case 0b000010001: return a64_opcode.ldclrlb
+		// 00 0 0 1 0 010 LDEORB, LDEORAB, LDEORALB, LDEORLB — LDEORLB FEAT_LSE
+		case 0b000010010: return a64_opcode.ldeorlb
+		// 00 0 0 1 0 011 LDSETB, LDSETAB, LDSETALB, LDSETLB — LDSETLB FEAT_LSE
+		case 0b000010011: return a64_opcode.ldsetlb
+		// 00 0 0 1 0 100 LDSMAXB, LDSMAXAB, LDSMAXALB, LDSMAXLB — LDSMAXLB FEAT_LSE
+		case 0b000010100: return a64_opcode.ldsmaxlb
+		// 00 0 0 1 0 101 LDSMINB, LDSMINAB, LDSMINALB, LDSMINLB — LDSMINLB FEAT_LSE
+		case 0b000010101: return a64_opcode.ldsminlb
+		// 00 0 0 1 0 110 LDUMAXB, LDUMAXAB, LDUMAXALB, LDUMAXLB — LDUMAXLB FEAT_LSE
+		case 0b000010110: return a64_opcode.ldumaxlb
+		// 00 0 0 1 0 111 LDUMINB, LDUMINAB, LDUMINALB, LDUMINLB — LDUMINLB FEAT_LSE
+		case 0b000010111: return a64_opcode.lduminlb
+		// 00 0 0 1 1 000 SWPB, SWPAB, SWPALB, SWPLB — SWPLB FEAT_LSE
+		case 0b000011000: return a64_opcode.swplb
+		// 00 0 1 0 0 000 LDADDB, LDADDAB, LDADDALB, LDADDLB — LDADDAB FEAT_LSE
+		case 0b000100000: return a64_opcode.ldaddab
+		// 00 0 1 0 0 001 LDCLRB, LDCLRAB, LDCLRALB, LDCLRLB — LDCLRAB FEAT_LSE
+		case 0b000100001: return a64_opcode.ldclrab
+		// 00 0 1 0 0 010 LDEORB, LDEORAB, LDEORALB, LDEORLB — LDEORAB FEAT_LSE
+		case 0b000100010: return a64_opcode.ldrorab
+		// 00 0 1 0 0 011 LDSETB, LDSETAB, LDSETALB, LDSETLB — LDSETAB FEAT_LSE
+		case 0b000100011: return a64_opcode.ldsetab
+		// 00 0 1 0 0 100 LDSMAXB, LDSMAXAB, LDSMAXALB, LDSMAXLB — LDSMAXAB FEAT_LSE
+		case 0b000100100: return a64_opcode.ldsmaxab
+		// 00 0 1 0 0 101 LDSMINB, LDSMINAB, LDSMINALB, LDSMINLB — LDSMINAB FEAT_LSE
+		case 0b000100101: return a64_opcode.ldsminab
+		// 00 0 1 0 0 110 LDUMAXB, LDUMAXAB, LDUMAXALB, LDUMAXLB — LDUMAXAB FEAT_LSE
+		case 0b000100110: return a64_opcode.ldumaxab
+		// 00 0 1 0 0 111 LDUMINB, LDUMINAB, LDUMINALB, LDUMINLB — LDUMINAB FEAT_LSE
+		case 0b000100111: return a64_opcode.lduminab
+		// 00 0 1 0 1 000 SWPB, SWPAB, SWPALB, SWPLB — SWPAB FEAT_LSE
+		case 0b000101000: return a64_opcode.swpab
+		// 00 0 1 0 1 100 LDAPRB FEAT_LRCPC
+		case 0b000101100: return a64_opcode.lrcpc
+		// 00 0 1 1 0 000 LDADDB, LDADDAB, LDADDALB, LDADDLB — LDADDALB FEAT_LSE
+		case 0b000110000: return a64_opcode.ldaddalb
+		// 00 0 1 1 0 001 LDCLRB, LDCLRAB, LDCLRALB, LDCLRLB — LDCLRALB FEAT_LSE
+		case 0b000110001: return a64_opcode.ldclralb
+		// 00 0 1 1 0 010 LDEORB, LDEORAB, LDEORALB, LDEORLB — LDEORALB FEAT_LSE
+		case 0b000110010: return a64_opcode.ldeoralb
+		// 00 0 1 1 0 011 LDSETB, LDSETAB, LDSETALB, LDSETLB — LDSETALB FEAT_LSE
+		case 0b000110011: return a64_opcode.ldsetalb
+		// 00 0 1 1 0 100 LDSMAXB, LDSMAXAB, LDSMAXALB, LDSMAXLB — LDSMAXALB FEAT_LSE
+		case 0b000110100: return a64_opcode.ldsmaxalb
+		// 00 0 1 1 0 101 LDSMINB, LDSMINAB, LDSMINALB, LDSMINLB — LDSMINALB FEAT_LSE
+		case 0b000110101: return a64_opcode.ldsminalb
+		// 00 0 1 1 0 110 LDUMAXB, LDUMAXAB, LDUMAXALB, LDUMAXLB — LDUMAXALB FEAT_LSE
+		case 0b000110110: return a64_opcode.ldumaxalb
+		// 00 0 1 1 0 111 LDUMINB, LDUMINAB, LDUMINALB, LDUMINLB — LDUMINALB FEAT_LSE
+		case 0b000110111: return a64_opcode.lduminalb
+		// 00 0 1 1 1 000 SWPB, SWPAB, SWPALB, SWPLB — SWPALB FEAT_LSE
+		case 0b000111000: return a64_opcode.swpalb
+		// 01 0 0 0 0 000 LDADDH, LDADDAH, LDADDALH, LDADDLH — LDADDH FEAT_LSE
+		case 0b010000000: return a64_opcode.ldaddh
+		// 01 0 0 0 0 001 LDCLRH, LDCLRAH, LDCLRALH, LDCLRLH — LDCLRH FEAT_LSE
+		case 0b010000001: return a64_opcode.ldclrh
+		// 01 0 0 0 0 010 LDEORH, LDEORAH, LDEORALH, LDEORLH — LDEORH FEAT_LSE
+		case 0b010000010: return a64_opcode.ldeorh
+		// 01 0 0 0 0 011 LDSETH, LDSETAH, LDSETALH, LDSETLH — LDSETH FEAT_LSE
+		case 0b010000011: return a64_opcode.ldseth
+		// 01 0 0 0 0 100 LDSMAXH, LDSMAXAH, LDSMAXALH, LDSMAXLH — LDSMAXH FEAT_LSE
+		case 0b010000100: return a64_opcode.ldsmaxh
+		// 01 0 0 0 0 101 LDSMINH, LDSMINAH, LDSMINALH, LDSMINLH — LDSMINH FEAT_LSE
+		case 0b010000101: return a64_opcode.ldsminh
+		// 01 0 0 0 0 110 LDUMAXH, LDUMAXAH, LDUMAXALH, LDUMAXLH — LDUMAXH FEAT_LSE
+		case 0b010000110: return a64_opcode.ldumaxh
+		// 01 0 0 0 0 111 LDUMINH, LDUMINAH, LDUMINALH, LDUMINLH — LDUMINH FEAT_LSE
+		case 0b010000111: return a64_opcode.lduminh
+		// 01 0 0 0 1 000 SWPH, SWPAH, SWPALH, SWPLH — SWPH FEAT_LSE
+		case 0b010001000: return a64_opcode.swph
+		// 01 0 0 0 1 001 UNALLOCATED -
+		// 01 0 0 0 1 010 UNALLOCATED -
+		// 01 0 0 0 1 011 UNALLOCATED -
+		// 01 0 0 0 1 101 UNALLOCATED -
+		// 01 0 0 1 0 000 LDADDH, LDADDAH, LDADDALH, LDADDLH — LDADDLH FEAT_LSE
+		case 0b010010000: return a64_opcode.ldaddlh
+		// 01 0 0 1 0 001 LDCLRH, LDCLRAH, LDCLRALH, LDCLRLH — LDCLRLH FEAT_LSE
+		case 0b010010001: return a64_opcode.ldclrlh
+		// 01 0 0 1 0 010 LDEORH, LDEORAH, LDEORALH, LDEORLH — LDEORLH FEAT_LSE
+		case 0b010010010: return a64_opcode.ldeorlh
+		// 01 0 0 1 0 011 LDSETH, LDSETAH, LDSETALH, LDSETLH — LDSETLH FEAT_LSE
+		case 0b010010011: return a64_opcode.ldsetlh
+		// 01 0 0 1 0 100 LDSMAXH, LDSMAXAH, LDSMAXALH, LDSMAXLH — LDSMAXLH FEAT_LSE
+		case 0b010010100: return a64_opcode.ldsmaxlh
+		// 01 0 0 1 0 101 LDSMINH, LDSMINAH, LDSMINALH, LDSMINLH — LDSMINLH FEAT_LSE
+		case 0b010010101: return a64_opcode.ldsminlh 
+		// 01 0 0 1 0 110 LDUMAXH, LDUMAXAH, LDUMAXALH, LDUMAXLH — LDUMAXLH FEAT_LSE
+		case 0b010010110: return a64_opcode.ldumaxlh
+		// 01 0 0 1 0 111 LDUMINH, LDUMINAH, LDUMINALH, LDUMINLH — LDUMINLH FEAT_LSE
+		case 0b010010111: return a64_opcode.lduminlh
+		// 01 0 0 1 1 000 SWPH, SWPAH, SWPALH, SWPLH — SWPLH FEAT_LSE
+		case 0b010011000: return a64_opcode.swplh
+		// 01 0 1 0 0 000 LDADDH, LDADDAH, LDADDALH, LDADDLH — LDADDAH FEAT_LSE
+		case 0b010100000: return a64_opcode.ldaddah
+		// 01 0 1 0 0 001 LDCLRH, LDCLRAH, LDCLRALH, LDCLRLH — LDCLRAH FEAT_LSE
+		case 0b010100001: return a64_opcode.ldclrah
+		// 01 0 1 0 0 010 LDEORH, LDEORAH, LDEORALH, LDEORLH — LDEORAH FEAT_LSE
+		case 0b010100010: return a64_opcode.ldeorah
+		// 01 0 1 0 0 011 LDSETH, LDSETAH, LDSETALH, LDSETLH — LDSETAH FEAT_LSE
+		case 0b010100011: return a64_opcode.ldsetah
+		// 01 0 1 0 0 100 LDSMAXH, LDSMAXAH, LDSMAXALH, LDSMAXLH — LDSMAXAH FEAT_LSE
+		case 0b010100100: return a64_opcode.ldsmaxah
+		// 01 0 1 0 0 101 LDSMINH, LDSMINAH, LDSMINALH, LDSMINLH — LDSMINAH FEAT_LSE
+		case 0b010100101: return a64_opcode.ldsminah
+		// 01 0 1 0 0 110 LDUMAXH, LDUMAXAH, LDUMAXALH, LDUMAXLH — LDUMAXAH FEAT_LSE
+		case 0b010100110: return a64_opcode.ldumaxah
+		// 01 0 1 0 0 111 LDUMINH, LDUMINAH, LDUMINALH, LDUMINLH — LDUMINAH FEAT_LSE
+		case 0b010100111: return a64_opcode.lduminah
+		// 01 0 1 0 1 000 SWPH, SWPAH, SWPALH, SWPLH — SWPAH FEAT_LSE
+		case 0b010101000: return a64_opcode.swpah
+		// 01 0 1 0 1 100 LDAPRH FEAT_LRCPC
+		case 0b010101100: return a64_opcode.ldaprh
+		// 01 0 1 1 0 000 LDADDH, LDADDAH, LDADDALH, LDADDLH — LDADDALH FEAT_LSE
+		case 0b010110000: return a64_opcode.ldaddalh
+		// 01 0 1 1 0 001 LDCLRH, LDCLRAH, LDCLRALH, LDCLRLH — LDCLRALH FEAT_LSE
+		case 0b010110001: return a64_opcode.ldclralh
+		// 01 0 1 1 0 010 LDEORH, LDEORAH, LDEORALH, LDEORLH — LDEORALH FEAT_LSE
+		case 0b010110010: return a64_opcode.ldeoralh
+		// 01 0 1 1 0 011 LDSETH, LDSETAH, LDSETALH, LDSETLH — LDSETALH FEAT_LSE
+		case 0b010110011: return a64_opcode.ldsetalh
+		// 01 0 1 1 0 100 LDSMAXH, LDSMAXAH, LDSMAXALH, LDSMAXLH — LDSMAXALH FEAT_LSE
+		case 0b010110100: return a64_opcode.ldsmaxalh
+		// 01 0 1 1 0 101 LDSMINH, LDSMINAH, LDSMINALH, LDSMINLH — LDSMINALH FEAT_LSE
+		case 0b010110101: return a64_opcode.ldminalh
+		// 01 0 1 1 0 110 LDUMAXH, LDUMAXAH, LDUMAXALH, LDUMAXLH — LDUMAXALH FEAT_LSE
+		case 0b010110110: return a64_opcode.ldumaxalh
+		// 01 0 1 1 0 111 LDUMINH, LDUMINAH, LDUMINALH, LDUMINLH — LDUMINALH FEAT_LSE
+		case 0b010110111: return a64_opcode.lduminalh
+		// 01 0 1 1 1 000 SWPH, SWPAH, SWPALH, SWPLH — SWPALH FEAT_LSE
+		case 0b010111000: return a64_opcode.swpalh
+		// 10 0 0 0 0 000 LDADD, LDADDA, LDADDAL, LDADDL — 32-bit LDADD FEAT_LSE
+		case 0b100000000: return a64_opcode.ldadd_32
+		// 10 0 0 0 0 001 LDCLR, LDCLRA, LDCLRAL, LDCLRL — 32-bit LDCLR FEAT_LSE
+		case 0b100000001: return a64_opcode.ldclr_32
+		// 10 0 0 0 0 010 LDEOR, LDEORA, LDEORAL, LDEORL — 32-bit LDEOR FEAT_LSE
+		case 0b100000010: return a64_opcode.ldeor_32
+		// 10 0 0 0 0 011 LDSET, LDSETA, LDSETAL, LDSETL — 32-bit LDSET FEAT_LSE
+		case 0b100000011: return a64_opcode.ldset_32
+		// 10 0 0 0 0 100 LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL — 32-bit LDSMAX FEAT_LSE
+		case 0b100000100: return a64_opcode.ldsmax_32
+		// 10 0 0 0 0 101 LDSMIN, LDSMINA, LDSMINAL, LDSMINL — 32-bit LDSMIN FEAT_LSE
+		case 0b100000101: return a64_opcode.ldsmin_32
+		// 10 0 0 0 0 110 LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL — 32-bit LDUMAX FEAT_LSE
+		case 0b100000110: return a64_opcode.ldumax_32
+		// 10 0 0 0 0 111 LDUMIN, LDUMINA, LDUMINAL, LDUMINL — 32-bit LDUMIN FEAT_LSE
+		case 0b100000111: return a64_opcode.ldumin_32
+		// 10 0 0 0 1 000 SWP, SWPA, SWPAL, SWPL — 32-bit SWP FEAT_LSE
+		case 0b100001000: return a64_opcode.swp_32
+		// 10 0 0 0 1 001 UNALLOCATED -
+		// 10 0 0 0 1 010 UNALLOCATED -
+		// 10 0 0 0 1 011 UNALLOCATED -
+		// 10 0 0 0 1 101 UNALLOCATED -
+		// 10 0 0 1 0 000 LDADD, LDADDA, LDADDAL, LDADDL — 32-bit LDADDL FEAT_LSE
+		case 0b100010000: return a64_opcode.ldaddl_32
+		// 10 0 0 1 0 001 LDCLR, LDCLRA, LDCLRAL, LDCLRL — 32-bit LDCLRL FEAT_LSE
+		case 0b100010001: return a64_opcode.ldclrl_32
+		// 10 0 0 1 0 010 LDEOR, LDEORA, LDEORAL, LDEORL — 32-bit LDEORL FEAT_LSE
+		case 0b100010010: return a64_opcode.ldeorl_32
+		// 10 0 0 1 0 011 LDSET, LDSETA, LDSETAL, LDSETL — 32-bit LDSETL FEAT_LSE
+		case 0b100010011: return a64_opcode.ldsetl_32
+		// 10 0 0 1 0 100 LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL — 32-bit LDSMAXL FEAT_LSE
+		case 0b100010100: return a64_opcode.ldsmaxl_32
+		// 10 0 0 1 0 101 LDSMIN, LDSMINA, LDSMINAL, LDSMINL — 32-bit LDSMINL FEAT_LSE
+		case 0b100010101: return a64_opcode.ldsminl_32
+		// 10 0 0 1 0 110 LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL — 32-bit LDUMAXL FEAT_LSE
+		case 0b100010110: return a64_opcode.ldumaxl_32
+		// 10 0 0 1 0 111 LDUMIN, LDUMINA, LDUMINAL, LDUMINL — 32-bit LDUMINL FEAT_LSE
+		case 0b100010111: return a64_opcode.lduminl_32
+		// 10 0 0 1 1 000 SWP, SWPA, SWPAL, SWPL — 32-bit SWPL FEAT_LSE
+		case 0b100011000: return a64_opcode.swpl_32
+		// 10 0 1 0 0 000 LDADD, LDADDA, LDADDAL, LDADDL — 32-bit LDADDA FEAT_LSE
+		case 0b100100000: return a64_opcode.ldadda_32
+		// 10 0 1 0 0 001 LDCLR, LDCLRA, LDCLRAL, LDCLRL — 32-bit LDCLRA FEAT_LSE
+		case 0b100100001: return a64_opcode.ldclra_32
+		// 10 0 1 0 0 010 LDEOR, LDEORA, LDEORAL, LDEORL — 32-bit LDEORA FEAT_LSE
+		case 0b100100010: return a64_opcode.ldeora_32
+		// 10 0 1 0 0 011 LDSET, LDSETA, LDSETAL, LDSETL — 32-bit LDSETA FEAT_LSE
+		case 0b100100011: return a64_opcode.ldseta_32
+		// 10 0 1 0 0 100 LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL — 32-bit LDSMAXA FEAT_LSE
+		case 0b100100100: return a64_opcode.ldsmaxa_32
+		// 10 0 1 0 0 101 LDSMIN, LDSMINA, LDSMINAL, LDSMINL — 32-bit LDSMINA FEAT_LSE
+		case 0b100100101: return a64_opcode.ldsmina_32
+		// 10 0 1 0 0 110 LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL — 32-bit LDUMAXA FEAT_LSE
+		case 0b100100110: return a64_opcode.ldumaxa_32
+		// 10 0 1 0 0 111 LDUMIN, LDUMINA, LDUMINAL, LDUMINL — 32-bit LDUMINA FEAT_LSE
+		case 0b100100111: return a64_opcode.ldumina_32
+		// 10 0 1 0 1 000 SWP, SWPA, SWPAL, SWPL — 32-bit SWPA FEAT_LSE
+		case 0b100101000: return a64_opcode.swpa_32
+		// 10 0 1 0 1 100 LDAPR — 32-bit FEAT_LRCPC
+		case 0b100101100: return a64_opcode.ldapr_32
+		// 10 0 1 1 0 000 LDADD, LDADDA, LDADDAL, LDADDL — 32-bit LDADDAL FEAT_LSE
+		case 0b100110000: return a64_opcode.ldaddal
+		// 10 0 1 1 0 001 LDCLR, LDCLRA, LDCLRAL, LDCLRL — 32-bit LDCLRAL FEAT_LSE
+		case 0b100110001: return a64_opcode.ldclral
+		// 10 0 1 1 0 010 LDEOR, LDEORA, LDEORAL, LDEORL — 32-bit LDEORAL FEAT_LSE
+		case 0b100110010: return a64_opcode.ldeoral_32
+		// 10 0 1 1 0 011 LDSET, LDSETA, LDSETAL, LDSETL — 32-bit LDSETAL FEAT_LSE
+		case 0b100110011: return a64_opcode.ldsetal_32
+		// 10 0 1 1 0 100 LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL — 32-bit LDSMAXAL FEAT_LSE
+		case 0b100110100: return a64_opcode.ldsmaxal_32
+		// 10 0 1 1 0 101 LDSMIN, LDSMINA, LDSMINAL, LDSMINL — 32-bit LDSMINAL FEAT_LSE
+		case 0b100110101: return a64_opcode.ldsminal_32
+		// 10 0 1 1 0 110 LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL — 32-bit LDUMAXAL FEAT_LSE
+		case 0b100110110: return a64_opcode.ldumaxal_32
+		// 10 0 1 1 0 111 LDUMIN, LDUMINA, LDUMINAL, LDUMINL — 32-bit LDUMINAL FEAT_LSE
+		case 0b100110111: return a64_opcode.lduminal_32
+		// 10 0 1 1 1 000 SWP, SWPA, SWPAL, SWPL — 32-bit SWPAL FEAT_LSE
+		case 0b100111000: return a64_opcode.swpal_32
+		// 11 0 0 0 0 000 LDADD, LDADDA, LDADDAL, LDADDL — 64-bit LDADD FEAT_LSE
+		case 0b110000000: return a64_opcode.ldadd_64
+		// 11 0 0 0 0 001 LDCLR, LDCLRA, LDCLRAL, LDCLRL — 64-bit LDCLR FEAT_LSE
+		case 0b110000001: return a64_opcode.ldclr_64
+		// 11 0 0 0 0 010 LDEOR, LDEORA, LDEORAL, LDEORL — 64-bit LDEOR FEAT_LSE
+		case 0b110000010: return a64_opcode.ldeor_64
+		// 11 0 0 0 0 011 LDSET, LDSETA, LDSETAL, LDSETL — 64-bit LDSET FEAT_LSE
+		case 0b110000011: return a64_opcode.ldset_64
+		// 11 0 0 0 0 100 LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL — 64-bit LDSMAX FEAT_LSE
+		case 0b110000100: return a64_opcode.ldsmax_64
+		// 11 0 0 0 0 101 LDSMIN, LDSMINA, LDSMINAL, LDSMINL — 64-bit LDSMIN FEAT_LSE
+		case 0b110000101: return a64_opcode.ldsmin_64
+		// 11 0 0 0 0 110 LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL — 64-bit LDUMAX FEAT_LSE
+		case 0b110000110: return a64_opcode.ldumax_64
+		// 11 0 0 0 0 111 LDUMIN, LDUMINA, LDUMINAL, LDUMINL — 64-bit LDUMIN FEAT_LSE
+		case 0b110000111: return a64_opcode.ldumin_64
+		// 11 0 0 0 1 000 SWP, SWPA, SWPAL, SWPL — 64-bit SWP FEAT_LSE
+		case 0b110001000: return a64_opcode.swp_64
+		// 11 0 0 0 1 010 ST64BV0 FEAT_LS64_ACCDATA
+		case 0b110001010: return a64_opcode.st64bv0
+		// 11 0 0 0 1 011 ST64BV FEAT_LS64_V
+		case 0b110001011: return a64_opcode.st64bv
+		// 11 0 0 0 11111 1 001 ST64B FEAT_LS64
+		// 11 0 0 0 11111 1 101 LD64B FEAT_LS64
+		// 11 0 0 1 0 000 LDADD, LDADDA, LDADDAL, LDADDL — 64-bit LDADDL FEAT_LSE
+		case 0b110010000: return a64_opcode.ldaddl_64
+		// 11 0 0 1 0 001 LDCLR, LDCLRA, LDCLRAL, LDCLRL — 64-bit LDCLRL FEAT_LSE
+		case 0b110010001: return a64_opcode.ldclrl_64
+		// 11 0 0 1 0 010 LDEOR, LDEORA, LDEORAL, LDEORL — 64-bit LDEORL FEAT_LSE
+		case 0b110010010: return a64_opcode.ldeorl_64
+		// 11 0 0 1 0 011 LDSET, LDSETA, LDSETAL, LDSETL — 64-bit LDSETL FEAT_LSE
+		case 0b110010011: return a64_opcode.ldsetl_64
+		// 11 0 0 1 0 100 LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL — 64-bit LDSMAXL FEAT_LSE
+		case 0b110010100: return a64_opcode.ldsmaxl_64
+		// 11 0 0 1 0 101 LDSMIN, LDSMINA, LDSMINAL, LDSMINL — 64-bit LDSMINL FEAT_LSE
+		case 0b110010101: return a64_opcode.ldsminl_64
+		// 11 0 0 1 0 110 LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL — 64-bit LDUMAXL FEAT_LSE
+		case 0b110010110: return a64_opcode.ldumaxl_64
+		// 11 0 0 1 0 111 LDUMIN, LDUMINA, LDUMINAL, LDUMINL — 64-bit LDUMINL FEAT_LSE
+		case 0b110010111: return a64_opcode.lduminl_64
+		// 11 0 0 1 1 000 SWP, SWPA, SWPAL, SWPL — 64-bit SWPL FEAT_LSE
+		case 0b110011000: return a64_opcode.swpl_64
+		// 11 0 1 0 0 000 LDADD, LDADDA, LDADDAL, LDADDL — 64-bit LDADDA FEAT_LSE
+		case 0b110100000: return a64_opcode.ldadda_64
+		// 11 0 1 0 0 001 LDCLR, LDCLRA, LDCLRAL, LDCLRL — 64-bit LDCLRA FEAT_LSE
+		case 0b110100001: return a64_opcode.ldclra_64
+		// 11 0 1 0 0 010 LDEOR, LDEORA, LDEORAL, LDEORL — 64-bit LDEORA FEAT_LSE
+		case 0b110100010: return a64_opcode.ldeora_64
+		// 11 0 1 0 0 011 LDSET, LDSETA, LDSETAL, LDSETL — 64-bit LDSETA FEAT_LSE
+		case 0b110100011: return a64_opcode.ldseta_64
+		// 11 0 1 0 0 100 LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL — 64-bit LDSMAXA FEAT_LSE
+		case 0b110100100: return a64_opcode.ldsmaxa_64
+		// 11 0 1 0 0 101 LDSMIN, LDSMINA, LDSMINAL, LDSMINL — 64-bit LDSMINA FEAT_LSE
+		case 0b110100101: return a64_opcode.ldsmina_64
+		// 11 0 1 0 0 110 LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL — 64-bit LDUMAXA FEAT_LSE
+		case 0b110100110: return a64_opcode.ldumaxa_64
+		// 11 0 1 0 0 111 LDUMIN, LDUMINA, LDUMINAL, LDUMINL — 64-bit LDUMINA FEAT_LSE
+		case 0b110100111: return a64_opcode.ldumina_64
+		// 11 0 1 0 1 000 SWP, SWPA, SWPAL, SWPL — 64-bit SWPA FEAT_LSE
+		case 0b110101000: return a64_opcode.swpa_64
+		// 11 0 1 0 1 100 LDAPR — 64-bit FEAT_LRCPC
+		case 0b110101100: return a64_opcode.ldapr_64
+		// 11 0 1 1 0 000 LDADD, LDADDA, LDADDAL, LDADDL — 64-bit LDADDAL FEAT_LSE
+		case 0b110110000: return a64_opcode.ldaddal_64
+		// 11 0 1 1 0 001 LDCLR, LDCLRA, LDCLRAL, LDCLRL — 64-bit LDCLRAL FEAT_LSE
+		case 0b110110001: return a64_opcode.ldclral_64
+		// 11 0 1 1 0 010 LDEOR, LDEORA, LDEORAL, LDEORL — 64-bit LDEORAL FEAT_LSE
+		case 0b110110010: return a64_opcode.ldeoral_64
+		// 11 0 1 1 0 011 LDSET, LDSETA, LDSETAL, LDSETL — 64-bit LDSETAL FEAT_LSE
+		case 0b110110011: return a64_opcode.ldsetal_64
+		// 11 0 1 1 0 100 LDSMAX, LDSMAXA, LDSMAXAL, LDSMAXL — 64-bit LDSMAXAL FEAT_LSE
+		case 0b110110100: return a64_opcode.ldsmaxal_64
+		// 11 0 1 1 0 101 LDSMIN, LDSMINA, LDSMINAL, LDSMINL — 64-bit LDSMINAL FEAT_LSE
+		case 0b110110101: return a64_opcode.ldsminal_64
+		// 11 0 1 1 0 110 LDUMAX, LDUMAXA, LDUMAXAL, LDUMAXL — 64-bit LDUMAXAL FEAT_LSE
+		case 0b110110110: return a64_opcode.ldumaxal_64
+		// 11 0 1 1 0 111 LDUMIN, LDUMINA, LDUMINAL, LDUMINL — 64-bit LDUMINAL FEAT_LSE
+		case 0b110110111: return a64_opcode.lduminal_64
+		// 11 0 1 1 1 000 SWP, SWPA, SWPAL, SWPL — 64-bit SWPAL FEAT_LSE
+		case 0b110111000: return a64_opcode.swpal_64
+	}
 	return a64_opcode.invalid
 }
 decode_ld_st_reg_pac :: proc(instr: u32) -> a64_opcode {
@@ -702,6 +1039,124 @@ decode_load_and_stores :: proc(instr: u32) -> a64_opcode {
 	}
 	return a64_opcode.invalid
 }
+
+decode_conv_fp_int :: proc(instr: u32) -> a64_opcode {
+	// x1 01x UNALLOCATED -
+	// x1 10x UNALLOCATED -
+	// 1x 01x UNALLOCATED -
+	// 1x 10x UNALLOCATED -
+	// 0 10 0xx UNALLOCATED -
+	// 0 10 10x UNALLOCATED -
+	// 1 UNALLOCATED -
+	// 0 0 00 x1 11x UNALLOCATED -
+	// 0 0 00 00 000 FCVTNS (scalar) — single-precision to 32-bit -
+	// 0 0 00 00 001 FCVTNU (scalar) — single-precision to 32-bit -
+	// 0 0 00 00 010 SCVTF (scalar, integer) — 32-bit to single-precision -
+	// 0 0 00 00 011 UCVTF (scalar, integer) — 32-bit to single-precision -
+	// 0 0 00 00 100 FCVTAS (scalar) — single-precision to 32-bit -
+	// 0 0 00 00 101 FCVTAU (scalar) — single-precision to 32-bit -
+	// 0 0 00 00 110 FMOV (general) — single-precision to 32-bit -
+	// Top-level encodings for A64
+	// Page 2723
+	// Decode fields
+	// sf S ptype rmode opcode Instruction Details Feature
+	// 0 0 00 00 111 FMOV (general) — 32-bit to single-precision -
+	// 0 0 00 01 000 FCVTPS (scalar) — single-precision to 32-bit -
+	// 0 0 00 01 001 FCVTPU (scalar) — single-precision to 32-bit -
+	// 0 0 00 1x 11x UNALLOCATED -
+	// 0 0 00 10 000 FCVTMS (scalar) — single-precision to 32-bit -
+	// 0 0 00 10 001 FCVTMU (scalar) — single-precision to 32-bit -
+	// 0 0 00 11 000 FCVTZS (scalar, integer) — single-precision to 32-bit -
+	// 0 0 00 11 001 FCVTZU (scalar, integer) — single-precision to 32-bit -
+	// 0 0 01 0x 11x UNALLOCATED -
+	// 0 0 01 00 000 FCVTNS (scalar) — double-precision to 32-bit -
+	// 0 0 01 00 001 FCVTNU (scalar) — double-precision to 32-bit -
+	// 0 0 01 00 010 SCVTF (scalar, integer) — 32-bit to double-precision -
+	// 0 0 01 00 011 UCVTF (scalar, integer) — 32-bit to double-precision -
+	// 0 0 01 00 100 FCVTAS (scalar) — double-precision to 32-bit -
+	// 0 0 01 00 101 FCVTAU (scalar) — double-precision to 32-bit -
+	// 0 0 01 01 000 FCVTPS (scalar) — double-precision to 32-bit -
+	// 0 0 01 01 001 FCVTPU (scalar) — double-precision to 32-bit -
+	// 0 0 01 10 000 FCVTMS (scalar) — double-precision to 32-bit -
+	// 0 0 01 10 001 FCVTMU (scalar) — double-precision to 32-bit -
+	// 0 0 01 10 11x UNALLOCATED -
+	// 0 0 01 11 000 FCVTZS (scalar, integer) — double-precision to 32-bit -
+	// 0 0 01 11 001 FCVTZU (scalar, integer) — double-precision to 32-bit -
+	// 0 0 01 11 110 FJCVTZS FEAT_JSCVT
+	// 0 0 01 11 111 UNALLOCATED -
+	// 0 0 10 11x UNALLOCATED -
+	// 0 0 11 00 000 FCVTNS (scalar) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 00 001 FCVTNU (scalar) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 00 010 SCVTF (scalar, integer) — 32-bit to half-precision FEAT_FP16
+	// 0 0 11 00 011 UCVTF (scalar, integer) — 32-bit to half-precision FEAT_FP16
+	// 0 0 11 00 100 FCVTAS (scalar) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 00 101 FCVTAU (scalar) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 00 110 FMOV (general) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 00 111 FMOV (general) — 32-bit to half-precision FEAT_FP16
+	// 0 0 11 01 000 FCVTPS (scalar) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 01 001 FCVTPU (scalar) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 10 000 FCVTMS (scalar) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 10 001 FCVTMU (scalar) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 11 000 FCVTZS (scalar, integer) — half-precision to 32-bit FEAT_FP16
+	// 0 0 11 11 001 FCVTZU (scalar, integer) — half-precision to 32-bit FEAT_FP16
+	// 1 0 00 11x UNALLOCATED -
+	// 1 0 00 00 000 FCVTNS (scalar) — single-precision to 64-bit -
+	// 1 0 00 00 001 FCVTNU (scalar) — single-precision to 64-bit -
+	// 1 0 00 00 010 SCVTF (scalar, integer) — 64-bit to single-precision -
+	// 1 0 00 00 011 UCVTF (scalar, integer) — 64-bit to single-precision -
+	// 1 0 00 00 100 FCVTAS (scalar) — single-precision to 64-bit -
+	// 1 0 00 00 101 FCVTAU (scalar) — single-precision to 64-bit -
+	// 1 0 00 01 000 FCVTPS (scalar) — single-precision to 64-bit -
+	// Top-level encodings for A64
+	// Page 2724
+	// Decode fields
+	// sf S ptype rmode opcode Instruction Details Feature
+	// 1 0 00 01 001 FCVTPU (scalar) — single-precision to 64-bit -
+	// 1 0 00 10 000 FCVTMS (scalar) — single-precision to 64-bit -
+	// 1 0 00 10 001 FCVTMU (scalar) — single-precision to 64-bit -
+	// 1 0 00 11 000 FCVTZS (scalar, integer) — single-precision to 64-bit -
+	// 1 0 00 11 001 FCVTZU (scalar, integer) — single-precision to 64-bit -
+	// 1 0 01 x1 11x UNALLOCATED -
+	// 1 0 01 00 000 FCVTNS (scalar) — double-precision to 64-bit -
+	// 1 0 01 00 001 FCVTNU (scalar) — double-precision to 64-bit -
+	// 1 0 01 00 010 SCVTF (scalar, integer) — 64-bit to double-precision -
+	// 1 0 01 00 011 UCVTF (scalar, integer) — 64-bit to double-precision -
+	// 1 0 01 00 100 FCVTAS (scalar) — double-precision to 64-bit -
+	// 1 0 01 00 101 FCVTAU (scalar) — double-precision to 64-bit -
+	// 1 0 01 00 110 FMOV (general) — double-precision to 64-bit -
+	// 1 0 01 00 111 FMOV (general) — 64-bit to double-precision -
+	// 1 0 01 01 000 FCVTPS (scalar) — double-precision to 64-bit -
+	// 1 0 01 01 001 FCVTPU (scalar) — double-precision to 64-bit -
+	// 1 0 01 1x 11x UNALLOCATED -
+	// 1 0 01 10 000 FCVTMS (scalar) — double-precision to 64-bit -
+	// 1 0 01 10 001 FCVTMU (scalar) — double-precision to 64-bit -
+	// 1 0 01 11 000 FCVTZS (scalar, integer) — double-precision to 64-bit -
+	// 1 0 01 11 001 FCVTZU (scalar, integer) — double-precision to 64-bit -
+	// 1 0 10 x0 11x UNALLOCATED -
+	// 1 0 10 01 110 FMOV (general) — top half of 128-bit to 64-bit -
+	// 1 0 10 01 111 FMOV (general) — 64-bit to top half of 128-bit -
+	// 1 0 10 1x 11x UNALLOCATED -
+	// 1 0 11 00 000 FCVTNS (scalar) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 00 001 FCVTNU (scalar) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 00 010 SCVTF (scalar, integer) — 64-bit to half-precision FEAT_FP16
+	// 1 0 11 00 011 UCVTF (scalar, integer) — 64-bit to half-precision FEAT_FP16
+	// 1 0 11 00 100 FCVTAS (scalar) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 00 101 FCVTAU (scalar) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 00 110 FMOV (general) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 00 111 FMOV (general) — 64-bit to half-precision FEAT_FP16
+	// 1 0 11 01 000 FCVTPS (scalar) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 01 001 FCVTPU (scalar) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 10 000 FCVTMS (scalar) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 10 001 FCVTMU (scalar) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 11 000 FCVTZS (scalar, integer) — half-precision to 64-bit FEAT_FP16
+	// 1 0 11 11 001 FCVTZU (scalar, integer) — half-precision to 64-bit FEAT_FP16
+	return a64_opcode.fmov
+	//return a64_opcode.invalid
+}
+
+decode_data_proc_scalar_fp_adv_simd :: proc(instr: u32) -> a64_opcode { 
+	return decode_conv_fp_int(instr)
+}
 // ---------------------------------------------------------------------------------------
 // ============
 //  GET OPCODE
@@ -726,6 +1181,11 @@ get_opcode :: proc(instr: u32) -> a64_opcode {
 	// x x1x0
 	if ( (op1 & 0b0101) == 0b0100 ) {
 		return decode_load_and_stores(instr)
+	}
+
+	// x111
+	if ( (op1 & 0b0111) == 0b0111 ) {
+		return decode_data_proc_scalar_fp_adv_simd(instr)
 	}
 
 	return a64_opcode.invalid
