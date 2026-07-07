@@ -92,6 +92,10 @@ a64_opcode :: enum(u32) {
 	st64bv0,    st64bv,      ldaddl_64,   ldclrl_64,   ldeorl_64,   ldsetl_64, ldsmaxl_64, ldsminl_64, ldumaxl_64, lduminl_64, swpl_64,     ldadda_64,   ldclra_64,   ldeora_64,   ldseta_64,
 	ldsmaxa_64, ldsmina_64,  ldumaxa_64,  ldumina_64,  swpa_64,     ldapr_64,  ldaddal_64, ldclral_64, ldeoral_64, ldsetal_64, ldsmaxal_64, ldsminal_64, ldumaxal_64, lduminal_64, swpal_64,
 
+	stxrb,   stlxrb,   ldxrb,   ldaxrb,   stxrh,   stlxrh,
+	ldxrh,   ldaxrh,   stxr_32, stlxr_32, ldxr_32, ldaxr_32,
+	stxr_64, stlxr_64, ldxr_64, ldaxr_64,
+
 	// unconditional branch (register)
 	ret,
 	invalid
@@ -284,6 +288,44 @@ decode_ld_st_excl_pair :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 decode_ld_st_excl_reg :: proc(instr: u32) -> a64_opcode {
+	size     := slice(instr, 30, 2)
+	L        := slice(instr, 22, 1)
+	o0       := slice(instr, 15, 1)
+	combined := (size << 2) | (L << 1) | o0
+	switch (combined) {
+		// 00 0 0 STXRB
+		case 0b0000: return a64_opcode.stxrb
+		// 00 0 1 STLXRB
+		case 0b0001: return a64_opcode.stlxrb
+		// 00 1 0 LDXRB
+		case 0b0010: return a64_opcode.ldxrb
+		// 00 1 1 LDAXRB
+		case 0b0011: return a64_opcode.ldaxrb 
+		// 01 0 0 STXRH
+		case 0b0100: return a64_opcode.stxrh
+		// 01 0 1 STLXRH
+		case 0b0101: return a64_opcode.stlxrh
+		// 01 1 0 LDXRH
+		case 0b0110: return a64_opcode.ldxrh
+		// 01 1 1 LDAXRH
+		case 0b0111: return a64_opcode.ldaxrh
+		// 10 0 0 STXR — 32-bit
+		case 0b1000: return a64_opcode.stxr_32
+		// 10 0 1 STLXR — 32-bit
+		case 0b1001: return a64_opcode.stlxr_32
+		// 10 1 0 LDXR — 32-bit
+		case 0b1010: return a64_opcode.ldxr_32
+		// 10 1 1 LDAXR — 32-bit
+		case 0b1011: return a64_opcode.ldaxr_32
+		// 11 0 0 STXR — 64-bit
+		case 0b1100: return a64_opcode.stxr_64
+		// 11 0 1 STLXR — 64-bit
+		case 0b1101: return a64_opcode.stlxr_64
+		// 11 1 0 LDXR — 64-bit
+		case 0b1110: return a64_opcode.ldxr_64
+		// 11 1 1 LDAXR — 64-bit
+		case 0b1111: return a64_opcode.ldaxr_64
+	}
 	return a64_opcode.invalid
 }
 decode_ld_st_ordered :: proc(instr: u32) -> a64_opcode {
