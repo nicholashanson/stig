@@ -1852,6 +1852,46 @@ decode_conditional_branch_imm :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid;
 }
 
+decode_misc_branch_imm :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_cmp_reg_and_branch :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_exc_gen :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_sys_instr_reg_arg :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_barriers :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_pstate :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
+decode_sys_instrs :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_sys_reg_mov :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_sys_pair_instrs :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_sys_reg_pair_mov :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+decode_cmp_br_imm :: proc(instr: u32) -> a64_opcode {
+	return a64_opcode.invalid
+}
+
 // =================
 //  DECODE BRANCHES
 // =================
@@ -1860,32 +1900,61 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 	op0: u32 = (instr >> 29) &    0x7
 	op1: u32 = (instr >> 12) & 0x3fff
 	// 010 00xxxxxxxxxxxx xxxxx Conditional branch (immediate)
-	if ( (op0 == 0b010) && (op1 & 0b10000000000000) == 0b00000000000000) {
+	if ( (op0 == 0b010) && (op1 & 0b11000000000000) == 0b00000000000000) {
 		return decode_conditional_branch_imm(instr)
 	}
 	// 010 01xxxxxxxxxxxx xxxxx Miscellaneous branch (immediate)
-	// 011 00xxxxxxxx1xxx xxxxx Compare bytes/halfwords in registers and
-	// branch
+	if ( (op0 == 0b010) && (op1 & 0b11000000000000) == 0b01000000000000) {
+		return decode_misc_branch_imm(instr)
+	}
+	// 011 00xxxxxxxx1xxx xxxxx Compare bytes/halfwords in registers and branch
+	if ( (op0 == 0b011) && (op1 & 0b11000100000000) == 0b00000100000000) {
+		return decode_cmp_reg_and_branch(instr)
+	}
 	// 01x 1xxxxxxxxxxxxx xxxxx UNALLOCATED
 	// 110 00xxxxxxxxxxxx xxxxx Exception generation
+	if ( (op0 == 0b110) && (op1 & 0b11000000000000) == 0b00000000000000) {
+		return decode_exc_gen(instr)
+	}
 	// 110 010000000x00xx xxxxx UNALLOCATED
 	// 110 010000001000xx xxxxx UNALLOCATED
 	// 110 01000000110000 xxxxx UNALLOCATED
 	// 110 01000000110001 xxxxx System instructions with register argument
+	if ( (op0 == 0b110) && (op1 == 0b01000000110001) ) {
+		return decode_sys_instr_reg_arg(instr)
+	}
 	// 110 01000000110010 11111 Hints
 	// 110 01000000110010 != 11111 UNALLOCATED
 	// 110 01000000110011 xxxxx Barriers
+	if ( (op0 == 0b110) && (op1 == 0b01000000110011) ) {
+		return decode_barriers(instr)
+	}
 	// 110 01000001xx00xx xxxxx UNALLOCATED
 	// 110 0100000xxx0100 xxxxx PSTATE
+	if ( (op0 == 0b110) && (op1 & 0b11111110001111) == 0b01000000000100) {
+		return decode_pstate(instr)
+	}
 	// 110 0100000xxx0101 xxxxx UNALLOCATED
 	// 110 0100000xxx011x xxxxx UNALLOCATED
 	// 110 0100000xxx1xxx xxxxx UNALLOCATED
 	// 110 0100100xxxxxxx xxxxx UNALLOCATED
 	// 110 0100x01xxxxxxx xxxxx System instructions
+	if ( (op0 == 0b110) && (op1 & 0b11110110000000) == 0b01000100000000) {
+		return decode_sys_instrs(instr)
+	}
 	// 110 0100x1xxxxxxxx xxxxx System register move
+	if ( (op0 == 0b110) && (op1 & 0b11110100000000) == 0b01000100000000) {
+		return decode_sys_reg_mov(instr)
+	}
 	// 110 0101x00xxxxxxx xxxxx UNALLOCATED
 	// 110 0101x01xxxxxxx xxxxx System pair instructions
+	if ( (op0 == 0b110) && (op1 & 0b11110110000000) == 0b01010010000000) {
+		return decode_sys_pair_instrs(instr)
+	}
 	// 110 0101x1xxxxxxxx xxxxx System register pair move
+	if ( (op0 == 0b110) && (op1 & 0b11110100000000) == 0b01010100000000) {
+		return decode_sys_reg_pair_mov(instr)
+	}
 	// 110 011xxxxxxxxxxx xxxxx UNALLOCATED
 	// 110 1xxxxxxxxxxxxx xxxxx Unconditional branch (register)
 	if ( (op0 == 0b110) && (op1 & 0b10000000000000) == 0b10000000000000) {
@@ -1895,9 +1964,12 @@ decode_branches :: proc(instr: u32) -> a64_opcode {
 	// 111 1xxxxxxxxxxxxx xxxxx UNALLOCATED
 	// x00 xxxxxxxxxxxxxx xxxxx Unconditional branch (immediate)
 	if ( (op0 & 0b011) == 0b000 ) {
-		return decode_unconditional_branch_imm(instr);
+		return decode_unconditional_branch_imm(instr)
 	} 
 	// x01 0xxxxxxxxxxxxx xxxxx Compare and branch (immediate)
+	if ( ( (op0 & 0b011) == 0b001) && ( (op1 & 0b10000000000000) == 0b00000000000000 ) ) {
+		return decode_cmp_br_imm(instr)
+	}
 	return a64_opcode.hint;
 }
 
