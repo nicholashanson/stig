@@ -79,6 +79,8 @@ a64_opcode :: enum(u32) {
     adc_32, adcs_32, sbc_32, sbcs_32,
 	adc_64, adcs_64, sbc_64, sbcs_64,
 
+	cbz_32, cbnz_32, cbz_64, cbnz_64,
+
 	fmov,
 
 	ldaddb,     ldclrb,      ldeorb,      ldsetb,      ldsmaxb,     ldsminb,   ldumaxb,    lduminb,    swpb,       ldaddlb,    ldclrlb,     ldeorlb,     ldsetlb,     ldsmaxlb,    ldsminlb,
@@ -1889,6 +1891,19 @@ decode_sys_reg_pair_mov :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 decode_cmp_br_imm :: proc(instr: u32) -> a64_opcode {
+	sf 		 := slice(instr, 31, 1)
+	op 		 := slice(instr, 24, 1)
+	combined := (sf << 1) | op  
+	switch (combined) {
+		// 0 0 CBZ — 32-bit
+		case 0b00: return a64_opcode.cbz_32
+		// 0 1 CBNZ — 32-bit
+		case 0b01: return a64_opcode.cbnz_32
+		// 1 0 CBZ — 64-bit
+		case 0b10: return a64_opcode.cbz_64
+		// 1 1 CBNZ — 64-bit
+		case 0b11: return a64_opcode.cbnz_64
+	}
 	return a64_opcode.invalid
 }
 
@@ -2138,6 +2153,11 @@ opcode_to_string :: proc(op: a64_opcode) -> string {
 		case a64_opcode.ccmp_imm_32  		: return "ccmp_imm_32"
 		case a64_opcode.ccmn_imm_64  		: return "ccmn_imm_64"
 		case a64_opcode.ccmp_imm_64  		: return "ccmp_imm_64"
+
+		case a64_opcode.cbz_32  		: return "cbz_32"
+		case a64_opcode.cbnz_32  		: return "cbnz_32"
+		case a64_opcode.cbz_64  		: return "cbz_64"
+		case a64_opcode.cbnz_64  		: return "cbnz_64"
 
 		// load/store register (unsigned immediate)
 		case a64_opcode.ldr_imm_32          : return "ldr_imm_32" 
