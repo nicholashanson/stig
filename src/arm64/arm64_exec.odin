@@ -71,10 +71,12 @@ zero_extend :: proc($R: typeid, x: $T) -> R {
         #panic("zero_extend: destination type is smaller than source type");
     }
     // return Zeros(N-M) : x;
-    when size_of(T) == 4 {
-        return cast(R)cast(u32)x;
+    when size_of(T) == 1 {
+ 		return cast(R)cast(u8)x
+    } else when size_of(T) == 4 {
+        return cast(R)cast(u32)x
     } else when size_of(T) == 8 {
-        return cast(R)cast(u64)x;
+        return cast(R)cast(u64)x
     } else {
         #panic("zero_extend: unsupported integer size");
     }
@@ -630,13 +632,13 @@ exec_mov_z_64 :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 // HighestSetBit()
 // ===============
 // integer HighestSetBit(bits(N) x)
-highest_set_bits :: proc(x: $T) -> i8  {
+highest_set_bit :: proc(x: $T) -> i8  {
 	// for i = N-1 downto 0
 	//     if x<i> == '1' then return i;
 	// return -1;
 	i: i8 = i8(size_of(T) * 8) // number of bits in T
 	for i - 1 >= 0 {
-		if (slice(x, i, 1) == 1) {
+		if (slice(x, u32(i), 1) == 1) {
 			return i
 		}
 		i = i - 1
@@ -662,9 +664,14 @@ replicate :: proc(x: u64, esize: u64) -> u64 {
 	return result
 }
 
-ror :: proc(x: u64, n: u64) -> u64 {
-	assert(n < 64)
-	return (x >> n) | (x << (64 - n))
+// =====
+//  ROR
+// =====
+
+ror :: proc(x: $T, n: T) -> T {
+	width := T(size_of(T) * 8)
+	r := n % width
+	return (x >> r) | (x << (width - r))
 }
  
 // ================
@@ -684,7 +691,7 @@ decode_bit_masks :: proc($R: typeid, immn: u8, imms: u8, immr: u8, imm: bool) ->
 	// 2^len must be in range [2, M]
 	combined := u64((u64(immn) << 6) | u64(~imms))
 	// len = HighestSetBit(immN:NOT(imms));
-	len := highest_set_bit()
+	len := highest_set_bit(combined)
 	// if len < 1 then UNDEFINED;
 	// assert M >= (1 << len);)
 	// Determine S, R and S - R parameters
@@ -702,16 +709,43 @@ decode_bit_masks :: proc($R: typeid, immn: u8, imms: u8, immr: u8, imm: bool) ->
 	// esize = 1 << len;
 	esize := u64(1) << u8(len)
 	// d = UInt(diff<len-1:0>);
-	d := u64(slice(diff, 0, len))
+	d := u64(slice(diff, 0, u32(len)))
 	// welem = ZeroExtend(Ones(S + 1), esize);
 	welem := ones(s + 1)
 	// telem = ZeroExtend(Ones(d + 1), esize);
 	telem := ones(d + 1)
 	// wmask = Replicate(ROR(welem, R));
-	wmask := replicate(ror(welem, r, esize), esize)
+	wmask := replicate(ror(welem, r), esize)
 	// tmask = Replicate(telem);
 	tmask := replicate(telem, esize) 
-	return wmask, tmask
+	return R(wmask), R(tmask)
+}
+
+parse_ubfm :: proc(instr: u32) -> arm64_instr { 
+	// if sf == '1' && N != '1' then UNDEFINED;
+	// if sf == '0' && (N != '0' || immr<5> != '0' || imms<5> != '0') then UNDEFINED;
+	return arm64_instr {
+		d 		= reg(slice(instr, 0, 5)),
+		n 		= reg(slice(instr, 5, 5)),
+		imm     = slice(instr, 10, 13)
+	}
+}
+
+exec_ubfm  :: proc($T: typeid, instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	datasize := ds._64 if T == u64 else ds._32
+	N    := slice(instr.imm, 12, 1)
+	immr := slice(instr.imm,  6, 6)
+	imms := slice(instr.imm,  0, 6)
+	wmask, tmask := decode_bit_masks(T, u8(N), u8(imms), u8(immr), false)
+	// bits(datasize) src = X[n];
+	src: T = T(get_reg(vm, instr.n, datasize))
+	// perform bitfield move on low bits
+	// bits(datasize) bot = ROR(src, R) AND wmask;
+	bot: T = T(ror(src, instr.imm))
+	// combine extension bits and result bits
+	// X[d] = bot AND tmask;
+	res: T = bot & tmask;
+	set_reg(vm, instr.d, u64(res), datasize)
 }
 
 parse_instr :: proc(instr: u32) -> arm64_instr {
@@ -737,6 +771,11 @@ parse_instr :: proc(instr: u32) -> arm64_instr {
 		parsed_instr.op = op
 		return parsed_instr
 	}
+	if (op == a64_opcode.ubfm_32) {
+		parsed_instr = parse_ubfm(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
 	assert(false)
 	return arm64_instr{};
 }
@@ -754,10 +793,10 @@ exec_instr :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 		exec_ldr_reg(instr, vm)
 		return
 	}
-	//if (instr.op == a64_opcode.ubfm_32) {
-	//	exec_ubfm(instr, vm)
-	//	return
-	//}
+	if (instr.op == a64_opcode.ubfm_32) {
+		exec_ubfm(u32, instr, vm)
+		return
+	}
 	assert(false)
 }
 
