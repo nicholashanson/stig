@@ -327,6 +327,8 @@ main :: proc() {
 
     fmt.println("Decoding instructions in", len(funcs), "functions")
 
+    vm : cortex_a_vm
+
     // Iterate through each function
     for f_idx := 0; f_idx < len(funcs); f_idx += 1 {
         f := funcs[f_idx]
@@ -346,6 +348,10 @@ main :: proc() {
 			    fmt.printf("Decoded instruction at func VA 0x%016x offset 0x%08x: %s\n",
 			        f.offset, i, opcode_to_string(op))
 			}
+
+            parsed_instr := parse_instr(instr)
+
+            exec_instr(&parsed_instr, &vm)
         }
     }
 

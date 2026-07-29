@@ -28,6 +28,7 @@ rs :: enum {
 // =============
 
 arm64_instr :: struct {
+    op:        a64_opcode,
     d:                reg,
     n:                reg,
     m:                reg,
@@ -572,6 +573,16 @@ exec_add_ext :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 }
 
 // ---------------------------------------------------------------------------------------
+parse_ldr_reg :: proc(instr: u32) -> arm64_instr {
+	scale  := slice(instr, 30, 2)
+	option := slice(instr, 13, 3) 
+	S 	   := slice(instr, 12, 1)
+	return arm64_instr {
+		ext_type 	= decode_reg_extend(option),
+		shift 		= scale if (S == 1) else 0
+	}
+}
+
 // ==============
 //  EXEC LDR REG
 // ==============
@@ -597,6 +608,158 @@ exec_ldr_reg :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	set_reg(vm, instr.t, zero_extend_to(data, instr.regsize))
 }
 // ---------------------------------------------------------------------------------------
+
+parse_mov_z_64 :: proc(instr: u32) -> arm64_instr {
+	// integer d = UInt(Rd);
+	// integer pos;
+	// pos = UInt(hw:'0000');
+	hw   := slice(instr, 21, 2)
+	pos  := (hw << 4)
+	imm_ := slice(instr, 5, 16) 
+	return arm64_instr {
+		d 		= reg(slice(instr, 0, 5)),
+		imm     = (imm_ << pos)
+	}
+}
+
+exec_mov_z_64 :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	set_reg(vm, instr.d, u64(instr.imm), ds._64)
+}
+
+// ===============
+// HighestSetBit()
+// ===============
+// integer HighestSetBit(bits(N) x)
+highest_set_bits :: proc(x: $T) -> i8  {
+	// for i = N-1 downto 0
+	//     if x<i> == '1' then return i;
+	// return -1;
+	i: i8 = i8(size_of(T) * 8) // number of bits in T
+	for i - 1 >= 0 {
+		if (slice(x, i, 1) == 1) {
+			return i
+		}
+		i = i - 1
+	}
+	return -1
+}
+
+ones := proc(n: u64) -> u64 {
+	return (u64(1) << n) - 1
+}
+
+// ===========
+//  Replicate
+// ===========
+
+replicate :: proc(x: u64, esize: u64) -> u64 {
+	result: u64 = 0
+
+	for i := u64(0); i < 64; i += esize {
+		result |= (x << i)
+	}
+
+	return result
+}
+
+ror :: proc(x: u64, n: u64) -> u64 {
+	assert(n < 64)
+	return (x >> n) | (x << (64 - n))
+}
+ 
+// ================
+// DecodeBitMasks()
+// ================
+// Decode AArch64 bitfield and logical immediate masks which use a similar encoding structure
+// (bits(M), bits(M)) DecodeBitMasks(bit immN, bits(6) imms, bits(6) immr, boolean immediate)
+decode_bit_masks :: proc($R: typeid, immn: u8, imms: u8, immr: u8, imm: bool) -> (R, R) {
+	// bits(64) tmask, wmask;
+	// bits(6) tmask_and, wmask_and;
+	tmask_and, wmask_and : u8
+	// bits(6) tmask_or, wmask_or;
+	tmask_or, wmask_or : u8
+	// bits(6) levels;
+	levels : u8
+	// Compute log2 of element size
+	// 2^len must be in range [2, M]
+	combined := u64((u64(immn) << 6) | u64(~imms))
+	// len = HighestSetBit(immN:NOT(imms));
+	len := highest_set_bit()
+	// if len < 1 then UNDEFINED;
+	// assert M >= (1 << len);)
+	// Determine S, R and S - R parameters
+	// levels = ZeroExtend(Ones(len), 6);
+	levels = zero_extend(u8, len)
+	// For logical immediates an all-ones value of S is reserved
+	// since it would generate a useless all-ones result (many times)
+	// if immediate && (imms AND levels) == levels then UNDEFINED;
+	// S = UInt(imms AND levels);
+	s := u64(u64(imms) & u64(levels))
+	// R = UInt(immr AND levels);
+	r := u64(u64(immr) & u64(levels))
+	// diff = S - R; // 6-bit subtract with borrow
+	diff := s - r
+	// esize = 1 << len;
+	esize := u64(1) << u8(len)
+	// d = UInt(diff<len-1:0>);
+	d := u64(slice(diff, 0, len))
+	// welem = ZeroExtend(Ones(S + 1), esize);
+	welem := ones(s + 1)
+	// telem = ZeroExtend(Ones(d + 1), esize);
+	telem := ones(d + 1)
+	// wmask = Replicate(ROR(welem, R));
+	wmask := replicate(ror(welem, r, esize), esize)
+	// tmask = Replicate(telem);
+	tmask := replicate(telem, esize) 
+	return wmask, tmask
+}
+
+parse_instr :: proc(instr: u32) -> arm64_instr {
+	op := get_opcode(instr)
+	parsed_instr : arm64_instr
+	if (op == a64_opcode.orr_shift_reg_64) {
+		parsed_instr = parse_orr_shift_reg_64(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.mov_z_64) {
+		parsed_instr = parse_mov_z_64(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.add_ext_64) {
+		parsed_instr = parse_add_ext(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.ldr_reg_32) {
+		parsed_instr = parse_ldr_reg(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	assert(false)
+	return arm64_instr{};
+}
+
+exec_instr :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	if (instr.op == a64_opcode.mov_z_64) {
+		exec_mov_z_64(instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.add_ext_64) {
+		exec_add_ext(instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.ldr_reg_32) {
+		exec_ldr_reg(instr, vm)
+		return
+	}
+	//if (instr.op == a64_opcode.ubfm_32) {
+	//	exec_ubfm(instr, vm)
+	//	return
+	//}
+	assert(false)
+}
 
 @(test)
 execute_ADD_EXT_test :: proc(t: ^testing.T) {
@@ -640,4 +803,11 @@ parse_ORR_SHIFT_REG_64_test :: proc(t: ^testing.T) {
 	expected.m        = reg.x0
 	expected.datasize = ds._64
 	assert(actual == expected)
+}
+
+@(test)
+REPLICATE_test :: proc(t: ^testing.T) {
+	expected: u64 = 0xf0f0f0f0f0f0f0f0
+	x: u64 = 0xf0
+	assert(expected == replicate(x, 8))
 }

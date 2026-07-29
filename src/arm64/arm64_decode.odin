@@ -79,6 +79,8 @@ a64_opcode :: enum(u32) {
     adc_32, adcs_32, sbc_32, sbcs_32,
 	adc_64, adcs_64, sbc_64, sbcs_64,
 
+	msr, mrs,
+
 	cbz_32, cbnz_32, cbz_64, cbnz_64,
 
 	fmov,
@@ -1151,9 +1153,6 @@ decode_conv_fp_int :: proc(instr: u32) -> a64_opcode {
 	// 1 0 00 00 100 FCVTAS (scalar) — single-precision to 64-bit -
 	// 1 0 00 00 101 FCVTAU (scalar) — single-precision to 64-bit -
 	// 1 0 00 01 000 FCVTPS (scalar) — single-precision to 64-bit -
-	// Top-level encodings for A64
-	// Page 2724
-	// Decode fields
 	// sf S ptype rmode opcode Instruction Details Feature
 	// 1 0 00 01 001 FCVTPU (scalar) — single-precision to 64-bit -
 	// 1 0 00 10 000 FCVTMS (scalar) — single-precision to 64-bit -
@@ -1882,6 +1881,13 @@ decode_sys_instrs :: proc(instr: u32) -> a64_opcode {
 	return a64_opcode.invalid
 }
 decode_sys_reg_mov :: proc(instr: u32) -> a64_opcode {
+	L := slice(instr, 21, 1)
+	if (L == 0) {
+		return a64_opcode.msr
+	}
+	if (L == 1) {
+		return a64_opcode.mrs
+	}
 	return a64_opcode.invalid
 }
 decode_sys_pair_instrs :: proc(instr: u32) -> a64_opcode {
