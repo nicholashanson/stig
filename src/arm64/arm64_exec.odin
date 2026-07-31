@@ -2,6 +2,11 @@ package parse_elf
 
 import "core:testing"
 
+EL0 : u8 = 0b00
+EL1 : u8 = 0b01
+EL2 : u8 = 0b10
+EL3 : u8 = 0b11
+
 // =====
 //  REG
 // =====
@@ -9,7 +14,7 @@ import "core:testing"
 reg :: enum {
 	x0,   x1,  x2,  x3,  x4,  x5,  x6,  x7,  x8,  x9, x10, x11, x12, x13, x14, x15,
 	x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31,
-	sp = x31,
+	sp = x31,  pc,
 }
 
 // ---------------------------------------------------------------------------------------
@@ -46,7 +51,246 @@ arm64_instr :: struct {
     shift_n:          u32,
 }
 // ---------------------------------------------------------------------------------------
+branch_type :: enum {
+	dir_call,		// direct branch with link
+	ind_call,		// indirect branch with link
+	eret,			// exception return (indirect)
+	dbg_exit,		// exit from debug state
+	ret,			// indirect branch with function return hint
+	dir,			// direct branch
+	indir,			// indirect branch
+	exception,		// exception entry
+	reset,			// reset
+	unknown,		// other
+}
 
+elu_using_aarch_32 :: proc(el: u8) -> bool {
+	return false
+}
+
+// ELIsInHost()
+// ============
+// boolean ELIsInHost(bits(2) el)
+eli_is_in_host :: proc(vm: ^cortex_a_vm, el: u8) -> bool {
+	// if !HaveVirtHostExt() || ELUsingAArch32(EL2) then
+		// return FALSE;
+	// case el of
+	switch (el) {
+		// when EL3
+		case EL3:
+			return false
+		// when EL2
+		case EL2:
+			// return EL2Enabled() && HCR_EL2.E2H == '1';
+			return (el2_enabled() && (get_bit(vm, .HCR_EL2, .E2H) == 1)) 
+		// when EL1
+		case EL1:
+			return false
+		// when EL0
+		case EL0:
+			// return EL2Enabled() && HCR_EL2.<E2H,TGE> == '11';
+			return (el2_enabled() && ((get_bit(vm, .HCR_EL2, .E2H) == 1) && (get_bit(vm, .HCR_EL2, .TGE) == 1)))
+		// otherwise
+			// Unreachable();
+	}
+	return false
+}
+
+// EL2Enabled()
+// ============
+// Returns TRUE if EL2 is present and executing
+// - with the PE in Non-secure state when Non-secure EL2 is implemented, or
+// - with the PE in Secure state when Secure EL2 is implemented and enabled, or
+// - when EL3 is not implemented.
+// boolean EL2Enabled()
+el2_enabled :: proc() -> bool {
+	// return HaveEL(EL2) && (!HaveEL(EL3) || SCR_GEN[].NS == '1' || IsSecureEL2Enabled());
+	return true
+}
+
+// HaveEL()
+// ========
+// Return TRUE if Exception level 'el' is supported
+// boolean HaveEL(bits(2) el)
+have_el :: proc(el: u8) -> bool {
+	return true
+}
+
+// HaveVirtHostExt()
+// =================
+// boolean HaveVirtHostExt()
+have_virt_host_ext :: proc() -> bool {
+	// return HasArchVersion(ARMv8p1);
+	return true
+}
+
+// S1TranslationRegime()
+// =====================
+// Stage 1 translation regime for the given Exception level
+// bits(2) S1TranslationRegime(bits(2) el)
+s1_translation_regime :: proc(vm: ^cortex_a_vm, el: u8) -> u8 {
+		// if el != EL0 then return el;
+		if el != EL0 {
+			return el
+		// elsif HaveEL(EL3) && ELUsingAArch32(EL3) && SCR.NS == '0' then
+		} else if have_el(EL3) && elu_using_aarch_32(EL3) && 0 == 0 {
+			return EL3
+		// elsif HaveVirtHostExt() && ELIsInHost(el) then
+		} else if have_virt_host_ext() && eli_is_in_host(vm, el) {
+			return EL2
+		}
+		else {
+			return EL1
+		}
+}
+
+// HavePACExt()
+// ============
+// Returns TRUE if support for the PAC extension is implemented, FALSE otherwise.
+// boolean HavePACExt()
+has_pac_ext :: proc() -> bool {
+	// return HasArchVersion(ARMv8p3);
+	return true
+}
+
+// EffectiveTBI()
+// ==============
+// Returns the effective TBI in the AArch64 stage 1 translation regime for "el".
+// bit EffectiveTBI(bits(64) address, boolean IsInstr, bits(2) el)
+effective_tbi :: proc(vm: ^cortex_a_vm, addr: u64, is_instr: bool, el: u8) -> u8 {
+	// bit tbi;
+	tbi : u8
+	// bit tbid;
+	tbid : u8
+	// assert HaveEL(el);
+	// regime = S1TranslationRegime(el);
+	regime := s1_translation_regime(vm, el)
+	// assert(!ELUsingAArch32(regime));
+	// case regime of
+	switch (regime) {
+		// when EL1
+		case EL1:
+			// tbi = if address<55> == '1' then TCR_EL1.TBI1 else TCR_EL1.TBI0;
+			tbi = get_bit(vm, .TCR_EL1, .TBI1) if (slice(addr, 55, 1) == 1) else get_bit(vm, .TCR_EL1, .TBI0)
+			// if HavePACExt() then
+			if has_pac_ext() {
+				// tbid = if address<55> == '1' then TCR_EL1.TBID1 else TCR_EL1.TBID0;
+				tbid = get_bit(vm, .TCR_EL1, .TBID1) if (slice(addr, 55, 1)) == 1 else get_bit(vm, .TCR_EL1, .TBID0)
+			}
+		// when EL2
+		case EL2:
+			// if HaveVirtHostExt() && ELIsInHost(el) then
+			if have_virt_host_ext() && eli_is_in_host(vm, el) {
+				// tbi = if address<55> == '1' then TCR_EL2.TBI1 else TCR_EL2.TBI0;
+				tbi = get_bit(vm, .TCR_EL2, .TBI1) if (slice(addr, 55, 1) == 1) else get_bit(vm, .TCR_EL2, .TBI0)
+			}
+			//	if HavePACExt() then
+			if has_pac_ext() {
+				// tbid = if address<55> == '1' then TCR_EL2.TBID1 else TCR_EL2.TBID0;
+				tbid = get_bit(vm, .TCR_EL2, .TBID1) if (slice(addr, 55, 1) == 1) else get_bit(vm, .TCR_EL2, .TBID0)
+			} else {
+				// tbi = TCR_EL2.TBI;
+				tbi = get_bit(vm, .TCR_EL2, .TBI)
+				// if HavePACExt() then tbid = TCR_EL2.TBID;
+				if has_pac_ext() {
+					tbid = get_bit(vm, .TCR_EL2, .TBID)
+				}
+			}
+		// when EL3
+		case EL3:
+			// tbi = TCR_EL3.TBI;
+			tbi = get_bit(vm, .TCR_EL3, .TBI)
+			// if HavePACExt() then tbid = TCR_EL3.TBID;
+			if has_pac_ext() {
+				tbid = get_bit(vm, .TCR_EL3, .TBID)
+			}
+	}
+			
+	// return (if tbi == '1' && (!HavePACExt() || tbid == '0' || !IsInstr) then '1' else '0');
+	return 1 if (tbi == 1 && (!has_pac_ext() || tbid == 0 || !is_instr)) else 0 
+}
+
+// AddrTop()
+// =========
+// Return the MSB number of a virtual address in the stage 1 translation regime for "el".
+// If EL1 is using AArch64 then addresses from EL0 using AArch32 are zero-extended to 64 bits.
+// integer AddrTop(bits(64) address, boolean IsInstr, bits(2) el)
+addr_top :: proc(vm: ^cortex_a_vm, addr: u64, is_instr: bool, el: u8) -> u64 {
+	// assert HaveEL(el);
+	// regime = S1TranslationRegime(el);
+	// if ELUsingAArch32(regime) then
+	// AArch32 translation regime.
+		// return 31;
+	// else {
+	// 	if EffectiveTBI(address, IsInstr, el) == '1' then
+		if effective_tbi(vm, addr, is_instr, el) == 0b1 {
+			return 55
+		}
+ 		else {
+			return 63
+ 		}
+ 	// }
+ }
+
+// AArch64.BranchAddr()
+// ====================
+// Return the virtual address with tag bits removed for storing to the program counter.
+// bits(64) AArch64.BranchAddr(bits(64) vaddress)
+aarch64_branch_addr :: proc(vm: ^cortex_a_vm, vaddress: u64) -> u64 {
+		// assert !UsingAArch32();
+		// msbit = AddrTop(vaddress, TRUE, PSTATE.EL);
+		ms_bit := addr_top(vm, vaddress, true, get_pstate_el(vm))
+		// if msbit == 63 then return vaddress;
+		if ms_bit == 63 {
+			return vaddress
+		} else if (EL(get_pstate_el(vm)) in (bit_set[EL]{.EL0, .EL1}) || eli_is_in_host(vm, get_pstate_el(vm))) && slice(vaddress, u32(ms_bit), 1) == 0b1 { 
+		// IsInHost()
+		// ==========
+		// boolean IsInHost()
+		//		return ELIsInHost(PSTATE.EL); 
+		// elsif (PSTATE.EL IN {EL0, EL1} || IsInHost()) && vaddress<msbit> == '1' then return SignExtend(vaddress<msbit:0>);
+			return sign_extend(u64, u64(slice(vaddress, u32(ms_bit), u32(64 - ms_bit))))
+		} else {
+		// else return ZeroExtend(vaddress<msbit:0>);
+			return zero_extend(u64, u64(slice(vaddress, u32(ms_bit), u32(64 - ms_bit))))
+		}
+}
+
+// BranchTo()
+// ==========
+// Set program counter to a new address, with a branch type.
+// Parameter branch_conditional indicates whether the executed branch has a conditional encoding.
+// In AArch64 state the address might include a tag in the top eight bits.
+// BranchTo(bits(N) target, BranchType branch_type, boolean branch_conditional)
+branch_to :: proc(vm: ^cortex_a_vm, target: $T, bt: branch_type, branch_conditional: bool) {
+	// Hint_Branch(branch_type);
+	// if N == 32 then 
+	//		assert UsingAArch32();
+	// 		_PC = ZeroExtend(target);
+	// else
+			// assert N == 64 && !UsingAArch32();
+			assert(T == u64)
+			// bits(64) target_vaddress = AArch64.BranchAddr(target<63:0>);
+			target_addr: u64 = aarch64_branch_addr(vm, target)
+			// _PC = target_vaddress;
+			set_reg(vm, reg.pc, target_addr)
+	// return;
+}
+
+parse_ret :: proc(instr: u32) -> arm64_instr {
+	return arm64_instr {
+		n  		= reg(slice(instr, 5, 5))
+	}
+}
+
+exec_ret :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	// bits(64) target = X[n];
+	target := get_reg(vm, instr.n)
+	// Value in BTypeNext will be used to set PSTATE.BTYPE
+	// BTypeNext = '00';
+	// BranchTo(target, BranchType_RET, FALSE);
+	branch_to(vm, target, branch_type.ret, false)
+}
 // ---------------------------------------------------------------------------------------
 // ============
 // SignExtend()
@@ -776,6 +1020,11 @@ parse_instr :: proc(instr: u32) -> arm64_instr {
 		parsed_instr.op = op
 		return parsed_instr
 	}
+	if (op == a64_opcode.ret) {
+		parsed_instr = parse_ret(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
 	assert(false)
 	return arm64_instr{};
 }
@@ -795,6 +1044,10 @@ exec_instr :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	}
 	if (instr.op == a64_opcode.ubfm_32) {
 		exec_ubfm(u32, instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.ret) {
+		exec_ret(instr, vm)
 		return
 	}
 	assert(false)
