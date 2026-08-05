@@ -291,6 +291,65 @@ exec_ret :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	// BranchTo(target, BranchType_RET, FALSE);
 	branch_to(vm, target, branch_type.ret, false)
 }
+
+parse_bl :: proc(instr: u32) -> arm64_instr {
+	// bits(64) offset = SignExtend(imm26:'00', 64);
+	imm: i64 = i64(slice(instr, 0, 26))
+	imm = imm << 2
+	return arm64_instr {
+		offset		= sign_extend(i64, imm)
+	}
+}
+
+exec_bl :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	// X[30] = PC[] + 4;
+	pc: u64 = get_reg(vm, reg.pc, ds._64)
+	set_reg(vm, reg.x30, pc + 4, ds._64)
+	// BranchTo(PC[] + offset, BranchType_DIRCALL, FALSE);
+	branch_to(vm, pc + u64(instr.offset), branch_type.dir_call, false);
+}
+
+parse_b_cond :: proc(instr: u32) -> arm64_instr {
+	// bits(64) offset = SignExtend(imm19:'00', 64);
+	imm := slice(instr, 5, 19)
+	imm = imm << 2
+	return arm64_instr {
+		offset		= sign_extend(i64, imm),
+		imm         = slice(instr, 0, 4)	// cond
+	}
+}
+
+condition_holds :: proc(cond: u8) -> bool {
+	// ConditionHolds()
+	// ================
+	// Return TRUE iff COND currently holds
+	// boolean ConditionHolds(bits(4) cond)
+	// Evaluate base condition.
+	// boolean result;
+	// case cond<3:1> of
+	// when '000' result = (PSTATE.Z == '1'); // EQ or NE
+	// when '001' result = (PSTATE.C == '1'); // CS or CC
+	// when '010' result = (PSTATE.N == '1'); // MI or PL
+	// when '011' result = (PSTATE.V == '1'); // VS or VC
+	// when '100' result = (PSTATE.C == '1' && PSTATE.Z == '0'); // HI or LS
+	// when '101' result = (PSTATE.N == PSTATE.V); // GE or LT
+	// when '110' result = (PSTATE.N == PSTATE.V && PSTATE.Z == '0'); // GT or LE
+	// when '111' result = TRUE; // AL
+	// Condition flag values in the set '111x' indicate always true
+	// Otherwise, invert condition if necessary.
+	// if cond<0> == '1' && cond != '1111' then
+	// result = !result;
+	// return result;
+	return true
+}
+
+exec_b_cond :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	// if ConditionHolds(cond) then
+	if (condition_holds(u8(instr.imm))) {
+		// BranchTo(PC[] + offset, BranchType_DIR, TRUE);
+		branch_to(vm, get_pc(vm) + u64(instr.offset), branch_type.dir, true)
+	}
+}
 // ---------------------------------------------------------------------------------------
 // ============
 // SignExtend()
@@ -536,8 +595,8 @@ lsl_c :: proc(x: $T, shift: u32) -> shift_result {
 //  ADD ITH CARRY RESULT
 // ======================
 
-add_with_carry_result :: struct {
-	result: u64,
+add_with_carry_result :: struct($T: typeid) {
+	result: T,
 	n     : bool,
 	z     : bool,
 	c     : bool,
@@ -549,7 +608,7 @@ add_with_carry_result :: struct {
 // ================
 
 // (bits(N), bits(4)) AddWithCarry(bits(N) x, bits(N) y, bit carry_in)
-add_with_carry :: proc(x: $T, y: T, carry_in: bool) -> add_with_carry_result {
+add_with_carry :: proc(x: $T, y: T, carry_in: bool) -> add_with_carry_result(T) {
 	// constant integer unsigned_sum = UInt(x) + UInt(y) + UInt(carry_in);
 	unsigned_sum : u64  = u64(x) + u64(y) + u64(carry_in)
 	// constant integer signed_sum = SInt(x) + SInt(y) + UInt(carry_in);
@@ -565,7 +624,7 @@ add_with_carry :: proc(x: $T, y: T, carry_in: bool) -> add_with_carry_result {
 	// constant bit v = if SInt(result) == signed_sum then '0' else '1';
 	v            : bool = !bool(i64(result) == signed_sum)
 	// return (result, n:z:c:v);
-	return add_with_carry_result{result = result, n = n, z = z, c = c, v = v}
+	return add_with_carry_result(T){result = result, n = n, z = z, c = c, v = v}
 }
 // ---------------------------------------------------------------------------------------
 // ===============
@@ -647,7 +706,7 @@ instr_flag :: enum(u8) {
 //  CHECK FLAG
 // ============
 
-check_flag ::proc(instr: arm64_instr, flag: instr_flag) -> bool {
+check_flag ::proc(instr: ^arm64_instr, flag: instr_flag) -> bool {
 	switch (flag) {
 		case instr_flag.wback: 		   return instr.wback
 		case instr_flag.post_index:    return instr.post_index
@@ -660,7 +719,7 @@ check_flag ::proc(instr: arm64_instr, flag: instr_flag) -> bool {
 //  EXEC STP EXT
 // ==============
 
-exec_stp_ext :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
+exec_stp_ext :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	addr : u64
 	dbytes : u8 = 4 if instr.datasize == ds._32 else 8
 	
@@ -776,7 +835,7 @@ shift_reg :: proc(x: $T, shift_t: shift_type, shift_n: u32) -> T {
 	return T(0)
 }
 
-exec_orr_shift_reg :: proc(instr: arm64_instr, vm: ^cortex_a_vm) {
+exec_orr_shift_reg :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	// bits(datasize) operand1 = X[n];
 	op1 := get_reg(vm, instr.n, instr.datasize)
 	// bits(datasize) operand2 = ShiftReg(m, shift_type, shift_amount);
@@ -870,6 +929,90 @@ parse_mov_z_64 :: proc(instr: u32) -> arm64_instr {
 
 exec_mov_z_64 :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 	set_reg(vm, instr.d, u64(instr.imm), ds._64)
+}
+
+parse_subs_imm_32 :: proc(instr: u32) -> arm64_instr {
+	return parse_sub_imm_32(instr)
+}
+
+parse_subs_imm_64 :: proc(instr: u32) -> arm64_instr {
+	return parse_sub_imm_64(instr)
+}
+
+parse_subs_imm :: proc(instr: u32) -> arm64_instr {
+	// integer d = UInt(Rd);
+	// integer n = UInt(Rn);
+	// integer datasize = if sf == '1' then 64 else 32;
+	// bits(datasize) imm;
+	// case sh of
+	//		when '0' imm = ZeroExtend(imm12, datasize);
+	//		when '1' imm = ZeroExtend(imm12:Zeros(12), datasize);
+	return parse_sub_imm(instr)
+}
+
+
+parse_sub_imm_32 :: proc(instr: u32) -> arm64_instr {
+	parsed_instr := parse_sub_imm(instr)
+	imm := u32(slice(instr, 10, 12))
+	parsed_instr.imm = zero_extend(u32, (imm << 12))
+	parsed_instr.datasize = ds._32
+	return parsed_instr
+}
+
+parse_sub_imm_64 :: proc(instr: u32) -> arm64_instr {
+	parsed_instr := parse_sub_imm(instr)
+	imm := slice(instr, 10, 12)
+	parsed_instr.imm = u32(zero_extend(u64, imm))
+	parsed_instr.datasize = ds._64 
+	return parsed_instr
+}
+
+exec_subs_imm :: proc($T: typeid, instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	// bits(datasize) result;
+	// bits(datasize) operand1 = if n == 31 then SP[] else X[n];
+	op1 := T(get_reg(vm, instr.n, instr.datasize))
+	// bits(datasize) operand2;
+	// bits(4) nzcv;
+	// operand2 = NOT(imm);
+	op2 := T(~instr.imm)
+	// (result, nzcv) = AddWithCarry(operand1, operand2, '1');
+	res := add_with_carry(op1, op2, true)
+	// PSTATE.<N,Z,C,V> = nzcv;
+	set_pstate_nzcv(vm, flags_to_u8(res.n, res.z, res.c, res.v))
+	// X[d] = result;
+	set_reg(vm, instr.d, u64(res.result), instr.datasize)
+}
+
+parse_sub_imm :: proc(instr: u32) -> arm64_instr {
+	// integer d = UInt(Rd);
+	// integer n = UInt(Rn);
+	// integer datasize = if sf == '1' then 64 else 32;
+	// bits(datasize) imm;
+	// case sh of
+	// 		when '0' imm = ZeroExtend(imm12, datasize);
+	//		when '1' imm = ZeroExtend(imm12:Zeros(12), datasize);
+	
+	return arm64_instr {
+		d 		 = reg(slice(instr, 0, 5)),
+		n 		 = reg(slice(instr, 5, 5)), 
+	}
+}
+
+exec_sub_imm :: proc($T: typeid, instr: ^arm64_instr, vm: ^cortex_a_vm) {
+	// bits(datasize) result;
+	// bits(datasize) operand1 = if n == 31 then SP[] else X[n];
+	op1 := T(get_reg(vm, instr.n, ds._64))
+	// bits(datasize) operand2;
+	// operand2 = NOT(imm);
+	op2 := T(~instr.imm)
+	// (result, -) = AddWithCarry(operand1, operand2, '1');
+	res := add_with_carry(op1, op2, true).result
+	// if d == 31 then
+	// 		SP[] = result;
+	// else
+	// 		X[d] = result;
+	// }
+	set_reg(vm, instr.d, res, datasize)
 }
 
 // ===============
@@ -1025,6 +1168,41 @@ parse_instr :: proc(instr: u32) -> arm64_instr {
 		parsed_instr.op = op
 		return parsed_instr
 	}
+	if (op == a64_opcode.stp_64_pre_index) {
+		parsed_instr = parse_stp_64_pre_index(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.orr_shift_reg_64 || op == a64_opcode.orr_shift_reg_32) {
+		parsed_instr = parse_orr_shift_reg_64(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.add_imm_64) {
+		parsed_instr = parse_add_imm_64(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.bl) {
+		parsed_instr = parse_bl(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.subs_imm_32) {
+		parsed_instr = parse_subs_imm_32(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.subs_imm_64) {
+		parsed_instr = parse_subs_imm_64(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
+	if (op == a64_opcode.b_cond) {
+		parsed_instr = parse_b_cond(instr)
+		parsed_instr.op = op
+		return parsed_instr
+	}
 	assert(false)
 	return arm64_instr{};
 }
@@ -1050,7 +1228,34 @@ exec_instr :: proc(instr: ^arm64_instr, vm: ^cortex_a_vm) {
 		exec_ret(instr, vm)
 		return
 	}
-	assert(false)
+	if (instr.op == a64_opcode.stp_64_pre_index) {
+		exec_stp_ext(instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.orr_shift_reg_64 || instr.op == a64_opcode.orr_shift_reg_32) {
+		exec_orr_shift_reg(instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.add_imm_64) {
+		exec_add_imm(instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.bl) {
+		exec_bl(instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.subs_imm_32) {
+		exec_subs_imm(u32, instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.subs_imm_64) {
+		exec_subs_imm(u64, instr, vm)
+		return
+	}
+	if (instr.op == a64_opcode.b_cond) {
+		exec_b_cond(instr, vm)
+		return
+	}
 }
 
 @(test)
