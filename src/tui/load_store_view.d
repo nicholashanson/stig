@@ -3,6 +3,8 @@ import std.conv;
 import line;
 import thumb_2_convert_instr_to_string;
 import std.range;
+import std.algorithm;
+import std.array : array;
 
 // --------------------------------------------------------------------------------------
 // ===============
@@ -62,7 +64,34 @@ struct load_store_panel {
     }
 }
 // --------------------------------------------------------------------------------------
+// =============
+//  PRINT CHUNK
+// =============
 
+void 
+print_chunk(WINDOW* win, 
+            ref int x, 
+            const int row,
+            const int col, 
+            const size_t max_len, 
+            string v, 
+            ref bool skip,
+            const int color) 
+{
+    if (x + v.length > col + max_len - 1) {
+        size_t delta  = x + v.length - 1 - col - max_len;
+        int keep = cast(int)v.length - cast(int)delta - 3;
+        if (keep <= 0) {
+            int dots = max(0, 3 + keep); 
+            v = ".".dup.repeat(dots).join;
+        } else {
+            v = v[0 .. keep] ~ "...";
+        }
+        skip = true;
+    }
+    print_string(win, row, x, v, color);
+    x += v.length;
+}
 // --------------------------------------------------------------------------------------
 // ===============================
 //  PRINT COLORED LOAD STORE LINE
@@ -78,20 +107,17 @@ print_colored_load_store_line
     int x = col;
     for (int i = 0; i < tokens.length; ++i) {
         string v = tokens[i];
+        if (skip)
+            break;
         switch (i) {
-            case 0:
-                print_string(win, row, x, v, 2);
-                x += v.length; 
+            case 0: // tick
+                print_chunk(win, x, row, col, max_len, v, skip, 2 /*color*/);
+                break; 
+            case 1: // pc
+            case 2: // func name
+                print_chunk(win, x, row, col, max_len, v, skip, 4 /*color*/);
                 break;
-            case 1:
-                print_string(win, row, x, v, 4);
-                x += v.length; 
-                break;
-            case 2:
-                print_string(win, row, x, v, 4);
-                x += v.length; 
-                break;
-            case 3:
+            case 3: // src/dst
                 print_string(win, row, x, "(", 0);
                 x++;
                 int color = 0;
@@ -99,41 +125,24 @@ print_colored_load_store_line
                     uint val = to!uint(v[2 .. $], 16);
                     color = vm.get_val_index(val);
                 }
-                print_string(win, row, x, v, color);
-                x += v.length;
+                print_chunk(win, x, row, col, max_len, v, skip, color);
                 break;
-            case 4:
+            case 4: // " loaded from "/" stored to "
                 x++;
-                print_string(win, row, x, v, 0);
-                x += v.length;
+                print_chunk(win, x, row, col, max_len, v, skip, 0 /*color*/);
                 x++;
                 break;
-            case 5:
+            case 5: // src/dst
                 int color = 0;
                 if (v[1] == 'x') {
                     uint val = to!uint(v[2 .. $], 16);
                     color = vm.get_val_index(val);
                 }
-                if (x + v.length > col + max_len - 1) {
-                    size_t delta  = x + v.length - 1 - col - max_len;
-                    v = v[0 .. $ - delta - 3] ~ "...";
-                    skip = true;
-                }
-                print_string(win, row, x, v, color);
-                x += v.length;
+                print_chunk(win, x, row, col, max_len, v, skip, color);
                 break;
-            case 6:
-                if (skip)
-                    continue;
-                if (v.length > 0) {
-                    if (x + v.length > col + max_len - 1) {
-                        size_t delta  = x + v.length - 1 - col - max_len;
-                        v = v[0 .. $ - delta - 3] ~ "...";
-                        skip = true;
-                    }
-                }
-                print_string(win, row, x, v, 5);
-                x += v.length;
+            case 6: // register name
+                if (v.length > 0)
+                    print_chunk(win, x, row, col, max_len, v, skip, 5 /*color*/);
                 if (skip)
                     continue;
                 print_string(win, row, x, ")", 0);
