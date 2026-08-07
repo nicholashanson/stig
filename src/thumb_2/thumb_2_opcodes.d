@@ -336,8 +336,8 @@ enum opcode : ushort {
 
 	invalid,
 
-	vmsr_t1,
-	vmrs_t1,
+	vmsr_t1, vmrs_t1, vpush_t1, vpush_t2,
+
 	tt_t1
 }
 
@@ -1181,8 +1181,20 @@ opcode decode_floating_point(const uint instr) {
 			// 32-bit transfer between ARM core and extension registers
 			return (A == 0b111) ? opcode.vmrs_t1 : opcode.invalid; 
 		default: 
-			assert(0, format("Unrecognized floating-point instruction: %08X", instr));
+			break;
 	} 
+	// Extension register load or store instructions
+	immutable opc = slice(instr, 20, 5);
+	immutable rn 	 = slice(instr, 16, 4);
+	switch (opc) {
+		case 0b10010:
+		case 0b10110:
+			if (rn == 0b1101)
+				return opcode.vpush_t1;
+			goto default;
+		default:
+			assert(0, format("Unrecognized floating-point instruction: %08X", instr));
+	}
 	return opcode.invalid;
 }
 
