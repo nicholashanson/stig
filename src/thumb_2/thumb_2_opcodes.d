@@ -1185,7 +1185,7 @@ opcode decode_floating_point(const uint instr) {
 	} 
 	// Extension register load or store instructions
 	immutable opc = slice(instr, 20, 5);
-	immutable rn 	 = slice(instr, 16, 4);
+	immutable rn  = slice(instr, 16, 4);
 	switch (opc) {
 		case 0b10010:
 		case 0b10110:
