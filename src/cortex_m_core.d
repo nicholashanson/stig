@@ -1056,6 +1056,10 @@ struct cortex_m_cpu {
 	void set_n(const int v) {
 		n = (v < 0);
 	}
+
+	void set_n(const bool v) {
+		n = v;
+	}
 	// --------------------------------------------------------------------------------------
 	// =======
 	//  GET Z
@@ -1071,6 +1075,10 @@ struct cortex_m_cpu {
 
 	void set_z(t)(t v) if (isIntegral!t) {
     	z = (v == 0);
+	}
+
+	void set_z(const bool v) {
+		z = v;
 	}
 	// --------------------------------------------------------------------------------------
 	// ===========
@@ -1308,9 +1316,11 @@ struct cortex_m_cpu {
 	// =======
 	//  FPCSR
 	// =======
+	uint fpcsr;
+	mixin property!"fpscr";
 
 	// =======
-	//  FPCSR
+	//  FPCCR
 	// =======
 	uint fpccr;
 	mixin property!"fpccr";

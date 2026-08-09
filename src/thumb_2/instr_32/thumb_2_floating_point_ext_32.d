@@ -62,6 +62,29 @@ string convert_vmsr_t1_to_string(const ref instr_32 instr, const condition cond)
 									  get_reg_name(instr.rt));
 }
 
+void
+copy_apsr_to_fpscr
+(vm_t)
+(ref vm_t vm) {
+	uint fpscr = vm.get_fpscr();
+	vm.set_n(cast(bool)slice(fpscr, 31, 1));
+	vm.set_z(cast(bool)slice(fpscr, 30, 1));
+	vm.set_c(cast(bool)slice(fpscr, 29, 1));
+	vm.set_v(cast(bool)slice(fpscr, 28, 1));
+}
+
+void serialize_vfp() {
+	return;
+}
+
+void fvp_exec_barrier() {
+	return;
+}
+
+instr_32 parse_vmrs_t1(const uint instr) {
+	return instr_32(rt: cast(reg)slice(instr, 12, 4));
+}
+
 // Floating-point Status and Control Register, FPSCR
 void 
 execute_vmrs_t1
@@ -69,16 +92,14 @@ execute_vmrs_t1
 (const ref instr_32 instr, ref vm_t vm) {
 	//if ConditionPassed() then
 	//EncodingSpecificOperations();
-	//ExecuteFPCheck();
-	//SerializeVFP();
-	//VFPExcBarrier();
-	//if t == 15 then
-	//APSR.N = FPSCR.N;
-	//APSR.Z = FPSCR.Z;
-	//APSR.C = FPSCR.C;
-	//APSR.V = FPSCR.V;
-	//else
-	//R[t] = FPSCR;
+	execute_fp_check(vm);
+	serialize_vfp();
+	fvp_exec_barrier();
+	if (instr.rt == 15) {
+		copy_apsr_to_fpscr(vm);
+	} else {
+		vm.set_reg(instr.rt, vm.get_fpscr());
+	}
 }
 
 void

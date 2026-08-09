@@ -192,6 +192,8 @@ struct cortex_m_vm(mem_t) {
 	mixin cpu_property!"ipsr";
 	mixin cpu_property!"psp";
 	mixin cpu_property!"msp";
+	mixin cpu_property!"fpccr";
+	mixin cpu_property!"fpscr";
 	// --------------------------------------------------------------------------------------
 	// ========
 	//  GET SP
@@ -259,6 +261,10 @@ struct cortex_m_vm(mem_t) {
 	void set_z(t)(t v) if (isIntegral!t) {
     	cpu.set_z(v);
     	last_instr.touch_flag(flag.z);
+	}
+
+	void set_z(const bool v) {
+		cpu.set_z(v);
 	}
 	// --------------------------------------------------------------------------------------
 	// =======
