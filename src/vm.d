@@ -194,6 +194,7 @@ struct cortex_m_vm(mem_t) {
 	mixin cpu_property!"msp";
 	mixin cpu_property!"fpccr";
 	mixin cpu_property!"fpscr";
+	mixin cpu_property!"beat_id";
 	// --------------------------------------------------------------------------------------
 	// ========
 	//  GET SP

@@ -858,7 +858,28 @@ mixin template property(string name) {
 //  CORTEX M CPU
 // ==============
 
+// =======================================
+//  Indicates instruction execution state
+// =======================================
+
+alias it_state_t = ubyte;
+
+struct instr_exec_state {
+	uint     		fetch_addr;
+	it_state_t 		  it_state;
+	// L, T166IND, BTI, LOBranchInfoValid
+	ubyte                 bits;
+	uint            loop_count;
+	bool        reset_ltp_size;
+}
+
 struct cortex_m_cpu {
+
+	instr_exec_state curr_instr_exec_state;
+
+	instr_exec_state get_curr_instr_exec_state() {
+		return curr_instr_exec_state;
+	}
 	// ------------------------------ General-Purpose Registers ----------------------------- 
 	uint[16] core_registers;
 	uint[32] fp_registers;
@@ -1324,4 +1345,7 @@ struct cortex_m_cpu {
 	// =======
 	uint fpccr;
 	mixin property!"fpccr";
+
+	uint beat_id;
+	mixin property!"beat_id";
 }
