@@ -12,6 +12,15 @@ import scb_defs;
 enum IABR_BASE = 0xE000E300;
 enum IPR_BASE  = 0xE000E400;
 enum ISPR_BASE = 0xE000E200;
+
+// ==========================
+//  128-BIT UNSIGNED INTEGER
+// ==========================
+
+struct u128 {
+    ulong low;
+    ulong high;
+}
 // --------------------------------------------------------------------------------------
 // ===========================
 //  IS EXCEPTION RETURN VALUE
@@ -611,11 +620,18 @@ xyz get_xyz(ubyte first_cond_mask) {
 //  REG
 // =====
 enum reg : ubyte {
-	r0, r1, r2, r3, r4, r5, r6, 
+	r0, r1, r2, r3,  r4,  r5, r6, 
 	r7, r8, r9, r10, r11, r12,
 	sp,   	// stack pointer
 	lr,		// link register
 	pc,		// program counter
+	// 32-bit floating-point registers
+	s0,   s1,  s2,  s3,  s4,  s5,  s6,  s7,  s8,  s9, s10, s11, s12, s13, s14, s15, 
+	s16, s17, s18, s19, s20, s21, s22, s23, s24, s25, s26, s27, s28, s29, s30, s31,
+	// 64-bit views of floating-point registers
+	d0,   d1,  d2,  d3,  d4,  d5,  d6,  d7,  d8,  d9, d10, d11, d12, d13, d14, d15, 
+	// 128-bit views of floating-point registers
+	q0,   q1,  q2,  q3,  q4,  q5,  q6,  q7,
 	none
 }
 // --------------------------------------------------------------------------------------
@@ -845,6 +861,7 @@ mixin template property(string name) {
 struct cortex_m_cpu {
 	// ------------------------------ General-Purpose Registers ----------------------------- 
 	uint[16] core_registers;
+	uint[32] fp_registers;
 
 	// ====================
 	//  GET CORE REGISTERS
@@ -854,16 +871,51 @@ struct cortex_m_cpu {
 		return core_registers;
 	}
 	// --------------------------------------------------------------------------------------
+	
 	// =========
 	//  GET REG
 	// =========
 
 	uint get_reg(const reg r) const {
+		assert((r >= reg.r0) && (r <= reg.pc));
 		if (r == reg.sp) 
 			return get_sp();
 		if (r == reg.pc)
 			return get_pc() + 4;
 		return core_registers[r];
+	}
+
+	// ===========
+	//  GET REG S
+	// ===========
+
+	uint get_reg_s(reg r) const {
+		assert((r > reg.pc) && (r <= reg.s31));
+		size_t i = r - reg.s0;
+		return fp_registers[i];
+	}
+
+	// ===========
+	//  GET REG D
+	// ===========
+
+	ulong get_reg_d(reg r) const {
+		assert((r > reg.s31) && (r <= reg.d15));
+		size_t i = reg.s0 + (r - reg.d0) * 2;
+		ulong res = (ulong(get_reg_s(cast(reg)i)) << 32) | ulong(get_reg_s(cast(reg)(i + 1)));
+		return res;
+	}
+
+	// ===========
+	//  GET REG Q
+	// ===========
+
+	u128 get_reg_q(reg r) const {
+		assert((r > reg.d15) && (r <= reg.q7));
+		size_t i = reg.d0 + (r - reg.q0) * 2;
+		ulong high = get_reg_d(cast(reg)i);
+		ulong low  = get_reg_d(cast(reg)(i + 1));
+		return u128(high: high, low: low);
 	}
 	// --------------------------------------------------------------------------------------
 
@@ -879,6 +931,38 @@ struct cortex_m_cpu {
 			if ((r == reg.pc) && !is_exc_ret_val(val))
 				clear_thumb_bit();
 		}
+	}
+
+	// ===========
+	//  SET REG S
+	// ===========
+
+	void set_reg_s(const reg r, const uint val) {
+		assert((r > reg.s0) && (r <= reg.s31));
+		size_t i = r - reg.s0;
+		fp_registers[i] = val;
+	}
+
+	// ===========
+	//  SET REG D
+	// ===========
+
+	void set_reg_d(reg r, const ulong val) {
+		assert((r > reg.d0) && (r <= reg.d15));
+		size_t i = reg.s0 + (r - reg.d0) * 2;
+		set_reg_s(cast(reg)i,       slice(val, 0,  32));
+		set_reg_s(cast(reg)(i + 1), slice(val, 31, 32));
+	}
+
+	// ===========
+	//  SET REG Q
+	// ===========
+
+	void set_reg_q(const reg r, const u128 val) {
+		assert((r > reg.d15) && (r <= reg.q7));
+		size_t i = reg.d0 + (r - reg.q0) * 2;
+		set_reg_d(cast(reg)i,       val.high);
+		set_reg_d(cast(reg)(i + 1), val.low);
 	}
 
 	// ==============
@@ -1225,5 +1309,9 @@ struct cortex_m_cpu {
 	//  FPCSR
 	// =======
 
-	
+	// =======
+	//  FPCSR
+	// =======
+	uint fpccr;
+	mixin property!"fpccr";
 }

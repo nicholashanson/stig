@@ -193,8 +193,9 @@ uint decimal_to_hex_mask(uint n) {
 //  SLICE
 // =======
 
-uint slice(const uint instr, const uint shift, const uint width) {
-	return (instr >> shift) & decimal_to_hex_mask(width);
+uint slice(T)
+(const T val, const uint shift, const uint width) {
+	return (val >> shift) & decimal_to_hex_mask(width);
 }
 // ---------------------------------------------------------------------------------------
 
