@@ -383,6 +383,13 @@ struct cortex_m_vm(mem_t) {
 		return cpu.get_reg(r);
 	}
 
+	uint get_reg_s(const reg r) const {
+		return cpu.get_reg_s(r);
+	}
+
+	ulong get_reg_d(const reg r) const {
+		return cpu.get_reg_d(r);
+	}
 	// =========
 	//  SET REG
 	// =========
@@ -393,6 +400,14 @@ struct cortex_m_vm(mem_t) {
 		cpu.set_reg(r, val);
 		last_instr.touch_reg(r);
 	} 
+
+	void set_reg_s(const reg r, const uint val) {
+		cpu.set_reg_s(r, val);
+	}
+
+	void set_reg_d(const reg r, const uint val) {
+		cpu.set_reg_d(r, val);
+	}
 	// ---------------------------------------- Memory --------------------------------------
 	// ===================
 	//  PENDSV IS PENDING

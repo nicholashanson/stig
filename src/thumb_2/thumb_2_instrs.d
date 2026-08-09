@@ -287,7 +287,10 @@ struct instr_32 {
 	int 		  offset;
 	reg[] 	    reg_list;
 	uint 		     lsb;
-	uint 		 widthm1;
+	union {
+		uint     widthm1;
+		uint        regs;
+	}
 	uint 		     msb;
 	reg 		   rd_hi;
 	reg 		   rd_lo;
@@ -300,7 +303,11 @@ struct instr_32 {
 	ubyte 		    mask;
 	bool 		  is_tbh;
 	special_reg spec_reg;
-	bool 	   set_flags;
+	union 
+    {
+        bool   set_flags;
+        bool single_regs; 
+    }
 	uint  unexpanded_imm;
 	bool   		  m_high;
 	bool 		  n_high;

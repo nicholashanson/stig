@@ -102,16 +102,78 @@ execute_vmrs_t1
 	}
 }
 
+instr_32 parse_vpush_t1(const uint instr) {
+	// single_regs = FALSE; 
+	// d = UInt(D:Vd); 
+	// imm32 = ZeroExtend(imm8:’00’, 32);
+	// regs = UInt(imm8) DIV 2;
+	auto parsed_instr = parse_vpush(instr);
+	parsed_instr.regs = (slice(instr, 0, 8) << 2) / 2;
+	parsed_instr.single_regs = false;
+	return parsed_instr;
+}
+
+instr_32 parse_vpush_t2(const uint instr) {
+	// single_regs = TRUE; d = UInt(Vd:D);
+	// imm32 = ZeroExtend(imm8:’00’, 32); regs = UInt(imm8);
+	// if regs == 0 || regs > 16 || (d+regs) > 32 then UNPREDICTABLE;
+	auto parsed_instr = parse_vpush(instr);
+	parsed_instr.regs = cast(uint)(slice(instr, 0, 8) << 2);
+	parsed_instr.single_regs = true;
+	return parsed_instr;
+}
+
+instr_32 parse_vpush(const uint instr) {
+	return instr_32(
+		rd: 		cast(reg)((slice(instr, 22, 1) << 4) | slice(instr, 12, 4)),
+	);
+}
+
+// single_regs = TRUE; d = UInt(Vd:D);
+// imm32 = ZeroExtend(imm8:’00’, 32); regs = UInt(imm8);
+// if regs == 0 || regs > 16 || (d+regs) > 32 then UNPREDICTABLE;
+
 void
 execute_vpush_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
-	execute_fp_check(vm);
+	execute_vpush(instr, vm);
 }
 
 void
 execute_vpush_t2
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
-	execute_fp_check(vm);
+	execute_vpush(instr, vm);
+}
+
+void
+execute_vpush
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// if ConditionPassed() then
+	// EncodingSpecificOperations();
+	// ExecuteFPCheck();
+	// address = SP - imm32;
+	uint addr = vm.get_reg(reg.sp) - instr.imm;
+	// SP = SP - imm32;
+	vm.set_reg(reg.sp, addr);
+	if (instr.single_regs) {
+		// r = 0 to regs-1
+		for (uint r = 0; r < instr.regs; ++r) {
+			// MemA[address,4] = S[d+r]; address = address+4;
+			vm.write_word(addr, vm.get_reg_s(cast(reg)(instr.rd + r)));
+			addr += 4;
+		}
+	} else {
+		for (uint r = 0; r < instr.regs; ++r) {
+			// Store as two word-aligned words in the correct order for current endianness.
+			// MemA[address,4] = if BigEndian() then D[d+r]<63:32> else D[d+r]<31:0>;
+			vm.write_word(addr,     slice(vm.get_reg_d(cast(reg)(instr.rd + r)),  0, 32));
+			// MemA[address+4,4] = if BigEndian() then D[d+r]<31:0> else D[d+r]<63:32>;
+			vm.write_word(addr + 4, slice(vm.get_reg_d(cast(reg)(instr.rd + r)), 31, 32));
+			// address = address+8;
+			addr += 8;
+		}
+	}
 }
