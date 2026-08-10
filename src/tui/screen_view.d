@@ -142,11 +142,13 @@ ctrl_loop
                     ctrl.move();
                     s.instr.start = max(0, s.instr.start - 1);
                     s.instr.end   = s.instr.start + s.instr.visible_lines;
+                    ctrl.pc_moved = false;
                     break;
                 case 'x':
                     ctrl.move();
                     s.instr.end   = min(cast(uint)rows.length, s.instr.end + 1);
                     s.instr.start = s.instr.end - s.instr.visible_lines; 
+                    ctrl.pc_moved = false;
                     break;
                 case KEY_DOWN:
                     vm.advance_to_next_cycle();

@@ -17,6 +17,7 @@ import core.time   : msecs;
 import vm;
 import cortex_m_core;
 import memory_sections;
+import ra81d;
 import parse_elf;
 import thumb_2_instrs;
 import thumb_2_decode_instr;
@@ -158,7 +159,7 @@ void main(string[] args) {
         soc_s = args[2];
     }
 
-    if (soc_s != "nrf" && soc_s != "stm32" && soc_s != "nxp" && soc_s != "s32k16") {
+    if (soc_s != "nrf" && soc_s != "stm32" && soc_s != "nxp" && soc_s != "s32k16" && soc_s != "ra81d") {
         writeln("Unrecognized SoC: ", soc_s);
         return;
     }
@@ -264,10 +265,18 @@ void main(string[] args) {
             vm.run_to(entry_point, nth_instance);
         draw_screen(vm, ctrl, ui, rows);
         ctrl_loop(ctrl, ui, vm, rows);
-    } else {
+    } else if (soc_s == "nxp") {
         cortex_m_vm!rw612_mem vm;
         vm.set_vtor();
         load_elf(vm, soc.nxp, target_file_name);
+        if (entry_point != 0)
+            vm.run_to(entry_point, nth_instance);
+        draw_screen(vm, ctrl, ui, rows);
+        ctrl_loop(ctrl, ui, vm, rows);
+    } else {
+        cortex_m_vm!ra8d1_mem vm;
+        vm.set_vtor();
+        load_elf(vm, soc.ra81d, target_file_name);
         if (entry_point != 0)
             vm.run_to(entry_point, nth_instance);
         draw_screen(vm, ctrl, ui, rows);

@@ -87,7 +87,7 @@ struct instr_panel {
                if (r.type == row_view.kind.blank_line) 
                    screen_row++;
            }
-        } else {
+      } else {
             if (ctrl.pc_moved) {
                 for (int j = start; j < end; ++j) {
                     auto r = rows[j];
@@ -110,13 +110,14 @@ struct instr_panel {
     }
 
    void draw(ref runtime_ctrl ctrl, const uint pc, const ref row_view[] rows) {
-      if (last_pc == pc) 
+      if ((last_pc == pc) && !ctrl.instr_view_changed) 
          return;
       screen_row = 0;
       col        = 1;
       curr_pc = pc;
       curr_pc_row = get_curr_pc_row(rows);
-      update_instr_range(ctrl, rows);
+      if (ctrl.pc_moved)
+         update_instr_range(ctrl, rows);
       clear_instrs(ctrl);
       draw_instrs(ctrl, rows);
       last_pc = curr_pc;

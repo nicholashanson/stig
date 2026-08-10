@@ -423,6 +423,12 @@ void execute_ldrsb_reg_t2
 	vm.set_reg(instr.rt, cast(uint)cast(byte)vm.read_byte(address));
 }
 
+string convert_ldrsb_reg_t2_to_string(const ref instr_32 instr, const condition cond) {
+	// return format("vmrs%s %s, FPSCR", get_condition_string(cond),
+	// 								  get_reg_name(instr.rt));
+	return "x";
+}
+
 void execute_pld_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
