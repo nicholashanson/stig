@@ -195,19 +195,14 @@ void check_for_reserve_access(const uint addr) {
 	}
 }
 
-struct mem_region(size_t N) {
-	uint m_base_addr;
-	uint m_chunk_size;
-	uint m_total_size;
+struct mem_region(uint base_addr, uint total_size, size_t N) {
+	enum uint m_base_addr  = base_addr;
+	enum uint m_chunk_size = total_size / N;
+	enum uint m_total_size = total_size;
 	private ubyte[][N] m_chunks;
 
-	this(uint base_addr, uint total_size) {
-		m_base_addr = base_addr;
-		m_total_size = total_size;
-		assert((m_total_size % N) == 0, 
-			"Memory space is not divisable by chunk size");
-		m_chunk_size = total_size / N;
-	}
+	static assert((total_size % N) == 0, 
+        "Memory space is not divisible by chunk size");
 
 	void write_byte(const uint addr, const ubyte val) {
 		size_t chunk_idx = (addr - m_base_addr) / m_chunk_size;
@@ -222,5 +217,5 @@ struct mem_region(size_t N) {
 }
 
 struct ra8d1_mem {
-	mem_region!16 code_flash = mem_region!16(0x1200_0000, 0x002F_8000);
+	mem_region!(0x1200_0000, 0x002F_8000, 16) code_flash;
 }
