@@ -1,3 +1,5 @@
+import std.format;
+
 import thumb_2_floating_point_ext_32;
 import thumb_2_instrs;
 
@@ -96,7 +98,7 @@ instr_beat get_cur_instr_beat
 // VLDRW<v><q>.<dt> Qd, [Rn], #+/-<imm>
 instr_32 parse_vldrw_t7(const uint instr) {
 	return instr_32(
-		rd:    cast(reg)((slice(instr, 22, 1) << 3) | slice(instr, 13, 3)),
+		qd:    cast(reg)((slice(instr, 22, 1) << 3) | slice(instr, 13, 3)),
 		imm:   slice(instr, 0, 7),
 		rn:    cast(reg)slice(instr, 16, 4),
 		wback: cast(bool)slice(instr, 21, 1),
@@ -157,4 +159,11 @@ execute_vldrw_t7
 	// if wback && IsLastBeat() then
 		// R[n] = offsetAddr;
 	// Q[d, curBeat] = result;
+}
+
+// VLDRW<v>.<dt> Qd, [Rn{, #+/-<imm>}]
+string convert_vldrw_t7_to_string(const ref instr_32 instr, const condition cond) {
+	return format("vldrw %s, [%s%s]", get_reg_name(instr.qd),
+									  get_reg_name(instr.rn),
+									  get_imm_string(instr.imm));
 }

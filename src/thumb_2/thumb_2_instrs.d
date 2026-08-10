@@ -277,7 +277,10 @@ struct instr_16 {
 // --------------------------------------- INSTR 32 --------------------------------------
 struct instr_32 {
 	opcode 			  op;
-	reg 			  rd;
+	union {
+		reg 		  rd;
+		reg           qd;
+	}
 	reg 			  rn;
 	reg 			  rm;
 	reg 			  rt;
