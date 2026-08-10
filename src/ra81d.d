@@ -217,5 +217,14 @@ struct mem_region(uint base_addr, uint total_size, size_t N) {
 }
 
 struct ra8d1_mem {
-	mem_region!(0x1200_0000, 0x002F_8000, 16) code_flash;
+	enum uint code_flash_base_addr  = 0x1200_0000;
+	enum uint code_flash_total_size = 0x002F_8000;
+	mem_region!(code_flash_base_addr /* base_addr */, code_flash_total_size /* total_size */, 16 /* N */) code_flash;
+
+	void write_byte(const uint addr, const ubyte val) {
+		if ((addr >= code_flash_base_addr) && (addr < (code_flash_base_addr + code_flash_total_size))) {
+			return code_flash.write_byte(addr, val);
+		}
+		check_for_reserve_access();
+	}
 }
