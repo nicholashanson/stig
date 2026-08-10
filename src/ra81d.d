@@ -1,7 +1,3 @@
-
-
-
-
 //				________________________
 // 0xFFFF_FFFF |          			    |
 //			   |	 Arm Cortex-M85	    |
@@ -225,6 +221,7 @@ struct ra8d1_mem {
 		if ((addr >= code_flash_base_addr) && (addr < (code_flash_base_addr + code_flash_total_size))) {
 			return code_flash.write_byte(addr, val);
 		}
-		check_for_reserve_access();
+		check_for_reserve_access(addr);
+		assert(0, "Valid memory access unhandled");
 	}
 }
