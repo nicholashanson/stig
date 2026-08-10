@@ -1,5 +1,6 @@
 import std.typecons : Tuple;
 import std.format;
+import std.conv;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
@@ -126,6 +127,7 @@ instr_32 parse_vpush_t2(const uint instr) {
 instr_32 parse_vpush(const uint instr) {
 	return instr_32(
 		rd: 		cast(reg)((slice(instr, 22, 1) << 4) | slice(instr, 12, 4)),
+		D:          cast(bool)slice(instr, 22, 1)
 	);
 }
 
@@ -176,4 +178,22 @@ execute_vpush
 			addr += 8;
 		}
 	}
+}
+
+// VPUSH<c> <list>
+string convert_vpush_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return convert_vpush_to_string(instr, cond);
+}
+
+// VPUSH<c> <list>
+string convert_vpush_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return convert_vpush_to_string(instr, cond);
+}
+
+string convert_vpush_to_string(const ref instr_32 instr, const condition cond) {
+	const uint d = instr.single_regs 
+        ? ((instr.rd << 1) | cast(uint)instr.D)
+        : ((cast(uint)instr.D << 4)  | instr.rd);
+	return format("vpush%s %s", cond != condition.none ? cond.to!string : "", 
+							    get_reg_list_string(d, instr.regs, instr.single_regs));
 }

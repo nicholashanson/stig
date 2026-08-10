@@ -398,9 +398,6 @@ instr_32 parse_ldrsb_reg_t2(const uint instr) {
 	// if Rt == '1111' then SEE "PLI (register)";
 	// if Rn == '1111' then SEE "LDRSB (literal)";
 	// if !HaveMainExt() then UNDEFINED;
-	// t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
-	// index = TRUE; add = TRUE; wback = FALSE;
-	// (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
 	// if t == 13 || m IN {13,15} then UNPREDICTABLE;
 	return instr_32(
 		rm:		 cast(reg)slice(instr,  0, 4),
@@ -414,7 +411,18 @@ instr_32 parse_ldrsb_reg_t2(const uint instr) {
 	);
 }
 
-void execute_ldrsb_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void execute_ldrsb_reg_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	immutable rm = vm.get_reg(instr.rm);
+	immutable rn = vm.get_reg(instr.rn);
+	immutable offset = shift(rm, instr.shift_t, instr.shift_n, vm.get_c());
+	immutable offset_addr = instr.add ? (rn + offset) : (rn - offset);
+	immutable address = instr.index ? offset_addr : rn;
+	// R[t] = SignExtend(MemU[address, 1], 32);
+	vm.set_reg(instr.rt, cast(uint)cast(byte)vm.read_byte(address));
+}
+
 void execute_pld_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 

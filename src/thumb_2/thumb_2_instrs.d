@@ -301,7 +301,10 @@ struct instr_32 {
 	bool 		     add;
 	bool 		   index;
 	ubyte 		    mask;
-	bool 		  is_tbh;
+	union {
+		bool      is_tbh;
+		bool           D;
+	}
 	special_reg spec_reg;
 	union 
     {
@@ -331,6 +334,15 @@ struct byte_table {
 string get_reg_list_string(const ref reg[] reg_list) {
 	return reg_list.map!(r => get_reg_name(r)).join(", ");
 }
+
+string get_reg_list_string(const uint d, const uint regs, bool single_regs) {
+	string[] list;
+    char prefix = single_regs ? 's' : 'd'; 
+    foreach (i; 0 .. regs) {
+        list ~= format("%c%d", prefix, d + i);
+    }
+    return "{" ~ list.join(", ") ~ "}";
+ }
 
 // ================
 //  GET IMM STRING
