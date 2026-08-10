@@ -393,6 +393,27 @@ void execute_ldrb_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrbt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrsb_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ldrsbt_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+instr_32 parse_ldrsb_reg_t2(const uint instr) {
+	// if Rt == '1111' then SEE "PLI (register)";
+	// if Rn == '1111' then SEE "LDRSB (literal)";
+	// if !HaveMainExt() then UNDEFINED;
+	// t = UInt(Rt); n = UInt(Rn); m = UInt(Rm);
+	// index = TRUE; add = TRUE; wback = FALSE;
+	// (shift_t, shift_n) = (SRType_LSL, UInt(imm2));
+	// if t == 13 || m IN {13,15} then UNPREDICTABLE;
+	return instr_32(
+		rm:		 cast(reg)slice(instr,  0, 4),
+		rt: 	 cast(reg)slice(instr, 12, 4),
+		rn:  	 cast(reg)slice(instr, 16, 4),
+		index:   true,
+		add:	 true,
+		wback:   true,
+		shift_t: shift_type.lsl,
+		shift_n: slice(instr, 4, 2)
+	);
+}
+
 void execute_ldrsb_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_lit_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_pld_imm_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
