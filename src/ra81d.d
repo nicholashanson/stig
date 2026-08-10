@@ -244,4 +244,26 @@ struct ra8d1_mem {
         check_for_reserve_access(addr);
         assert(0, "Valid memory access unhandled");
     }
+
+    void write_half_byte(const uint addr, const ushort val) {
+        static foreach (i, meta; ra8d1_map) {
+            if ((addr >= meta.base_addr) && (addr < (meta.base_addr + meta.total_size))) {
+                mixin(format("return region_%d.write(addr, val);", i));
+            }
+        }
+
+        check_for_reserve_access(addr);
+        assert(0, "Valid memory access unhandled");
+    }
+
+    void write_word(const uint addr, const uint val) {
+        static foreach (i, meta; ra8d1_map) {
+            if ((addr >= meta.base_addr) && (addr < (meta.base_addr + meta.total_size))) {
+                mixin(format("return region_%d.write(addr, val);", i));
+            }
+        }
+
+        check_for_reserve_access(addr);
+        assert(0, "Valid memory access unhandled");
+    }
 }
