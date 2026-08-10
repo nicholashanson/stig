@@ -201,7 +201,7 @@ struct mem_region(uint base_addr, uint total_size, size_t N) {
     static assert((total_size % N) == 0, 
         "Memory space is not divisible by chunk size");
 
-    void write_byte(const uint addr, const ubyte val) {
+    void write(T)(const uint addr, const T val) {
         size_t chunk_idx = (addr - m_base_addr) / m_chunk_size;
         uint offset = (addr - m_base_addr) % m_chunk_size;
         if (m_chunks[chunk_idx] is null) {
@@ -209,7 +209,9 @@ struct mem_region(uint base_addr, uint total_size, size_t N) {
             //m_chunks[chunk_idx][] = 0xFF; // Default erase value for flash
         }
 
-        m_chunks[chunk_idx][offset] = val;
+        static foreach (i; 0 .. T.sizeof) {
+            m_chunks[chunk_idx][offset + i] = cast(ubyte)(val >> (i * 8));
+        }
     }
 }
 
@@ -235,7 +237,7 @@ struct ra8d1_mem {
     void write_byte(const uint addr, const ubyte val) {
         static foreach (i, meta; ra8d1_map) {
             if ((addr >= meta.base_addr) && (addr < (meta.base_addr + meta.total_size))) {
-                mixin(format("return region_%d.write_byte(addr, val);", i));
+                mixin(format("return region_%d.write(addr, val);", i));
             }
         }
 
