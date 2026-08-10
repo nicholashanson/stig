@@ -121,6 +121,10 @@ struct cortex_m_vm(mem_t) {
     bool current_mode_is_privileged() {
     	return (get_curr_exc() != exception.thread_mode) | !get_npriv();
     }
+
+    instr_exec_state get_curr_instr_exec_state() {
+		return cpu.get_curr_instr_exec_state();
+	}
 	// ----------------------------------------- PC ----------------------------------------- 
 	private bool pc_modified;
 

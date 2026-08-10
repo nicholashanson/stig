@@ -42,6 +42,7 @@ import thumb_2_mult_mult_acc_32;
 import thumb_2_store_single_data_item_32;
 import thumb_2_misc_ops_32;
 import vm8_M_se;
+import helium;
 
 __gshared opcode[] tested_opcodes;
 

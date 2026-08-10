@@ -336,7 +336,10 @@ enum opcode : ushort {
 
 	invalid,
 
-	vmsr_t1, vmrs_t1, vpush_t1, vpush_t2,
+	vmsr_t1, vmrs_t1, vpush_t1, vpush_t2, 
+
+	// vector load
+	vldrw_t7,
 
 	tt_t1
 }
@@ -1163,6 +1166,42 @@ opcode decode_store_single_data_item(const uint instr) {
 	return opcode.invalid;
 }
 
+// op0 op1 op2 op3 op4 op5 op6 op7 Instruction
+// - 1x00 1 0 != 11 - - - VLDRB, VLDRH, VLDRW T2
+// 1x01
+// 0x01
+// 1 01xx - 1 != 11 - - 1 VLD4 T1
+// 1 01xx - 1 != 11 - - 0 VLD2 T1
+// 0 - - 1 01 - - - VLDRB, VLDRH, VLDRW T6
+// 0 - - 1 10 - - - VLDRB, VLDRH, VLDRW T7
+// 0 - - 1 00 - - - VLDRB, VLDRH, VLDRW T5
+// 1 1xxx - 1 0x - - - VLDRB, VLDRH, VLDRW, VLDRD (vector) T5
+// - 01x0 - 0 - 1 1 - VLDRB, VLDRH, VLDRW, VLDRD (vector) T4
+// 1 1xxx - 1 1x - - - VLDRB, VLDRH, VLDRW, VLDRD (vector) T6
+// - 01x0 - 0 - 0 0 - VLDRB, VLDRH, VLDRW, VLDRD (vector) T1
+// - 01x0 - 0 - 1 0 - VLDRB, VLDRH, VLDRW, VLDRD (vector) T3
+// - 01x0 - 0 - 0 1 - VLDRB, VLDRH, VLDRW, VLDRD (vector) T2
+// - 1xx0 - 0 11 - - - VLDR (System Register) T1
+// 1xx1
+// 0xx1
+// - 1x00 0 0 != 11 - - - VLDRB, VLDRH, VLDRW T1
+// 1x01
+// 0x01
+// 0 00x0 - 0 1x - - - VMOV (two general-purpose registers to two 32 bit vector lanes) T1
+opcode decode_vector_load(const uint instr) {
+	immutable op0 = slice(instr, 28, 1);
+	immutable op1 = slice(instr, 21, 4);
+	immutable op2 = slice(instr, 19, 1);
+	immutable op3 = slice(instr, 12, 1);
+	immutable op4 = slice(instr,  7, 2);
+	immutable op5 = slice(instr,  6, 1);
+	immutable op7 = slice(instr,  0, 1);
+	if ((op0 == 0b0) && (op3 == 0b1) && (op4 == 0b10)) {
+		return opcode.vldrw_t7;
+	}
+	return opcode.invalid;
+}
+
 // =======================
 //  Decode Floating Point
 // =======================
@@ -1193,9 +1232,10 @@ opcode decode_floating_point(const uint instr) {
 				return opcode.vpush_t1;
 			goto default;
 		default:
-			assert(0, format("Unrecognized floating-point instruction: %08X", instr));
+			break;
+			// assert(0, format("Unrecognized floating-point instruction: %08X", instr));
 	}
-	return opcode.invalid;
+	return decode_vector_load(instr);
 }
 
 opcode decode_load_byte_memory_hints(const uint instr) {

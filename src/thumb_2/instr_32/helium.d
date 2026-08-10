@@ -7,6 +7,11 @@ ubyte get_LTPSIZE(const uint fpscr) {
 	return cast(ubyte)slice(fpscr, 16, 3);
 }
 
+struct instr_beat {
+	uint 	    curr_beat;
+	ushort 		elmt_mask;
+}
+
 bool 
 is_last_low_overhead_loop
 (vm_t)
@@ -51,6 +56,10 @@ elem
 	// Elem[vector, e, size] = value;
 	// return;
 
+bool vpt_active() {
+	return true;
+}
+
 // ===================
 //  GetCurInstrBeat()
 // ===================
@@ -61,7 +70,7 @@ instr_beat get_cur_instr_beat
 	// assert HaveMve();
 	// By default assume all lanes are active.
 	// elmtMask = Ones(4);
-	ubyte elemt_mask = 0b1111;
+	ubyte elmt_mask = 0b1111;
 	// If VPT active apply the predicate flags in VPR.P0.
 	if (vpt_active()) {
 		// elmtMask = elmtMask AND Elem[VPR.P0, _BeatID, 4];
@@ -69,7 +78,7 @@ instr_beat get_cur_instr_beat
 	// LOB truncation may override the flags on the last iteration of a loop
 	// LTPSIZE < 4 is a proxy for knowing if loop and tail predication is active.
 	ubyte LTPSIZE = get_LTPSIZE(vm.get_fpscr());
-	ubyte lptsize = _current_instr_exec_state.reset_ltp_size ? 4 : LTPSIZE;
+	ubyte lptsize = vm.get_curr_instr_exec_state().reset_ltp_size ? 4 : LTPSIZE;
 	// if ltpsize < 4 && IsLastLowOverheadLoop() then
 	if ((lptsize < 4) && is_last_low_overhead_loop(vm)) {
 		uint loop_count = vm.get_curr_instr_exec_state().loop_count;
@@ -77,10 +86,10 @@ instr_beat get_cur_instr_beat
 		// fullMask = ZeroExtend(Ones(UInt(loopCount[4-predSize:0] : Zeros(predSize))), 16);
 		ushort full_mask = cast(ushort)slice(loop_count, 0, 4 - pred_size);
 		// elmtMask = elmtMask AND Elem[fullMask, _BeatID, 4];
-		elemt_mask &= elem(ubyte,ushort)(full_mask, vm.get_beat_id(), 4);  
+		elmt_mask &= elem!(ubyte,ushort)(full_mask, vm.get_beat_id(), 4);  
 	}
 	// return (_BeatID, elmtMask);
-	return instr_beat(curr_beat: beat_id, eltm_mask: eltm_mask);
+	return instr_beat(curr_beat: vm.get_beat_id(), elmt_mask: elmt_mask);
 }
 
 // T7: VLDRW variant (Post-indexed: P=0, W=1)
@@ -99,16 +108,11 @@ instr_32 parse_vldrw_t7(const uint instr) {
 //if P == '0' && W == '0' then SEE "Related encodings";
 //CheckDecodeFaults(ExtType_Mve);
 //if D == '1' then UNDEFINED;
-//d
-//= UInt(D:Qd);
-//n
-//= UInt(Rn);
-//msize
-//= 32;
-//mbytes
-//= msize DIV 8;
-//esize
-//= msize;
+//d = UInt(D:Qd);
+//n = UInt(Rn);
+//msize = 32;
+//mbytes = msize DIV 8;
+//esize = msize;
 //elements = 32 DIV esize;
 //imm32
 //= ZeroExtend(imm:'00', 32);
@@ -130,7 +134,7 @@ execute_vldrw_t7
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	// EncodingSpecificOperations();
-	execute_fp_check();
+	execute_fp_check(vm);
 	// (curBeat, elmtMask) = GetCurInstrBeat();
 	instr_beat ib = get_cur_instr_beat(vm);
 	// result = Zeros(32);
@@ -139,11 +143,11 @@ execute_vldrw_t7
 	// address = if index then offsetAddr else R[n];
 	uint addr = instr.index ? offset_addr : vm.get_reg(instr.rn);
 	// address = address + (curBeat * mbytes * elements);
-	addr += (ib.curr_beat * instr.mbytes * instr.elements);
+	addr += (ib.curr_beat *  4 /* instr.mbytes */ * 8 /* instr.elements */);
 	// for e = 0 to elements-1
-	for (uint e = 0; e < instr.elements; ++i) {
+	for (uint e = 0; e < 8 /*instr.elements*/; ++e) {
 		// if elmtMask[e*(esize >> 3)] == '1' then
-		if (cast(bool)ib.eltm_mask[e * (instr.esize >> 3)]) {
+		if (cast(bool)slice(ib.elmt_mask, e * ( /* instr.esize */ 32 >> 3), 1)) {
 			// Elem[result, e, esize] = Extend(MemA_MVE[address + (e * mbytes), mbytes], unsigned);
 
 		}
