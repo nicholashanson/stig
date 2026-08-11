@@ -338,6 +338,9 @@ enum opcode : ushort {
 
 	vmsr_t1, vmrs_t1, vpush_t1, vpush_t2, 
 
+	// loop instructions
+	le_t2, le_t3, le_t1, wls_t1, wls_t2, wls_t3, vctp_t1, lctp_t1, wls_t4,
+
 	// vector load
 	vldrw_t7,
 
@@ -1280,7 +1283,57 @@ opcode decode_load_byte_memory_hints(const uint instr) {
 	return opcode.invalid;
 }
 
+opcode decode_loop(const uint instr) {
+	immutable op0 = slice(instr, 20, 3);
+	immutable op1 = slice(instr, 16, 4);
+	immutable op2 = slice(instr, 13, 1);
+	immutable op3 = slice(instr, 11, 1);
+	if (((op0 & 0b010) == 0b010) && (op1 == 0b1111) && (op2 == 0b0)) {
+		return opcode.le_t2;
+	}
+	if ((op0 == 0b001) && (op1 == 0b1111) && (op2 == 0b0)) {
+		return opcode.le_t3;
+	}
+	if ((op0 == 0b000) && (op1 == 0b1111) && (op2 == 0b0)) {
+		return opcode.le_t1;
+	}
+	if (((op0 & 0b100) == 0b100) && (op2 == 0b0)) {
+		return opcode.wls_t1;
+	}
+	if (((op0 & 0b100) == 0b100) && (op2 == 0b1)) {
+		return opcode.wls_t2;
+	}
+	if (((op0 & 0b100) == 0b000) && (op1 != 0b1111) && (op3 == 0b0)) {
+		return opcode.wls_t3;
+	}
+	if (((op0 & 0b100) == 0b000) && (op1 != 0b1111) && (op2 == 0b1) && (op3 == 0b1)) {
+		return opcode.vctp_t1;
+	}
+	if (((op0 & 0b100) == 0b000) && (op1 == 0b1111) && (op2 == 0b0)) {
+		return opcode.lctp_t1;
+	}
+	if (((op0 & 0b100) == 0b000) && (op1 != 0b1111) && (op3 == 0b0)) {
+		return opcode.wls_t4;
+	}
+}
+
+opcode decode_loop_and_branch_instr(const uint isntr) {
+	immutable op0 = slice(instr, 23, 1);
+	if (op0 == 0b0000) {
+		return decode_loop(instr);
+	}
+	return opcode.invalid;
+}
+
 opcode decode_branch_misc_ctrl(const uint instr) {
+	version (ARMv8_M) {
+		immutable op3 = slice(instr, 14, 1);
+		immutable op4 = slice(instr, 12, 1);
+		immutable op6 = slice(instr,  0, 1);
+		if ((op3 == 0b1) && (op4 == 0b0) && (op6 == 0b1)) {
+			return decode_loop_and_branch(instr);
+		}
+	}
 	immutable op1 = slice(instr, 12, 3);
 	immutable op  = slice(instr, 20, 7);
 	if (((op1 & 0b101) == 0b000) & (op == 0b0111011)) {
