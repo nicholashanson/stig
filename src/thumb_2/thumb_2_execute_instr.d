@@ -43,6 +43,9 @@ import thumb_2_store_single_data_item_32;
 import thumb_2_misc_ops_32;
 import vm8_M_se;
 import helium;
+version (ARMv8_M) {
+  import vm8_loop;
+}
 
 __gshared opcode[] tested_opcodes;
 

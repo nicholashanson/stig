@@ -315,8 +315,14 @@ struct instr_32 {
         bool single_regs; 
     }
 	uint  unexpanded_imm;
-	bool   		  m_high;
-	bool 		  n_high;
+	union {
+		bool   	  m_high;
+		bool     forever;
+	}
+	union {
+		bool      n_high;
+		bool          tp;
+	} 
 }
 // ---------------------------------------------------------------------------------------
 // ============
