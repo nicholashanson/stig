@@ -289,7 +289,7 @@ struct instr_32 {
 	uint 	     shift_n;
 	int 		  offset;
 	reg[] 	    reg_list;
-	uint 		     lsb;
+	uint 		     lsb; 
 	union {
 		uint     widthm1;
 		uint        regs;

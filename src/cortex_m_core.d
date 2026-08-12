@@ -1346,6 +1346,18 @@ struct cortex_m_cpu {
 	uint fpccr;
 	mixin property!"fpccr";
 
-	uint beat_id;
-	mixin property!"beat_id";
+	version (ARMv8_M) {
+		uint beat_id;
+		mixin property!"beat_id";
+
+		// Indicates a change in instruction fetch address due to branch type operations
+		bool pc_changed;
+		mixin property!"pc_changed";
+
+		bool pending_ret_op;
+		mixin property!"pending_ret_op";
+
+		uint lo_branch_info;
+		mixin property!"lo_branch_info";
+	}
 }

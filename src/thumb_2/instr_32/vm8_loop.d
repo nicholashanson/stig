@@ -65,10 +65,12 @@ execute_le
 
 void branch_to(const uint addr, const bool commit) {
 	// if HaveLOBExt() then
-		// Any branch between a branch future instruction and the associated
-		// branch point invalidates the branch info cache
-		// if LO_BRANCH_INFO.VALID == '1' && LO_BRANCH_INFO.BF == '1' then
-			// LO_BRANCH_INFO.VALID = '0';
+	// Any branch between a branch future instruction and the associated
+	// branch point invalidates the branch info cache
+	uint lo_branch_info = vm.get_lo_branch_info();
+	if (VALID_SET(lo_branch_info) && BF_SET(lo_branch_info)) {
+		VALID_CLEAR(lo_branch_info);
+	}
 
  	// Sets the address to fetch the next instruction from. NOTE: The current PC
  	// is not changed directly as this would modify the result of
@@ -76,6 +78,7 @@ void branch_to(const uint addr, const bool commit) {
 	// for some types of exception. The actual update of the PC is done in the
 	// InstructionAdvance() function after the instruction finishes executing.
 	// _NextInstrAddr = address[31:1]:'0';
+	vm.set_next_instr_addr(addr & ~1u);
 	// _PCChanged = TRUE;
 	vm.set_pc_changed(true);
 	// Clear any pending exception returns
