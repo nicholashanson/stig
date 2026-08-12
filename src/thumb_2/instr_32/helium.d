@@ -236,6 +236,11 @@ execute_vctp
 	SET_P0(vm, val);
 }
 
+// VCTP<v>.<dt> Rn
+string convert_vctp_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("vctp %s", get_reg_name(instr.rn));
+}
+
 // Loop Clear with Tail Predication. Exits loop mode by invalidating LO_BRANCH_INFO 
 // and clears any tail predication being applied.
 void

@@ -1,3 +1,5 @@
+import std.format;
+
 import cortex_m_core;
 
 import thumb_2_instrs;
@@ -18,12 +20,18 @@ import helium;
 
 instr_32 parse_le_t1(const uint instr) {
 	// if !HaveLOBExt() then UNDEFINED;
+	uint imm_32 = (slice(instr, 1, 10) << 2) | (slice(instr, 11, 1) << 1);	
 	return instr_32(
+		imm:     imm_32,
 		forever: false,
 		tp: 	 false,
 	);
-	// imm32 = ZeroExtend(immh:imml:'0', 32);
 	// if InITBlock() then CONSTRAINED_UNPREDICTABLE;
+}
+
+// LE LR, <label>
+string convert_le_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("le lr%s", get_imm_string(instr.imm));
 }
 
 void
@@ -158,6 +166,11 @@ instr_32 parse_wls_t2(const uint instr) {
 	);
 	// if InITBlock() then CONSTRAINED_UNPREDICTABLE;
 	// if Rn == '11x1' then CONSTRAINED_UNPREDICTABLE;
+}
+
+// DLS LR, Rn
+string convert_wls_t2_to_string(const ref instr_32 instr, const condition cond) {
+	return format("dls lr, %s", get_reg_name(instr.rn));
 }
 
 void
