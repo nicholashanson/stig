@@ -50,12 +50,12 @@ alias stm32f4_vm = cortex_m_vm!(stm32f4_mem);
 
 mixin template cpu_property(string name) {
     mixin(
-        "auto get_" ~ name ~ "() const {\n" ~
+        "auto get_" ~ name ~ "() const pure nothrow @nogc {\n" ~
         "    return cpu.get_" ~ name ~ "();\n" ~
         "}\n" ~
         "\n" ~
         "void set_" ~ name ~
-        "(typeof(cpu.get_" ~ name ~ "()) v) {\n" ~
+        "(typeof(cpu.get_" ~ name ~ "()) v) pure nothrow @nogc {\n" ~
         "    cpu.set_" ~ name ~ "(v);\n" ~
         "}\n"
     );

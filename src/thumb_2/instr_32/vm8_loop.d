@@ -16,13 +16,6 @@ import helium;
 // by the FPSCR.LTPSIZE field). On the last iteration of the loop, this variant disables tail predication.
 // This instruction is not permitted in an IT block.
 
-void SET_LTPSIZE
-(vm_t)
-(ref vm_t vm, const uint val) {
-	uint fpscr = vm.get_fpscr();
-    vm.set_fpscr((fpscr & ~(0b111 << 16)) | ((val & 0b111) << 16));
-}
-
 void
 execute_le_t1
 (vm_t)
@@ -118,6 +111,20 @@ void branch_to
 
 void
 execute_wls_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	return execute_wls(instr, vm);
+}
+
+void
+execute_wls_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	return execute_wls(instr, vm);
+}
+
+void
+execute_wls_t3
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	return execute_wls(instr, vm);

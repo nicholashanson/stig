@@ -167,3 +167,13 @@ string convert_vldrw_t7_to_string(const ref instr_32 instr, const condition cond
 									  get_reg_name(instr.rn),
 									  get_imm_string(instr.imm));
 }
+
+// Create Vector Tail Predicate. Creates a predicate pattern in VPR.P0 such that 
+// any element numbered the value of Rn or greater is predicated. Any element 
+// numbered lower than the value of Rn is not predicated. If placed within a VPT 
+// block and a lane is predicated, the corresponding VPR.P0 pattern will also be 
+// predicated. The generated VPR.P0 pattern can be used by an ensuing predication 
+// instruction to apply tail predication on a vector register.
+// This instruction is subject to beat-wise execution.
+// This instruction is VPT compatible.
+// This instruction is not permitted in an IT block.

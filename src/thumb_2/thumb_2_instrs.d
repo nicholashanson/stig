@@ -185,7 +185,7 @@ uint rotr(uint value, uint n) {
 //  DECIMAL TO HEX MASK
 // =====================
 
-uint decimal_to_hex_mask(uint n) {
+uint decimal_to_hex_mask(uint n) pure nothrow @nogc {
     return (1u << n) - 1;
 }
 
@@ -194,7 +194,7 @@ uint decimal_to_hex_mask(uint n) {
 // =======
 
 uint slice(T)
-(const T val, const uint shift, const uint width) {
+(const T val, const uint shift, const uint width) pure nothrow @nogc {
 	return (val >> shift) & decimal_to_hex_mask(width);
 }
 // ---------------------------------------------------------------------------------------

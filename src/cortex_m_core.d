@@ -842,11 +842,11 @@ get_execution_priority
 
 mixin template property(string name) {
     enum code =
-        "auto get_" ~ name ~ "() const {\n" ~
+        "auto get_" ~ name ~ "() const pure nothrow @nogc {\n" ~
         "    return this." ~ name ~ ";\n" ~
         "}\n" ~
         "\n" ~
-        "void set_" ~ name ~ "(typeof(this." ~ name ~ ") v) {\n" ~
+        "void set_" ~ name ~ "(typeof(this." ~ name ~ ") v) pure nothrow @nogc {\n" ~
         "    this." ~ name ~ " = v;\n" ~
         "}\n";
 
@@ -926,6 +926,47 @@ mixin define_bit_helpers!("lo_branch_info_low",  "VALID", 0);
 mixin define_bit_helpers!("lo_branch_info_high", "BF", 0);
 }
 mixin define_bit_helpers!("fpscr", "AHP", 26, "DN", 25, "FZ", 24, "FZ16", 19, "IDC", 7, "IXC", 4, "UFC", 3, "OFC", 2, "DZC", 1, "IOC", 0);
+
+import std.format : format;
+
+mixin template define_bitfield_helpers(string reg, fields...)
+if (fields.length % 3 == 0)
+{
+    mixin(() {
+        string code = "";
+
+        static foreach (i; 0 .. fields.length / 3) {{
+            enum string field_name = fields[i * 3];
+            enum uint start_pos    = fields[i * 3 + 1];
+            enum uint width        = fields[i * 3 + 2];
+            
+            enum uint field_mask   = (1u << width) - 1u;
+            enum uint reg_mask     = field_mask << start_pos;
+            enum string reg_name   = reg;
+
+            code ~= format(
+                "pragma(inline, true) auto GET_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "    return (vm.get_%s() >> %d) & 0x%X;\n" ~
+                "}\n",
+                field_name, reg_name, start_pos, field_mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) void SET_%s(vm_t)(ref vm_t vm, uint val) pure nothrow @nogc {\n" ~
+                "    auto current = vm.get_%s();\n" ~
+                "    auto cleared = current & ~0x%Xu;\n" ~
+                "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
+                "    vm.set_%s(cast(typeof(current))new_val);\n" ~
+                "}\n",
+                field_name, reg_name, reg_mask, field_mask, start_pos, reg_name
+            );
+        }}
+
+        return code;
+    }());
+}
+
+mixin define_bitfield_helpers!("fpscr", "LTPSIZE", 16, 3);
 
 struct cortex_m_cpu {
 
@@ -1198,7 +1239,7 @@ struct cortex_m_cpu {
 	// ==========
 	//  GET APSR
 	// ==========
-
+pure nothrow @nogc {
 	uint get_apsr() const {
 		uint apsr = 0;
 		if (n)   apsr |= (1u << 31);
@@ -1228,6 +1269,7 @@ struct cortex_m_cpu {
     	ge1 = (apsr & (1u << 17)) != 0;
     	ge0 = (apsr & (1u << 16)) != 0;
     }
+}
 
 	// IPSR
 	exception curr_exc;
@@ -1236,7 +1278,7 @@ struct cortex_m_cpu {
 	// ==========
 	//  GET IPSR
 	// ==========
-
+pure nothrow @nogc {
 	uint get_ipsr() const {
 		uint isr;
     	if (curr_exc == exception.thread_mode)
@@ -1254,11 +1296,12 @@ struct cortex_m_cpu {
     	immutable val = slice(ipsr, 0, 8);
     	curr_exc      = cast(exception)val;
     }
+}
 
     // ==========
 	//  GET EPSR
 	// ==========
-
+pure nothrow @nogc {
 	uint get_epsr() const {
     	return (1u << 24);
 	}
@@ -1279,12 +1322,8 @@ struct cortex_m_cpu {
     	set_apsr(xpsr);
     	set_ipsr(xpsr);
     }
-	// --------------------------------------- FPSCR ----------------------------------------
-	void set_fpscr(const uint val) {
-		fpscr = val;
-	}
+}
 
-	uint fpscr;
 	// -------------------------------------- IT Block -------------------------------------- 
 	xyz it_block;
 	Array!condition it_block_stack;
@@ -1332,7 +1371,7 @@ struct cortex_m_cpu {
 	// =================
 	//  GET CONTROL REG
 	// =================
-
+pure nothrow @nogc {
 	// reset clears the control register to zero
 	uint get_control_reg() {
 		uint control;
@@ -1343,6 +1382,7 @@ struct cortex_m_cpu {
 
 	    return control;
 	}
+}
 
 	bool npriv;		// defines the execution privilege in Thread mode
 	mixin property!"npriv";
@@ -1352,7 +1392,7 @@ struct cortex_m_cpu {
 	// ================
 	//  GET FAULT MASK
 	// ================
-
+pure nothrow @nogc {
 	uint get_fault_mask() const {
 		return fault_mask ? 1 : 0;
 	}
@@ -1372,6 +1412,7 @@ struct cortex_m_cpu {
 	uint get_pri_mask() const {
 		return pri_mask ? 1 : 0;
 	}
+}
 
 	// The fault mask, a 1-bit register. Setting FAULTMASK to 1 raises the execution 
 	// priority to -1, the priority of HardFault. Only privileged software executing at a 
@@ -1392,6 +1433,12 @@ struct cortex_m_cpu {
 	//  FPCSR
 	// =======
 	uint fpcsr;
+	mixin property!"fpcsr";
+
+	// =======
+	//  FPSCR
+	// =======
+	uint fpscr;
 	mixin property!"fpscr";
 
 	// =======
