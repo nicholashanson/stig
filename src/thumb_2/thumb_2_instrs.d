@@ -302,7 +302,10 @@ struct instr_32 {
 	condition 	    cond;
 	bool 		   wback;
 	bool 		     add;
+	union {
+	bool   is_while_loop;
 	bool 		   index;
+	}
 	ubyte 		    mask;
 	union {
 		bool      is_tbh;
@@ -314,7 +317,10 @@ struct instr_32 {
         bool   set_flags;
         bool single_regs; 
     }
+    union {
 	uint  unexpanded_imm;
+	uint  		  t_size;
+	}
 	union {
 		bool   	  m_high;
 		bool     forever;

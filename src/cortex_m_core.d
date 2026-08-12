@@ -925,6 +925,7 @@ version (ARMv8_M) {
 mixin define_bit_helpers!("lo_branch_info_low",  "VALID", 0);
 mixin define_bit_helpers!("lo_branch_info_high", "BF", 0);
 }
+mixin define_bit_helpers!("fpscr", "AHP", 26, "DN", 25, "FZ", 24, "FZ16", 19, "IDC", 7, "IXC", 4, "UFC", 3, "OFC", 2, "DZC", 1, "IOC", 0);
 
 struct cortex_m_cpu {
 

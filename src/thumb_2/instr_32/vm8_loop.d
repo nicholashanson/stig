@@ -16,6 +16,20 @@ import helium;
 // by the FPSCR.LTPSIZE field). On the last iteration of the loop, this variant disables tail predication.
 // This instruction is not permitted in an IT block.
 
+void set_LTPSIZE
+(vm_t)
+(ref vm_t vm, const uint val) {
+	uint fpscr = vm.get_fpscr();
+    vm.set_fpscr((fpscr & ~(0b111 << 16)) | ((val & 0b111) << 16));
+}
+
+void
+execute_le_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_le(instr, vm);
+}
+
 void
 execute_le_t2
 (vm_t)
@@ -100,4 +114,30 @@ void branch_to
 		// (or exception) is taken.
 		vm.set_reg(reg.pc, addr);
 	}
- }
+}
+
+void
+execute_wls 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+ 	// EncodingSpecificOperations();
+	// count = R[n];
+	uint count = vm.get_reg(instr.rn);	
+	// if isWhileLoop && count == Zeros(32) then BranchTo(PC + imm32);
+	if (instr.is_while_loop && (count == 0)) {
+		branch_to(vm.get_reg(reg.pc) + instr.imm);
+	} else {
+		// To avoid creating unnecessary FP context, the LTPSIZE is only set if
+		// tail predication is being used.
+		// if tSize != 4[2:0] then ExecuteFPCheck();
+		if (instr.t_size != 4) {
+			execute_fp_check(vm);
+ 			// FPSCR.LTPSIZE = tSize;
+ 			SET_LTPSIZE(intr.t_size, vm);
+		}
+ 		
+ 		// Set up the new iteration count
+ 		// LR = count;
+ 		vm.set_reg(reg.lr, count);
+ 	}
+}
