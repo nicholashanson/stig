@@ -221,3 +221,16 @@ execute_vctp
 	val = cast(ushort)set_elem(GET_P0(vm), ib.curr_beat, 4, val);
 	SET_P0(vm, val);
 }
+
+// Loop Clear with Tail Predication. Exits loop mode by invalidating LO_BRANCH_INFO 
+// and clears any tail predication being applied.
+void
+execute_lctp_t1 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	// Disable loop predication
+	SET_LTPSIZE(vm, 4);
+	if (BF_SET(vm))
+		CLEAR_VALID(vm);
+}
