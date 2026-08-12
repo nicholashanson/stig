@@ -16,6 +16,16 @@ import helium;
 // by the FPSCR.LTPSIZE field). On the last iteration of the loop, this variant disables tail predication.
 // This instruction is not permitted in an IT block.
 
+instr_32 parse_le_t1(const uint instr) {
+	// if !HaveLOBExt() then UNDEFINED;
+	return instr_32(
+		forever: false,
+		tp: 	 false,
+	);
+	// imm32 = ZeroExtend(immh:imml:'0', 32);
+	// if InITBlock() then CONSTRAINED_UNPREDICTABLE;
+}
+
 void
 execute_le_t1
 (vm_t)
@@ -51,12 +61,16 @@ execute_le
 	// if !forever && IsLastLowOverheadLoop() then
 	if (instr.forever && is_last_low_overhead_loop(vm)) {
 		if (instr.tp) {
-			// FPSCR.LTPSIZE = 4[2:0]; // Disable loop predication
+			// Disable loop predication
+			SET_LTPSIZE(vm, 4);
 		}
 	} else {
 		// Decrement the loop counter
 		if (!instr.forever) {
 			// LR = LR - (1 << (4 - LTPSIZE))[31:0];
+			uint lr = vm.get_reg(reg.lr);
+			lr = lr - (1 << (4 - GET_LTPSIZE(vm)));
+			vm.set_reg(reg.lr, lr);
 		}
 		// Set up the branch cache info
 		uint jump_addr = vm.get_reg(reg.pc) - instr.imm;
@@ -129,6 +143,21 @@ execute_wls_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	return execute_wls(instr, vm);
+}
+
+instr_32 parse_wls_t2(const uint instr) {
+	// if !HaveLOBExt() then UNDEFINED;
+	// imm32 = ZeroExtend(immh:imml:'0', 32);
+	uint imm_32 = (slice(instr, 1, 10) << 2) | (slice(instr, 11, 1) << 1);		
+	return instr_32(
+		rn:			   cast(reg)slice(instr, 16, 4),
+		// No truncation. Set size to full vector length
+		t_size:        4,
+		imm: 	       0,
+		is_while_loop: false,
+	);
+	// if InITBlock() then CONSTRAINED_UNPREDICTABLE;
+	// if Rn == '11x1' then CONSTRAINED_UNPREDICTABLE;
 }
 
 void
