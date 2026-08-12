@@ -180,6 +180,20 @@ string convert_vldrw_t7_to_string(const ref instr_32 instr, const condition cond
 									  get_imm_string(instr.imm));
 }
 
+instr_32 parse_vctp_t1(const uint instr) {
+	// Rn == '1111' then SEE "Related encodings";
+	// if !HaveMve() then UNDEFINED;
+	// HandleException(CheckCPEnabled(10));
+ 	// n = UInt(Rn);
+	// predSize = UInt(size);
+	return instr_32(
+		rn: 	   cast(reg)slice(instr, 16, 2),
+		pred_size: slice(instr, 20, 2),
+		);
+	// if InITBlock() then CONSTRAINED_UNPREDICTABLE;
+	// if Rn == '1101' then CONSTRAINED_UNPREDICTABLE;
+}
+
 void
 execute_vctp_t1
 (vm_t)
