@@ -109,6 +109,21 @@ void branch_to
 	}
 }
 
+instr_32 parse_wls_t1(const uint instr) {
+	// if !HaveLOBExt() then UNDEFINED;
+	// imm32 = ZeroExtend(immh:imml:'0', 32);
+	uint imm_32 = (slice(instr, 1, 10) << 2) | (slice(instr, 11, 1) << 1);		
+	return instr_32(
+		rn:			   cast(reg)slice(instr, 16, 4),
+		// No truncation. Set size to full vector length
+		t_size:        4,
+		imm: 	       imm_32,
+		is_while_loop: true
+	);
+	// if InITBlock() then CONSTRAINED_UNPREDICTABLE;
+	// if Rn == '11x1' then CONSTRAINED_UNPREDICTABLE;
+}
+
 void
 execute_wls_t1
 (vm_t)
@@ -125,6 +140,13 @@ execute_wls_t2
 
 void
 execute_wls_t3
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	return execute_wls(instr, vm);
+}
+
+void
+execute_wls_t4
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	return execute_wls(instr, vm);

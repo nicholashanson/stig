@@ -1315,9 +1315,10 @@ opcode decode_loop(const uint instr) {
 	if (((op0 & 0b100) == 0b000) && (op1 != 0b1111) && (op3 == 0b0)) {
 		return opcode.wls_t4;
 	}
+	return opcode.invalid;
 }
 
-opcode decode_loop_and_branch_instr(const uint isntr) {
+opcode decode_loop_and_branch(const uint instr) {
 	immutable op0 = slice(instr, 23, 1);
 	if (op0 == 0b0000) {
 		return decode_loop(instr);
