@@ -205,6 +205,7 @@ struct cortex_m_vm(mem_t) {
 		mixin cpu_property!"lo_branch_info_high";
 		mixin cpu_property!"lo_branch_info_low";
 		mixin cpu_property!"next_instr_addr";
+		mixin cpu_property!"vpr";
 	}
 	// --------------------------------------------------------------------------------------
 	// ========

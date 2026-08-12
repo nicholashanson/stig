@@ -967,6 +967,10 @@ if (fields.length % 3 == 0)
 }
 
 mixin define_bitfield_helpers!("fpscr", "LTPSIZE", 16, 3);
+version (ARMv8_M) {
+// VPR, Vector Predication Status and Control Register
+mixin define_bitfield_helpers!("vpr", "P0", 0, 16, "MASK01", 16, 4, "MASK23", 20, 4, "RES0", 24, 8);
+}
 
 struct cortex_m_cpu {
 
@@ -1465,5 +1469,8 @@ pure nothrow @nogc {
 
 		uint next_instr_addr;
 		mixin property!"next_instr_addr";
+
+		uint vpr;
+		mixin property!"vpr";
 	}
 }

@@ -53,6 +53,18 @@ elem
 		// assert e >= 0 && (e+1)*size <= N;
 		// vector[(e+1)*size-1:e*size] = value;
 		// return;
+pragma(inline, true)
+T 
+set_elem
+(T)
+(T vector, const size_t e, const size_t size, T value) pure nothrow @nogc {
+    T mask 		   = cast(T)((1u << size) - 1u);
+    T shifted_mask = cast(T)(mask << (e * size));
+    T cleared 	   = vector & ~shifted_mask;
+    T inserted 	   = cast(T)((value & mask) << (e * size));
+    return cast(T)(cleared | inserted);
+}
+
 
 // Elem[bits(N) &vector, integer e] = bits(size) value
 	// Elem[vector, e, size] = value;
@@ -168,6 +180,13 @@ string convert_vldrw_t7_to_string(const ref instr_32 instr, const condition cond
 									  get_imm_string(instr.imm));
 }
 
+void
+execute_vctp_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vctp(instr, vm);
+}
+
 // Create Vector Tail Predicate. Creates a predicate pattern in VPR.P0 such that 
 // any element numbered the value of Rn or greater is predicated. Any element 
 // numbered lower than the value of Rn is not predicated. If placed within a VPT 
@@ -177,3 +196,28 @@ string convert_vldrw_t7_to_string(const ref instr_32 instr, const condition cond
 // This instruction is subject to beat-wise execution.
 // This instruction is VPT compatible.
 // This instruction is not permitted in an IT block.
+void
+execute_vctp
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// ExecuteFPCheck();
+	execute_fp_check(vm);
+
+	// (curBeat, elmtMask) = GetCurInstrBeat();
+	instr_beat ib = get_cur_instr_beat(vm);
+
+	// loopCount = R[n];
+	uint loop_count = vm.get_reg(instr.rn);
+	ushort full_mask;
+	if (loop_count <= (1 << (4 - instr.pred_size))) 
+		// fullMask = ZeroExtend(Ones(UInt(loopCount[4-predSize:0] : Zeros(predSize))), 16);
+		full_mask = cast(ushort)(slice(loop_count, 0, 32 - 4 + instr.pred_size) << instr.pred_size);
+	else
+		// fullMask = Ones(16);
+		full_mask = 0xffff;
+
+	// Elem[VPR.P0, curBeat, 4] = elmtMask AND Elem[fullMask, curBeat, 4];
+	ushort val = ib.elmt_mask & elem!(ushort,ushort)(full_mask, ib.curr_beat, 4);
+	val = cast(ushort)set_elem(GET_P0(vm), ib.curr_beat, 4, val);
+	SET_P0(vm, val);
+}
