@@ -202,7 +202,9 @@ struct cortex_m_vm(mem_t) {
 		mixin cpu_property!"beat_id";
 		mixin cpu_property!"pc_changed";
 		mixin cpu_property!"pending_ret_op";
-		mixin cpu_property!"lo_branch_info";
+		mixin cpu_property!"lo_branch_info_high";
+		mixin cpu_property!"lo_branch_info_low";
+		mixin cpu_property!"next_instr_addr";
 	}
 	// --------------------------------------------------------------------------------------
 	// ========

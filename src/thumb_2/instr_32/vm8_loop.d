@@ -24,6 +24,13 @@ execute_le_t2
 }
 
 void
+execute_le_t3
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_le(instr, vm);
+}
+
+void
 execute_le
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
@@ -55,7 +62,7 @@ execute_le
 			// LO_BRANCH_INFO.END_ADDR = ThisInstrAddr()[31:1];
 		// // Branch to the start of the loop
 		// BranchTo(jumpAddr);
-		branch_to(jump_addr, false);
+		branch_to(jump_addr, false, vm);
 	}
 }
 
@@ -63,13 +70,14 @@ execute_le
 // BranchTo()
 // ==========
 
-void branch_to(const uint addr, const bool commit) {
+void branch_to
+(vm_t)
+(const uint addr, const bool commit, ref vm_t vm) {
 	// if HaveLOBExt() then
 	// Any branch between a branch future instruction and the associated
 	// branch point invalidates the branch info cache
-	uint lo_branch_info = vm.get_lo_branch_info();
-	if (VALID_SET(lo_branch_info) && BF_SET(lo_branch_info)) {
-		VALID_CLEAR(lo_branch_info);
+	if (VALID_SET(vm) && BF_SET(vm)) {
+		VALID_CLEAR(vm);
 	}
 
  	// Sets the address to fetch the next instruction from. NOTE: The current PC

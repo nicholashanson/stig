@@ -873,6 +873,59 @@ struct instr_exec_state {
 	bool        reset_ltp_size;
 }
 
+mixin template define_bit_helpers(string reg, bits...) 
+if (bits.length % 2 == 0) 
+{
+    mixin(() {
+        string code = "";
+        
+        static foreach (i; 0 .. bits.length / 2) {{
+            enum string bit_name = bits[i * 2];
+            enum uint bit_pos    = bits[i * 2 + 1];
+            enum uint mask       = 1u << bit_pos;
+            enum string reg_name = reg;
+
+            code ~= format(
+                "pragma(inline, true) bool %s_SET(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "    return (vm.get_%s() & 0x%X) != 0;\n" ~
+                "}\n",
+                bit_name, reg_name, mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) bool %s_CLEAR(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "    return (vm.get_%s() & 0x%X) == 0;\n" ~
+                "}\n",
+                bit_name, reg_name, mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) void SET_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "    auto val = vm.get_%s();\n" ~
+                "    vm.set_%s(cast(typeof(val))(val | 0x%X));\n" ~
+                "}\n",
+                bit_name, reg_name, reg_name, mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) void CLEAR_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "    auto val = vm.get_%s();\n" ~
+                "    vm.set_%s(cast(typeof(val))(val & ~0x%X));\n" ~
+                "}\n",
+                bit_name, reg_name, reg_name, mask
+            );
+        }}
+        
+        return code;
+    }());
+}
+
+version (ARMv8_M) {
+// 66-bit read/write register.
+mixin define_bit_helpers!("lo_branch_info_low",  "VALID", 0);
+mixin define_bit_helpers!("lo_branch_info_high", "BF", 0);
+}
+
 struct cortex_m_cpu {
 
 	instr_exec_state curr_instr_exec_state;
@@ -1357,7 +1410,12 @@ struct cortex_m_cpu {
 		bool pending_ret_op;
 		mixin property!"pending_ret_op";
 
-		uint lo_branch_info;
-		mixin property!"lo_branch_info";
+		uint lo_branch_info_high;
+		uint lo_branch_info_low;
+		mixin property!"lo_branch_info_high";
+		mixin property!"lo_branch_info_low";
+
+		uint next_instr_addr;
+		mixin property!"next_instr_addr";
 	}
 }

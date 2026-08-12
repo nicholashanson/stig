@@ -242,6 +242,7 @@ void main(string[] args) {
     ui.set_bkgd();
     ui.draw_boxes();
 
+version (ARMv7_M) {    
     if (soc_s == "nrf") {
         cortex_m_vm!nrf52840_mem vm;
         load_elf(vm, soc.nrf, target_file_name);
@@ -273,7 +274,11 @@ void main(string[] args) {
             vm.run_to(entry_point, nth_instance);
         draw_screen(vm, ctrl, ui, rows);
         ctrl_loop(ctrl, ui, vm, rows);
-    } else {
+    }
+}
+
+version (ARMv8_M) {
+    if (soc_s == "ra8d1") {
         cortex_m_vm!ra8d1_mem vm;
         vm.set_vtor();
         load_elf(vm, soc.ra81d, target_file_name);
@@ -282,6 +287,7 @@ void main(string[] args) {
         draw_screen(vm, ctrl, ui, rows);
         ctrl_loop(ctrl, ui, vm, rows);
     }
+}
 
     endwin();
 }
