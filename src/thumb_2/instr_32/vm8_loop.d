@@ -16,7 +16,7 @@ import helium;
 // by the FPSCR.LTPSIZE field). On the last iteration of the loop, this variant disables tail predication.
 // This instruction is not permitted in an IT block.
 
-void set_LTPSIZE
+void SET_LTPSIZE
 (vm_t)
 (ref vm_t vm, const uint val) {
 	uint fpscr = vm.get_fpscr();
@@ -117,6 +117,13 @@ void branch_to
 }
 
 void
+execute_wls_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	return execute_wls(instr, vm);
+}
+
+void
 execute_wls 
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
@@ -125,7 +132,7 @@ execute_wls
 	uint count = vm.get_reg(instr.rn);	
 	// if isWhileLoop && count == Zeros(32) then BranchTo(PC + imm32);
 	if (instr.is_while_loop && (count == 0)) {
-		branch_to(vm.get_reg(reg.pc) + instr.imm);
+		branch_to(vm.get_reg(reg.pc) + instr.imm, false, vm);
 	} else {
 		// To avoid creating unnecessary FP context, the LTPSIZE is only set if
 		// tail predication is being used.
@@ -133,7 +140,7 @@ execute_wls
 		if (instr.t_size != 4) {
 			execute_fp_check(vm);
  			// FPSCR.LTPSIZE = tSize;
- 			SET_LTPSIZE(intr.t_size, vm);
+ 			SET_LTPSIZE(vm, instr.t_size);
 		}
  		
  		// Set up the new iteration count
