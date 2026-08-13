@@ -142,6 +142,23 @@ auto get_val(string reg_name, string bit_name, vm_t)(ref vm_t vm, uint index) {
     return getters[index](vm);
 }
 
+bool 
+is_mve_access_fpscr_c
+(vm_t)
+(ref vm_t vm, uint instr) pure nothrow @nogc {
+    const bool cp10_enabled = GET_CPACR_C10(vm) == 0b11;
+    const bool cp11_enabled = GET_CPACR_C11(vm) == 0b11;
+    if (!cp10_enabled || !cp11_enabled) {
+        return false;
+    }
+
+    const bool is_vadc  = (instr & 0xFFF00F80) == 0xFE400E00;
+    const bool is_vsbc  = (instr & 0xFFF00F80) == 0xFE400E40;
+    const bool is_vshlc = (instr & 0xFFF00F80) == 0xFE400C80;
+
+    return is_vadc || is_vsbc || is_vshlc;
+}
+
 // FPB_CheckMatchAddress
 // =====================
 // Flash Patch breakpoint instruction address comparison
@@ -157,7 +174,7 @@ fpb_check_match_addr
   // No comparator support
   if (num_addr_cmp == 0)
     return false;
-  for (n; 0 .. num_addr_cmp) {
+  foreach (n; 0 .. num_addr_cmp) {
     if (get_val!("FP_COMP", "BE")(vm, n) == 1)
       if (get_val!("FP_COMP", "BP_ADDR")(vm, n) == (addr & ~1))
         return true;

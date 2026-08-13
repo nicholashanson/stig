@@ -978,6 +978,8 @@ mixin define_bit_helpers!("fpscr", "AHP", 26, "DN", 25, "FZ", 24, "FZ16", 19, "I
 mixin define_bit_helpers!("ccr", "TRD", 20, "LOB", 19, "BP", 18, "IC", 17, "DC", 16, "STKOFHFNMIGN", 10, "BFHFNMIGN", 8, "DIV_0_TRP", 4, "UNALIGN_TRP", 3, "USERSETMPEND", 1);
 
 mixin define_bit_helpers_scb!(FP_CTRL, "CTRL_KEY", 1, "ENABLE", 0);
+mixin define_bitfield_helpers_scb!(CPACR, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
+									      "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
 
 mixin(() {
     string code;
