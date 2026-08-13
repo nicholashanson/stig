@@ -206,6 +206,28 @@ beat_complete
 
 version (ARMv8_M) {
 enum uint MAX_BEATS = 4;
+
+uint
+get_epsr_it
+(vm_t)
+(ref vm_t vm) {
+  return (GET_EPSR_IT_HIGH(vm) << 6) | GET_EPSR_IT_LOW(vm);
+}
+
+instr_exec_state get_instr_exec_state
+(vm_t)
+(ref vm_t vm, uint next) {
+  assert(next < MAX_BEATS);
+  instr_exec_state state;
+  state.fetch_addr           = vm.get_pc();
+  state.it_state             = cast(ubyte)get_epsr_it(vm);
+  // L, T166IND, BTI, LOBranchInfoValid
+  //state.L                    = 0;
+  //state.T16IND               = 0;
+  state.bits                 = cast(ubyte)LO_BRANCH_INFO_LOW_VALID_SET(vm);
+  state.loop_count           = vm.get_reg(reg.lr);
+  return state;
+}
 }
 
 version (ARMv8_M) {
@@ -219,6 +241,8 @@ execute_instr
   // activeChains = GetActiveChains();
   // uint active_chains = get_active_chains(vm);
   // _CurrentInstrExecState = GetInstrExecState(activeChains);
+  uint active_chains = 0;
+  vm.set_curr_instr_exec_state(get_instr_exec_state(vm, active_chains));
   // auto curr_exec_state = vm.get_curr_exec_state(active_chains);
   bool commit_state = false;
   // Fetch the instruction

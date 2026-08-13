@@ -1075,8 +1075,8 @@ if (fields.length % 3 == 0)
 mixin define_bitfield_helpers!("fpscr", "LTPSIZE", 16, 3);
 mixin define_bitfield_helpers_scb!(FP_CTRL, "REV", 28, 4, "NUM_CODE_HIGH", 12, 3, "NUM_LIT", 8, 4, "NUM_CODE_LOW", 4, 4);
 version (ARMv8_M) {
-mixin define_bitfield_helpers!("epsr", "ECI_HIGH_HIGH", 25, 2, "ICI_HIGH", 25, 2, "IT", 25, 2, "T", 24, 1, "ECI_HIGH", 12, 4, 
-	                                   "ECI_LOW", 10, 2,       "ICI_LOW", 10, 6,  "IT", 10, 6);
+mixin define_bitfield_helpers!("epsr", "ECI_HIGH_HIGH", 25, 2, "ICI_HIGH", 25, 2, "IT_HIGH", 25, 2, "T", 24, 1, "ECI_HIGH", 12, 4, 
+	                                   "ECI_LOW", 10, 2,       "ICI_LOW", 10, 6,  "IT_LOW", 10, 6);
 // VPR, Vector Predication Status and Control Register
 // Holds the per element predication flags.
 mixin define_bitfield_helpers!("vpr", "P0", 0, 16, "MASK01", 16, 4, "MASK23", 20, 4, "RES0", 24, 8);
@@ -1090,6 +1090,10 @@ struct cortex_m_cpu {
 
 	instr_exec_state get_curr_instr_exec_state() {
 		return curr_instr_exec_state;
+	}
+
+	void set_curr_instr_exec_state(const instr_exec_state state) {
+		curr_instr_exec_state = state;
 	}
 	// ------------------------------ General-Purpose Registers ----------------------------- 
 	uint[16] core_registers;

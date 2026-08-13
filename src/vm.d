@@ -125,6 +125,10 @@ struct cortex_m_vm(mem_t) {
     instr_exec_state get_curr_instr_exec_state() {
 		return cpu.get_curr_instr_exec_state();
 	}
+
+	void set_curr_instr_exec_state(const instr_exec_state state) {
+		cpu.set_curr_instr_exec_state(state);
+	}
 	// ----------------------------------------- PC ----------------------------------------- 
 	private bool pc_modified;
 
