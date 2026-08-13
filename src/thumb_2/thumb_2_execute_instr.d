@@ -126,6 +126,22 @@ struct inst_info_t {
 inst_info_t[MAX_OVERLAPPING_INSTRS] inst_info;
 }
 
+pragma(inline, true)
+auto get_val(string reg_name, string bit_name, vm_t)(ref vm_t vm, uint index) {
+    alias getter_fn = uint function(ref vm_t);
+    
+    static immutable getter_fn[8] getters = () {
+        getter_fn[8] result;
+        static foreach (i; 0 .. 8) {{
+            mixin(format("result[%d] = (ref vm_t v) => cast(uint) GET_%s%d_%s(v);", 
+                i, reg_name, i, bit_name));
+        }}
+        return result;
+    }();
+
+    return getters[index](vm);
+}
+
 // FPB_CheckMatchAddress
 // =====================
 // Flash Patch breakpoint instruction address comparison
@@ -138,13 +154,15 @@ fpb_check_match_addr
     return false;
   }
   // Instruction Comparator.
-  // num_addr_cmp = UInt(FP_CTRL.NUM_CODE);
-  // if num_addr_cmp == 0 then return FALSE; // No comparator support
-  //for N = 0 to (num_addr_cmp - 1)
-  //if FP_COMP[N].BE == '1' then // Breakpoint enabled
-  //if iaddr[31:1] == FP_COMP[N].BPADDR then
-  //return TRUE;
-  //return FALSE;
+  uint num_addr_cmp = (GET_FP_CTRL_NUM_CODE_HIGH(vm) << 4) | GET_FP_CTRL_NUM_CODE_LOW(vm);
+  // No comparator support
+  if (num_addr_cmp == 0)
+    return false;
+  for (uint n = 0; n < num_addr_cmp; ++n) {
+    if (get_val!("FP_COMP", "BE")(vm, n) == 1)
+      if (get_val!("FP_COMP", "BP_ADDR")(vm, n) == (addr & ~1))
+        return true;
+  }
   return false;
 }
 
@@ -164,7 +182,7 @@ execute_instr
   // Fetch the instruction
   // pc = ThisInstrAddr();
   uint pc = vm.get_this_instr_addr();
-  
+  bool bp = fpb_check_match_addr(pc, vm);
 }
 }
 

@@ -1,5 +1,10 @@
 import std.traits;
 import std.array;
+import std.format;
+
+bool get_bit(const uint val, const ubyte bit_pos) {
+    return true;
+}
 
 template generateAliases(alias E)
 {
@@ -18,9 +23,7 @@ template generateAliases(alias E)
     }
 }
 
-mixin(generateAliases!scb_reg.aliases);
-
-enum scb_reg : uint {
+enum string SCB_REGS = q{
 // Interrupt Control and State Register
 // Provides software control of the NMI, PendSV, and SysTick 
 // exceptions, and provides interrupt status information.
@@ -284,13 +287,31 @@ DWT = 0xE0001000,
 
 // Cortex M33
 // Non-secure Access Control Register
-NSACR = 0xE000ED8C 
-}             
+NSACR = 0xE000ED8C, 
+
+FP_CTRL = 0xE0002000,
+};             
+
+mixin(() {
+    string code = "enum scb_reg : uint {\n";
+
+    code ~= SCB_REGS;
+
+    static foreach (n; 0 .. 126)
+    {
+        code ~= format(
+            "FP_COMP%d = 0x%X,\n",
+            n,
+            0xE0002008 + 4 * n
+        );
+    }
+
+    code ~= "}\n";
+
+    return code;
+}());                 
                             
-                            
-                            
-                            
-                            
+mixin(generateAliases!scb_reg.aliases);                       
                             
                             
                             

@@ -920,14 +920,78 @@ if (bits.length % 2 == 0)
     }());
 }
 
+mixin template define_bit_helpers_scb(alias reg, bits...) 
+if (bits.length % 2 == 0) 
+{
+    mixin(() {
+        string code = "";
+
+        enum string reg_name = __traits(identifier, reg);
+        
+        static foreach (i; 0 .. bits.length / 2) {{
+            enum string bit_name = bits[i * 2];
+            enum uint bit_pos    = bits[i * 2 + 1];
+            enum uint mask       = 1u << bit_pos;
+
+            code ~= format(
+                "pragma(inline, true) bool %s_%s_SET(vm_t)(ref vm_t vm) {\n" ~
+                "    return (vm.read_word(cast(size_t)%d) & 0x%X) != 0;\n" ~
+                "}\n",
+                reg_name, bit_name, reg, mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) bool %s_%s_CLEAR(vm_t)(ref vm_t vm) {\n" ~
+                "    return (vm.read_word(cast(size_t)%d) & 0x%X) == 0;\n" ~
+                "}\n",
+                reg_name, bit_name, reg, mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm) {\n" ~
+                "    auto val = vm.read_word(%d);\n" ~
+                "    vm.write_word(cast(size_t)%d, cast(typeof(val))(val | 0x%X));\n" ~
+                "}\n",
+                reg_name, bit_name, reg, reg, mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) void CLEAR_%s_%s(vm_t)(ref vm_t vm) {\n" ~
+                "    auto val = vm.read_word(%d);\n" ~
+                "    vm.write_word(cast(size_t)%d, cast(typeof(val))(val & ~0x%X));\n" ~
+                "}\n",
+                reg_name, bit_name, reg, reg, mask
+            );
+        }}
+        
+        return code;
+    }());
+}
+
 version (ARMv8_M) {
 // 66-bit read/write register.
 mixin define_bit_helpers!("lo_branch_info_low",  "VALID", 0);
 mixin define_bit_helpers!("lo_branch_info_high", "BF", 0);
+mixin define_bit_helpers!("lo_branch_info_high_2", "LF", 0, "T16IND", 1);
 }
 mixin define_bit_helpers!("fpscr", "AHP", 26, "DN", 25, "FZ", 24, "FZ16", 19, "IDC", 7, "IXC", 4, "UFC", 3, "OFC", 2, "DZC", 1, "IOC", 0);
+mixin define_bit_helpers!("ccr", "TRD", 20, "LOB", 19, "BP", 18, "IC", 17, "DC", 16, "STKOFHFNMIGN", 10, "BFHFNMIGN", 8, "DIV_0_TRP", 4, "UNALIGN_TRP", 3, "USERSETMPEND", 1);
 
-import std.format : format;
+mixin define_bit_helpers_scb!(FP_CTRL, "CTRL_KEY", 1, "ENABLE", 0);
+
+mixin(() {
+    string code;
+
+    static foreach (n; 0 .. 126)
+    {
+        code ~= format(
+            "mixin define_bitfield_helpers_scb!(FP_COMP%d, \"BP_ADDR\", 1, 31, \"BE\", 0, 1);\n",
+            n
+        );
+    }
+
+    return code;
+}());
 
 mixin template define_bitfield_helpers(string reg, fields...)
 if (fields.length % 3 == 0)
@@ -945,20 +1009,58 @@ if (fields.length % 3 == 0)
             enum string reg_name   = reg;
 
             code ~= format(
-                "pragma(inline, true) auto GET_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "pragma(inline, true) auto GET_%s_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
                 "    return (vm.get_%s() >> %d) & 0x%X;\n" ~
                 "}\n",
-                field_name, reg_name, start_pos, field_mask
+                reg_name, field_name, reg_name, start_pos, field_mask
             );
 
             code ~= format(
-                "pragma(inline, true) void SET_%s(vm_t)(ref vm_t vm, uint val) pure nothrow @nogc {\n" ~
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, uint val) pure nothrow @nogc {\n" ~
                 "    auto current = vm.get_%s();\n" ~
                 "    auto cleared = current & ~0x%Xu;\n" ~
                 "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
                 "    vm.set_%s(cast(typeof(current))new_val);\n" ~
                 "}\n",
-                field_name, reg_name, reg_mask, field_mask, start_pos, reg_name
+                reg_name, field_name, reg_name, reg_mask, field_mask, start_pos, reg_name
+            );
+        }}
+
+        return code;
+    }());
+}
+
+mixin template define_bitfield_helpers_scb(alias reg, fields...)
+if (fields.length % 3 == 0)
+{
+    mixin(() {
+        string code = "";
+
+        enum string reg_name = __traits(identifier, reg);
+
+        static foreach (i; 0 .. fields.length / 3) {{
+            enum string field_name = fields[i * 3];
+            enum uint start_pos    = fields[i * 3 + 1];
+            enum uint width        = fields[i * 3 + 2];
+            
+            enum uint field_mask   = (1u << width) - 1u;
+            enum uint reg_mask     = field_mask << start_pos;
+
+            code ~= format(
+                "pragma(inline, true) auto GET_%s_%s(vm_t)(ref vm_t vm) {\n" ~
+                "    return (vm.read_word(cast(size_t)%d) >> %d) & 0x%X;\n" ~
+                "}\n",
+                reg_name, field_name, reg, start_pos, field_mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, uint val) {\n" ~
+                "    auto current = vm.read_word(cast(size_t)%d);\n" ~
+                "    auto cleared = current & ~0x%Xu;\n" ~
+                "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
+                "    vm.write_word(cast(size_t)%d, cast(typeof(current))new_val);\n" ~
+                "}\n",
+                reg_name, field_name, reg, reg_mask, field_mask, start_pos, reg
             );
         }}
 
@@ -967,9 +1069,13 @@ if (fields.length % 3 == 0)
 }
 
 mixin define_bitfield_helpers!("fpscr", "LTPSIZE", 16, 3);
+mixin define_bitfield_helpers_scb!(FP_CTRL, "REV", 28, 4, "NUM_CODE_HIGH", 12, 3, "NUM_LIT", 8, 4, "NUM_CODE_LOW", 4, 4);
 version (ARMv8_M) {
 // VPR, Vector Predication Status and Control Register
+// Holds the per element predication flags.
 mixin define_bitfield_helpers!("vpr", "P0", 0, 16, "MASK01", 16, 4, "MASK23", 20, 4, "RES0", 24, 8);
+mixin define_bitfield_helpers!("lo_branch_info_low",  "JUMP_ADDR", 1, 31);
+mixin define_bitfield_helpers!("lo_branch_info_high", "END_ADDR",  1, 31);
 }
 
 struct cortex_m_cpu {
@@ -1455,6 +1561,9 @@ pure nothrow @nogc {
 		uint beat_id;
 		mixin property!"beat_id";
 
+		uint ccr;
+		mixin property!"ccr";
+
 		// Indicates a change in instruction fetch address due to branch type operations
 		bool pc_changed;
 		mixin property!"pc_changed";
@@ -1462,11 +1571,15 @@ pure nothrow @nogc {
 		bool pending_ret_op;
 		mixin property!"pending_ret_op";
 
-		uint lo_branch_info_high;
 		uint lo_branch_info_low;
-		mixin property!"lo_branch_info_high";
+		uint lo_branch_info_high;
+		uint lo_branch_info_high_2;
 		mixin property!"lo_branch_info_low";
+		mixin property!"lo_branch_info_high";
+		mixin property!"lo_branch_info_high_2";
 
+		uint this_instr_addr;
+		mixin property!"this_instr_addr";
 		uint next_instr_addr;
 		mixin property!"next_instr_addr";
 
