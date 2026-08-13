@@ -205,12 +205,16 @@ beat_complete
 }
 
 version (ARMv8_M) {
+enum uint MAX_BEATS = 4;
+}
+
+version (ARMv8_M) {
 void 
 execute_instr
 (vm_t,t)
 (const t instr, ref vm_t vm) {
   // Attempt to execute the next instruction. Start by setting up the state.
-  //vm.set_inst_id(0);
+  vm.set_inst_id(0);
   vm.set_beat_id(0);
   // activeChains = GetActiveChains();
   // uint active_chains = get_active_chains(vm);
@@ -225,9 +229,9 @@ execute_instr
 
   // if ((Elem[beatStatus, instId, MAX_BEATS] != Zeros(MAX_BEATS))
   ubyte beat_status = beat_complete(vm);
-  //if (elem(beat_status, inst_id, max_beats) != 0) {
-  //  return;
-  //}
+  if (elem!(ubyte,ubyte)(beat_status, vm.get_inst_id(), MAX_BEATS) != 0) {
+    return;
+  }
 }
 }
 

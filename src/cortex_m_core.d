@@ -1597,5 +1597,8 @@ pure nothrow @nogc {
 
 		uint vpr;
 		mixin property!"vpr";
+
+		uint inst_id;
+		mixin property!"inst_id";
 	}
 }

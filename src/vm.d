@@ -210,6 +210,7 @@ struct cortex_m_vm(mem_t) {
 		mixin cpu_property!"next_instr_addr";
 		mixin cpu_property!"vpr";
 		mixin cpu_property!"epsr";
+		mixin cpu_property!"inst_id";
 	}
 	// --------------------------------------------------------------------------------------
 	// ========
