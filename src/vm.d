@@ -200,12 +200,16 @@ struct cortex_m_vm(mem_t) {
 	mixin cpu_property!"fpscr";
 	version (ARMv8_M) {
 		mixin cpu_property!"beat_id";
+		mixin cpu_property!"ccr";
 		mixin cpu_property!"pc_changed";
 		mixin cpu_property!"pending_ret_op";
-		mixin cpu_property!"lo_branch_info_high";
 		mixin cpu_property!"lo_branch_info_low";
+		mixin cpu_property!"lo_branch_info_high";
+		mixin cpu_property!"lo_branch_info_high_2";
+		mixin cpu_property!"this_instr_addr";
 		mixin cpu_property!"next_instr_addr";
 		mixin cpu_property!"vpr";
+		mixin cpu_property!"epsr";
 	}
 	// --------------------------------------------------------------------------------------
 	// ========

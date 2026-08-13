@@ -2,6 +2,7 @@ import std.container;
 import std.conv;
 import std.format;
 import std.traits : isIntegral;
+import std.string : toUpper;
 
 import thumb_2_misc_16;
 import thumb_2_instrs;
@@ -876,6 +877,7 @@ struct instr_exec_state {
 mixin template define_bit_helpers(string reg, bits...) 
 if (bits.length % 2 == 0) 
 {
+	enum string reg_name = reg.toUpper();
     mixin(() {
         string code = "";
         
@@ -883,36 +885,35 @@ if (bits.length % 2 == 0)
             enum string bit_name = bits[i * 2];
             enum uint bit_pos    = bits[i * 2 + 1];
             enum uint mask       = 1u << bit_pos;
-            enum string reg_name = reg;
 
             code ~= format(
-                "pragma(inline, true) bool %s_SET(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "pragma(inline, true) bool %s_%s_SET(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
                 "    return (vm.get_%s() & 0x%X) != 0;\n" ~
                 "}\n",
-                bit_name, reg_name, mask
+                reg_name, bit_name, reg, mask
             );
 
             code ~= format(
-                "pragma(inline, true) bool %s_CLEAR(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "pragma(inline, true) bool %s_%s_CLEAR(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
                 "    return (vm.get_%s() & 0x%X) == 0;\n" ~
                 "}\n",
-                bit_name, reg_name, mask
+                reg_name, bit_name, reg, mask
             );
 
             code ~= format(
-                "pragma(inline, true) void SET_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
                 "    auto val = vm.get_%s();\n" ~
                 "    vm.set_%s(cast(typeof(val))(val | 0x%X));\n" ~
                 "}\n",
-                bit_name, reg_name, reg_name, mask
+                reg_name, bit_name, reg, reg, mask
             );
 
             code ~= format(
-                "pragma(inline, true) void CLEAR_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
+                "pragma(inline, true) void CLEAR_%s_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
                 "    auto val = vm.get_%s();\n" ~
                 "    vm.set_%s(cast(typeof(val))(val & ~0x%X));\n" ~
                 "}\n",
-                bit_name, reg_name, reg_name, mask
+                reg_name, bit_name, reg, reg, mask
             );
         }}
         
@@ -926,7 +927,7 @@ if (bits.length % 2 == 0)
     mixin(() {
         string code = "";
 
-        enum string reg_name = __traits(identifier, reg);
+        enum string reg_name    = __traits(identifier, reg);
         
         static foreach (i; 0 .. bits.length / 2) {{
             enum string bit_name = bits[i * 2];
@@ -1000,6 +1001,8 @@ if (fields.length % 3 == 0)
 {
     mixin(() {
         string code = "";
+        enum string reg_name_lc   = reg;
+        enum string reg_name_up   = reg.toUpper();
 
         static foreach (i; 0 .. fields.length / 3) {{
             enum string field_name = fields[i * 3];
@@ -1008,13 +1011,12 @@ if (fields.length % 3 == 0)
             
             enum uint field_mask   = (1u << width) - 1u;
             enum uint reg_mask     = field_mask << start_pos;
-            enum string reg_name   = reg;
 
             code ~= format(
                 "pragma(inline, true) auto GET_%s_%s(vm_t)(ref vm_t vm) pure nothrow @nogc {\n" ~
                 "    return (vm.get_%s() >> %d) & 0x%X;\n" ~
                 "}\n",
-                reg_name, field_name, reg_name, start_pos, field_mask
+                reg_name_up, field_name, reg_name_lc, start_pos, field_mask
             );
 
             code ~= format(
@@ -1024,7 +1026,7 @@ if (fields.length % 3 == 0)
                 "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
                 "    vm.set_%s(cast(typeof(current))new_val);\n" ~
                 "}\n",
-                reg_name, field_name, reg_name, reg_mask, field_mask, start_pos, reg_name
+                reg_name_up, field_name, reg_name_lc, reg_mask, field_mask, start_pos, reg_name_lc
             );
         }}
 
@@ -1073,6 +1075,8 @@ if (fields.length % 3 == 0)
 mixin define_bitfield_helpers!("fpscr", "LTPSIZE", 16, 3);
 mixin define_bitfield_helpers_scb!(FP_CTRL, "REV", 28, 4, "NUM_CODE_HIGH", 12, 3, "NUM_LIT", 8, 4, "NUM_CODE_LOW", 4, 4);
 version (ARMv8_M) {
+mixin define_bitfield_helpers!("epsr", "ECI_HIGH_HIGH", 25, 2, "ICI_HIGH", 25, 2, "IT", 25, 2, "T", 24, 1, "ECI_HIGH", 12, 4, 
+	                                   "ECI_LOW", 10, 2,       "ICI_LOW", 10, 6,  "IT", 10, 6);
 // VPR, Vector Predication Status and Control Register
 // Holds the per element predication flags.
 mixin define_bitfield_helpers!("vpr", "P0", 0, 16, "MASK01", 16, 4, "MASK23", 20, 4, "RES0", 24, 8);
@@ -1414,9 +1418,15 @@ pure nothrow @nogc {
 	//  GET EPSR
 	// ==========
 pure nothrow @nogc {
+version (ARMv7_M) {
 	uint get_epsr() const {
     	return (1u << 24);
 	}
+}
+version (ARMv8_M) {
+	uint epsr;
+	mixin property!"epsr";
+}
 
 	// ==========
 	//  GET XPSR

@@ -182,6 +182,28 @@ fpb_check_match_addr
   return false;
 }
 
+ubyte
+get_epsr_eci
+(vm_t)
+(ref vm_t vm) {
+  return cast(ubyte)((GET_EPSR_ECI_HIGH_HIGH(vm) << 6) | (GET_EPSR_ECI_HIGH(vm) << 2) | GET_EPSR_ECI_LOW(vm));
+}
+
+ubyte 
+beat_complete
+(vm_t)
+(ref vm_t vm) {
+  switch (get_epsr_eci(vm)) {
+    case 0b0000_0000: return 0b0000_0000;
+    case 0b0000_0001: return 0b0000_0001;
+    case 0b0000_0010: return 0b0000_0011;
+    case 0b0000_0100: return 0b0000_0111;
+    case 0b0000_0101: return 0b0001_0111;
+    default: break;
+  }
+  assert(0);
+}
+
 version (ARMv8_M) {
 void 
 execute_instr
@@ -199,6 +221,13 @@ execute_instr
   // pc = ThisInstrAddr();
   uint pc = vm.get_this_instr_addr();
   bool bp = fpb_check_match_addr(pc, vm);
+
+
+  // if ((Elem[beatStatus, instId, MAX_BEATS] != Zeros(MAX_BEATS))
+  ubyte beat_status = beat_complete(vm);
+  //if (elem(beat_status, inst_id, max_beats) != 0) {
+  //  return;
+  //}
 }
 }
 
