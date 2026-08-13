@@ -150,15 +150,14 @@ fpb_check_match_addr
 (vm_t)
 (const uint addr, ref vm_t vm) {
   // FPB not enabled
-  if (FP_CTRL_ENABLE_CLEAR(vm)) {
+  if (FP_CTRL_ENABLE_CLEAR(vm))
     return false;
-  }
   // Instruction Comparator.
   uint num_addr_cmp = (GET_FP_CTRL_NUM_CODE_HIGH(vm) << 4) | GET_FP_CTRL_NUM_CODE_LOW(vm);
   // No comparator support
   if (num_addr_cmp == 0)
     return false;
-  for (uint n = 0; n < num_addr_cmp; ++n) {
+  for (n; 0 .. num_addr_cmp) {
     if (get_val!("FP_COMP", "BE")(vm, n) == 1)
       if (get_val!("FP_COMP", "BP_ADDR")(vm, n) == (addr & ~1))
         return true;
