@@ -228,6 +228,17 @@ instr_exec_state get_instr_exec_state
   state.loop_count           = vm.get_reg(reg.lr);
   return state;
 }
+
+uint get_active_chains
+(vm_t)
+(ref vm_t vm) {
+  uint count = 0;
+  foreach (i; 0 .. MAX_OVERLAPPING_INSTRS) {
+    if (inst_info[i].valid)
+      count = count + 1;
+  }
+  return count;
+}
 }
 
 version (ARMv8_M) {
@@ -238,10 +249,7 @@ execute_instr
   // Attempt to execute the next instruction. Start by setting up the state.
   vm.set_inst_id(0);
   vm.set_beat_id(0);
-  // activeChains = GetActiveChains();
-  // uint active_chains = get_active_chains(vm);
-  // _CurrentInstrExecState = GetInstrExecState(activeChains);
-  uint active_chains = 0;
+  uint active_chains = get_active_chains(vm);
   vm.set_curr_instr_exec_state(get_instr_exec_state(vm, active_chains));
   // auto curr_exec_state = vm.get_curr_exec_state(active_chains);
   bool commit_state = false;
