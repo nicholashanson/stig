@@ -54,63 +54,118 @@ void record_tested_opcode(opcode op) {
         tested_opcodes ~= op;
 }
 
+version (ARMv7_M) {
 void 
 execute_instr
 (vm_t,t)
 (const t instr, ref vm_t vm) {
 
-    vm.check_pc_modified(); // make sure pc_modified flag is cleared
-    vm.last_instr.reset();
+  vm.check_pc_modified(); // make sure pc_modified flag is cleared
+  vm.last_instr.reset();
 
-    bool handled = false;
+  bool handled = false;
 
-    if (!vm.it_block_stack_empty()) {
-      if (!vm.it_condition_is_met!(t)())
-        return;
-    }
+  if (!vm.it_block_stack_empty()) {
+    if (!vm.it_condition_is_met!(t)())
+      return;
+  }
 
-    foreach (member; __traits(allMembers, opcode))
-    {
-        enum op = mixin("opcode." ~ member);
+  foreach (member; __traits(allMembers, opcode))
+  {
+      enum op = mixin("opcode." ~ member);
 
-        if (instr.op == op)
-        {
-            static if (__traits(compiles, mixin("execute_" ~ member)))
-            {
-                alias Handler = mixin("execute_" ~ member);
-                static if (member == "ldrsh_imm_t1") {}
-                alias P = Parameters!(Handler!(vm_t));
-                //pragma(msg, "Handler execute_" ~ member ~ " signature:");
-                foreach (i, T; P) {
-                     //pragma(msg, "  param " ~ i.stringof ~ ": " ~ T.stringof);
-                //pragma(msg, "  returns: " ~ ReturnType!(Handler!(vm_t)).stringof);
-                }
-                static if (__traits(compiles, Handler!(vm_t)(instr, vm)))
-                {
-                    //pragma(msg, "Handler callable with this instruction type: execute_" ~ member);
-                    Handler!(vm_t)(instr, vm);
-                    handled = true;
-                    break;
-                }
-                else
-                {
-                    assert(0, "Handler exists but wrong signature: execute_" ~ member);
-                }
-            }
-            else
-            {
-                static assert(0, "Missing handler: execute_" ~ member);
-            }
-        }
-    }
-    if (vm.check_pc_modified()) 
-    	return;
-    static if (is(t == instr_16))
-        vm.increment_pc(2);
-    else static if (is(t == instr_32))
-        vm.increment_pc(4);
-    else
-        static assert(0, "Unknown instruction type");
+      if (instr.op == op)
+      {
+          static if (__traits(compiles, mixin("execute_" ~ member)))
+          {
+              alias Handler = mixin("execute_" ~ member);
+              static if (member == "ldrsh_imm_t1") {}
+              alias P = Parameters!(Handler!(vm_t));
+              //pragma(msg, "Handler execute_" ~ member ~ " signature:");
+              foreach (i, T; P) {
+                   //pragma(msg, "  param " ~ i.stringof ~ ": " ~ T.stringof);
+              //pragma(msg, "  returns: " ~ ReturnType!(Handler!(vm_t)).stringof);
+              }
+              static if (__traits(compiles, Handler!(vm_t)(instr, vm)))
+              {
+                  //pragma(msg, "Handler callable with this instruction type: execute_" ~ member);
+                  Handler!(vm_t)(instr, vm);
+                  handled = true;
+                  break;
+              }
+              else
+              {
+                  assert(0, "Handler exists but wrong signature: execute_" ~ member);
+              }
+          }
+          else
+          {
+              static assert(0, "Missing handler: execute_" ~ member);
+          }
+      }
+  }
+  if (vm.check_pc_modified()) 
+  	return;
+  static if (is(t == instr_16))
+      vm.increment_pc(2);
+  else static if (is(t == instr_32))
+      vm.increment_pc(4);
+  else
+      static assert(0, "Unknown instruction type");
+}
+}
+
+version (ARMv8_M) {
+enum uint MAX_OVERLAPPING_INSTRS = 2;
+struct inst_info_t {
+  opcode op;
+  uint len;
+  bool valid;
+}
+
+inst_info_t[MAX_OVERLAPPING_INSTRS] inst_info;
+}
+
+// FPB_CheckMatchAddress
+// =====================
+// Flash Patch breakpoint instruction address comparison
+bool 
+fpb_check_match_addr
+(vm_t)
+(const uint addr, ref vm_t vm) {
+  // FPB not enabled
+  if (FP_CTRL_ENABLE_CLEAR(vm)) {
+    return false;
+  }
+  // Instruction Comparator.
+  // num_addr_cmp = UInt(FP_CTRL.NUM_CODE);
+  // if num_addr_cmp == 0 then return FALSE; // No comparator support
+  //for N = 0 to (num_addr_cmp - 1)
+  //if FP_COMP[N].BE == '1' then // Breakpoint enabled
+  //if iaddr[31:1] == FP_COMP[N].BPADDR then
+  //return TRUE;
+  //return FALSE;
+  return false;
+}
+
+version (ARMv8_M) {
+void 
+execute_instr
+(vm_t,t)
+(const t instr, ref vm_t vm) {
+  // Attempt to execute the next instruction. Start by setting up the state.
+  //vm.set_inst_id(0);
+  vm.set_beat_id(0);
+  // activeChains = GetActiveChains();
+  // uint active_chains = get_active_chains(vm);
+  // _CurrentInstrExecState = GetInstrExecState(activeChains);
+  // auto curr_exec_state = vm.get_curr_exec_state(active_chains);
+  bool commit_state = false;
+  // Fetch the instruction
+  // pc = ThisInstrAddr();
+  uint pc = vm.get_this_instr_addr();
+  
+}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
