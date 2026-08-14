@@ -328,6 +328,16 @@ bool is_load_store_clear_mult_instr(const uint instr) {
 }
 }
 
+// =====================
+//  IsBKPTInstruction()
+// =====================
+// Checks whether the instruction is a breakpoint
+
+bool is_bkpt_instr(const uint instr) {
+  return matches(instr, 0b1111_1111_1111_1111_1111_1111_0000_0000,
+                        0b0000_0000_0000_0000_1011_1110_0000_0000);
+}
+
 version (ARMv8_M) {
 void 
 execute_instr
