@@ -86,12 +86,42 @@ enum special_reg : ubyte {
 //  EXCEPTION
 // ===========
 
-enum exception {
-	thread_mode,
+enum string EXCEPTION = q{
+	nmi 		 = -2,
+	thread_mode  = 0,
 	svc_irqn     = 11,
 	pendsv_irqn  = 14,
-	systick_irqn = 15
-}
+	systick_irqn = 15,
+};
+
+enum string ARMv7_M_EXCEPTION = q{
+	reset      = -3,
+	hard_fault = -1,
+};
+
+enum string ARMv8_M_EXCEPTION = q{
+	reset      			  = -4,
+	hard_fault_secure     = -3,
+	hard_fault_non_secure = -1,
+};
+
+mixin(() {
+    string code = "enum exception : byte {\n";
+
+    code ~= EXCEPTION;
+
+    version (ARMv7_M) {
+    	code ~= ARMv7_M_EXCEPTION;
+    }
+
+    version (ARMv8_M) {
+    	code ~= ARMv8_M_EXCEPTION;
+    }
+
+    code ~= "}\n";
+
+    return code;
+}());   
 // --------------------------------------------------------------------------------------
 // hardware saved frame
 reg[] hsf = [reg.r0, reg.r1, reg.r2, reg.r3, reg.r12, reg.lr, reg.pc /*, XPSR */];
