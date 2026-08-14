@@ -240,6 +240,14 @@ uint get_active_chains
   return count;
 }
 
+bool set_dwt_debug_event
+(vm_t)
+(ref vm_t vm, bool secure_match) {
+  SET_DHCSR_C_HALT(vm, 1);
+  SET_DFSR_DWTTRAP(vm, 1);
+  return true;
+}
+
 bool 
 can_pend_monitor_on_event
 (vm_t)
@@ -248,6 +256,7 @@ can_pend_monitor_on_event
   if (check_en) {
     result = result && ((GET_DEMCR_MON_EN(vm) == 1) || (GET_DEMCR_UMON_EN(vm) == 1) && !vm.current_mode_is_privileged());
   }
+
   return result;
 }
 }
