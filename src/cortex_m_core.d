@@ -1020,6 +1020,7 @@ mixin define_bitfield_helpers_scb!(DHCSR, "DBGKEY", 16, 16,  "S_RESTART_ST", 26,
 mixin define_bitfield_helpers_scb!(DEMCR, "TRCENA", 24, 1, "MONPRKEY", 23, 1, "UMON_EN", 21, 16,  "SDME", 20, 1, "MON_REQ", 19, 1, "MON_STEP", 18, 1, "MON_PEND", 17, 1, "MON_EN", 16, 1, 
 										  "VC_SFERR", 11, 1, "VC_HARDERR", 10, 1, "VC_INTERR", 9, 1, "VC_BUSERR", 8, 1, "VC_STATERR", 7, 1, "VC_CHKERR", 6, 1, "VC_NOCPERR", 5, 1, 
 										  "VC_MMERR", 4, 1, "VC_CORERESET", 0, 1);
+mixin define_bitfield_helpers_scb!(UFSR, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
 
 mixin(() {
     string code;
@@ -1124,6 +1125,24 @@ mixin define_bitfield_helpers_scb!(FP_CTRL, "REV", 28, 4, "NUM_CODE_HIGH", 12, 3
 version (ARMv8_M) {
 mixin define_bitfield_helpers!("epsr", "ECI_HIGH_HIGH", 25, 2, "ICI_HIGH", 25, 2, "IT_HIGH", 25, 2, "T", 24, 1, "ECI_HIGH", 12, 4, 
 	                                   "ECI_LOW", 10, 2,       "ICI_LOW", 10, 6,  "IT_LOW", 10, 6);
+uint 
+GET_EPSR_IT
+(vm_t)
+(ref vm_t vm) {
+	return (GET_EPSR_IT_HIGH(vm) << 6) | GET_EPSR_IT_LOW(vm);
+}
+uint 
+GET_EPSR_ICI
+(vm_t)
+(ref vm_t vm) {
+	return (GET_EPSR_ICI_HIGH(vm) << 6) | GET_EPSR_ICI_LOW(vm);
+}
+uint
+GET_EPSR_ECI
+(vm_t)
+(ref vm_t vm) {
+	return (GET_EPSR_ECI_HIGH_HIGH(vm) << 6) | (GET_EPSR_ECI_HIGH(vm) << 2) | GET_EPSR_ECI_LOW(vm);
+}
 // VPR, Vector Predication Status and Control Register
 // Holds the per element predication flags.
 mixin define_bitfield_helpers!("vpr", "P0", 0, 16, "MASK01", 16, 4, "MASK23", 20, 4, "RES0", 24, 8);

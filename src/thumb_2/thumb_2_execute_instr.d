@@ -326,6 +326,35 @@ bool is_load_store_clear_mult_instr(const uint instr) {
                                  0b11101101101000000000101000000000);
   return (is_lscm && !not_lscm);
 }
+
+// ==================
+//  InstStateCheck()
+// ==================
+
+bool 
+inst_state_check
+(vm_t)
+(ref vm_t vm, const uint instr) {
+  // Check for IT,ICI,ECI bits that are not permitted for the current
+  // instruction. NOTE EPSR.ICI and EPSR.ECI overlap with EPSR.IT.
+  // validICI = (EPSR.ICI[7:6] == Zeros(2) && EPSR.ICI[1:0] == Zeros(2));
+  bool valid_ici = (slice(GET_EPSR_ICI(vm), 6, 2) == 0) && (slice(GET_EPSR_ICI(vm), 0, 2) == 0);
+  // validECI = UInt(EPSR.ECI) < 6 && EPSR.ECI[3:0] != '0011';
+  bool valid_eci = (GET_EPSR_ECI(vm) < 6) && (slice(GET_EPSR_ECI(vm), 0, 4) != 0b0011);
+  bool valid     = (vm.in_it_block() ||
+                    GET_EPSR_IT(vm) == 0 ||
+                   (valid_ici && (is_load_store_clear_mult_instr(instr) ||
+                                  is_bkpt_instr(instr))) ||
+                   (valid_eci && true /* (IsMveBeatWiseInstruction(instr) */) ||
+                   (decode_mnemonic(instr) == opcode.le_t1) ||
+                    is_bkpt_instr(instr));
+  if (!valid) {
+    SET_UFSR_INVSTATE(vm, 1);
+    // excInfo = CreateException(UsageFault);
+    //HandleException(excInfo);
+  }
+  return valid;
+}
 }
 
 // =====================
@@ -360,6 +389,10 @@ execute_instr
   ubyte beat_status = beat_complete(vm);
   if (elem!(ubyte,ubyte)(beat_status, vm.get_inst_id(), MAX_BEATS) != 0) {
     return;
+  }
+  bool fetch_new = true;
+  if (fetch_new) {
+    bool x = inst_state_check(vm, vm.peek_word(vm.get_pc()));
   }
 }
 }

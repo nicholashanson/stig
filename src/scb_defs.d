@@ -293,6 +293,7 @@ FP_CTRL = 0xE0002000,
 DFSR = 0xE000ED30,
 DHCSR = 0xE000EDF0,
 DEMCR = 0xE000EDFC,
+UFSR = 0xE002ED2A,
 };             
 
 mixin(() {
