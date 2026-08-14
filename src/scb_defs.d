@@ -290,6 +290,7 @@ DWT = 0xE0001000,
 NSACR = 0xE000ED8C, 
 
 FP_CTRL = 0xE0002000,
+DFSR = 0xE000ED30,
 };             
 
 mixin(() {
