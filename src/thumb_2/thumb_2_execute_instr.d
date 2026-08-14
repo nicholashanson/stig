@@ -239,6 +239,17 @@ uint get_active_chains
   }
   return count;
 }
+
+bool 
+can_pend_monitor_on_event
+(vm_t)
+(ref vm_t vm, bool is_secure, bool check_pri, bool check_en, bool check_secure) {
+  bool result;
+  if (check_en) {
+    result = result && ((GET_DEMCR_MON_EN(vm) == 1) || (GET_DEMCR_UMON_EN(vm) == 1) && !vm.current_mode_is_privileged());
+  }
+  return result;
+}
 }
 
 version (ARMv8_M) {
