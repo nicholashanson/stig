@@ -982,6 +982,9 @@ mixin define_bit_helpers_scb!(FP_CTRL, "CTRL_KEY", 1, "ENABLE", 0);
 mixin define_bit_helpers_scb!(DFSR, "PMU", 5, "EXTERNAL", 4, "VCATCH", 3, "DWTTRAP", 2, "BKPT", 1, "HALTED", 0);
 mixin define_bitfield_helpers_scb!(CPACR, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
 									      "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
+mixin define_bitfield_helpers_scb!(DHCSR, "DBGKEY", 16, 16,  "S_RESTART_ST", 26, 1, "S_RESET_ST", 25, 1, "S_RETIRE_ST", 24, 1, "S_FPD", 23, 1, "S_SUIDE", 22, 1, 
+										  "S_NSUIDE", 21, 1, "S_SDE", 20, 1, "S_LOCKUP", 19, 1, "S_SLEEP", 18, 1, "S_HALT", 17, 1, "S_REGRDY", 16, 1, "C_MASKINTS", 3, 1, 
+										  "C_STEP", 2, 1, "C_HALT", 1, 1, "C_DEBUGEN", 0, 1);
 
 mixin(() {
     string code;
