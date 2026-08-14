@@ -292,6 +292,7 @@ NSACR = 0xE000ED8C,
 FP_CTRL = 0xE0002000,
 DFSR = 0xE000ED30,
 DHCSR = 0xE000EDF0,
+DEMCR = 0xE000EDFC,
 };             
 
 mixin(() {

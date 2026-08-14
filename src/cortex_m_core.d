@@ -985,6 +985,11 @@ mixin define_bitfield_helpers_scb!(CPACR, "CP11", 22, 2, "CP10", 20, 2, "CP7", 1
 mixin define_bitfield_helpers_scb!(DHCSR, "DBGKEY", 16, 16,  "S_RESTART_ST", 26, 1, "S_RESET_ST", 25, 1, "S_RETIRE_ST", 24, 1, "S_FPD", 23, 1, "S_SUIDE", 22, 1, 
 										  "S_NSUIDE", 21, 1, "S_SDE", 20, 1, "S_LOCKUP", 19, 1, "S_SLEEP", 18, 1, "S_HALT", 17, 1, "S_REGRDY", 16, 1, "C_MASKINTS", 3, 1, 
 										  "C_STEP", 2, 1, "C_HALT", 1, 1, "C_DEBUGEN", 0, 1);
+// DEMCR, Debug Exception and Monitor Control Register
+// Manages vector catch behavior and DebugMonitor handling when debugging.
+mixin define_bitfield_helpers_scb!(DEMCR, "TRCENA", 24, 1, "MONPRKEY", 23, 1, "UMON_EN", 21, 16,  "SDME", 20, 1, "MON_REQ", 19, 1, "MON_STEP", 18, 1, "MON_PEND", 17, 1, "MON_EN", 16, 1, 
+										  "VC_SFERR", 11, 1, "VC_HARDERR", 10, 1, "VC_INTERR", 9, 1, "VC_BUSERR", 8, 1, "VC_STATERR", 7, 1, "VC_CHKERR", 6, 1, "VC_NOCPERR", 5, 1, 
+										  "VC_MMERR", 4, 1, "VC_CORERESET", 0, 1);
 
 mixin(() {
     string code;
