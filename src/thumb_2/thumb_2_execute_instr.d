@@ -283,6 +283,49 @@ can_pend_monitor_on_event
 
   return result;
 }
+
+bool matches(const uint target, const uint mask, const uint val) {
+  return ((target & mask) == val);
+}
+
+// ===================================
+//  IsLoadStoreClearMultInstruction()
+// ===================================
+// Checks whether the instruction is a clear multiple or a load / store multiple
+bool is_load_store_clear_mult_instr(const uint instr) {
+  // '00000000000000001100xxxxxxxxxxxx', // LDM_T1,STM_T1
+  // '00000000000000001011x10xxxxxxxxx', // LDM_T3,STM_T2, and aliases
+  // '1110100xx0xxxxxxxxxxxxxxxxxxxxxx', // Load/store/clear mul Scalar
+  // '1110110xxxxxxxxxxxxx101xxxxxxxxx'; // Load/store/clear mul FP
+  bool is_lscm = matches(instr, 0b11111111111111111111000000000000, 
+                                0b00000000000000001100000000000000) ||
+                 matches(instr, 0b11111111111111111011011000000000, 
+                                0b00000000000000001011010000000000) ||
+                 matches(instr, 0b11111110010000000000000000000000, 
+                                0b11101000000000000000000000000000) ||
+                 matches(instr, 0b11111110000000000000111000000000, 
+                                0b11101100000000000000101000000000);
+  // False positives due to the masks used in isLSCM
+  // '1110100000xxxxxxxxxxxxxxxxxxxxxx',  // UNALLOCATED
+  // '1110100110xxxxxxxxxxxxxxxxxxxxxx',  // UNALLOCATED
+  // '11101100010xxxxxxxxx101x00x1xxxx',  // UNALLOCATED
+  // '11101100010xxxxxxxxx101xxxx0xxxx',  // UNALLOCATED
+  // '11101100000xxxxxxxxx101xxxxxxxxx',  // UNALLOCATED
+  // '111011011x1xxxxxxxxx101xxxxxxxxx'}; // VMOV
+  bool not_lscm = matches(instr, 0b11111111110000000000000000000000, 
+                                 0b11101000000000000000000000000000) ||
+                  matches(instr, 0b11111111110000000000000000000000, 
+                                 0b11101001100000000000000000000000) ||
+                  matches(instr, 0b11111111111000000000111011010000, 
+                                 0b11101100010000000000101000010000) ||
+                  matches(instr, 0b11111111111000000000111000010000, 
+                                 0b11101100010000000000101000000000) ||
+                  matches(instr, 0b11111111111000000000111000000000, 
+                                 0b11101100000000000000101000000000) ||
+                  matches(instr, 0b11111111101000000000111000000000, 
+                                 0b11101101101000000000101000000000);
+  return (is_lscm && !not_lscm);
+}
 }
 
 version (ARMv8_M) {
