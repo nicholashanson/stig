@@ -1021,6 +1021,10 @@ mixin define_bitfield_helpers_scb!(DEMCR, "TRCENA", 24, 1, "MONPRKEY", 23, 1, "U
 										  "VC_SFERR", 11, 1, "VC_HARDERR", 10, 1, "VC_INTERR", 9, 1, "VC_BUSERR", 8, 1, "VC_STATERR", 7, 1, "VC_CHKERR", 6, 1, "VC_NOCPERR", 5, 1, 
 										  "VC_MMERR", 4, 1, "VC_CORERESET", 0, 1);
 mixin define_bitfield_helpers_scb!(UFSR, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
+mixin define_bitfield_helpers_scb!(DWT_CTL, "NUMCOMP", 28, 4, "NOTRCPKT", 27, 1, "NOEXTTRIG", 26, 1, "NOCYCCNT", 25, 1,  "NOPRFCNT", 24, 1, "CYCDISS", 23, 1, "CYCEVTENA", 22, 1, "FOLDEVTENA", 21, 1, "LSUEVTENA", 20, 1, 
+										    "SLEEPEVTENA", 19, 1, "EXCEVTENA", 18, 1, "CPIEVTENA", 17, 1, "EXCTRCENA", 16, 1, "PCSAMPLENA", 12, 1, "SYNCTAP", 10, 2, "CYCTAP", 9, 1, 
+										    "POSTINIT", 5, 4, "POSTPRESET", 4, 1, "CYCCNTENA", 0, 1);
+
 
 mixin(() {
     string code;
@@ -1036,7 +1040,7 @@ mixin(() {
     static foreach (n; 0 .. 14)
     {
         code ~= format(
-            "mixin define_bitfield_helpers_scb!(DWT_FUNCTIONn%d, \"ID\", 27, 5, \"MATCHED\", 24, 1, \"ACTION\", 4, 2, \"MATCH\", 0, 4);\n",
+            "mixin define_bitfield_helpers_scb!(DWT_FUNCTION%d, \"ID\", 27, 5, \"MATCHED\", 24, 1, \"ACTION\", 4, 2, \"MATCH\", 0, 4);\n",
             n
         );
     }

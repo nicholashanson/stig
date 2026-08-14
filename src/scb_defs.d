@@ -294,6 +294,7 @@ DFSR = 0xE000ED30,
 DHCSR = 0xE000EDF0,
 DEMCR = 0xE000EDFC,
 UFSR = 0xE002ED2A,
+DWT_CTL = 0xE0001000,
 };             
 
 mixin(() {
@@ -313,9 +314,18 @@ mixin(() {
     static foreach (n; 0 .. 14)
     {
         code ~= format(
-            "DWT_FUNCTIONn%d = 0x%X,\n",
+            "DWT_FUNCTION%d = 0x%X,\n",
             n,
             0xE0001028 + 16 * n
+        );
+    }
+
+    static foreach (n; 0 .. 14)
+    {
+        code ~= format(
+            "DWT_COMP%d = 0x%X,\n",
+            n,
+            0xE0001020 + 16 * n
         );
     }
 

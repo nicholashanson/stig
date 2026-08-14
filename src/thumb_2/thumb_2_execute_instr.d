@@ -5,6 +5,7 @@ import std.array     : appender;
 import std.traits    : Parameters, ReturnType;
 import std.algorithm : canFind;
 
+import scb_defs;
 import cortex_m_core;
 import memory_sections;
 import vm;
@@ -140,6 +141,44 @@ auto get_val(string reg_name, string bit_name, vm_t)(ref vm_t vm, uint index) {
     }();
 
     return getters[index](vm);
+}
+
+pragma(inline, true)
+auto get_val(string reg_name, vm_t)(ref vm_t vm, uint index) {
+    alias getter_fn = uint function(ref vm_t);
+    
+    static immutable getter_fn[8] getters = () {
+        getter_fn[8] result;
+        static foreach (i; 0 .. 8) {{
+            mixin(format("result[%d] = (ref vm_t v) => cast(uint) v.read_word(%s%d);", 
+                i, reg_name, i));
+        }}
+        return result;
+    }();
+
+    return getters[index](vm);
+}
+
+pragma(inline, true)
+void set_val(string reg_name, string bit_name, vm_t)
+    (ref vm_t vm, uint index, uint val)
+{
+    alias setter_fn = void function(ref vm_t, uint);
+
+    static immutable setter_fn[8] setters = () {
+        setter_fn[8] result;
+
+        static foreach (i; 0 .. 8) {{
+            mixin(format(
+                "result[%d] = (ref vm_t v, uint value) => SET_%s%d_%s(v, value);",
+                i, reg_name, i, bit_name
+            ));
+        }}
+
+        return result;
+    }();
+
+    setters[index](vm, val);
 }
 
 bool 
@@ -367,6 +406,117 @@ bool is_bkpt_instr(const uint instr) {
                         0b0000_0000_0000_0000_1011_1110_0000_0000);
 }
 
+// ======================
+//  DWT_AddressCompare()
+// ======================
+// Returns a pair of values. The first result is whether the (masked) addresses are equal,
+// where the access address (addr) is masked according to DWT_FUNCTION[n].DATAVSIZE and the
+// comparator address (compaddr) is masked according to the access size. The second result
+// is whether the (unmasked) addr is greater than the (unmasked) compaddr.
+uint align_(const uint addr, const size_t size) {
+  return cast(uint)(size * (addr / size));
+}
+
+Tuple!(bool,bool) dwt_addr_cmp(const uint addr, const uint cmp_addr, size_t size, size_t cmp_size) {
+  // addr must be a multiple of size. Unaligned accesses are split into smaller accesses.
+  assert(align_(addr, size) == addr);
+  //compaddr must be a multiple of compsize
+  //if Align(compaddr, compsize) != compaddr then UNPREDICTABLE;
+  bool addr_match = (align_(addr, cmp_size) == align_(cmp_addr, size));
+  bool addr_greater = (addr > cmp_addr);
+  return tuple(addr_match, addr_greater);
+}
+
+// ===============================
+//  DWT_InstructionAddressMatch()
+// =============================
+// Check for match of instruction access at "Iaddr".
+// If comparators 'm' and 'm+1' form an Instruction Address Range comparator, then this
+// function returns the range match when N=m+1.
+bool 
+dwt_instr_addr_match
+(vm_t)
+(const uint N, const uint iaddr, ref vm_t vm) {
+  assert((N < GET_DWT_CTL_NUMCOMP(vm)) && (align_(iaddr, 2) == iaddr));
+  bool match_eq, match_gt;
+  bool lower_eq, lower_gt;
+  bool match_addr;
+  bool match;
+  // secure_match = IsSecure();
+  // valid_match = DWT_ValidMatch(N, secure_match);
+  bool valid_instr = ((get_val!("DWT_FUNCTION", "MATCH")(vm, N) & 0b1110) == 0b0010);
+  if (/*valid_match &&*/ valid_instr) {
+    bool linked_to_instr;
+    if (N != (GET_DWT_CTL_NUMCOMP(vm) - 1)) {
+      linked_to_instr = (get_val!("DWT_FUNCTION", "MATCH")(vm, N + 1) == 0b0011);
+    } else 
+      linked_to_instr = false;
+    bool linked;
+    if (get_val!("DWT_FUNCTION", "MATCH")(vm, N) == 0b0011) {
+      linked = true;
+    } else
+      linked = false;
+    
+    if (!linked_to_instr) {
+      auto match_res0 = dwt_addr_cmp(iaddr, get_val!("DWT_COMP")(vm, N), 2, 2);
+      match_eq = match_res0[0];
+      match_gt = match_res0[1];
+      if (linked) {
+        //valid_match = DWT_ValidMatch(N-1, secure_match);
+        auto match_res1 = dwt_addr_cmp(iaddr, get_val!("DWT_COMP")(vm, N-1), 2, 2);
+        lower_eq = match_res1[0];
+        lower_gt = match_res1[1];
+        match_addr = (/*valid_match &&*/ (lower_eq || lower_gt) && !match_gt);
+      } else
+        match_addr = match_eq;
+    } else
+      match_addr = false;
+    match = match_addr;
+  } else
+    match = false;
+  return match;
+}
+
+// ========================
+//  DWT_InstructionMatch()
+// ========================
+// Perform various Instruction Address checks for DWT
+
+void 
+dwt_instr_match
+(vm_t)
+(const uint iaddr, ref vm_t vm) {
+  bool trigger_debug_event = false;
+  bool debug_event = false;
+
+  if (/*!HaveDWT() ||*/ GET_DWT_CTL_NUMCOMP(vm) == 0) // No comparator support
+    return;
+  foreach (i; 0 .. GET_DWT_CTL_NUMCOMP(vm)) {
+    // if IsDWTConfigUnpredictable(i) then UNPREDICTABLE;
+    // instr_addr_match = DWT_InstructionAddressMatch(i, Iaddr);
+    bool instr_addr_match = dwt_instr_addr_match(i, iaddr, vm);
+    // if instr_addr_match then
+    // Instruction Address
+    if (instr_addr_match) {
+      if (get_val!("DWT_FUNCTION", "MATCH")(vm, i) == 0b0010) {
+        set_val!("DWT_FUNCTION", "MATCHED")(vm, i, 1);
+        debug_event = (get_val!("DWT_FUNCTION", "ACTION")(vm, i) == 0b01);
+    // Instruction Address Limit
+      } else if (get_val!("DWT_FUNCTION", "MATCH")(vm, i) == 0b0011) {
+        //DWT_FUNCTION[i].MATCHED = bit UNKNOWN;
+        set_val!("DWT_FUNCTION", "MATCHED")(vm, i - 1, 1);
+        debug_event = (get_val!("DWT_FUNCTION", "ACTION")(vm, i - 1) == 0b01);
+      }
+    }
+  }
+    
+  trigger_debug_event = trigger_debug_event || debug_event;
+  if (trigger_debug_event) {
+    //debug_event = SetDWTDebugEvent(IsSecure());
+    return;
+  }
+}
+
 version (ARMv8_M) {
 void 
 execute_instr
@@ -394,6 +544,35 @@ execute_instr
   if (fetch_new) {
     bool x = inst_state_check(vm, vm.peek_word(vm.get_pc()));
   }
+
+  foreach (member; __traits(allMembers, opcode))
+  {
+      enum op = mixin("opcode." ~ member);
+
+      if (instr.op == op)
+      {
+          static if (__traits(compiles, mixin("execute_" ~ member)))
+          {
+              bool handled = false;
+              alias Handler = mixin("execute_" ~ member);
+              static if (__traits(compiles, Handler!(vm_t)(instr, vm)))
+              {
+                  Handler!(vm_t)(instr, vm);
+                  handled = true;
+                  break;
+              }
+              else
+              {
+                  assert(0, "Handler exists but wrong signature: execute_" ~ member);
+              }
+          }
+          else
+          {
+              static assert(0, "Missing handler: execute_" ~ member);
+          }
+      }
+  }
+  dwt_instr_match(vm.get_pc(), vm);
 }
 }
 
