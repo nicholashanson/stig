@@ -306,6 +306,15 @@ mixin(() {
         );
     }
 
+    static foreach (n; 0 .. 14)
+    {
+        code ~= format(
+            "DWT_FUNCTIONn%d = 0x%X,\n",
+            n,
+            0xE0001028 + 16 * n
+        );
+    }
+
     code ~= "}\n";
 
     return code;

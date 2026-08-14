@@ -993,6 +993,14 @@ mixin(() {
         );
     }
 
+    static foreach (n; 0 .. 14)
+    {
+        code ~= format(
+            "mixin define_bitfield_helpers_scb!(DWT_FUNCTIONn%d, \"ID\", 27, 5, \"MATCHED\", 24, 1, \"ACTION\", 4, 2, \"MATCH\", 0, 4);\n",
+            n
+        );
+    }
+
     return code;
 }());
 
