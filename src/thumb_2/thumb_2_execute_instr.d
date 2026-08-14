@@ -118,7 +118,7 @@ execute_instr
 version (ARMv8_M) {
 enum uint MAX_OVERLAPPING_INSTRS = 2;
 struct inst_info_t {
-  opcode op;
+  uint op;
   uint len;
   bool valid;
 }
@@ -206,6 +206,30 @@ beat_complete
 
 version (ARMv8_M) {
 enum uint MAX_BEATS = 4;
+
+// =====================
+//  SetThisInstrDetails
+// =====================
+
+// SetThisInstrDetails(bits(32) opcode, integer len)
+void set_this_instr_details(uint opcode, uint len) {
+  // Insert the instruction into the queue at the first free slot. For
+  // instruction with no beat behaviour this should always be the first slot.
+  // NOTE: MVE instructions in IT blocks do not have beat wise execution.
+  uint i = 0;
+  // isBeatInst = IsMveBeatWiseInstruction(opcode) && !InITBlock();
+  bool is_beat_instr = true;
+  bool empty_slot;
+  do {
+    empty_slot = !inst_info[i].valid;
+    if (empty_slot && (is_beat_instr || i == 0)) {
+      inst_info[i].valid = true;
+      inst_info[i].len   = len;
+      inst_info[i].op    = opcode;
+    }
+    i = i + 1;
+  } while (empty_slot || (!is_beat_instr && i > 0) || (i >= MAX_OVERLAPPING_INSTRS));
+}
 
 uint
 get_epsr_it
