@@ -249,3 +249,26 @@ execute_lctp_t1
 	if (LO_BRANCH_INFO_HIGH_BF_SET(vm))
 		CLEAR_LO_BRANCH_INFO_LOW_VALID(vm);
 }
+
+instr_32 parse_vmov_t1(const uint instr) {
+	return instr_32(
+		to_arm_registers: cast(bool)slice(instr, 20, 1),
+		rt2: 			  cast(reg)slice(instr, 16, 4),
+		rt:				  cast(reg)slice(instr, 12, 4),
+		rm:               cast(reg)((slice(instr, 5, 1) << 4) | slice(instr, 0, 4))                           
+		);
+}
+
+void 
+execute_vmov_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	if (instr.to_arm_registers) {
+		vm.set_reg(instr.rt,   slice(vm.get_reg_d(instr.rm),  0, 32));
+		vm.set_reg(instr.rt_2, slice(vm.get_reg_d(instr.rm), 32, 32));
+	}
+	else {
+		vm.set_reg_d(instr.rm, (cast(ulong)vm.get_reg(instr.rt) << 32) | cast(ulong)vm.get_reg(instr.rt_2));
+	}
+}

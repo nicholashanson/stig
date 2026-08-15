@@ -427,7 +427,7 @@ struct cortex_m_vm(mem_t) {
 		cpu.set_reg_s(r, val);
 	}
 
-	void set_reg_d(const reg r, const uint val) {
+	void set_reg_d(const reg r, const ulong val) {
 		cpu.set_reg_d(r, val);
 	}
 	// ---------------------------------------- Memory --------------------------------------

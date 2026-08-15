@@ -276,61 +276,62 @@ struct instr_16 {
 
 // --------------------------------------- INSTR 32 --------------------------------------
 struct instr_32 {
-	opcode 			  op;
+	opcode 			    op;
 	union {
-		reg 		  rd;
-		reg           qd;
+		reg 		    rd;
+		reg             qd;
 	}
-	reg 			  rn;
-	reg 			  rm;
-	reg 			  rt;
-	shift_type   shift_t;
-	uint 		     imm;
+	reg 			    rn;
+	reg 			    rm;
+	reg 			    rt;
+	shift_type     shift_t;
+	uint 		       imm;
 	union {
-	uint 	     shift_n;
-	uint       pred_size;
+	uint 	       shift_n;
+	uint         pred_size;
 	}
-	int 		  offset;
-	reg[] 	    reg_list;
-	uint 		     lsb; 
+	int 		    offset;
+	reg[] 	      reg_list;
+	uint 		       lsb; 
 	union {
-		uint     widthm1;
-		uint        regs;
+		uint       widthm1;
+		uint          regs;
 	}
-	uint 		     msb;
-	reg 		   rd_hi;
-	reg 		   rd_lo;
-	reg 		    rt_2;
-	reg 			  ra;
-	condition 	    cond;
-	bool 		   wback;
-	bool 		     add;
+	uint 		       msb;
+	reg 		     rd_hi;
+	reg 		     rd_lo;
+	reg 		      rt_2;
+	reg 			    ra;
+	condition 	      cond;
+	bool 		     wback;
+	bool 		       add;
 	union {
-	bool   is_while_loop;
-	bool 		   index;
+	bool     is_while_loop;
+	bool 		     index;
+	bool  to_arm_registers;
 	}
-	ubyte 		    mask;
+	ubyte 		      mask;
 	union {
-		bool      is_tbh;
-		bool           D;
+		bool        is_tbh;
+		bool             D;
 	}
-	special_reg spec_reg;
+	special_reg   spec_reg;
 	union 
     {
-        bool   set_flags;
-        bool single_regs; 
+        bool     set_flags;
+        bool   single_regs; 
     }
     union {
-	uint  unexpanded_imm;
-	uint  		  t_size;
+	uint    unexpanded_imm;
+	uint  		    t_size;
 	}
 	union {
-		bool   	  m_high;
-		bool     forever;
+		bool   	    m_high;
+		bool       forever;
 	}
 	union {
-		bool      n_high;
-		bool          tp;
+		bool        n_high;
+		bool            tp;
 	} 
 }
 // ---------------------------------------------------------------------------------------

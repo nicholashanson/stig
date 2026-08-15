@@ -342,9 +342,9 @@ enum opcode : ushort {
 	le_t2, le_t3, le_t1, wls_t1, wls_t2, wls_t3, vctp_t1, lctp_t1, wls_t4,
 
 	// vector load
-	vldrw_t7,
-
-	tt_t1
+	vmov_t1,  vldrw_t7, vscclrm_t1, vscclrm_t2,
+	vldr_t2,  vldr_t1,  vlldm_t1,   vlldm_t2, vstr_t2,
+	vlstm_t1, vlstm_t2, vstr_t1,
 }
 
 // ==================
@@ -1199,10 +1199,82 @@ opcode decode_vector_load(const uint instr) {
 	immutable op4 = slice(instr,  7, 2);
 	immutable op5 = slice(instr,  6, 1);
 	immutable op7 = slice(instr,  0, 1);
+	if ((op0 == 0b0010) && (op3 == 0b100) && (op4 == 0b1)) {
+		return opcode.vmov_t1;
+	}
 	if ((op0 == 0b0) && (op3 == 0b1) && (op4 == 0b10)) {
 		return opcode.vldrw_t7;
 	}
+	if (((op0 & 0b1101) == 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b100) && (op5 == 0b0)) {
+		return vscclrm_t1;
+	}   
+	if (((op0 & 0b1101) == 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b000)) {
+		return vscclrm_t2;
+	} 
+	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b000)) {
+		return opcode.vldr_t2;
+	}  
+	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b100)) {
+		return opcode.vldr_t1;
+	}  
+	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b1) && ((op3 & 0b110) == 0b000)) {
+		return opcode.vlldm_t1;
+	}  
+	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b1) && ((op3 & 0b110) == 0b010)) {
+		return opcode.vlldm_t2;
+	}
+	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b0) && ((op3 & 0b100) == 0b000)) {
+		return opcode.vstr_t2;
+	}
+	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b0) && ((op3 & 0b110) == 0b000)) {
+		return opcode.vlstm_t1;
+	}
+	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b0) && ((op3 & 0b110) == 0b010)) {
+		return opcode.vlstm_t2;
+	}     
+	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b0) && ((op3 & 0b100) == 0b100)) {
+		return opcode.vstr_t1;
+	} 
 	return opcode.invalid;
+}
+
+opcode fp_vec_ldst_mv_copro(const uint instr) {
+	immutable op0 = slice(instr,  9, 4);
+	immutable op1 = slice(instr, 20, 1);
+	switch (op0) {
+		case 0b111:
+			return (op1 == 0b1) ? decode_vector_load(instr) : decode_vector_store(instr);
+		case 0b110:
+			// UNALLOCATED
+			assert(0); 
+		case 0b000:
+		case 0b001:
+		case 0b010:
+		case 0b011:
+			return decode_copro_ldst_mv(instr);
+		case 0b100:
+			return decode_fp_vec_ldst_mv_cmplx_arithmetic(instr);
+		case 0b101:
+			return decode_copro_fp_ldst_mv_sec(instr);
+		default:
+			break;
+	}
+	return opcode.invalid;			
+}
+
+opcode decode_copro_fp_vec(const uint instr) {
+	immutable op0 = slice(isntr, 24, 2);
+	switch (op0) {
+		case 0b10:
+			return decode_fp_vec_misc(instr);
+		case 0b11:
+			return misc_vec_arithmetic(instr);
+		case 0b01:
+		case 0b00:
+			return fp_vec_ldst_mv_copro(instr);
+		default: break;
+	}
+	return opcode.invalid;	
 }
 
 // =======================
@@ -1463,8 +1535,17 @@ opcode decode_long_mult(const uint instr) {
 opcode decode_mnemonic(const uint instr) {
 	immutable op1 = slice(instr, 27, 2);
 	immutable op2 = slice(instr, 20, 7);
+version (ARMv8_M) {
+	{
+		immutable op0 = slice(instr, 25, 4);
+		if ((op0 & 0b0110) == 0b0110)
+			return decode_copro_fp_vec(instr);
+	}
+}
+version (ARMv7_M) {
 	if ((op1 == 0b01) && ((op2 & 0b1000000) == 0b1000000)) 
 		return decode_floating_point(instr);
+}
 	if (op1 == op1_32.grp1) { 
 		// Data processing (shifted register)
 		if ((op2 & op2_32.data_proc_shift_reg) == op2_32.data_proc_shift_reg) 
