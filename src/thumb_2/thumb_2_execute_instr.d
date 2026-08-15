@@ -55,7 +55,6 @@ void record_tested_opcode(opcode op) {
         tested_opcodes ~= op;
 }
 
-version (ARMv7_M) {
 void 
 execute_instr
 (vm_t,t)
@@ -113,7 +112,6 @@ execute_instr
       vm.increment_pc(4);
   else
       static assert(0, "Unknown instruction type");
-}
 }
 
 version (ARMv8_M) {
@@ -519,7 +517,7 @@ dwt_instr_match
 
 version (ARMv8_M) {
 void 
-execute_instr
+execute_instr_v8
 (vm_t,t)
 (const t instr, ref vm_t vm) {
   // Attempt to execute the next instruction. Start by setting up the state.
@@ -542,35 +540,7 @@ execute_instr
   }
   bool fetch_new = true;
   if (fetch_new) {
-    bool x = inst_state_check(vm, vm.peek_word(vm.get_pc()));
-  }
-
-  foreach (member; __traits(allMembers, opcode))
-  {
-      enum op = mixin("opcode." ~ member);
-
-      if (instr.op == op)
-      {
-          static if (__traits(compiles, mixin("execute_" ~ member)))
-          {
-              bool handled = false;
-              alias Handler = mixin("execute_" ~ member);
-              static if (__traits(compiles, Handler!(vm_t)(instr, vm)))
-              {
-                  Handler!(vm_t)(instr, vm);
-                  handled = true;
-                  break;
-              }
-              else
-              {
-                  assert(0, "Handler exists but wrong signature: execute_" ~ member);
-              }
-          }
-          else
-          {
-              static assert(0, "Missing handler: execute_" ~ member);
-          }
-      }
+    execute_instr(instr, vm);
   }
   dwt_instr_match(vm.get_pc(), vm);
 }

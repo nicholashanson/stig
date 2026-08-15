@@ -5,10 +5,6 @@ import thumb_2_instrs;
 
 import cortex_m_core;
 
-ubyte get_LTPSIZE(const uint fpscr) {
-	return cast(ubyte)slice(fpscr, 16, 3);
-}
-
 struct instr_beat {
 	uint 	    curr_beat;
 	ushort 		elmt_mask;
@@ -27,7 +23,7 @@ is_last_low_overhead_loop
 (ref vm_t vm, const instr_exec_state state) {
 	// This does not check whether a loop is currently active.
 	// If the PE were in a loop, would this be the last one?
-	return state.loop_count <= (1 << (4 - get_LTPSIZE(vm.get_fpscr())));
+	return state.loop_count <= (1 << (4 - GET_FPSCR_LTPSIZE(vm)));
 }
 
 // Elem[]
@@ -91,7 +87,7 @@ instr_beat get_cur_instr_beat
 	}
 	// LOB truncation may override the flags on the last iteration of a loop
 	// LTPSIZE < 4 is a proxy for knowing if loop and tail predication is active.
-	ubyte LTPSIZE = get_LTPSIZE(vm.get_fpscr());
+	ubyte LTPSIZE = cast(ubyte)GET_FPSCR_LTPSIZE(vm);
 	ubyte lptsize = vm.get_curr_instr_exec_state().reset_ltp_size ? 4 : LTPSIZE;
 	// if ltpsize < 4 && IsLastLowOverheadLoop() then
 	if ((lptsize < 4) && is_last_low_overhead_loop(vm)) {
@@ -232,8 +228,8 @@ execute_vctp
 
 	// Elem[VPR.P0, curBeat, 4] = elmtMask AND Elem[fullMask, curBeat, 4];
 	ushort val = ib.elmt_mask & elem!(ushort,ushort)(full_mask, ib.curr_beat, 4);
-	val = cast(ushort)set_elem(GET_P0(vm), ib.curr_beat, 4, val);
-	SET_P0(vm, val);
+	val = cast(ushort)set_elem(GET_VPR_P0(vm), ib.curr_beat, 4, val);
+	SET_VPR_P0(vm, val);
 }
 
 // VCTP<v>.<dt> Rn
@@ -249,7 +245,7 @@ execute_lctp_t1
 (const ref instr_32 instr, ref vm_t vm) {
 	execute_fp_check(vm);
 	// Disable loop predication
-	SET_LTPSIZE(vm, 4);
-	if (BF_SET(vm))
-		CLEAR_VALID(vm);
+	SET_FPSCR_LTPSIZE(vm, 4);
+	if (LO_BRANCH_INFO_HIGH_BF_SET(vm))
+		CLEAR_LO_BRANCH_INFO_LOW_VALID(vm);
 }

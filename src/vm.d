@@ -873,12 +873,22 @@ struct cortex_m_vm(mem_t) {
 		}
 
 		if (is16) {
+version (ARMv7_M) {
 		    execute_instr(i16, this);
+}
+version (ARMv8_M) {
+			execute_instr_v8(i16, this);
+}
 		    return;
 		}
 
 		auto i32 = ins.get!instr_32;
+version (ARMv7_M) {
 		execute_instr(i32, this);
+}
+version (ARMv8_M) {
+		execute_instr(i32, this);
+}
 	}
 	// -------------------------------------------------------------------------------------- 
 

@@ -59,38 +59,42 @@ void
 execute_le
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
-	if (instr.tp)
+	if (instr.tp) {
 		execute_fp_check(vm);
-	// elsif LTPSIZE != 4 then
+	} else if (GET_FPSCR_LTPSIZE(vm) != 4) {
 		// Tail predicated loop starts should be paired with an LETP loop end.
  		// Using a LE instruction in this case is a programming error.
 		// UFSR.INVSTATE = '1';
 		// HandleException(CreateException(UsageFault));
-	// if !forever && IsLastLowOverheadLoop() then
-	if (instr.forever && is_last_low_overhead_loop(vm)) {
+		return;
+	}
+	if (!instr.forever && is_last_low_overhead_loop(vm)) {
 		if (instr.tp) {
 			// Disable loop predication
-			SET_LTPSIZE(vm, 4);
+			SET_FPSCR_LTPSIZE(vm, 4);
 		}
 	} else {
 		// Decrement the loop counter
 		if (!instr.forever) {
-			// LR = LR - (1 << (4 - LTPSIZE))[31:0];
 			uint lr = vm.get_reg(reg.lr);
-			lr = lr - (1 << (4 - GET_LTPSIZE(vm)));
+			lr = lr - (1 << (4 - GET_FPSCR_LTPSIZE(vm)));
 			vm.set_reg(reg.lr, lr);
 		}
 		// Set up the branch cache info
 		uint jump_addr = vm.get_reg(reg.pc) - instr.imm;
-		// if CCR.LOB == '1' then
-			// LO_BRANCH_INFO.VALID = '1';
-			// LO_BRANCH_INFO.BF = '0';
-			// LO_BRANCH_INFO.LF = if forever then '1' else '0';
-			// LO_BRANCH_INFO.T16IND = '0';
-			// LO_BRANCH_INFO.JUMP_ADDR = jumpAddr[31:1];
-			// LO_BRANCH_INFO.END_ADDR = ThisInstrAddr()[31:1];
-		// // Branch to the start of the loop
-		// BranchTo(jumpAddr);
+		if (CCR_LOB_SET(vm)) {
+			SET_LO_BRANCH_INFO_LOW_VALID(vm);
+			CLEAR_LO_BRANCH_INFO_HIGH_BF(vm);
+			if (instr.forever) {
+				SET_LO_BRANCH_INFO_HIGH_2_LF(vm);
+			} else {
+				CLEAR_LO_BRANCH_INFO_HIGH_2_LF(vm);
+			}
+			CLEAR_LO_BRANCH_INFO_HIGH_2_T16IND(vm);
+			SET_LO_BRANCH_INFO_LOW_JUMP_ADDR(vm, jump_addr & ~1);
+			SET_LO_BRANCH_INFO_HIGH_END_ADDR(vm, /* get_this_instr_addr() */ vm.get_reg(reg.pc) & ~1);
+		}
+		// Branch to the start of the loop
 		branch_to(jump_addr, false, vm);
 	}
 }
@@ -105,8 +109,8 @@ void branch_to
 	// if HaveLOBExt() then
 	// Any branch between a branch future instruction and the associated
 	// branch point invalidates the branch info cache
-	if (VALID_SET(vm) && BF_SET(vm)) {
-		VALID_CLEAR(vm);
+	if (LO_BRANCH_INFO_LOW_VALID_SET(vm) && LO_BRANCH_INFO_HIGH_BF_SET(vm)) {
+		CLEAR_LO_BRANCH_INFO_LOW_VALID(vm);
 	}
 
  	// Sets the address to fetch the next instruction from. NOTE: The current PC
@@ -211,7 +215,7 @@ execute_wls
 		if (instr.t_size != 4) {
 			execute_fp_check(vm);
  			// FPSCR.LTPSIZE = tSize;
- 			SET_LTPSIZE(vm, instr.t_size);
+ 			SET_FPSCR_LTPSIZE(vm, instr.t_size);
 		}
  		
  		// Set up the new iteration count
