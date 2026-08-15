@@ -1024,7 +1024,9 @@ mixin define_bitfield_helpers_scb!(UFSR, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "
 mixin define_bitfield_helpers_scb!(DWT_CTL, "NUMCOMP", 28, 4, "NOTRCPKT", 27, 1, "NOEXTTRIG", 26, 1, "NOCYCCNT", 25, 1,  "NOPRFCNT", 24, 1, "CYCDISS", 23, 1, "CYCEVTENA", 22, 1, "FOLDEVTENA", 21, 1, "LSUEVTENA", 20, 1, 
 										    "SLEEPEVTENA", 19, 1, "EXCEVTENA", 18, 1, "CPIEVTENA", 17, 1, "EXCTRCENA", 16, 1, "PCSAMPLENA", 12, 1, "SYNCTAP", 10, 2, "CYCTAP", 9, 1, 
 										    "POSTINIT", 5, 4, "POSTPRESET", 4, 1, "CYCCNTENA", 0, 1);
-
+mixin define_bitfield_helpers_scb!(FPCCR, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
+										  "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
+										  "THREAD", 3, 1, "USER", 1, 1, "LSPACT", 0, 1);
 
 mixin(() {
     string code;

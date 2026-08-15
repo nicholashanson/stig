@@ -272,3 +272,21 @@ execute_vmov_t1
 		vm.set_reg_d(instr.rm, (cast(ulong)vm.get_reg(instr.rt) << 32) | cast(ulong)vm.get_reg(instr.rt_2));
 	}
 }
+
+void
+execute_vscclrm_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	if (/*HaveMveOrFPExt() &&*/ (GET_FPCCR_ASPEN(vm) == 0) || /*(GET_CONTROL_S_SFPA(vm)*/ vm.get_fpca())
+		execute_fp_check(vm);
+	foreach (r; 0 .. instr.regs) {
+		if (instr.single_regs) {
+			if ((cast(uint)instr.rm + r) < 32) 
+				vm.set_reg_s(cast(reg)(cast(uint)instr.rm + r), 0);
+		} else {
+			if ((cast(uint)instr.rm + r) < 16)
+				vm.set_reg_d(cast(reg)(cast(uint)instr.rm + r), 0);
+		}
+	}
+	// VPR = Zeros(32);
+}
