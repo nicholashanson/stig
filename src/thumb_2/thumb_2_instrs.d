@@ -289,6 +289,7 @@ struct instr_32 {
 	union {
 	uint 	       shift_n;
 	uint         pred_size;
+	uint 		   fp_size;
 	}
 	int 		    offset;
 	reg[] 	      reg_list;

@@ -277,6 +277,20 @@ void
 execute_vscclrm_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
+	execute_vscclrm(instr, vm);
+}
+
+void
+execute_vscclrm_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vscclrm(instr, vm);
+}
+
+void
+execute_vscclrm
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
 	if (/*HaveMveOrFPExt() &&*/ (GET_FPCCR_ASPEN(vm) == 0) || /*(GET_CONTROL_S_SFPA(vm)*/ vm.get_fpca())
 		execute_fp_check(vm);
 	foreach (r; 0 .. instr.regs) {
@@ -289,4 +303,50 @@ execute_vscclrm_t1
 		}
 	}
 	// VPR = Zeros(32);
+}
+
+void
+execute_vldr_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vldr(instr, vm);
+}
+
+void
+execute_vldr_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vldr(instr, vm);
+}
+
+void 
+execute_vldr 
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	uint base;
+	if (instr.rn == reg.pc) {
+		base = vm.get_pc();
+		word_align(base);
+	} else {
+		base = vm.get_reg(instr.rn);
+	}
+	uint addr = instr.add ? (base + instr.imm) : (base - instr.imm);
+	switch (instr.fp_size) {
+		case 16: 
+			vm.set_reg_s(instr.rd, cast(uint)vm.read_half_word(addr));
+			break;
+		case 32:
+			vm.set_reg_s(instr.rd, vm.read_word(addr));
+			break;
+		case 64:
+			uint high = vm.read_word(addr + 4);
+			uint low  = vm.read_word(addr);
+			// D[d] = if BigEndian(address, 8) then word1:word2 else word2:word1;
+			vm.set_reg_d(instr.rd, (cast(ulong)high << 32) | cast(ulong)low);
+			break;
+		default:
+			assert(0);
+	}
+
 }
