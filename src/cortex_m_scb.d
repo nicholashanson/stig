@@ -3,7 +3,7 @@ import std.format;
 import scb_defs;
 import thumb_2_instrs;
 
-uint[scb_reg] scb = [
+enum string SCB_REGS = q{
     CPUID: 0, ICSR:  0, CCR: 0, SHPR1: 0, SHPR2: 0, SHPR3: 0, SHCSR: 0, BFAR: 0,
     // --------------------------------------- MPU ------------------------------------------
     MPU_TYPE: 0x00000800, MPU_CTRL: 0, MPU_RNR: 0, MPU_RBAR: 0, MPU_RASR: 0, MPU_MAIR0: 0,
@@ -43,8 +43,43 @@ uint[scb_reg] scb = [
     DWT: 0,
     // Cortex M33
     // Non-secure Access Control Register
-    NSACR: 0 
-];
+    NSACR: 0, 
+    FP_CTRL: 0, DFSR: 0, DHCSR: 0, DEMCR: 0, UFSR: 0, DWT_CTL: 0,
+};
+
+mixin(() {
+    string code = "uint[scb_reg] scb = [\n";
+
+    code ~= SCB_REGS;
+
+    static foreach (n; 0 .. 126)
+    {
+        code ~= format(
+            "FP_COMP%d: 0,\n",
+            n
+        );
+    }
+
+    static foreach (n; 0 .. 14)
+    {
+        code ~= format(
+            "DWT_FUNCTION%d: 0,\n",
+            n
+        );
+    }
+
+    static foreach (n; 0 .. 14)
+    {
+        code ~= format(
+            "DWT_COMP%d: 0,\n",
+            n
+        );
+    }
+
+    code ~= "];\n";
+
+    return code;
+}()); 
 
 // --------------------------------------------------------------------------------------
 enum PENDSTSET = 26;
@@ -102,7 +137,7 @@ struct scb_control {
                 scb[SYST_CSR] &= ~0x00010000;
             return res;
         } else {
-            throw new Exception("Invalid access");            
+            throw new Exception(format("Invalid access: %08X", addr));           
         }
     }
     // --------------------------------------------------------------------------------------
@@ -120,6 +155,14 @@ struct scb_control {
         } else {
             throw new Exception(format("Invalid access: %08X", addr));            
         }
+    }
+
+    void write_byte(const size_t addr, const ubyte b) {
+        const size_t word_addr =  addr & ~3;
+        const uint   shift     = (addr &  3) * 8;
+        uint         old       = read_word(word_addr);
+        const uint   masked    = (old & ~(0xff << shift)) | (b << shift);
+        return write_word(word_addr, masked);
     }
     // --------------------------------------------------------------------------------------
 }
