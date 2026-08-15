@@ -291,7 +291,7 @@ void
 execute_vscclrm
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
-	if (/*HaveMveOrFPExt() &&*/ (GET_FPCCR_ASPEN(vm) == 0) || /*(GET_CONTROL_S_SFPA(vm)*/ vm.get_fpca())
+	if (/*HaveMveOrFPExt() &&*/ (GET_FPCCR_S_ASPEN(vm) == 0) || /*(GET_CONTROL_S_SFPA(vm)*/ vm.get_fpca())
 		execute_fp_check(vm);
 	foreach (r; 0 .. instr.regs) {
 		if (instr.single_regs) {
@@ -348,5 +348,70 @@ execute_vldr
 		default:
 			assert(0);
 	}
+}
 
+// Floating-point Lazy Load Multiple. Floating-point Lazy Load Multiple restores 
+// the contents of the Secure Floating-point registers that were protected by a 
+// VLSTM instruction, and marks the Floating-point context as active.
+// If the lazy state preservation set up by a previous VLSTM instruction is active 
+// (FPCCR.LSPACT == 1), this instruction deactivates lazy state preservation and 
+// enables access to the Secure Floating-point registers.
+// If lazy state preservation is inactive (FPCCR.LSPACT == 0), either because lazy 
+// state preservation was not enabled (FPCCR.LSPEN == 0) or because a Floating-point 
+// instruction caused the Secure Floating-point register contents to be stored to 
+// memory, this instruction loads the stored Secure Floating-point register contents 
+// back into the Floating-point registers.
+// If Secure Floating-point is not in use (CONTROL_S.SFPA == 0), this instruction 
+// behaves as a NOP. This instruction is only available in Secure state, and is 
+// UNDEFINED in Non-secure state.
+// If the Floating-point Extension and MVE are not implemented, this instruction is 
+// available in Secure state, but behaves as a NOP.
+
+bool 
+is_aligned(const uint addr, const size_t size) {
+	return (addr % size == 0);
+}
+
+void
+execute_vlldm_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vlldm(instr, vm);
+}
+
+void
+execute_vlldm_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vlldm(instr, vm);
+}
+
+void 
+execute_vlldm
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// if CONTROL_S.SFPA == '1' then
+		// Check access to the co-processor is permitted
+	// exc = CheckCPEnabled(10);
+	// HandleException(exc);
+	immutable rn = vm.get_reg(instr.rn);
+
+	if (GET_FPCCR_S_LSPACT(vm) == 1) // state in FP is still valid
+		SET_FPCCR_S_LSPACT(vm, 0);
+	else {
+		if (!is_aligned(rn, 8))
+ 			SET_UFSR_UNALIGNED(vm, 1);
+			// exc = CreateException(UsageFault);
+	}
+	// HandleException(exc);
+
+	foreach (i; 0 .. 16) 
+		vm.set_reg(cast(reg)(cast(uint)reg.s0 + i), vm.read_word(rn + (4 * i)));
+	vm.set_fpscr(rn + 0x40);
+	vm.set_vpr(rn + 0x44);
+	if (GET_FPCCR_S_TS(vm) == 1) {
+		foreach (i; 0 .. 16)
+			vm.set_reg_s(cast(reg)(cast(uint)reg.s0 +16 + i), vm.read_word(rn + 0x48 + (4*i)));
+	}
+	vm.set_fpca(true);
 }
