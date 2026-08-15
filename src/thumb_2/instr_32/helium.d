@@ -415,3 +415,44 @@ execute_vlldm
 	}
 	vm.set_fpca(true);
 }
+
+void
+execute_vstr_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vstr(instr, vm);
+}
+
+void
+execute_vstr_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vstr(instr, vm);
+}
+
+void 
+execute_vstr
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	immutable rn   = vm.get_reg(instr.rn);
+	immutable addr = instr.add ? (rn + instr.imm) : (rn - instr.imm);
+	switch (instr.fp_size) {
+		case 16:
+			vm.write_half_word(addr, cast(ushort)vm.get_reg_s(instr.rd));
+			break;
+		case 32:
+			vm.write_word(addr, vm.get_reg_s(instr.rd));
+			break;
+		case 64:
+			// Store as two word-aligned words in the correct order for current endianness.
+			// bigEndian = BigEndian(address, 8);
+			// MemA[address,4] = if bigEndian then D[d][63:32] else D[d][31:0];
+			vm.write_word(addr, slice(vm.get_reg_d(instr.rd),  0, 32));
+			// MemA[address+4,4] = if bigEndian then D[d][31:0] else D[d][63:32];
+			vm.write_word(addr, slice(vm.get_reg_d(instr.rd), 32, 32));
+			break;
+		default:
+			assert(0);
+	}
+}
