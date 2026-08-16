@@ -584,6 +584,34 @@ fp_unpack_base
 			fp_type = fp_type.non_zero;
 			val 	= 2.0 ^ (exp16 - 15) * (1.0 + cast(double)frac16 * 2.0^-10);
 		}
+	} else if (N == 32) {
+		bool sign    = cast(bool)slice(fpval, 31, 1);
+		uint exp_32  = slice(fpval, 23,  8);
+		uint frac_32 = slice(fpval,  0, 23);
+		if (exp_32 == 0) {
+			// Produce zero if value is zero or flush-to-zero is selected.
+			if ((frac_32 == 0) || /* fpscr_val.FZ16 == '1'*/ cast(bool)slice(fpscr_val, 19, 1)) {
+				fpt = fp_type.zero; 
+				val = 0;
+			}
+			if (frac_32 != 0) { // Denormalized input flushed to zero
+				// FPProcessException(FPExc_InputDenorm, fpscr_val, predicated);
+			} else {
+				fpt   = fp_type.non_zero; 
+				value = 2.0 ^ -126 * (cast(double)frac_32 * 2.0 ^ - 23);
+			}
+		} else if (match(exp16, 0b1111_1111, 0b1111_1111)) {
+ 				if (frac_32 == 0) {
+					fpt = fp_type.infinity; 
+					value = 2.0 ^ 1000000;
+				} else {
+					fp_type = (cast(bool)slice(frac16, 22, 1)) ? fp_type.QNaN : fp_type.SNaN;
+					val = 0;
+				}
+		} else {
+			fpt = fp_type.non_zero;
+			val = 2.0 ^ (exp_32 - 127) * (1.0 + cast(double)frac_32 * 2.0^ - 23);
+		}
 	}
 }
 
