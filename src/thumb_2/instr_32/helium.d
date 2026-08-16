@@ -1,4 +1,5 @@
 import std.format;
+import std.algorithm : canFind;
 
 import thumb_2_floating_point_ext_32;
 import thumb_2_instrs;
@@ -532,8 +533,35 @@ execute_vlstm
 	vm.set_fpca(false);
 }
 
-// FPDefaultNaN()
-// ==============
+enum fp_type : ubyte {
+	A, B, C,
+}
+
+struct unpacked_fp {
+	fp_type fpt;
+	bool    sign_bit;
+	ulong   val;
+}
+
+alias fpscr_t = uint;
+
+fpscr_t 
+get_standard_fpscr_val
+(vm_t)
+(ref vm_t vm) {
+	return (((cast(uint)FPSCR_AHP_SET(vm) << 2) | 0b11) << 23) | (cast(uint)FPSCR_FZ16_SET(vm) << 19);
+}
+
+unpacked_fp 
+fp_unpack_base
+(T)
+(T fp_val, fpscr_t fpscr_val, bool predicated) {
+
+}
+
+// ================
+//  FPDefaultNaN()
+// ================
 
 ulong fp_default_NaN
 (size_t N)() {

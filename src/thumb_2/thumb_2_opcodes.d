@@ -346,6 +346,9 @@ enum opcode : ushort {
 	vldr_t2,  vldr_t1,  vlldm_t1,   vlldm_t2, vstr_t2,
 	vlstm_t1, vlstm_t2, vstr_t1,
 
+	// floating-point and vector complex arithmetic
+	//vcadd_t1, vcmla_t1,
+
 	tt_t1,
 }
 
@@ -1248,7 +1251,31 @@ opcode decode_copro_ldst_mv(const uint instr) {
 	return opcode.invalid;
 }
 
+opcode decode_fp_vec_cmplx_arithmetic(const uint instr) {
+	immutable op0 = slice(instr, 23, 1);
+	immutable op1 = slice(instr, 21, 1);
+	immutable op2 = slice(instr, 16, 1);
+	immutable op3 = slice(instr, 12, 1);
+	immutable op4 = slice(instr,  8, 1);
+	immutable op5 = slice(instr,  6, 1);
+	immutable op6 = slice(instr,  4, 1);
+	immutable op7 = slice(instr,  0, 1);
+	immutable combined = (op0 << 7) | (op1 <<  6) | (op2 << 5) | (op3 << 4) | (op4 << 3) | (op5 << 2) | (op6 << 1) | op7;
+	switch (combined) {
+		case 0b10000100:
+			return opcode.invalid;
+		case 0b01000100:
+		case 0b11000100:
+			return opcode.invalid;
+		default:
+			break;
+	}
+	return opcode.invalid;
+}
+
 opcode decode_fp_vec_ldst_mv_cmplx_arithmetic(const uint instr) {
+	
+
 	return opcode.invalid;
 }
 
