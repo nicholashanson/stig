@@ -556,8 +556,8 @@ unpacked_fp
 fp_unpack_base
 (T, size_t N)
 (T fp_val, fpscr_t fpscr_val, bool predicated) {
-	// assert N IN {16,32,64};
-	ulong   val;
+	static assert([16, 32, 64].canFind(N), "Invalid width N");
+	long    val;
 	fp_type fpt;
 	if (N == 16) {
 		bool sign    = cast(bool)slice(fp_val, 15, 1);
@@ -612,7 +612,38 @@ fp_unpack_base
 			fpt = fp_type.non_zero;
 			val = 2.0 ^ (exp_32 - 127) * (1.0 + cast(double)frac_32 * 2.0^ - 23);
 		}
+	} else { // N == 64.
+		sign    = cast(bool)slice(fpval, 63, 1);
+		exp_64  = slice(fpval, 52, 11);
+		frac_64 = slice(fpval,  0, 52);
+		if (exp_64 == 0) { 
+			// Produce zero if value is zero or flush-to-zero is selected.
+			if ((frac_64 == 0) || /* fpscr_val.FZ16 == '1'*/ cast(bool)slice(fpscr_val, 19, 1)) {
+				fpt   = fp_type.zero; 
+				value = 0;
+			}
+			if (frac_64 != 0) { // Denormalized input flushed to zero
+				// FPProcessException(FPExc_InputDenorm, fpscr_val, predicated);
+			} else {
+				fpt = fp_type.non_zero;
+				val = 2.0^ - 1022 * (cast(double)frac_64 * 2.0^-52);
+			}
+		} else if (matches(exp_64, 0b111_1111_1111)) {
+			if (frac_64 == 0) {
+				fpt = fp_type.infinity;
+				val = 2.0 ^ 1000000;
+			} else {
+				fpt = cast(bool)slice(frac_64, 51, 1) ? fp_type.QNaN : fp_type.SNaN;
+				val = 0;
+			}
+		} else {
+			fpt = fp_type.non_zero;
+			val = 2.0 ^ (exp_64 - 1023) * (1.0 + cast(double)frac_64 * 2.0 ^- 52);
+		}
 	}
+	if (sign) 
+		val = -1 * val;
+	return unpacked_fp(fpt: fpt, sign: sign, value: val);
 }
 
 // ================
