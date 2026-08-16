@@ -531,3 +531,17 @@ execute_vlstm
 		UPDATE_FPCCR(rn, false, vm);
 	vm.set_fpca(false);
 }
+
+// FPDefaultNaN()
+// ==============
+
+ulong fp_default_NaN
+(size_t N)() {
+	static assert([16, 32, 64].canFind(N), "Invalid width N");
+	enum int E = (N == 16) ? 5 : (N == 32) ? 8 : 11;
+	enum int F = cast(int)N - E - 1;
+	const ulong sign = 0UL;
+    const ulong exp  = (1UL << E) - 1;
+    const ulong frac = 1UL << (F - 1);
+	return (sign << (F + E)) | (exp << F) | frac;
+}
