@@ -534,7 +534,7 @@ execute_vlstm
 }
 
 enum fp_type : ubyte {
-	A, B, C,
+	zero, non_zero, infinity, QNaN, SNaN,
 }
 
 struct unpacked_fp {
@@ -554,9 +554,37 @@ get_standard_fpscr_val
 
 unpacked_fp 
 fp_unpack_base
-(T)
+(T, size_t N)
 (T fp_val, fpscr_t fpscr_val, bool predicated) {
-
+	// assert N IN {16,32,64};
+	ulong   val;
+	fp_type fpt;
+	if (N == 16) {
+		bool sign    = cast(bool)slice(fp_val, 15, 1);
+		uint exp_16  = slice(fp_val, 10, 5);
+		uint frac_16 = slice(fp_val,  0, 9);
+		if (exp_16 == 0) {
+			// Produce zero if value is zero or flush-to-zero is selected.
+			if (frac16 == 0 || /* fpscr_val.FZ16 == '1'*/ cast(bool)slice(fpscr_val, 19, 1)) {
+				fpt = fp_type.zero; 
+				val = 0;
+			} else {
+				fp_type = fp_type.non_zero; 
+				val = (2.0 ^ -14  * (cast(double)frac_16 * 2.0 ^ - 10));
+			}
+		} else if (match(exp16, 0b11111, 0b11111) && /* fpscr_val.AHP */ cast(bool)slice(fpscr_val, 25, 1)) { // Infinity or NaN in IEEE format
+			if (frac_16 == 0) {
+				fpt   = fp_type.infinity; 
+				value = 2.0 ^ 1000000;
+			} else {
+				fp_type = (cast(bool)slice(frac16, 9, 1)) ? fp_type.QNaN : fp_type.SNaN;
+				value = 0;
+			}
+		} else {
+			fp_type = fp_type.non_zero;
+			val 	= 2.0 ^ (exp16 - 15) * (1.0 + cast(double)frac16 * 2.0^-10);
+		}
+	}
 }
 
 // ================
