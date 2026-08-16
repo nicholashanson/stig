@@ -253,7 +253,7 @@ execute_lctp_t1
 instr_32 parse_vmov_t1(const uint instr) {
 	return instr_32(
 		to_arm_registers: cast(bool)slice(instr, 20, 1),
-		rt2: 			  cast(reg)slice(instr, 16, 4),
+		rt_2: 			  cast(reg)slice(instr, 16, 4),
 		rt:				  cast(reg)slice(instr, 12, 4),
 		rm:               cast(reg)((slice(instr, 5, 1) << 4) | slice(instr, 0, 4))                           
 		);
@@ -455,4 +455,79 @@ execute_vstr
 		default:
 			assert(0);
 	}
+}
+
+// Floating-point Lazy Store Multiple. Floating-point Lazy Store Multiple stores the contents of
+// Secure Floating-point registers to a prepared stack frame, and clears the Secure Floating-point 
+// registers.
+// If Floating-point lazy preservation is enabled (FPCCR.LSPEN == 1), then the next time a 
+// Floating-point instruction other than VLSTM or VLLDM is executed:
+// 	- The contents of Secure Floating-point registers are stored to memory.
+//	- The Secure Floating-point registers are cleared.
+// If Secure Floating-point is not in use (CONTROL_S.SFPA == 0), this instruction behaves as a NOP.
+// This instruction is only available in Secure state, and is UNDEFINED in Non-secure state.
+// If the Floating-point Extension and MVE are not implemented, this instruction is available in 
+// Secure state, but behaves as a NOP.
+void 
+execute_vlstm_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vlstm(instr, vm);
+}
+
+void 
+execute_vlstm_t2
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_vlstm(instr, vm);
+}
+
+void 
+UPDATE_FPCCR
+(vm_t)
+(const uint frame_ptr, const bool apply_sp_lin, ref vm_t vm) {
+	return;
+}
+
+void 
+execute_vlstm
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	// if CONTROL_S_SFPA == '1' then
+	// Check access to the co-processor is permitted
+	// exc = CheckCPEnabled(10);
+	//HandleException(exc);
+	immutable rn = vm.get_reg(instr.rn);
+
+	// LSPACT should not be active at the same time as there is active FP
+	// state. This is a possible attack senario so raise a SecureFault.
+	bool lspact = (GET_FPCCR_S_S(vm) == 1) ? cast(bool)GET_FPCCR_S_LSPACT(vm) : cast(bool)GET_FPCCR_NS_LSPACT(vm);
+	if (lspact)
+		SET_SFSR_LSERR(vm, 1);
+	//exc = CreateException(SecureFault);
+	// HandleException(exc);
+	// else
+	if (!is_aligned(rn, 8))
+		SET_UFSR_UNALIGNED(vm, 1);
+	//exc = CreateException(UsageFault);
+	//HandleException(exc);
+
+	if (GET_FPCCR_LSPEN(vm) == 0)
+		foreach (i; 0 .. 15)
+			vm.write_word(rn + (4 * i), vm.get_reg_s(cast(reg)(cast(uint)reg.s0 + i)));
+	vm.write_word(rn + 0x40, vm.get_fpscr());
+	vm.write_word(rn + 0x44 + 4, vm.get_vpr());
+	bool push_fp_callee_frame = (GET_FPCCR_TS(vm) == 1);
+ 	if (push_fp_callee_frame)
+	foreach (i; 0 .. 15) 
+		vm.write_word(rn + 0x48 + (4 * i), vm.get_reg_s(cast(reg)(cast(uint)reg.s0 + 16 + i)));
+
+	//InvalidateFPRegs(pushFPCalleeFrame, pushFPCalleeFrame);
+
+	if (!instr.low_regs_only)
+		foreach(i; 0 .. 31)
+				vm.write_word(rn + 0x88 + (4*i), 0);
+	else
+		UPDATE_FPCCR(rn, false, vm);
+	vm.set_fpca(false);
 }

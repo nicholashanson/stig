@@ -305,7 +305,10 @@ struct instr_32 {
 	reg 			    ra;
 	condition 	      cond;
 	bool 		     wback;
+	union {
 	bool 		       add;
+	bool     low_regs_only;
+	}
 	union {
 	bool     is_while_loop;
 	bool 		     index;

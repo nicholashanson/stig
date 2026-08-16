@@ -887,7 +887,7 @@ version (ARMv7_M) {
 		execute_instr(i32, this);
 }
 version (ARMv8_M) {
-		execute_instr(i32, this);
+		execute_instr_v8(i32, this);
 }
 	}
 	// -------------------------------------------------------------------------------------- 
@@ -931,13 +931,16 @@ version (ARMv8_M) {
 	// ================
 	//  SECURITY STATE
 	// ================
-
+version (ARMv8_M) {
 	enum security_state {
 		non_secure,
 		secure
 	}
 
 	security_state curr_state;
+
+	mixin property!"curr_state";
+}
 	// -------------------------------------------------------------------------------------- 
 	
 	// -------------------------------------------------------------------------------------- 

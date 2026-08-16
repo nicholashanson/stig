@@ -1027,15 +1027,21 @@ mixin define_bitfield_helpers_scb!(DWT_CTL, "NUMCOMP", 28, 4, "NOTRCPKT", 27, 1,
 version (ARMv7_M) {
 mixin define_bitfield_helpers_scb!(FPCCR, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
 										  "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
-										  "THREAD", 3, 1, "USER", 1, 1, "LSPACT", 0, 1);
+										  "THREAD", 3, 1, "S", 2, 1, "USER", 1, 1, "LSPACT", 0, 1);
 }
 version (ARMv8_M) {
+mixin define_bitfield_helpers_scb_secure!(FPCCR, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
+										  		 "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
+										  		 "THREAD", 3, 1, "S", 2, 1, "USER", 1, 1, "LSPACT", 0, 1);
 mixin define_bitfield_helpers_scb!(FPCCR_S, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
 										    "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
-										    "THREAD", 3, 1, "USER", 1, 1, "LSPACT", 0, 1);
+										    "THREAD", 3, 1, "S", 2, 1, "USER", 1, 1, "LSPACT", 0, 1);
 mixin define_bitfield_helpers_scb!(FPCCR_NS, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
 										     "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
-										     "THREAD", 3, 1, "USER", 1, 1, "LSPACT", 0, 1);		
+										     "THREAD", 3, 1, "S", 2, 1, "USER", 1, 1, "LSPACT", 0, 1);		
+// SFSR, Secure Fault Status Register
+mixin define_bitfield_helpers_scb!(SFSR, "LSERR", 7, 1, "SFARVALID", 6, 1, "LSPERR", 5, 1, "INVTRAN", 4, 1, 
+										 "AUVIOL", 3, 1, "INVER", 2, 1, "INVIS", 1, 1, "INVEP", 0, 1);	
 }
 
 mixin(() {
@@ -1129,6 +1135,47 @@ if (fields.length % 3 == 0)
                 "    vm.write_word(cast(size_t)%d, cast(typeof(current))new_val);\n" ~
                 "}\n",
                 reg_name, field_name, reg, reg_mask, field_mask, start_pos, reg
+            );
+        }}
+
+        return code;
+    }());
+}
+
+mixin template define_bitfield_helpers_scb_secure(alias reg, fields...)
+if (fields.length % 3 == 0)
+{
+    mixin(() {
+        string code = "";
+
+        enum string reg_name = __traits(identifier, reg);
+
+        static foreach (i; 0 .. fields.length / 3) {{
+            enum string field_name = fields[i * 3];
+            enum uint start_pos    = fields[i * 3 + 1];
+            enum uint width        = fields[i * 3 + 2];
+            
+            enum uint field_mask   = (1u << width) - 1u;
+            enum uint reg_mask     = field_mask << start_pos;
+
+            code ~= format(
+                "pragma(inline, true) auto GET_%s_%s(vm_t)(ref vm_t vm) {\n" ~
+                "    if (vm.get_curr_state == vm.security_state.secure)\n" ~
+                "	 	return GET_%s_S_%s(vm);\n" ~
+                "    else\n" ~
+                "    	return GET_%s_NS_%s(vm);\n" ~
+                "}\n",
+                reg_name, field_name, reg_name, field_name, reg_name, field_name
+            );
+
+            code ~= format(
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, uint val) {\n" ~
+                "    if (vm.get_curr_state == vm.security_state.secure)\n" ~
+                "    	return SET_%s_S_%s(vm);\n" ~
+                "    else\n" ~
+                "    	return SET_%s_NS_%s(vm);\n" ~
+                "}\n",
+                reg_name, field_name, reg_name, field_name, reg_name, field_name
             );
         }}
 

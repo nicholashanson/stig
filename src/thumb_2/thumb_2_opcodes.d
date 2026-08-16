@@ -345,6 +345,8 @@ enum opcode : ushort {
 	vmov_t1,  vldrw_t7, vscclrm_t1, vscclrm_t2,
 	vldr_t2,  vldr_t1,  vlldm_t1,   vlldm_t2, vstr_t2,
 	vlstm_t1, vlstm_t2, vstr_t1,
+
+	tt_t1,
 }
 
 // ==================
@@ -1206,10 +1208,10 @@ opcode decode_vector_load(const uint instr) {
 		return opcode.vldrw_t7;
 	}
 	if (((op0 & 0b1101) == 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b100) && (op5 == 0b0)) {
-		return vscclrm_t1;
+		return opcode.vscclrm_t1;
 	}   
 	if (((op0 & 0b1101) == 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b000)) {
-		return vscclrm_t2;
+		return opcode.vscclrm_t2;
 	} 
 	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b000)) {
 		return opcode.vldr_t2;
@@ -1238,6 +1240,30 @@ opcode decode_vector_load(const uint instr) {
 	return opcode.invalid;
 }
 
+opcode decode_vector_store(const uint instr) {
+	return opcode.invalid;
+}
+
+opcode decode_copro_ldst_mv(const uint instr) {
+	return opcode.invalid;
+}
+
+opcode decode_fp_vec_ldst_mv_cmplx_arithmetic(const uint instr) {
+	return opcode.invalid;
+}
+
+opcode decode_copro_fp_ldst_mv_sec(const uint instr) {
+	return opcode.invalid;
+}
+
+opcode decode_fp_vec_misc(const uint instr) {
+	return opcode.invalid;
+}
+
+opcode misc_vec_arithmetic(const uint instr) {
+	return opcode.invalid;
+}
+
 opcode fp_vec_ldst_mv_copro(const uint instr) {
 	immutable op0 = slice(instr,  9, 4);
 	immutable op1 = slice(instr, 20, 1);
@@ -1263,7 +1289,7 @@ opcode fp_vec_ldst_mv_copro(const uint instr) {
 }
 
 opcode decode_copro_fp_vec(const uint instr) {
-	immutable op0 = slice(isntr, 24, 2);
+	immutable op0 = slice(instr, 24, 2);
 	switch (op0) {
 		case 0b10:
 			return decode_fp_vec_misc(instr);
