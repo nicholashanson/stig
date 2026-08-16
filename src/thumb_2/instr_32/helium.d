@@ -660,3 +660,63 @@ ulong fp_default_NaN
     const ulong frac = 1UL << (F - 1);
 	return (sign << (F + E)) | (exp << F) | frac;
 }
+
+T 
+fp_add
+(T)
+(T op1, T op2, bool fpscr_controlled, bool predicated) {
+	static assert([16, 32, 64].canFind(T.sizeof * 8), "Invalid width");
+	const uint fpscr_val = (fpscr_controlled) ? vm.get_fpscr() : get_standard_fpscr_val(vm);
+	auto unpacked_fp_1 = fp_unpack_base(op1, fpscr_val, predicated);
+	auto unpacked_fp_2 = fp_unpack_base(op2, fpscr_val, predicated);
+
+}
+
+T 
+fp_process_NaN
+(T)
+(ref fp_type fpt, T operand, fpscr_t fpscr_val, bool predicated) {
+	enum N = T.sizeof * 8;
+	static assert([16, 32, 64].canFind(N), "Invalid width");
+	if (N == 16) {
+		top_frac = 9;
+	} else if (N == 32) {
+		top_frac = 22;
+	} else {
+		top_frac = 51;
+	}
+	T res = operand;
+	if (fpt == fp_type.SNaN) {
+		result |= (1 << top_frac);
+		// FPProcessException(FPExc_InvalidOp, fpscr_val, predicated);
+	}
+	if (/* fpscr_val.DN == '1' */ slice(fpscr_val, 25, 1)) // DefaultNaN requested 
+		res = fp_default_NaN!(N)();
+	return res;
+}
+
+// FPProcessNaNs()
+// ===============
+// The boolean part of the return value says whether a NaN has been found and
+// processed. The bits(N) part is only relevant if it has and supplies the
+// result of the operation.
+//
+// The 'fpscr_val' argument supplies FPSCR control bits. Status information is
+// updated directly in FPSCR where appropriate.
+// (boolean, bits(N)) FPProcessNaNs(FPType type1, FPType type2, bits(N) op1, bits(N) op2,
+// bits(32) fpscr_val)
+// return FPProcessNaNs(type1, type2, op1, op2, fpscr_val, FALSE);
+// (boolean, bits(N)) FPProcessNaNs(FPType type1, FPType type2, bits(N) op1, bits(N) op2,
+// bits(32) fpscr_val, boolean predicated)
+// assert N IN {16,32,64};
+// if type1 == FPType_SNaN then
+// done = TRUE; result = FPProcessNaN(type1, op1, fpscr_val, predicated);
+// elsif type2 == FPType_SNaN then
+// done = TRUE; result = FPProcessNaN(type2, op2, fpscr_val, predicated);
+// elsif type1 == FPType_QNaN then
+// done = TRUE; result = FPProcessNaN(type1, op1, fpscr_val, predicated);
+// elsif type2 == FPType_QNaN then
+// done = TRUE; result = FPProcessNaN(type2, op2, fpscr_val, predicated);
+// else
+// done = FALSE; result = Zeros(N); // 'Don't care' result
+// return (done, result);
