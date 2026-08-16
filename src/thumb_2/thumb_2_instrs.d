@@ -6,6 +6,10 @@ import std.algorithm;
 import thumb_2_opcodes;
 import cortex_m_core;
 
+bool matches(const uint target, const uint mask, const uint val) {
+  return ((target & mask) == val);
+}
+
 // ---------------------------------------- Shift ----------------------------------------
 
 // ============
