@@ -758,3 +758,22 @@ fp_process_NaN
 // else
 // done = FALSE; result = Zeros(N); // 'Don't care' result
 // return (done, result);
+
+uint 
+get_Q
+(vm_t)
+(const reg r, const uint beat, ref vm_t vm) {
+	assert((beat >= 0) && (beat <= 3));
+	return (beat > 1) ? 
+		slice(vm.get_reg_q(r).high, 32 * (beat - 2), 32) :
+		slice(vm.get_reg_q(r).low,  32 * beat,       32);
+}
+
+void 
+execute_vcadd_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	auto ib = get_cur_instr_beat(vm);
+	immutable op1 = get_Q(instr.qn, ib.curr_beat, vm);
+	immutable op2 = get_Q(instr.qm, ib.curr_beat, vm);
+}

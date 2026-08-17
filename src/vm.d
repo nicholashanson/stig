@@ -412,6 +412,10 @@ struct cortex_m_vm(mem_t) {
 	ulong get_reg_d(const reg r) const {
 		return cpu.get_reg_d(r);
 	}
+
+	u128 get_reg_q(const reg r) const {
+		return cpu.get_reg_q(r);
+	}
 	// =========
 	//  SET REG
 	// =========
