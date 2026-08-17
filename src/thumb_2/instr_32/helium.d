@@ -490,11 +490,21 @@ UPDATE_FPCCR
 	return;
 }
 
+enum fp_exception {
+	invalid_op,
+	divide_by_zero,
+	overflow,
+	underflow,
+	inexact,
+	input_denorm,
+}
+
 void 
 fp_process_exception
 (vm_t)
 (fp_exception exc, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
 	// Get appropriate FPSCR bit numbers.
+	uint enable;
 	if (!predicated) {
 		switch (exc) {
 			case fp_exception.invalid_op:
@@ -579,7 +589,7 @@ enum fp_type : ubyte {
 struct unpacked_fp {
 	fp_type fpt;
 	bool    sign_bit;
-	ulong   val;
+	double  val;
 }
 
 alias fpscr_t = uint;
@@ -593,91 +603,93 @@ get_standard_fpscr_val
 
 unpacked_fp 
 fp_unpack_base
-(T, size_t N)
-(T fp_val, fpscr_t fpscr_val, bool predicated) {
+(T, size_t N, vm_t)
+(T fp_val, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
 	static assert([16, 32, 64].canFind(N), "Invalid width N");
-	long    val;
+	double  val;
 	fp_type fpt;
+	bool sign;
 	if (N == 16) {
-		bool sign    = cast(bool)slice(fp_val, 15, 1);
+		sign         = cast(bool)slice(fp_val, 15, 1);
 		uint exp_16  = slice(fp_val, 10, 5);
 		uint frac_16 = slice(fp_val,  0, 9);
 		if (exp_16 == 0) {
 			// Produce zero if value is zero or flush-to-zero is selected.
-			if (frac16 == 0 || /* fpscr_val.FZ16 == '1'*/ cast(bool)slice(fpscr_val, 19, 1)) {
+			if (frac_16 == 0 || /* fpscr_val.FZ16 == '1'*/ cast(bool)slice(fpscr_val, 19, 1)) {
 				fpt = fp_type.zero; 
 				val = 0;
 			} else {
-				fp_type = fp_type.non_zero; 
-				val = (2.0 ^ -14  * (cast(double)frac_16 * 2.0 ^ - 10));
+				fpt = fp_type.non_zero; 
+				val = (2.0 ^^ -14  * (cast(double)frac_16 * 2.0 ^^ - 10));
 			}
-		} else if (match(exp16, 0b11111, 0b11111) && /* fpscr_val.AHP */ cast(bool)slice(fpscr_val, 25, 1)) { // Infinity or NaN in IEEE format
+		} else if (matches(exp_16, 0b11111, 0b11111) && /* fpscr_val.AHP */ cast(bool)slice(fpscr_val, 25, 1)) { // Infinity or NaN in IEEE format
 			if (frac_16 == 0) {
 				fpt   = fp_type.infinity; 
-				value = 2.0 ^ 1000000;
+				val = 2.0 ^^ 1000000;
 			} else {
-				fp_type = (cast(bool)slice(frac16, 9, 1)) ? fp_type.QNaN : fp_type.SNaN;
-				value = 0;
-			}
-		} else {
-			fp_type = fp_type.non_zero;
-			val 	= 2.0 ^ (exp16 - 15) * (1.0 + cast(double)frac16 * 2.0^-10);
-		}
-	} else if (N == 32) {
-		bool sign    = cast(bool)slice(fpval, 31, 1);
-		uint exp_32  = slice(fpval, 23,  8);
-		uint frac_32 = slice(fpval,  0, 23);
-		if (exp_32 == 0) {
-			// Produce zero if value is zero or flush-to-zero is selected.
-			if ((frac_32 == 0) || /* fpscr_val.FZ16 == '1'*/ cast(bool)slice(fpscr_val, 19, 1)) {
-				fpt = fp_type.zero; 
+				fpt = (cast(bool)slice(frac_16, 9, 1)) ? fp_type.QNaN : fp_type.SNaN;
 				val = 0;
 			}
-			if (frac_32 != 0) { // Denormalized input flushed to zero
-				// FPProcessException(FPExc_InputDenorm, fpscr_val, predicated);
+		} else {
+			fpt = fp_type.non_zero;
+			val 	= 2.0 ^^ (exp_16 - 15) * (1.0 + cast(double)frac_16 * 2.0 ^^ -10);
+		}
+	} else if (N == 32) {
+		sign    = cast(bool)slice(fp_val, 31, 1);
+		uint exp_32  = slice(fp_val, 23,  8);
+		uint frac_32 = slice(fp_val,  0, 23);
+		if (exp_32 == 0) {
+			// Produce zero if value is zero or flush-to-zero is selected.
+			if ((frac_32 == 0) || /* fpscr_val.FZ16 == '1'*/ cast(bool)slice(fpscr_val, 24, 1)) {
+				fpt = fp_type.zero; 
+				val = 0;
+				if (frac_32 != 0) { // Denormalized input flushed to zero
+					// FPProcessException(FPExc_InputDenorm, fpscr_val, predicated);
+					fp_process_exception(fp_exception.input_denorm, fpscr_val, predicated, vm);
+				}
 			} else {
-				fpt   = fp_type.non_zero; 
-				value = 2.0 ^ -126 * (cast(double)frac_32 * 2.0 ^ - 23);
+				fpt = fp_type.non_zero; 
+				val = 2.0 ^^ -126 * (cast(double)frac_32 * 2.0 ^^ - 23);
 			}
-		} else if (match(exp16, 0b1111_1111, 0b1111_1111)) {
+		} else if (matches(exp_32, 0b1111_1111, 0b1111_1111)) {
  				if (frac_32 == 0) {
 					fpt = fp_type.infinity; 
-					value = 2.0 ^ 1000000;
+					val = 2.0 ^^ 1000000;
 				} else {
-					fp_type = (cast(bool)slice(frac16, 22, 1)) ? fp_type.QNaN : fp_type.SNaN;
+					fpt = (cast(bool)slice(frac_32, 22, 1)) ? fp_type.QNaN : fp_type.SNaN;
 					val = 0;
 				}
 		} else {
 			fpt = fp_type.non_zero;
-			val = 2.0 ^ (exp_32 - 127) * (1.0 + cast(double)frac_32 * 2.0^ - 23);
+			val = 2.0 ^^ (exp_32 - 127) * (1.0 + cast(double)frac_32 * 2.0 ^^ - 23);
 		}
 	} else { // N == 64.
-		sign    = cast(bool)slice(fpval, 63, 1);
-		exp_64  = slice(fpval, 52, 11);
-		frac_64 = slice(fpval,  0, 52);
+		sign     	  = cast(bool)slice(fp_val, 63, 1);
+		uint  exp_64  = slice(fp_val, 52, 11);
+		ulong frac_64 = slice(fp_val,  0, 52);
 		if (exp_64 == 0) { 
 			// Produce zero if value is zero or flush-to-zero is selected.
 			if ((frac_64 == 0) || /* fpscr_val.FZ16 == '1'*/ cast(bool)slice(fpscr_val, 19, 1)) {
-				fpt   = fp_type.zero; 
-				value = 0;
+				fpt = fp_type.zero; 
+				val = 0;
 			}
 			if (frac_64 != 0) { // Denormalized input flushed to zero
 				// FPProcessException(FPExc_InputDenorm, fpscr_val, predicated);
 			} else {
 				fpt = fp_type.non_zero;
-				val = 2.0^ - 1022 * (cast(double)frac_64 * 2.0^-52);
+				val = 2.0 ^^ - 1022 * (cast(double)frac_64 * 2.0 ^^ -52);
 			}
-		} else if (matches(exp_64, 0b111_1111_1111)) {
+		} else if (matches(exp_64, 0b111_1111_1111, 0b111_1111_1111)) {
 			if (frac_64 == 0) {
 				fpt = fp_type.infinity;
-				val = 2.0 ^ 1000000;
+				val = 2.0 ^^ 1000000;
 			} else {
 				fpt = cast(bool)slice(frac_64, 51, 1) ? fp_type.QNaN : fp_type.SNaN;
 				val = 0;
 			}
 		} else {
 			fpt = fp_type.non_zero;
-			val = 2.0 ^ (exp_64 - 1023) * (1.0 + cast(double)frac_64 * 2.0 ^ -52);
+			val = 2.0 ^^ (exp_64 - 1023) * (1.0 + cast(double)frac_64 * 2.0 ^^ -52);
 		}
 	}
 	if (sign) 
