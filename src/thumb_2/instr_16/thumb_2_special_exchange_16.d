@@ -172,7 +172,6 @@ string convert_blx_t1_to_string(const ref instr_16 instr, const condition cond) 
 //  Parse BX
 // ==========
 
-enum field_tuples_bx_t1 = [Tuple!(opcode, string[])(opcode.bx_t1, ["rm"])];
 // BX <Rm>
 // [15:7] 010001110, [6:3] Rm, [2:0] 000
 instr_16 parse_bx_t1(const ushort instr) {

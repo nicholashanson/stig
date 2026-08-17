@@ -7,6 +7,7 @@ import std.array;
 import cortex_m_core;
 import thumb_2_instrs;
 import thumb_2_opcodes;
+import thumb_2_opcode_defs;
 // 16-bit instructions
 import thumb_2_shift_add_sub_16;
 import thumb_2_ldr_lit_16;

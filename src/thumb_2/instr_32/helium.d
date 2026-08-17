@@ -491,6 +491,45 @@ UPDATE_FPCCR
 }
 
 void 
+fp_process_exception
+(vm_t)
+(fp_exception exc, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
+	// Get appropriate FPSCR bit numbers.
+	if (!predicated) {
+		switch (exc) {
+			case fp_exception.invalid_op:
+				enable = 8;
+				SET_FPSCR_IOC(vm);
+				break;
+			case fp_exception.divide_by_zero: 
+				enable = 9;
+				SET_FPSCR_DZC(vm);
+				break;
+			case fp_exception.overflow:
+				enable = 10; 
+				SET_FPSCR_OFC(vm);
+				break;
+			case fp_exception.underflow:
+				enable = 11;
+				SET_FPSCR_UFC(vm);
+				break;
+			case fp_exception.inexact:
+				enable = 12; 
+				SET_FPSCR_IXC(vm);
+				break;
+			case fp_exception.input_denorm:
+				enable = 15;
+				SET_FPSCR_IDC(vm);
+				break;
+			default:
+				assert(0);
+		}
+		// if fpscr_val[enable] == '1' then
+			// IMPLEMENTATION_DEFINED "floating-point trap handling";
+	}
+}
+
+void 
 execute_vlstm
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
@@ -638,12 +677,12 @@ fp_unpack_base
 			}
 		} else {
 			fpt = fp_type.non_zero;
-			val = 2.0 ^ (exp_64 - 1023) * (1.0 + cast(double)frac_64 * 2.0 ^- 52);
+			val = 2.0 ^ (exp_64 - 1023) * (1.0 + cast(double)frac_64 * 2.0 ^ -52);
 		}
 	}
 	if (sign) 
 		val = -1 * val;
-	return unpacked_fp(fpt: fpt, sign: sign, value: val);
+	return unpacked_fp(fpt: fpt, sign_bit: sign, val: val);
 }
 
 // ================
@@ -669,7 +708,6 @@ fp_add
 	const uint fpscr_val = (fpscr_controlled) ? vm.get_fpscr() : get_standard_fpscr_val(vm);
 	auto unpacked_fp_1 = fp_unpack_base(op1, fpscr_val, predicated);
 	auto unpacked_fp_2 = fp_unpack_base(op2, fpscr_val, predicated);
-
 }
 
 T 

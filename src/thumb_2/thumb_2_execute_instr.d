@@ -11,6 +11,7 @@ import memory_sections;
 import vm;
 
 import thumb_2_opcodes;
+import thumb_2_opcode_defs;
 import thumb_2_instrs;
 
 // 16-bit instructions
@@ -42,10 +43,10 @@ import thumb_2_floating_point_ext_32;
 import thumb_2_mult_mult_acc_32;
 import thumb_2_store_single_data_item_32;
 import thumb_2_misc_ops_32;
-import vm8_M_se;
-import helium;
 version (ARMv8_M) {
   import vm8_loop;
+  import vm8_M_se;
+  import helium;
 }
 
 __gshared opcode[] tested_opcodes;
@@ -319,10 +320,6 @@ can_pend_monitor_on_event
   }
 
   return result;
-}
-
-bool matches(const uint target, const uint mask, const uint val) {
-  return ((target & mask) == val);
 }
 
 // ===================================
@@ -1395,7 +1392,6 @@ unittest {
     writeln(BLUE  ~ untested_count.to!string ~ " untested opcodes" ~ RESET);
     writeln(GREEN ~ tested_count.to!string   ~ " tested opcodes"   ~ RESET);
 }
-
 
 
 

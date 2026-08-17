@@ -581,14 +581,6 @@ struct cortex_m_vm(mem_t) {
 		mem.flip_bit(addr, val);
 	}
 	// --------------------------------------------------------------------------------------
-	// ==============
-	//  GET REG NAME
-	// ==============
-
-	string get_reg_name(const uint addr) {
-		return mem.get_reg_name(addr & ~0x3);
-	}
-	// --------------------------------------------------------------------------------------
 	// ================
 	//  GET RAM ORIGIN
 	// ================
@@ -689,6 +681,16 @@ struct cortex_m_vm(mem_t) {
 									  get_func_name(cpu.get_pc()));
 	}
 	// -------------------------------------------------------------------------------------- 
+    // ==============
+	//  GET REG NAME
+	// ==============
+
+	string get_reg_name(const uint reg_addr) {
+	    auto s = get_scb_reg_name(reg_addr);
+        if (s != "") return s;
+        return mem.get_reg_name(reg_addr & ~0x3);
+    }
+	// -------------------------------------------------------------------------------------- 
     // ========
 	//  LOG PC
 	// ========
@@ -788,7 +790,7 @@ struct cortex_m_vm(mem_t) {
 	(T)
 	(const size_t src_addr, const T val) {
 		auto log_file = load_store_log();
-		auto reg_name = mem.get_reg_name(cast(uint)src_addr);
+		auto reg_name = get_reg_name(cast(uint)src_addr);
 		string s = get_format(val);
     	string load_msg = get_log_prefix() ~ format("(0x" ~ s ~ " loaded from 0x%08X%s)", 
 												    val, src_addr, 
@@ -808,7 +810,7 @@ struct cortex_m_vm(mem_t) {
 	(T)
 	(const size_t target_addr, const T val) {
 		auto log_file = load_store_log();
-		auto reg_name = mem.get_reg_name(cast(uint)target_addr);
+		auto reg_name = get_reg_name(cast(uint)target_addr);
 		string s;
 		static if (is(T == ubyte))
 			s = "%02X";

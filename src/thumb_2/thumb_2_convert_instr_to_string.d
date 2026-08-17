@@ -12,6 +12,7 @@ import memory_sections;
 import vm;
 
 import thumb_2_opcodes;
+import thumb_2_opcode_defs;
 import thumb_2_instrs;
 import thumb_2_decode_instr;
 

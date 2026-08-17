@@ -338,8 +338,6 @@ struct stm32f4_mem {
     }
 
     string get_reg_name(const uint reg_addr) {
-        auto s = get_scb_reg_name(reg_addr);
-        if (s != "") return s;
         foreach(k; stm32f4_peripheral_regs.keys)  
         {
             if (cast(uint) k == reg_addr)  
@@ -542,8 +540,6 @@ struct nrf52840_mem {
     static uint stack_base = ram_origin + ram_length;
 
     string get_reg_name(const uint reg_addr) {
-        auto s = get_scb_reg_name(reg_addr);
-        if (s != "") return s;
         foreach(k; nrf52_peripheral_regs.keys)  
         {
             if (cast(uint) k == reg_addr)  

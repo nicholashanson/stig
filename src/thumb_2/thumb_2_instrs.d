@@ -4,6 +4,7 @@ import std.array;
 import std.algorithm;
 
 import thumb_2_opcodes;
+import thumb_2_opcode_defs;
 import cortex_m_core;
 
 bool matches(const uint target, const uint mask, const uint val) {
