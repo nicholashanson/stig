@@ -1,7 +1,9 @@
 import std.format;
 import std.algorithm : canFind;
+import std.typecons : Tuple, tuple;
 
 import thumb_2_floating_point_ext_32;
+import thumb_2_execute_instr;
 import thumb_2_instrs;
 
 import cortex_m_core;
@@ -75,7 +77,8 @@ bool vpt_active() {
 //  GetCurInstrBeat()
 // ===================
 // (integer, bits(4)) GetCurInstrBeat()
-instr_beat get_cur_instr_beat
+instr_beat 
+get_cur_instr_beat
 (vm_t)
 (ref vm_t vm) {
 	// assert HaveMve();
@@ -632,7 +635,7 @@ fp_unpack_base
 			}
 		} else {
 			fpt = fp_type.non_zero;
-			val 	= 2.0 ^^ (exp_16 - 15) * (1.0 + cast(double)frac_16 * 2.0 ^^ -10);
+			val = 2.0 ^^ (exp_16 - 15) * (1.0 + cast(double)frac_16 * 2.0 ^^ -10);
 		}
 	} else if (N == 32) {
 		sign    = cast(bool)slice(fp_val, 31, 1);
@@ -788,4 +791,110 @@ execute_vcadd_t1
 	auto ib = get_cur_instr_beat(vm);
 	immutable op1 = get_Q(instr.qn, ib.curr_beat, vm);
 	immutable op2 = get_Q(instr.qm, ib.curr_beat, vm);
+}
+
+ulong 
+round_down
+(T)
+(T val) pure nothrow @nogc {
+    return cast(ulong)val;
+}
+
+// ===============
+//  FPRoundBase()
+// ===============
+// The 'fpscr_val' argument supplies FPSCR control bits. Status information is
+// updated directly in FPSCR where appropriate.
+R
+fp_round_base
+(R,T,size_t N,vm_t)
+(T val, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
+	static assert(R.sizeof == (N * 8));
+ 	static assert([16, 32, 64].canFind(N), "Invalid width");
+	assert(val != 0);
+	// Obtain format parameters - minimum exponent, numbers of exponent and fraction bits.
+	enum int E 	 	= (N == 16) ? 5 : (N == 32) ? 8 : 11;
+	int minimum_exp = 2 - 2 ^^ (E - 1);
+	int F 			= N - E - 1;
+
+	// Split value into sign, unrounded mantissa and exponent.
+	bool sign;
+	T mantissa;
+	if (val < 0) {
+		sign = true; 
+		mantissa = -val;
+	} else {
+		sign = false; 
+		mantissa = val;
+	}
+	uint exponent = 0;
+	while (mantissa < 1.0) {
+		mantissa = mantissa * 2.0; 
+		exponent = exponent - 1;
+	}
+	while (mantissa >= 2.0) {
+		mantissa = mantissa / 2.0; 
+		exponent = exponent + 1;
+	}
+
+	R res;
+	uint biased_exp;
+	// Deal with flush-to-zero.
+	if ((((N != 16) && cast(bool)slice(fpscr_val, 24, 1)) || ((N == 16) && cast(bool)slice(fpscr_val, 24, 1))) && (exponent < minimum_exp)) {
+		res = 0;
+		if (!predicated) 
+			SET_FPSCR_UFC(vm); // Flush-to-zero never generates a trapped exception.
+	} else {
+		// Start creating the exponent value for the result. Start by biasing the actual
+		// exponent so that the minimum exponent becomes 1, lower values 0 (indicating
+		// possible underflow).
+		biased_exp = max(exponent - minimum_exp + 1, 0);
+		if (biased_exp == 0) 
+			mantissa = mantissa / 2.0 ^ (minimum_exp - exponent);
+
+		// Get the unrounded mantissa as an integer, and the "units in last place"
+		// rounding error.
+		auto mant = round_down(mantissa * 2.0 ^^ F); // if biased_exp == 0, < 2.0^F otherwise >= 2.0^F
+		T error = mantissa * 2.0 ^^ F - T(mant);
+	}
+}
+
+Tuple!(bool,bool) 
+is_cp_enabled
+(vm_t)
+(int cp, bool privileged, bool secure, ref vm_t vm) {
+	// Check Coprocessor Access Control Register for permission to use coprocessor.
+	bool enabled;
+	bool force_to_secure = false;
+
+	switch (get_bit_val!("CPACR", "CP")(vm, cp)) {
+		case 0b00:
+			enabled = false;
+			break;
+		case 0b01:
+			enabled = privileged;
+			break;
+		case 0b10:
+			assert(0);
+		case 0b11:
+			enabled = true;
+			break;
+		default:
+			assert(0);
+	}
+
+	if (enabled /*&& HaveSecurityExt()*/) {
+		// Check if access is forbidden by NSACR.
+		if (!secure && (get_bit_val!("NSACR", "CP")(vm, cp) == 0)) {
+			enabled = false;
+			force_to_secure = true;
+		}
+		// Check if the coprocessor state unknown flag.
+		if (enabled && (get_bit_val!("CPPWR_S", "SU")(vm, cp) == 1)) {
+			enabled = false;
+			// Check SUS bit to determine the target state of any fault.
+			force_to_secure = (get_bit_val!("CPPWR_S", "SUS")(vm, cp) == 1);
+		}
+	}
+	return tuple(enabled, secure || force_to_secure);
 }

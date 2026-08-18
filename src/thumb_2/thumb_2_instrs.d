@@ -286,8 +286,14 @@ struct instr_32 {
 		reg 		    rd;
 		reg             qd;
 	}
-	reg 			    rn;
-	reg 			    rm;
+	union {
+		reg 			rn;
+		reg             qn;
+	}
+	union {
+		reg 			rm;
+		reg 			qm;
+	}
 	reg 			    rt;
 	shift_type     shift_t;
 	uint 		       imm;

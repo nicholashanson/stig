@@ -929,7 +929,7 @@ opcode decode_fp_vec_cmplx_arithmetic(const uint instr) {
 	immutable combined = (op0 << 7) | (op1 <<  6) | (op2 << 5) | (op3 << 4) | (op4 << 3) | (op5 << 2) | (op6 << 1) | op7;
 	switch (combined) {
 		case 0b10000100:
-			return opcode.invalid;
+			return opcode.vcadd_t1;
 		case 0b01000100:
 		case 0b11000100:
 			return opcode.invalid;

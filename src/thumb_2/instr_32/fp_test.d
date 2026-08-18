@@ -1,10 +1,13 @@
 import std.format;
+import std.typecons : Tuple, tuple;
 
 import thumb_2_instrs;
+import thumb_2_execute_instr;
 
 import helium;
 import cortex_m_core;
 import vm;
+import ra81d;
 
 // ***************************************************************************************
 // *                                   FP UNPACK BASE                                    *
@@ -26,7 +29,7 @@ unittest {
   {
     unpacked_fp expected = unpacked_fp(fpt: fp_type.zero, sign_bit: false, val: 0);
     tiny_vm vm;
-    uint fpval    = 0x0040_0000;
+    uint fpval      = 0x0040_0000;
     bool predicated = false;
     SET_FPSCR_FZ(vm);
     assert(FPSCR_FZ_SET(vm));
@@ -41,10 +44,16 @@ unittest {
   {
     unpacked_fp expected = unpacked_fp(fpt: fp_type.non_zero, sign_bit: false, val: 2.0 ^^ -127);
     tiny_vm vm;
-    uint fpval    = 0x0040_0000;
+    uint fpval      = 0x0040_0000;
     bool predicated = false;
     auto fpscr_val  = vm.get_fpscr();
-    auto res = fp_unpack_base!(uint,32)(fpval, fpscr_val, predicated, vm);
+    auto res        = fp_unpack_base!(uint,32)(fpval, fpscr_val, predicated, vm);
     cmp_unpacked_fp(res, expected);
   }
+}
+
+unittest {
+  cortex_m_vm!ra8d1_mem vm;
+  auto res = is_cp_enabled(0, true, true, vm);
+  assert(!res[0]);
 }

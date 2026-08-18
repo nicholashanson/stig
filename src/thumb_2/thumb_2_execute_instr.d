@@ -127,7 +127,9 @@ inst_info_t[MAX_OVERLAPPING_INSTRS] inst_info;
 }
 
 pragma(inline, true)
-auto get_val(string reg_name, string bit_name, vm_t)(ref vm_t vm, uint index) {
+auto 
+get_val(string reg_name, string bit_name, vm_t)
+(ref vm_t vm, uint index) {
     alias getter_fn = uint function(ref vm_t);
     
     static immutable getter_fn[8] getters = () {
@@ -135,6 +137,24 @@ auto get_val(string reg_name, string bit_name, vm_t)(ref vm_t vm, uint index) {
         static foreach (i; 0 .. 8) {{
             mixin(format("result[%d] = (ref vm_t v) => cast(uint) GET_%s%d_%s(v);", 
                 i, reg_name, i, bit_name));
+        }}
+        return result;
+    }();
+
+    return getters[index](vm);
+}
+
+pragma(inline, true)
+auto 
+get_bit_val(string reg_name, string bit_name, vm_t)
+(ref vm_t vm, uint index) {
+    alias getter_fn = uint function(ref vm_t);
+    
+    static immutable getter_fn[8] getters = () {
+        getter_fn[8] result;
+        static foreach (i; 0 .. 8) {{
+            mixin(format("result[%d] = (ref vm_t v) => cast(uint) GET_%s_%s%d(v);", 
+                i, reg_name, bit_name, i));
         }}
         return result;
     }();

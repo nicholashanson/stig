@@ -115,83 +115,11 @@ SYST_CVR = 0xE000E018,
 // SysTick Calibration Value Register(RW)
 SYST_CALIB = 0xE000E01C,
 
-// Coprocessor Access Control Register
-// Specifies the access privileges for coprocessors.
-CPACR = 0xE000ED88,
-
 // HFSR(RW) 0x00000000
 // Write a one to a register bit to clear the corresponding fault.      
 HFSR = 0xE000ED2C,
 
-NVIC_IABR0  = 0xE000E300,
-NVIC_IABR1  = 0xE000E304,
-NVIC_IABR2  = 0xE000E308,
-NVIC_IABR3  = 0xE000E30C,
-NVIC_IABR4  = 0xE000E310,
-NVIC_IABR5  = 0xE000E314,
-NVIC_IABR6  = 0xE000E318,
-NVIC_IABR7  = 0xE000E31C,
-NVIC_IABR8  = 0xE000E320,
-NVIC_IABR9  = 0xE000E324,
-NVIC_IABR10 = 0xE000E328,
-NVIC_IABR11 = 0xE000E32C,
-NVIC_IABR12 = 0xE000E330,
-NVIC_IABR13 = 0xE000E334,
-NVIC_IABR14 = 0xE000E338,
-NVIC_IABR15 = 0xE000E33C,
-
-NVIC_ISER0  = 0xE000E100,
-NVIC_ISER1  = 0xE000E104,
-NVIC_ISER2  = 0xE000E108,
-NVIC_ISER3  = 0xE000E10C,
-NVIC_ISER4  = 0xE000E110,
-NVIC_ISER5  = 0xE000E114,
-NVIC_ISER6  = 0xE000E118,
-NVIC_ISER7  = 0xE000E11C,
-NVIC_ISER8  = 0xE000E120,
-NVIC_ISER9  = 0xE000E124,
-NVIC_ISER10 = 0xE000E128,
-NVIC_ISER11 = 0xE000E12C,
-NVIC_ISER12 = 0xE000E130,
-NVIC_ISER13 = 0xE000E134,
-NVIC_ISER14 = 0xE000E138,
-NVIC_ISER15 = 0xE000E13C,
-
 NVIC_ICER1  = 0xE000E184,  
-
-NVIC_ISPR0  = 0xE000E200,
-NVIC_ISPR1  = 0xE000E204,
-NVIC_ISPR2  = 0xE000E208,
-NVIC_ISPR3  = 0xE000E20C,
-NVIC_ISPR4  = 0xE000E210,
-NVIC_ISPR5  = 0xE000E214,
-NVIC_ISPR6  = 0xE000E218,
-NVIC_ISPR7  = 0xE000E21C,
-NVIC_ISPR8  = 0xE000E220,
-NVIC_ISPR9  = 0xE000E224,
-NVIC_ISPR10 = 0xE000E228,
-NVIC_ISPR11 = 0xE000E22C,
-NVIC_ISPR12 = 0xE000E230,
-NVIC_ISPR13 = 0xE000E234,
-NVIC_ISPR14 = 0xE000E238,
-NVIC_ISPR15 = 0xE000E23C,
-
-NVIC_ICPR0  = 0xE000E280,
-NVIC_ICPR1  = 0xE000E284,
-NVIC_ICPR2  = 0xE000E288,
-NVIC_ICPR3  = 0xE000E28C,
-NVIC_ICPR4  = 0xE000E290,
-NVIC_ICPR5  = 0xE000E294,
-NVIC_ICPR6  = 0xE000E298,
-NVIC_ICPR7  = 0xE000E29C,
-NVIC_ICPR8  = 0xE000E2A0,
-NVIC_ICPR9  = 0xE000E2A4,
-NVIC_ICPR10 = 0xE000E2A8,
-NVIC_ICPR11 = 0xE000E2AC,
-NVIC_ICPR12 = 0xE000E2B0,
-NVIC_ICPR13 = 0xE000E2B4,
-NVIC_ICPR14 = 0xE000E2B8,
-NVIC_ICPR15 = 0xE000E2BC,
 
 NVIC_ISR0  = 0xE000E400,
 NVIC_ISR1  = 0xE000E404,
@@ -278,10 +206,6 @@ CPUID = 0xE000ED00,
 SHPR1 = 0xE000ED18, 
 SHPR2 = 0xE000ED1C,  
 
-FPCCR = 0xE000EF34,
-FPCCR_S = 0xE000EF34, 
-FPCCR_NS = 0xE002EF34,
-
 DBGMCU_CR = 0xE0042004,
 
 // The Data Watchpoint and Trace Unit
@@ -297,12 +221,43 @@ DHCSR = 0xE000EDF0,
 DEMCR = 0xE000EDFC,
 UFSR = 0xE002ED2A,
 DWT_CTL = 0xE0001000,
-};             
+SFSR = 0xE000EDE4,
+};
+
+enum string ARMv8_M_SCB_REGS = q{
+CPACR = 0xE000ED88,
+CPACR_S = CPACR,
+CPACR_NS = 0xE002ED88, 
+
+FPCCR = 0xE000EF34, 
+FPCCR_S = FPCCR,
+FPCCR_NS = 0xE002EF34,
+
+CPPWR = 0xE000E00C,
+CPPWR_S = CPPWR,
+CPPWR_NS = 0xE002E00C,
+};     
+
+enum string ARMv7_M_SCB_REGS = q{
+// Coprocessor Access Control Register
+// Specifies the access privileges for coprocessors.
+CPACR = 0xE000ED88,
+FPCCR = 0xE000EF34,
+CPPWR = 0xE000E00C,
+};         
 
 mixin(() {
     string code = "enum scb_reg : uint {\n";
 
     code ~= SCB_REGS;
+
+version (ARMv7_M) {
+    code ~= ARMv7_M_SCB_REGS;
+}
+
+version (ARMv8_M) {
+    code ~= ARMv8_M_SCB_REGS;
+}
 
     static foreach (n; 0 .. 126)
     {
@@ -328,6 +283,42 @@ mixin(() {
             "DWT_COMP%d = 0x%X,\n",
             n,
             0xE0001020 + 16 * n
+        );
+    }
+
+    static foreach (n; 0 .. 16)
+    {
+        code ~= format(
+            "NVIC_IABR%d = 0x%X,\n",
+            n,
+            0xE000E300 + 4 * n
+        );
+    }
+
+    static foreach (n; 0 .. 16)
+    {
+        code ~= format(
+            "NVIC_ISER%d = 0x%X,\n",
+            n,
+            0xE000E100 + 4 * n
+        );
+    }
+
+    static foreach (n; 0 .. 16)
+    {
+        code ~= format(
+            "NVIC_ISPR%d = 0x%X,\n",
+            n,
+            0xE000E200 + 4 * n
+        );
+    }
+
+    static foreach (n; 0 .. 16)
+    {
+        code ~= format(
+            "NVIC_ICPR%d = 0x%X,\n",
+            n,
+            0xE000E280 + 4 * n
         );
     }
 
