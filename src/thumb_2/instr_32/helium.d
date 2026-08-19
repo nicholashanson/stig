@@ -874,9 +874,21 @@ fp_round_base
 		bool overflow_to_inf;
 		// Round result according to rounding mode.
 		switch (cast(rmode)GET_FPSCR_RMode(vm, fpscr_val)) {
-			case rmode.rn: // Round to Nearest (rounding to even if exactly halfway)
+			case rmode.rn: // round to nearest (rounding to even if exactly halfway)
 				round_up = (error > 0.5 || (error == 0.5 && cast(bool)slice(mant, 0, 1)));
 				overflow_to_inf = true;
+				break;
+			case rmode.rp: // round towards plus infinity
+				round_up = ((error != 0.0) && !sign);
+				overflow_to_inf = !sign;
+				break;
+			case rmode.rm: // round towards minus infinity
+				round_up = ((error != 0.0) && sign);
+				overflow_to_inf = sign;
+				break;
+			case rmode.rz: // round towards zero
+				round_up = false;
+				overflow_to_inf = false;
 				break;
 			default: 
 				assert(0);
