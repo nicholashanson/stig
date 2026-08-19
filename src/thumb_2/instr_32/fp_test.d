@@ -74,3 +74,11 @@ unittest {
   assert(fp_max_normal!(ulong,64)(false) == 0x7FEFFFFFFFFFFFFFUL);
   assert(fp_max_normal!(ulong,64)(true) == 0xFFEFFFFFFFFFFFFFUL);
 }
+
+// ***************************************************************************************
+// *                                   FP INFINITY                                       *
+// ***************************************************************************************
+
+unittest {
+  assert(fp_infinity!(ushort,16)(false) == 0x7C00);
+}

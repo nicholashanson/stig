@@ -964,3 +964,20 @@ fp_max_normal
 	frac = (1UL << F) - 1;
 	return cast(R)((cast(R)sign << (N - 1)) | (exp << F) | frac);
 }
+
+// ==============
+//  FPInfinity()
+// ==============
+
+R 
+fp_infinity
+(R,size_t N)
+(bool sign) {
+	static assert([16, 32, 64].canFind(N), "Invalid width");
+	enum int E = (N == 16) ? 5 : (N == 32) ? 8 : 11;
+	enum int F = N - E - 1;
+	ulong exp;
+	ulong frac;
+	exp  = ((1UL << E) - 1);
+	return cast(R)((cast(R)sign << (N - 1)) | (exp << F));
+}
