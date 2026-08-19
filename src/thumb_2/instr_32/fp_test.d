@@ -59,3 +59,18 @@ unittest {
 
   auto x = fp_round_base!(float,float,32)(1.0, 0, false, vm);
 }
+
+// ***************************************************************************************
+// *                                   FP MAX NORMAL                                     *
+// ***************************************************************************************
+
+unittest {
+  assert(fp_max_normal!(ushort,16)(false) == 0x7BFF);
+  assert(fp_max_normal!(ushort,16)(true) == 0xFBFF);
+
+  assert(fp_max_normal!(uint,32)(false) == 0x7F7FFFFF);
+  assert(fp_max_normal!(uint,32)(true) == 0xFF7FFFFF);
+
+  assert(fp_max_normal!(ulong,64)(false) == 0x7FEFFFFFFFFFFFFFUL);
+  assert(fp_max_normal!(ulong,64)(true) == 0xFFEFFFFFFFFFFFFFUL);
+}

@@ -893,6 +893,15 @@ fp_round_base
 			default: 
 				assert(0);
 		}
+
+		if (round_up) 
+			mant = mant + 1;
+		if (mant == 2 ^^ F) // rounded up from denormalized to normalized
+			biased_exp = 1;
+		if (mant == 2 ^^ (F + 1)) { // rounded up to next exponent
+			biased_exp = biased_exp + 1; 
+			mant = mant / 2;
+		}
 	}
 
 	return res;
@@ -936,4 +945,22 @@ is_cp_enabled
 		}
 	}
 	return tuple(enabled, secure || force_to_secure);
+}
+
+// ===============
+//  FPMaxNormal()
+// ===============
+
+R 
+fp_max_normal
+(R,size_t N)
+(bool sign) {
+	static assert([16, 32, 64].canFind(N), "Invalid width");
+	enum int E = (N == 16) ? 5 : (N == 32) ? 8 : 11;
+	enum int F = N - E - 1;
+	ulong exp;
+	ulong frac;
+	exp  = ((1UL << (E - 1)) - 1) << 1;
+	frac = (1UL << F) - 1;
+	return cast(R)((cast(R)sign << (N - 1)) | (exp << F) | frac);
 }
