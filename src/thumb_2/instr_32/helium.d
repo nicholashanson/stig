@@ -1,6 +1,7 @@
 import std.format;
 import std.algorithm : canFind;
 import std.typecons : Tuple, tuple;
+import std.algorithm;
 
 import thumb_2_floating_point_ext_32;
 import thumb_2_execute_instr;
@@ -800,6 +801,13 @@ round_down
     return cast(ulong)val;
 }
 
+enum rmode {
+	rn, 
+	rp, 
+	rm,
+	rz,
+}
+
 // ===============
 //  FPRoundBase()
 // ===============
@@ -809,7 +817,7 @@ R
 fp_round_base
 (R,T,size_t N,vm_t)
 (T val, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
-	static assert(R.sizeof == (N * 8));
+	static assert((R.sizeof * 8) == N);
  	static assert([16, 32, 64].canFind(N), "Invalid width");
 	assert(val != 0);
 	// Obtain format parameters - minimum exponent, numbers of exponent and fraction bits.
@@ -850,13 +858,32 @@ fp_round_base
 		// possible underflow).
 		biased_exp = max(exponent - minimum_exp + 1, 0);
 		if (biased_exp == 0) 
-			mantissa = mantissa / 2.0 ^ (minimum_exp - exponent);
+			mantissa = mantissa / 2.0 ^^ (minimum_exp - exponent);
 
 		// Get the unrounded mantissa as an integer, and the "units in last place"
 		// rounding error.
 		auto mant = round_down(mantissa * 2.0 ^^ F); // if biased_exp == 0, < 2.0^F otherwise >= 2.0^F
 		T error = mantissa * 2.0 ^^ F - T(mant);
+	
+		// Underflow occurs if exponent is too small before rounding, and result is inexact
+		// or the Underflow exception is trapped.
+		if ((biased_exp == 0) && (error != 0.0))
+			fp_process_exception(fp_exception.underflow, fpscr_val, predicated, vm);
+
+		T round_up;
+		bool overflow_to_inf;
+		// Round result according to rounding mode.
+		switch (cast(rmode)GET_FPSCR_RMode(vm, fpscr_val)) {
+			case rmode.rn: // Round to Nearest (rounding to even if exactly halfway)
+				round_up = (error > 0.5 || (error == 0.5 && cast(bool)slice(mant, 0, 1)));
+				overflow_to_inf = true;
+				break;
+			default: 
+				assert(0);
+		}
 	}
+
+	return res;
 }
 
 Tuple!(bool,bool) 

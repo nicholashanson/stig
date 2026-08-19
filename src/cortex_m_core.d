@@ -1122,6 +1122,44 @@ if (fields.length % 3 == 0)
     }());
 }
 
+mixin template define_bitfield_helpers_alt(string reg, fields...)
+if (fields.length % 3 == 0)
+{
+    mixin(() {
+        string code = "";
+        enum string reg_name_lc   = reg;
+        enum string reg_name_up   = reg.toUpper();
+
+        static foreach (i; 0 .. fields.length / 3) {{
+            enum string field_name = fields[i * 3];
+            enum uint start_pos    = fields[i * 3 + 1];
+            enum uint width        = fields[i * 3 + 2];
+            
+            enum uint field_mask   = (1u << width) - 1u;
+            enum uint reg_mask     = field_mask << start_pos;
+
+            code ~= format(
+                "pragma(inline, true) auto GET_%s_%s(vm_t)(ref vm_t vm, uint val) {\n" ~
+                "    return (val >> %d) & 0x%X;\n" ~
+                "}\n",
+                reg_name_up, field_name, start_pos, field_mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, ref uint traget, uint val) {\n" ~
+                "    auto cleared = target & ~0x%Xu;\n" ~
+                "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
+                "    target = new_val;\n" ~
+                "}\n",
+                reg_name_up, field_name, reg_mask, field_mask, start_pos
+            );
+        }}
+
+        return code;
+    }());
+}
+
+
 mixin template define_bitfield_helpers_scb(alias reg, fields...)
 if (fields.length % 3 == 0)
 {
@@ -1153,6 +1191,43 @@ if (fields.length % 3 == 0)
                 "    vm.write_word(cast(size_t)%d, cast(typeof(current))new_val);\n" ~
                 "}\n",
                 reg_name, field_name, reg, reg_mask, field_mask, start_pos, reg
+            );
+        }}
+
+        return code;
+    }());
+}
+
+mixin template define_bitfield_helpers_scb_alt(alias reg, fields...)
+if (fields.length % 3 == 0)
+{
+    mixin(() {
+        string code = "";
+
+        enum string reg_name = __traits(identifier, reg);
+
+        static foreach (i; 0 .. fields.length / 3) {{
+            enum string field_name = fields[i * 3];
+            enum uint start_pos    = fields[i * 3 + 1];
+            enum uint width        = fields[i * 3 + 2];
+            
+            enum uint field_mask   = (1u << width) - 1u;
+            enum uint reg_mask     = field_mask << start_pos;
+
+            code ~= format(
+                "pragma(inline, true) auto GET_%s_%s(vm_t)(ref vm_t vm, uint val) {\n" ~
+                "    return (val >> %d) & 0x%X;\n" ~
+                "}\n",
+                reg_name, field_name, start_pos, field_mask
+            );
+
+            code ~= format(
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, ref uint traget, uint val) {\n" ~
+                "    auto cleared = target & ~0x%Xu;\n" ~
+                "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
+                "    target = new_val;\n" ~
+                "}\n",
+                reg_name, field_name, reg_mask, field_mask, start_pos
             );
         }}
 
@@ -1202,6 +1277,7 @@ if (fields.length % 3 == 0)
 }
 
 mixin define_bitfield_helpers!("fpscr", "RMode", 22, 2, "LTPSIZE", 16, 3);
+mixin define_bitfield_helpers_alt!("fpscr", "RMode", 22, 2);
 mixin define_bitfield_helpers_scb!(FP_CTRL, "REV", 28, 4, "NUM_CODE_HIGH", 12, 3, "NUM_LIT", 8, 4, "NUM_CODE_LOW", 4, 4);
 version (ARMv8_M) {
 mixin define_bitfield_helpers!("epsr", "ECI_HIGH_HIGH", 25, 2, "ICI_HIGH", 25, 2, "IT_HIGH", 25, 2, "T", 24, 1, "ECI_HIGH", 12, 4, 

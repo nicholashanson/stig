@@ -56,4 +56,6 @@ unittest {
   cortex_m_vm!ra8d1_mem vm;
   auto res = is_cp_enabled(0, true, true, vm);
   assert(!res[0]);
+
+  auto x = fp_round_base!(float,float,32)(1.0, 0, false, vm);
 }
