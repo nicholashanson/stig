@@ -902,6 +902,29 @@ fp_round_base
 			biased_exp = biased_exp + 1; 
 			mant = mant / 2;
 		}
+
+		// Deal with overflow and generate result.
+		if ((N != 16) || !cast(bool)GET_FPSCR_AHP(vm, fpscr_val)) { // Single, double or IEEE half precision
+			if (biased_exp >= (2 ^^ (E - 1))) { 
+				res = (overflow_to_inf) ? fp_infinity!(R,N)(sign) : fp_max_normal!(R,N)(sign);
+ 				fp_process_exception(fp_exception.overflow, fpscr_val, predicated, vm);
+				error = 1.0; // Ensure that an Inexact exception occurs
+			} else {
+				res = cast(R)((cast(ulong)sign << (N - 1)) | (slice(biased_exp, 0, E - 1) << (F - 1)) | slice(mant, 0, F - 1));
+			}
+		} else { // Alternative half precision
+			if (biased_exp >= (2 ^^ E)) {
+				res = cast(R)((cast(ulong)sign << (N - 1)) | ((1 << (N - 1)) - 1));
+				fp_process_exception(fp_exception.invalid_op, fpscr_val, predicated, vm);
+				error = 0.0; // Ensure that an Inexact exception does not occur
+			} else {
+				res = cast(R)((cast(ulong)sign << (N - 1)) | (slice(biased_exp, 0, E - 1) << (F - 1)) | slice(mant, 0, F - 1));
+			}
+		}
+		// Deal with Inexact exception.
+		if (error != 0.0) {
+			fp_process_exception(fp_exception.inexact, fpscr_val, predicated, vm);
+		}
 	}
 
 	return res;
@@ -962,7 +985,7 @@ fp_max_normal
 	ulong frac;
 	exp  = ((1UL << (E - 1)) - 1) << 1;
 	frac = (1UL << F) - 1;
-	return cast(R)((cast(R)sign << (N - 1)) | (exp << F) | frac);
+	return cast(R)((cast(ulong)sign << (N - 1)) | (exp << F) | frac);
 }
 
 // ==============
@@ -979,5 +1002,5 @@ fp_infinity
 	ulong exp;
 	ulong frac;
 	exp  = ((1UL << E) - 1);
-	return cast(R)((cast(R)sign << (N - 1)) | (exp << F));
+	return cast(R)((cast(ulong)sign << (N - 1)) | (exp << F));
 }
