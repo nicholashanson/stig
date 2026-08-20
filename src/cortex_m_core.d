@@ -1277,7 +1277,7 @@ if (fields.length % 3 == 0)
 }
 
 mixin define_bitfield_helpers!("fpscr", "RMode", 22, 2, "LTPSIZE", 16, 3);
-mixin define_bitfield_helpers_alt!("fpscr", "RMode", 22, 2);
+mixin define_bitfield_helpers_alt!("fpscr", "AHP", 26, 1, "RMode", 22, 2);
 mixin define_bitfield_helpers_scb!(FP_CTRL, "REV", 28, 4, "NUM_CODE_HIGH", 12, 3, "NUM_LIT", 8, 4, "NUM_CODE_LOW", 4, 4);
 version (ARMv8_M) {
 mixin define_bitfield_helpers!("epsr", "ECI_HIGH_HIGH", 25, 2, "ICI_HIGH", 25, 2, "IT_HIGH", 25, 2, "T", 24, 1, "ECI_HIGH", 12, 4, 
