@@ -607,7 +607,7 @@ get_standard_fpscr_val
 
 unpacked_fp 
 fp_unpack_base
-(T, size_t N, vm_t)
+(T,size_t N,vm_t)
 (T fp_val, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
 	static assert([16, 32, 64].canFind(N), "Invalid width N");
 	double  val;
@@ -705,32 +705,68 @@ fp_unpack_base
 //  FPDefaultNaN()
 // ================
 
-ulong fp_default_NaN
-(size_t N)() {
+I fp_default_NaN
+(I,size_t N)() {
 	static assert([16, 32, 64].canFind(N), "Invalid width N");
 	enum int E = (N == 16) ? 5 : (N == 32) ? 8 : 11;
 	enum int F = cast(int)N - E - 1;
-	const ulong sign = 0UL;
-    const ulong exp  = (1UL << E) - 1;
-    const ulong frac = 1UL << (F - 1);
-	return (sign << (F + E)) | (exp << F) | frac;
+	const I sign = cast(I)0UL;
+    const I exp  = cast(I)((1UL << E) - 1);
+    const I frac = cast(I)(1UL << (F - 1));
+	return cast(I)((sign << (F + E)) | (exp << F) | frac);
 }
 
 T 
 fp_add
-(T)
-(T op1, T op2, bool fpscr_controlled, bool predicated) {
+(T,I,size_t N,vm_t)
+(T op1, T op2, bool fpscr_controlled, bool predicated, ref vm_t vm) {
 	static assert([16, 32, 64].canFind(T.sizeof * 8), "Invalid width");
 	const uint fpscr_val = (fpscr_controlled) ? vm.get_fpscr() : get_standard_fpscr_val(vm);
-	auto unpacked_fp_1 = fp_unpack_base(op1, fpscr_val, predicated);
-	auto unpacked_fp_2 = fp_unpack_base(op2, fpscr_val, predicated);
+	auto unpacked_fp_1 = fp_unpack_base!(I,N)(cast(I)op1, fpscr_val, predicated, vm);
+	auto unpacked_fp_2 = fp_unpack_base!(I,N)(cast(I)op2, fpscr_val, predicated, vm);
+
+	auto n = fp_process_NaNs!(T,I)(unpacked_fp_1.fpt, unpacked_fp_2.fpt, op1, op2, fpscr_val, predicated);
+	bool done = n[0];
+	T result = n[1];
+	T result_value;
+	bool result_sign;
+	
+	if (!done) {
+		bool sign_1 = unpacked_fp_1.sign_bit;
+		bool sign_2 = unpacked_fp_2.sign_bit;
+		bool inf_1  = (unpacked_fp_1.fpt == fp_type.infinity); 
+		bool inf_2  = (unpacked_fp_2.fpt == fp_type.infinity);
+ 		bool zero_1 = (unpacked_fp_1.fpt == fp_type.zero); 
+ 		bool zero_2 = (unpacked_fp_2.fpt == fp_type.zero);
+		if (inf_1 && inf_2 && (sign_1 == !sign_2)) {
+			result = fp_default_NaN!(I,N)();
+			fp_process_exception(fp_exception.invalid_op, fpscr_val, predicated, vm);
+		} else if ((inf_1 && !sign_1) || (inf_2 && !sign_2)) {
+			result = fp_infinity!(T,N)(false);
+		} else if ((inf_1 && sign_1) || (inf_2 && sign_2)) { 
+			result = fp_infinity!(T,N)(true);
+		} else if (zero_1 && zero_2 && (sign_1 == sign_2)) { 
+			result = fp_zero!(T,N)(sign_1);
+		} else { 
+			result_value = unpacked_fp_1.val + unpacked_fp_2.val;
+			if (result_value == 0.0) { // Sign of exact zero result depends on rounding mode
+				result_sign = (cast(rmode)GET_FPSCR_RMode(vm, fpscr_val) == rmode.rm) 
+					  		? true : false;
+				result = fp_zero!(T,N)(result_sign);
+			} else {
+				result = fp_round!(T,T,N)(result_value, fpscr_val, predicated, vm);
+			}
+		}
+	}
+	return result;
 }
 
 T 
 fp_process_NaN
-(T)
+(T,I)
 (ref fp_type fpt, T operand, fpscr_t fpscr_val, bool predicated) {
 	enum N = T.sizeof * 8;
+	uint top_frac;
 	static assert([16, 32, 64].canFind(N), "Invalid width");
 	if (N == 16) {
 		top_frac = 9;
@@ -739,41 +775,50 @@ fp_process_NaN
 	} else {
 		top_frac = 51;
 	}
-	T res = operand;
+	I res = cast(I)operand;
 	if (fpt == fp_type.SNaN) {
-		result |= (1 << top_frac);
+		res |= (1 << top_frac);
 		// FPProcessException(FPExc_InvalidOp, fpscr_val, predicated);
 	}
 	if (/* fpscr_val.DN == '1' */ slice(fpscr_val, 25, 1)) // DefaultNaN requested 
-		res = fp_default_NaN!(N)();
-	return res;
+		res = fp_default_NaN!(I,N)();
+	return cast(T)res;
 }
 
-// FPProcessNaNs()
-// ===============
+// =================
+//  FPProcessNaNs()
+// =================
 // The boolean part of the return value says whether a NaN has been found and
 // processed. The bits(N) part is only relevant if it has and supplies the
 // result of the operation.
 //
 // The 'fpscr_val' argument supplies FPSCR control bits. Status information is
 // updated directly in FPSCR where appropriate.
-// (boolean, bits(N)) FPProcessNaNs(FPType type1, FPType type2, bits(N) op1, bits(N) op2,
-// bits(32) fpscr_val)
-// return FPProcessNaNs(type1, type2, op1, op2, fpscr_val, FALSE);
-// (boolean, bits(N)) FPProcessNaNs(FPType type1, FPType type2, bits(N) op1, bits(N) op2,
-// bits(32) fpscr_val, boolean predicated)
-// assert N IN {16,32,64};
-// if type1 == FPType_SNaN then
-// done = TRUE; result = FPProcessNaN(type1, op1, fpscr_val, predicated);
-// elsif type2 == FPType_SNaN then
-// done = TRUE; result = FPProcessNaN(type2, op2, fpscr_val, predicated);
-// elsif type1 == FPType_QNaN then
-// done = TRUE; result = FPProcessNaN(type1, op1, fpscr_val, predicated);
-// elsif type2 == FPType_QNaN then
-// done = TRUE; result = FPProcessNaN(type2, op2, fpscr_val, predicated);
-// else
-// done = FALSE; result = Zeros(N); // 'Don't care' result
-// return (done, result);
+Tuple!(bool,T) 
+fp_process_NaNs
+(T,I)
+(fp_type type_1, fp_type type_2, T op_1, T op_2, const uint fpscr_val, bool predicated) {
+	//static assert([16, 32, 64].canFind(N), "Invalid width");
+	bool done;
+	T res;
+	if (type_1 == fp_type.SNaN) {
+		done = true;
+		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val, predicated);
+	} else if (type_2 == fp_type.SNaN) {
+		done = true;
+		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val, predicated);
+	} else if (type_1 == fp_type.QNaN) {
+		done = true; 
+		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val, predicated);
+	} else if (type_2 == fp_type.QNaN) {
+		done = true; 
+		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val, predicated);
+	} else {
+		done = false; 
+		res  = 0; // 'Don't care' result
+	}
+	return tuple(done, res);
+}
 
 uint 
 get_Q
@@ -1003,4 +1048,35 @@ fp_infinity
 	ulong frac;
 	exp  = ((1UL << E) - 1);
 	return cast(R)((cast(ulong)sign << (N - 1)) | (exp << F));
+}
+
+// ==========
+//  FPZero()
+// ==========
+
+R
+fp_zero
+(R,size_t N)
+(bool sign) {
+	static assert([16, 32, 64].canFind(N), "Invalid width");
+	return cast(R)((cast(ulong)sign << (N - 1)));
+}
+
+// =========
+// Used by data processing and int/fixed <-> floating-point conversion instructions.
+// For half-precision data it ignores AHP, and observes FZ16.
+
+R 
+fp_round
+(T,R,size_t N,vm_t)
+(T value, fpscr_t fpscr_val, ref vm_t vm) {
+	return fp_round!(T,R,N)(value, fpscr_val, false, vm);
+}
+
+R 
+fp_round
+(T,R,size_t N,vm_t)
+(T value, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
+	SET_FPSCR_AHP(vm, fpscr_val, 0);
+	return fp_round_base!(T,R,N)(value, fpscr_val, predicated, vm);
 }

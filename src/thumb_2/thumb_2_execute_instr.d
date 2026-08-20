@@ -560,7 +560,6 @@ execute_instr_v8
     execute_instr(instr, vm);
   }
   dwt_instr_match(vm.get_pc(), vm);
-  ulong nan = fp_default_NaN!(16)();
 }
 }
 

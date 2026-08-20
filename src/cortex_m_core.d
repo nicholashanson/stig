@@ -1146,9 +1146,9 @@ if (fields.length % 3 == 0)
             );
 
             code ~= format(
-                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, ref uint traget, uint val) {\n" ~
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, ref uint target, uint val) {\n" ~
                 "    auto cleared = target & ~0x%Xu;\n" ~
-                "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
+                "    auto new_val = cleared | ((cast(typeof(target))val & 0x%X) << %d);\n" ~
                 "    target = new_val;\n" ~
                 "}\n",
                 reg_name_up, field_name, reg_mask, field_mask, start_pos
@@ -1222,7 +1222,7 @@ if (fields.length % 3 == 0)
             );
 
             code ~= format(
-                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, ref uint traget, uint val) {\n" ~
+                "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, ref uint target, uint val) {\n" ~
                 "    auto cleared = target & ~0x%Xu;\n" ~
                 "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
                 "    target = new_val;\n" ~

@@ -82,3 +82,8 @@ unittest {
 unittest {
   assert(fp_infinity!(ushort,16)(false) == 0x7C00);
 }
+
+unittest {
+  cortex_m_vm!ra8d1_mem vm;
+  auto x = fp_add!(float,uint,32)(1.0, 2.0, true, true, vm);
+}
