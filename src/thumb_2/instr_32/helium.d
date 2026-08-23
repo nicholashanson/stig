@@ -706,7 +706,7 @@ fp_unpack_base
 I fp_default_NaN
 (I,size_t N)() {
 	static assert([16, 32, 64].canFind(N), "Invalid width N");
-	enum int E = (N == 16) ? 5 : (N == 32) ? 8 : 11;
+	enum int E = get_exponent_width!(N)();
 	enum int F = cast(int)N - E - 1;
 	const I sign = cast(I)0UL;
     const I exp  = cast(I)((1UL << E) - 1);
@@ -808,14 +808,27 @@ fp_sub
 //  FPProcessNaN()
 // ================
 
+void 
+assert_width
+(size_t N)
+() {	
+	static assert([16, 32, 64].canFind(N), "Invalid width");
+}
+
+uint
+get_fraction_width
+(size_t N)
+() {	
+	return (N == 16) ? 9 : (N == 32) ? 22 : 51;
+}
+
 T 
 fp_process_NaN
 (T,I,vm_t)
 (ref fp_type fpt, T operand, fpscr_t fpscr_val, ref vm_t vm) {
 	enum N = T.sizeof * 8;
-	uint top_frac;
-	static assert([16, 32, 64].canFind(N), "Invalid width");
-	top_frac = (N == 16) ? 9 : (N == 32) ? 22 : 51;
+	assert_width!(N)();
+	uint top_frac = get_fraction_width!(N)();
 	I res = cast(I)operand;
 	if (fpt == fp_type.SNaN) {
 		res |= (1 << top_frac);
@@ -978,10 +991,10 @@ fp_round_base
 (R,T,size_t N,vm_t)
 (T val, fpscr_t fpscr_val, ref vm_t vm) {
 	static assert((R.sizeof * 8) == N);
- 	static assert([16, 32, 64].canFind(N), "Invalid width");
+ 	assert_width!(N)();
 	assert(val != 0);
 	// Obtain format parameters - minimum exponent, numbers of exponent and fraction bits.
-	enum int E 	 	= (N == 16) ? 5 : (N == 32) ? 8 : 11;
+	enum int E 	 	= get_exponent_width!(N)();
 	int minimum_exp = 2 - 2 ^^ (E - 1);
 	int F 			= N - E - 1;
 
@@ -1133,13 +1146,20 @@ is_cp_enabled
 //  FPMaxNormal()
 // ===============
 
+uint
+get_exponent_width
+(size_t N)
+() {
+	return (N == 16) ? 5 : (N == 32) ? 8 : 11;
+}
+
 R 
 fp_max_normal
 (R,size_t N)
 (bool sign) {
-	static assert([16, 32, 64].canFind(N), "Invalid width");
-	enum int E = (N == 16) ? 5 : (N == 32) ? 8 : 11;
-	enum int F = N - E - 1;
+	assert_width!(N)();
+	enum uint E = get_exponent_width!(N)();
+	enum uint F = N - E - 1;
 	ulong exp;
 	ulong frac;
 	exp  = ((1UL << (E - 1)) - 1) << 1;
@@ -1155,8 +1175,8 @@ R
 fp_infinity
 (R,size_t N)
 (bool sign) {
-	static assert([16, 32, 64].canFind(N), "Invalid width");
-	enum int E = (N == 16) ? 5 : (N == 32) ? 8 : 11;
+	assert_width!(N)();
+	enum uint E = get_exponent_width!(N)();
 	enum int F = N - E - 1;
 	ulong exp;
 	ulong frac;
@@ -1172,7 +1192,7 @@ R
 fp_zero
 (R,size_t N)
 (bool sign) {
-	static assert([16, 32, 64].canFind(N), "Invalid width");
+	assert_width!(N)();
 	return cast(R)((cast(ulong)sign << (N - 1)));
 }
 
