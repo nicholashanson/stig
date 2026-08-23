@@ -723,7 +723,7 @@ fp_add
 	auto unpacked_fp_1 = fp_unpack_base!(I,N)(cast(I)op1, fpscr_val, vm);
 	auto unpacked_fp_2 = fp_unpack_base!(I,N)(cast(I)op2, fpscr_val, vm);
 
-	auto n = fp_process_NaNs!(T,I)(unpacked_fp_1.fpt, unpacked_fp_2.fpt, op1, op2, fpscr_val);
+	auto n = fp_process_NaNs!(T,I)(unpacked_fp_1.fpt, unpacked_fp_2.fpt, op1, op2, fpscr_val, vm);
 	bool done = n[0];
 	T result = n[1];
 	T result_value;
@@ -768,7 +768,7 @@ fp_sub
 	auto unpacked_fp_1 = fp_unpack_base!(I,N)(cast(I)op1, fpscr_val, vm);
 	auto unpacked_fp_2 = fp_unpack_base!(I,N)(cast(I)op2, fpscr_val, vm);
 
-	auto n = fp_process_NaNs!(T,I)(unpacked_fp_1.fpt, unpacked_fp_2.fpt, op1, op2, fpscr_val);
+	auto n = fp_process_NaNs!(T,I)(unpacked_fp_1.fpt, unpacked_fp_2.fpt, op1, op2, fpscr_val, vm);
 	bool done = n[0];
 	T result = n[1];
 	T result_value;
@@ -804,26 +804,24 @@ fp_sub
 	return result;
 }
 
+// ================
+//  FPProcessNaN()
+// ================
+
 T 
 fp_process_NaN
-(T,I)
-(ref fp_type fpt, T operand, fpscr_t fpscr_val) {
+(T,I,vm_t)
+(ref fp_type fpt, T operand, fpscr_t fpscr_val, ref vm_t vm) {
 	enum N = T.sizeof * 8;
 	uint top_frac;
 	static assert([16, 32, 64].canFind(N), "Invalid width");
-	if (N == 16) {
-		top_frac = 9;
-	} else if (N == 32) {
-		top_frac = 22;
-	} else {
-		top_frac = 51;
-	}
+	top_frac = (N == 16) ? 9 : (N == 32) ? 22 : 51;
 	I res = cast(I)operand;
 	if (fpt == fp_type.SNaN) {
 		res |= (1 << top_frac);
-		// FPProcessException(FPExc_InvalidOp, fpscr_val, predicated);
+		fp_process_exception(fp_exception.invalid_op, fpscr_val, vm);
 	}
-	if (/* fpscr_val.DN == '1' */ slice(fpscr_val, 25, 1)) // DefaultNaN requested 
+	if (cast(bool)GET_FPSCR_DN(vm, fpscr_val)) // DefaultNaN requested 
 		res = fp_default_NaN!(I,N)();
 	return cast(T)res;
 }
@@ -839,23 +837,23 @@ fp_process_NaN
 // updated directly in FPSCR where appropriate.
 Tuple!(bool,T) 
 fp_process_NaNs
-(T,I)
-(fp_type type_1, fp_type type_2, T op_1, T op_2, const uint fpscr_val) {
+(T,I,vm_t)
+(fp_type type_1, fp_type type_2, T op_1, T op_2, const uint fpscr_val, ref vm_t vm) {
 	//static assert([16, 32, 64].canFind(N), "Invalid width");
 	bool done;
 	T res;
 	if (type_1 == fp_type.SNaN) {
 		done = true;
-		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val);
+		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val, vm);
 	} else if (type_2 == fp_type.SNaN) {
 		done = true;
-		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val);
+		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val, vm);
 	} else if (type_1 == fp_type.QNaN) {
 		done = true; 
-		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val);
+		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val, vm);
 	} else if (type_2 == fp_type.QNaN) {
 		done = true; 
-		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val);
+		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val, vm);
 	} else {
 		done = false; 
 		res  = 0; // 'Don't care' result
