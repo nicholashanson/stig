@@ -434,6 +434,10 @@ struct cortex_m_vm(mem_t) {
 	void set_reg_d(const reg r, const ulong val) {
 		cpu.set_reg_d(r, val);
 	}
+
+	void set_reg_q(const reg r, const u128 val) {
+		cpu.set_reg_q(r, val);
+	}
 	// ---------------------------------------- Memory --------------------------------------
 	// ===================
 	//  PENDSV IS PENDING

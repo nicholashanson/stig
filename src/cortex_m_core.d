@@ -18,6 +18,19 @@ enum ISPR_BASE = 0xE000E200;
 //  128-BIT UNSIGNED INTEGER
 // ==========================
 
+reg q_to_s(reg r, uint i) {
+	assert(i < 4);
+	return cast(reg)(cast(uint)reg.s0 + ((cast(uint)r - cast(uint)reg.q0) * 4) + i);
+}
+
+unittest {
+	assert(q_to_s(reg.q0, 0) == reg.s0);
+}
+
+// ==========================
+//  128-BIT UNSIGNED INTEGER
+// ==========================
+
 struct u128 {
     ulong low;
     ulong high;

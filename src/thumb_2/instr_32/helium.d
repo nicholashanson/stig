@@ -949,8 +949,10 @@ execute_vcadd_t1
 	}
 	
 	foreach (e; 0 .. 4) {
-		if (slice(ib.elmt_mask, e, 1) == 1) 
-			set_elem(get_Q(instr.rn, ib.curr_beat, vm), e, 8, elem!(uint)(res, e, 8));
+		if (slice(ib.elmt_mask, e, 1) == 1) {
+			auto v = set_elem(get_Q(instr.rn, ib.curr_beat, vm), e, 8, elem!(uint)(res, e, 8));
+			vm.set_reg_s(q_to_s(instr.rn, e), v);
+		}
 	}
 }
 
