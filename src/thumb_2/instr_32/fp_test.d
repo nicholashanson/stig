@@ -30,12 +30,11 @@ unittest {
     unpacked_fp expected = unpacked_fp(fpt: fp_type.zero, sign_bit: false, val: 0);
     tiny_vm vm;
     uint fpval      = 0x0040_0000;
-    bool predicated = false;
     SET_FPSCR_FZ(vm);
     assert(FPSCR_FZ_SET(vm));
     auto fpscr_val  = vm.get_fpscr();
     assert(cast(bool)slice(fpscr_val, 24, 1));
-    auto res = fp_unpack_base!(uint,32)(fpval, fpscr_val, predicated, vm);
+    auto res = fp_unpack_base!(uint,32)(fpval, fpscr_val, vm);
     cmp_unpacked_fp(res, expected);
     assert(FPSCR_IDC_SET(vm), "FPSCR_IDC was not set correctly");
   }
@@ -45,9 +44,8 @@ unittest {
     unpacked_fp expected = unpacked_fp(fpt: fp_type.non_zero, sign_bit: false, val: 2.0 ^^ -127);
     tiny_vm vm;
     uint fpval      = 0x0040_0000;
-    bool predicated = false;
     auto fpscr_val  = vm.get_fpscr();
-    auto res        = fp_unpack_base!(uint,32)(fpval, fpscr_val, predicated, vm);
+    auto res        = fp_unpack_base!(uint,32)(fpval, fpscr_val, vm);
     cmp_unpacked_fp(res, expected);
   }
 }
@@ -56,8 +54,6 @@ unittest {
   cortex_m_vm!ra8d1_mem vm;
   auto res = is_cp_enabled(0, true, true, vm);
   assert(!res[0]);
-
-  auto x = fp_round_base!(float,float,32)(1.0, 0, false, vm);
 }
 
 // ***************************************************************************************
@@ -85,5 +81,5 @@ unittest {
 
 unittest {
   cortex_m_vm!ra8d1_mem vm;
-  auto x = fp_add!(float,uint,32)(1.0, 2.0, true, true, vm);
+  auto x = fp_add!(float,uint,32)(1.0, 2.0, true, vm);
 }

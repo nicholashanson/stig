@@ -506,41 +506,39 @@ enum fp_exception {
 void 
 fp_process_exception
 (vm_t)
-(fp_exception exc, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
+(fp_exception exc, fpscr_t fpscr_val, ref vm_t vm) {
 	// Get appropriate FPSCR bit numbers.
 	uint enable;
-	if (!predicated) {
-		switch (exc) {
-			case fp_exception.invalid_op:
-				enable = 8;
-				SET_FPSCR_IOC(vm);
-				break;
-			case fp_exception.divide_by_zero: 
-				enable = 9;
-				SET_FPSCR_DZC(vm);
-				break;
-			case fp_exception.overflow:
-				enable = 10; 
-				SET_FPSCR_OFC(vm);
-				break;
-			case fp_exception.underflow:
-				enable = 11;
-				SET_FPSCR_UFC(vm);
-				break;
-			case fp_exception.inexact:
-				enable = 12; 
-				SET_FPSCR_IXC(vm);
-				break;
-			case fp_exception.input_denorm:
-				enable = 15;
-				SET_FPSCR_IDC(vm);
-				break;
-			default:
-				assert(0);
-		}
-		// if fpscr_val[enable] == '1' then
-			// IMPLEMENTATION_DEFINED "floating-point trap handling";
+	switch (exc) {
+		case fp_exception.invalid_op:
+			enable = 8;
+			SET_FPSCR_IOC(vm);
+			break;
+		case fp_exception.divide_by_zero: 
+			enable = 9;
+			SET_FPSCR_DZC(vm);
+			break;
+		case fp_exception.overflow:
+			enable = 10; 
+			SET_FPSCR_OFC(vm);
+			break;
+		case fp_exception.underflow:
+			enable = 11;
+			SET_FPSCR_UFC(vm);
+			break;
+		case fp_exception.inexact:
+			enable = 12; 
+			SET_FPSCR_IXC(vm);
+			break;
+		case fp_exception.input_denorm:
+			enable = 15;
+			SET_FPSCR_IDC(vm);
+			break;
+		default:
+			assert(0);
 	}
+	// if fpscr_val[enable] == '1' then
+	// IMPLEMENTATION_DEFINED "floating-point trap handling";
 }
 
 void 
@@ -608,7 +606,7 @@ get_standard_fpscr_val
 unpacked_fp 
 fp_unpack_base
 (T,size_t N,vm_t)
-(T fp_val, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
+(T fp_val, fpscr_t fpscr_val, ref vm_t vm) {
 	static assert([16, 32, 64].canFind(N), "Invalid width N");
 	double  val;
 	fp_type fpt;
@@ -649,7 +647,7 @@ fp_unpack_base
 				val = 0;
 				if (frac_32 != 0) { // Denormalized input flushed to zero
 					// FPProcessException(FPExc_InputDenorm, fpscr_val, predicated);
-					fp_process_exception(fp_exception.input_denorm, fpscr_val, predicated, vm);
+					fp_process_exception(fp_exception.input_denorm, fpscr_val, vm);
 				}
 			} else {
 				fpt = fp_type.non_zero; 
@@ -719,13 +717,13 @@ I fp_default_NaN
 T 
 fp_add
 (T,I,size_t N,vm_t)
-(T op1, T op2, bool fpscr_controlled, bool predicated, ref vm_t vm) {
+(T op1, T op2, bool fpscr_controlled, ref vm_t vm) {
 	static assert([16, 32, 64].canFind(T.sizeof * 8), "Invalid width");
 	const uint fpscr_val = (fpscr_controlled) ? vm.get_fpscr() : get_standard_fpscr_val(vm);
-	auto unpacked_fp_1 = fp_unpack_base!(I,N)(cast(I)op1, fpscr_val, predicated, vm);
-	auto unpacked_fp_2 = fp_unpack_base!(I,N)(cast(I)op2, fpscr_val, predicated, vm);
+	auto unpacked_fp_1 = fp_unpack_base!(I,N)(cast(I)op1, fpscr_val, vm);
+	auto unpacked_fp_2 = fp_unpack_base!(I,N)(cast(I)op2, fpscr_val, vm);
 
-	auto n = fp_process_NaNs!(T,I)(unpacked_fp_1.fpt, unpacked_fp_2.fpt, op1, op2, fpscr_val, predicated);
+	auto n = fp_process_NaNs!(T,I)(unpacked_fp_1.fpt, unpacked_fp_2.fpt, op1, op2, fpscr_val);
 	bool done = n[0];
 	T result = n[1];
 	T result_value;
@@ -740,7 +738,7 @@ fp_add
  		bool zero_2 = (unpacked_fp_2.fpt == fp_type.zero);
 		if (inf_1 && inf_2 && (sign_1 == !sign_2)) {
 			result = fp_default_NaN!(I,N)();
-			fp_process_exception(fp_exception.invalid_op, fpscr_val, predicated, vm);
+			fp_process_exception(fp_exception.invalid_op, fpscr_val, vm);
 		} else if ((inf_1 && !sign_1) || (inf_2 && !sign_2)) {
 			result = fp_infinity!(T,N)(false);
 		} else if ((inf_1 && sign_1) || (inf_2 && sign_2)) { 
@@ -754,7 +752,52 @@ fp_add
 					  		? true : false;
 				result = fp_zero!(T,N)(result_sign);
 			} else {
-				result = fp_round!(T,T,N)(result_value, fpscr_val, predicated, vm);
+				result = fp_round!(T,T,N)(result_value, fpscr_val, vm);
+			}
+		}
+	}
+	return result;
+}
+
+T 
+fp_sub
+(T,I,size_t N,vm_t)
+(T op1, T op2, bool fpscr_controlled, ref vm_t vm) {
+	static assert([16, 32, 64].canFind(T.sizeof * 8), "Invalid width");
+	const uint fpscr_val = (fpscr_controlled) ? vm.get_fpscr() : get_standard_fpscr_val(vm);
+	auto unpacked_fp_1 = fp_unpack_base!(I,N)(cast(I)op1, fpscr_val, vm);
+	auto unpacked_fp_2 = fp_unpack_base!(I,N)(cast(I)op2, fpscr_val, vm);
+
+	auto n = fp_process_NaNs!(T,I)(unpacked_fp_1.fpt, unpacked_fp_2.fpt, op1, op2, fpscr_val);
+	bool done = n[0];
+	T result = n[1];
+	T result_value;
+	bool result_sign;
+	
+	if (!done) {
+		bool sign_1 = unpacked_fp_1.sign_bit;
+		bool sign_2 = unpacked_fp_2.sign_bit;
+		bool inf_1  = (unpacked_fp_1.fpt == fp_type.infinity); 
+		bool inf_2  = (unpacked_fp_2.fpt == fp_type.infinity);
+ 		bool zero_1 = (unpacked_fp_1.fpt == fp_type.zero); 
+ 		bool zero_2 = (unpacked_fp_2.fpt == fp_type.zero);
+		if (inf_1 && inf_2 && (sign_1 == sign_2)) {
+			result = fp_default_NaN!(I,N)();
+			fp_process_exception(fp_exception.invalid_op, fpscr_val, vm);
+		} else if ((inf_1 && !sign_1) || (inf_2 && sign_2)) {
+			result = fp_infinity!(T,N)(false);
+		} else if ((inf_1 && sign_1) || (inf_2 && !sign_2)) { 
+			result = fp_infinity!(T,N)(true);
+		} else if (zero_1 && zero_2 && (sign_1 == !sign_2)) { 
+			result = fp_zero!(T,N)(sign_1);
+		} else { 
+			result_value = unpacked_fp_1.val - unpacked_fp_2.val;
+			if (result_value == 0.0) { // Sign of exact zero result depends on rounding mode
+				result_sign = (cast(rmode)GET_FPSCR_RMode(vm, fpscr_val) == rmode.rm) 
+					  		? true : false;
+				result = fp_zero!(T,N)(result_sign);
+			} else {
+				result = fp_round!(T,T,N)(result_value, fpscr_val, vm);
 			}
 		}
 	}
@@ -764,7 +807,7 @@ fp_add
 T 
 fp_process_NaN
 (T,I)
-(ref fp_type fpt, T operand, fpscr_t fpscr_val, bool predicated) {
+(ref fp_type fpt, T operand, fpscr_t fpscr_val) {
 	enum N = T.sizeof * 8;
 	uint top_frac;
 	static assert([16, 32, 64].canFind(N), "Invalid width");
@@ -797,22 +840,22 @@ fp_process_NaN
 Tuple!(bool,T) 
 fp_process_NaNs
 (T,I)
-(fp_type type_1, fp_type type_2, T op_1, T op_2, const uint fpscr_val, bool predicated) {
+(fp_type type_1, fp_type type_2, T op_1, T op_2, const uint fpscr_val) {
 	//static assert([16, 32, 64].canFind(N), "Invalid width");
 	bool done;
 	T res;
 	if (type_1 == fp_type.SNaN) {
 		done = true;
-		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val, predicated);
+		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val);
 	} else if (type_2 == fp_type.SNaN) {
 		done = true;
-		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val, predicated);
+		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val);
 	} else if (type_1 == fp_type.QNaN) {
 		done = true; 
-		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val, predicated);
+		res  = fp_process_NaN!(T,I)(type_1, op_1, fpscr_val);
 	} else if (type_2 == fp_type.QNaN) {
 		done = true; 
-		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val, predicated);
+		res  = fp_process_NaN!(T,I)(type_2, op_2, fpscr_val);
 	} else {
 		done = false; 
 		res  = 0; // 'Don't care' result
@@ -830,13 +873,85 @@ get_Q
 		slice(vm.get_reg_q(r).low,  32 * beat,       32);
 }
 
+instr_32
+parse_vcadd_t1
+(const uint instr) {
+	const uint esize = (slice(instr, 20, 1) == 0) ? 16 : 32;
+	return instr_32(
+		rd: 		cast(reg)((slice(instr, 22, 1) << 3) | slice(instr, 13, 3)),
+		rm: 		cast(reg)((slice(instr,  5, 1) << 3) | slice(instr,  1, 3)),
+		rn:     	cast(reg)((slice(instr,  7, 1) << 3) | slice(instr, 17, 3)),
+		esize:  	esize,
+		elements:	32 / esize
+	);
+}
+
 void 
 execute_vcadd_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	auto ib = get_cur_instr_beat(vm);
-	immutable op1 = get_Q(instr.qn, ib.curr_beat, vm);
-	immutable op2 = get_Q(instr.qm, ib.curr_beat, vm);
+	auto op_1 = get_Q(instr.qn, ib.curr_beat, vm);
+	auto op_2 = get_Q(instr.qm, ib.curr_beat, vm);
+
+	uint res;
+	if (instr.esize == 32) {
+		switch ((instr.rot << 1) | slice(ib.curr_beat, 0, 1)) {
+			case 0b00: 
+				res = cast(uint)fp_sub!(float,uint,32)(get_Q(instr.rn, ib.curr_beat, vm),
+							 				 		   get_Q(instr.rm, ib.curr_beat + 1, vm), false, vm);
+				break;
+			case 0b01: 
+				res = cast(uint)fp_add!(float,uint,32)(get_Q(instr.rn, ib.curr_beat, vm), 
+							 				           get_Q(instr.rm, ib.curr_beat - 1, vm), false, vm);
+				break;
+			case 0b10: 
+				res = cast(uint)fp_add!(float,uint,32)(get_Q(instr.rn, ib.curr_beat, vm), 
+							 				           get_Q(instr.rm, ib.curr_beat + 1, vm), false, vm);
+				break;
+			case 0b11: 
+				res = cast(uint)fp_sub!(float,uint,32)(get_Q(instr.rn, ib.curr_beat, vm), 
+							 				 		   get_Q(instr.rm, ib.curr_beat - 1, vm), false, vm);
+				break;
+			default:
+				assert(0);
+		}
+	}
+	else {
+		uint val;
+		op_1 = get_Q(instr.rn, ib.curr_beat, vm);
+		op_2 = get_Q(instr.rm, ib.curr_beat, vm);
+		foreach (e; 0 .. instr.elements) {
+			// Avoid Floating-point exceptions on a predicated lane by checking the element mask
+			bool pred = (slice(ib.elmt_mask, e * (instr.esize >> 3), 1) == 0);
+			switch ((instr.rot << 1) | slice(e, 0, 1)) {
+				case 0b00: 
+					val = cast(uint)fp_sub!(float,uint,32)(elem!(uint)(op_1, e, instr.esize), 
+												 		   elem!(uint)(op_2, e + 1, instr.esize), false, vm);
+					break;
+				case 0b01: 
+					val = cast(uint)fp_add!(float,uint,32)(elem!(uint)(op_1, e, instr.esize), 
+												 		   elem!(uint)(op_2, e - 1, instr.esize), false, vm);
+					break;
+				case 0b10: 
+					val = cast(uint)fp_add!(float,uint,32)(elem!(uint)(op_1, e, instr.esize), 
+												 		   elem!(uint)(op_2, e + 1, instr.esize), false, vm);
+					break;
+				case 0b11:
+					val = cast(uint)fp_sub!(float,uint,32)(elem!(uint)(op_1, e, instr.esize), 
+														   elem!(uint)(op_2, e - 1, instr.esize), false, vm);
+					break;
+				default:
+					assert(0);
+			}
+			set_elem(res, e, instr.esize, val);
+		}
+	}
+	
+	foreach (e; 0 .. 4) {
+		if (slice(ib.elmt_mask, e, 1) == 1) 
+			set_elem(get_Q(instr.rn, ib.curr_beat, vm), e, 8, elem!(uint)(res, e, 8));
+	}
 }
 
 ulong 
@@ -861,7 +976,7 @@ enum rmode {
 R
 fp_round_base
 (R,T,size_t N,vm_t)
-(T val, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
+(T val, fpscr_t fpscr_val, ref vm_t vm) {
 	static assert((R.sizeof * 8) == N);
  	static assert([16, 32, 64].canFind(N), "Invalid width");
 	assert(val != 0);
@@ -895,8 +1010,7 @@ fp_round_base
 	// Deal with flush-to-zero.
 	if ((((N != 16) && cast(bool)slice(fpscr_val, 24, 1)) || ((N == 16) && cast(bool)slice(fpscr_val, 24, 1))) && (exponent < minimum_exp)) {
 		res = 0;
-		if (!predicated) 
-			SET_FPSCR_UFC(vm); // Flush-to-zero never generates a trapped exception.
+		SET_FPSCR_UFC(vm); // Flush-to-zero never generates a trapped exception.
 	} else {
 		// Start creating the exponent value for the result. Start by biasing the actual
 		// exponent so that the minimum exponent becomes 1, lower values 0 (indicating
@@ -913,7 +1027,7 @@ fp_round_base
 		// Underflow occurs if exponent is too small before rounding, and result is inexact
 		// or the Underflow exception is trapped.
 		if ((biased_exp == 0) && (error != 0.0))
-			fp_process_exception(fp_exception.underflow, fpscr_val, predicated, vm);
+			fp_process_exception(fp_exception.underflow, fpscr_val, vm);
 
 		T round_up;
 		bool overflow_to_inf;
@@ -952,7 +1066,7 @@ fp_round_base
 		if ((N != 16) || !cast(bool)GET_FPSCR_AHP(vm, fpscr_val)) { // Single, double or IEEE half precision
 			if (biased_exp >= (2 ^^ (E - 1))) { 
 				res = (overflow_to_inf) ? fp_infinity!(R,N)(sign) : fp_max_normal!(R,N)(sign);
- 				fp_process_exception(fp_exception.overflow, fpscr_val, predicated, vm);
+ 				fp_process_exception(fp_exception.overflow, fpscr_val, vm);
 				error = 1.0; // Ensure that an Inexact exception occurs
 			} else {
 				res = cast(R)((cast(ulong)sign << (N - 1)) | (slice(biased_exp, 0, E - 1) << (F - 1)) | slice(mant, 0, F - 1));
@@ -960,7 +1074,7 @@ fp_round_base
 		} else { // Alternative half precision
 			if (biased_exp >= (2 ^^ E)) {
 				res = cast(R)((cast(ulong)sign << (N - 1)) | ((1 << (N - 1)) - 1));
-				fp_process_exception(fp_exception.invalid_op, fpscr_val, predicated, vm);
+				fp_process_exception(fp_exception.invalid_op, fpscr_val, vm);
 				error = 0.0; // Ensure that an Inexact exception does not occur
 			} else {
 				res = cast(R)((cast(ulong)sign << (N - 1)) | (slice(biased_exp, 0, E - 1) << (F - 1)) | slice(mant, 0, F - 1));
@@ -968,7 +1082,7 @@ fp_round_base
 		}
 		// Deal with Inexact exception.
 		if (error != 0.0) {
-			fp_process_exception(fp_exception.inexact, fpscr_val, predicated, vm);
+			fp_process_exception(fp_exception.inexact, fpscr_val, vm);
 		}
 	}
 
@@ -1078,5 +1192,5 @@ fp_round
 (T,R,size_t N,vm_t)
 (T value, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
 	SET_FPSCR_AHP(vm, fpscr_val, 0);
-	return fp_round_base!(T,R,N)(value, fpscr_val, predicated, vm);
+	return fp_round_base!(T,R,N)(value, fpscr_val, vm);
 }

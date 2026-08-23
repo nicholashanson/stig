@@ -296,11 +296,15 @@ struct instr_32 {
 	}
 	reg 			    rt;
 	shift_type     shift_t;
+	union {
 	uint 		       imm;
+	uint             esize;
+	}
 	union {
 	uint 	       shift_n;
 	uint         pred_size;
 	uint 		   fp_size;
+	uint          elements;
 	}
 	int 		    offset;
 	reg[] 	      reg_list;
@@ -308,6 +312,7 @@ struct instr_32 {
 	union {
 		uint       widthm1;
 		uint          regs;
+		uint           rot;
 	}
 	uint 		       msb;
 	reg 		     rd_hi;
