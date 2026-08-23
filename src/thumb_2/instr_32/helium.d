@@ -809,7 +809,7 @@ fp_sub
 // ================
 
 void 
-assert_width
+check_width
 (size_t N)
 () {	
 	static assert([16, 32, 64].canFind(N), "Invalid width");
@@ -827,7 +827,7 @@ fp_process_NaN
 (T,I,vm_t)
 (ref fp_type fpt, T operand, fpscr_t fpscr_val, ref vm_t vm) {
 	enum N = T.sizeof * 8;
-	assert_width!(N)();
+	check_width!(N)();
 	uint top_frac = get_fraction_width!(N)();
 	I res = cast(I)operand;
 	if (fpt == fp_type.SNaN) {
@@ -991,7 +991,7 @@ fp_round_base
 (R,T,size_t N,vm_t)
 (T val, fpscr_t fpscr_val, ref vm_t vm) {
 	static assert((R.sizeof * 8) == N);
- 	assert_width!(N)();
+ 	check_width!(N)();
 	assert(val != 0);
 	// Obtain format parameters - minimum exponent, numbers of exponent and fraction bits.
 	enum int E 	 	= get_exponent_width!(N)();
@@ -1157,7 +1157,7 @@ R
 fp_max_normal
 (R,size_t N)
 (bool sign) {
-	assert_width!(N)();
+	check_width!(N)();
 	enum uint E = get_exponent_width!(N)();
 	enum uint F = N - E - 1;
 	ulong exp;
@@ -1173,15 +1173,15 @@ fp_max_normal
 
 R 
 fp_infinity
-(R,size_t N)
+(R,size_t width)
 (bool sign) {
-	assert_width!(N)();
-	enum uint E = get_exponent_width!(N)();
-	enum int F = N - E - 1;
+	check_width!(width)();
+	enum uint exp_width  = get_exponent_width!(width)();
+	enum uint frac_width = width - exp_width - 1;
 	ulong exp;
 	ulong frac;
-	exp  = ((1UL << E) - 1);
-	return cast(R)((cast(ulong)sign << (N - 1)) | (exp << F));
+	exp = ((1UL << exp_width) - 1);
+	return cast(R)((cast(ulong)sign << (width - 1)) | (exp << frac_width));
 }
 
 // ==========
@@ -1192,7 +1192,7 @@ R
 fp_zero
 (R,size_t N)
 (bool sign) {
-	assert_width!(N)();
+	check_width!(N)();
 	return cast(R)((cast(ulong)sign << (N - 1)));
 }
 
