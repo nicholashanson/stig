@@ -932,7 +932,7 @@ opcode decode_fp_vec_cmplx_arithmetic(const uint instr) {
 			return opcode.vcadd_t1;
 		case 0b01000100:
 		case 0b11000100:
-			return opcode.invalid;
+			return opcode.vcmla_t1;
 		default:
 			break;
 	}

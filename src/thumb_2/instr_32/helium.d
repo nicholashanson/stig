@@ -967,6 +967,67 @@ execute_vcadd_t1
 	}
 }
 
+// ============
+//  FPMulAdd()
+// ============
+// Calculates addend + op1*op2 with a single rounding.
+
+T 
+fp_mul_add
+(T,I,size_t N,vm_t)
+(T addend, T op_1, T op_2, bool fpscr_controlled, ref vm_t vm) {
+	check_width!(N)();
+	const uint fpscr_val = (fpscr_controlled) ? vm.get_fpscr() : get_standard_fpscr_val(vm);
+	auto fp_a   = fp_unpack!(I,N)(cast(I)addend, fpscr_val);
+	auto fp_1   = fp_unpack!(I,N)(cast(I)op_1, fpscr_val);
+	auto fp_2   = fp_unpack!(I,N)(cast(I)op_2, fpscr_val);
+	bool inf_1  = (fp_1.fpt == fp_type.infinity); 
+	bool zero_1 = (fp_1.fpt == fp_type.zero);
+	bool inf_2  = (fp_2.fpt == fp_type.infinity); 
+	bool zero_2 = (fp_2.fpt == fp_type.zero);
+	T res;
+	T result_value;
+	//(done,result) = FPProcessNaNs3(typeA, type1, type2, addend, op1, op2, fpscr_val);
+	if ((fp_1.fpt == fp_type.QNaN) && ((inf_1 && zero_2) || (zero_1 && inf_2))) {
+		res = fp_default_NaN!(N)();
+		fp_process_exception(fp_exception.invalid_op, fpscr_val, vm);
+	}
+	bool done = false;
+	if (!done) {
+		inf_a  = (fp_a.fpt == fp_type.infinity); 
+		zero_a = (fp_a.fpt == fp_type.zero); 
+		// Determine sign and type product will have if it does not cause an Invalid Operation.
+		bool sign_p = (sign_1 == sign_2) ? false : true;
+		bool inf_p  = inf_1 || inf_2;
+		bool zero_p = zero_1 || zero_2;
+		// Non SNaN-generated Invalid Operation cases are multiplies of zero by infinity and
+		// additions of opposite-signed infinities.
+		if ((inf_1 && zero_2) || (zero_1 && inf_2) || ((inf_a && inf_p) && (sign_a == !sign_p))) {
+			res = fp_default_NaN!(I,N)();
+			fp_process_exception(fp_exception.invalid_op, fpscr_val, vm);
+		// Other cases involving infinities produce an infinity of the same sign.
+		} else if ((inf_a && !sign_a) || (inf_p && !sign_p)) {
+			res = fp_infinity!(T,N)(false);
+		} else if ((inf_a && sign_a) || (inf_p && sign_p)) {
+			res = fp_infinity!(T,N)(true);
+		// Cases where the result is exactly zero and its sign is not determined by the
+		// rounding mode are additions of same-signed zeros.
+		} else if ((zero_a && zero_p) && (sign_a == sign_p)) { 
+			res = fp_zero!(N)(sign_a);
+		// Otherwise calculate numerical result and round it.
+		} else {
+			result_value = fp_a.val + (fp_1.val * fp_2.val);
+			if (result_value == 0.0) { // Sign of exact zero result depends on rounding mode
+				bool result_sign = (GET_FPSCR_RMode(vm, fpscr_val) == rmode.rm) ? true : false;
+				res = fp_zero!(T,N)(result_sign);
+			} else {
+				res = fp_round!(T,T,N)(result_value, N, fpscr_val);
+			}
+		}
+	}
+	return res;
+}
+
 ulong 
 round_down
 (T)

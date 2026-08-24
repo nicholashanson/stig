@@ -290,7 +290,7 @@ enum string ARMv8_M_OPCODES = q{
 	vlstm_t1, vlstm_t2, vstr_t1,
 
 	// floating-point and vector complex arithmetic
-	vcadd_t1, //vcmla_t1,
+	vcadd_t1, vcmla_t1,
 
 	tt_t1,
 
