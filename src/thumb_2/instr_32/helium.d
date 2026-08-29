@@ -603,6 +603,8 @@ get_standard_fpscr_val
 	return (((cast(uint)FPSCR_AHP_SET(vm) << 2) | 0b11) << 23) | (cast(uint)FPSCR_FZ16_SET(vm) << 19);
 }
 
+
+
 unpacked_fp 
 fp_unpack_base
 (T,size_t N,vm_t)
@@ -978,21 +980,23 @@ fp_mul_add
 (T addend, T op_1, T op_2, bool fpscr_controlled, ref vm_t vm) {
 	check_width!(N)();
 	const uint fpscr_val = (fpscr_controlled) ? vm.get_fpscr() : get_standard_fpscr_val(vm);
-	auto fp_a   = fp_unpack!(I,N)(cast(I)addend, fpscr_val);
-	auto fp_1   = fp_unpack!(I,N)(cast(I)op_1, fpscr_val);
-	auto fp_2   = fp_unpack!(I,N)(cast(I)op_2, fpscr_val);
+	auto fp_a   = fp_unpack!(I,N)(cast(I)addend, fpscr_val, vm);
+	auto fp_1   = fp_unpack!(I,N)(cast(I)op_1, fpscr_val, vm);
+	auto fp_2   = fp_unpack!(I,N)(cast(I)op_2, fpscr_val, vm);
 	bool inf_1  = (fp_1.fpt == fp_type.infinity); 
 	bool zero_1 = (fp_1.fpt == fp_type.zero);
 	bool inf_2  = (fp_2.fpt == fp_type.infinity); 
 	bool zero_2 = (fp_2.fpt == fp_type.zero);
+	bool sign_1, sign_2;
 	T res;
 	T result_value;
 	//(done,result) = FPProcessNaNs3(typeA, type1, type2, addend, op1, op2, fpscr_val);
 	if ((fp_1.fpt == fp_type.QNaN) && ((inf_1 && zero_2) || (zero_1 && inf_2))) {
-		res = fp_default_NaN!(N)();
+		res = fp_default_NaN!(I,N)();
 		fp_process_exception(fp_exception.invalid_op, fpscr_val, vm);
 	}
 	bool done = false;
+	bool inf_a, zero_a, sign_a;
 	if (!done) {
 		inf_a  = (fp_a.fpt == fp_type.infinity); 
 		zero_a = (fp_a.fpt == fp_type.zero); 
@@ -1013,7 +1017,7 @@ fp_mul_add
 		// Cases where the result is exactly zero and its sign is not determined by the
 		// rounding mode are additions of same-signed zeros.
 		} else if ((zero_a && zero_p) && (sign_a == sign_p)) { 
-			res = fp_zero!(N)(sign_a);
+			res = fp_zero!(T,N)(sign_a);
 		// Otherwise calculate numerical result and round it.
 		} else {
 			result_value = fp_a.val + (fp_1.val * fp_2.val);
@@ -1021,11 +1025,134 @@ fp_mul_add
 				bool result_sign = (GET_FPSCR_RMode(vm, fpscr_val) == rmode.rm) ? true : false;
 				res = fp_zero!(T,N)(result_sign);
 			} else {
-				res = fp_round!(T,T,N)(result_value, N, fpscr_val);
+				res = fp_round!(T,T,N)(result_value, fpscr_val, vm);
 			}
 		}
 	}
 	return res;
+}
+
+T
+fp_neg
+(T,size_t N)
+(T op) {
+	check_width!(N)();
+	return slice(op, N - 1, 1) | slice(op, 0, N - 2);
+}
+
+instr_32 
+parse_vcmla_t1
+(const uint instr) {
+	// CheckDecodeFaults(ExtType_MveFp);
+	// if Da == '1' || M == '1' || N == '1' then UNDEFINED;
+	uint sz = slice(instr, 20, 1);
+	uint esize = (sz == 0) ? 16 : 32;
+	return instr_32(
+	 	rda:		cast(reg)((slice(instr, 5, 1) << 3) | slice(instr, 1, 3)), 
+		rm: 		cast(reg)((slice(instr, 5, 1) << 3) | slice(instr, 1, 3)),        
+		rn: 		cast(reg)((slice(instr, 5, 1) << 3) | slice(instr, 1, 3)), 
+		esize: 		esize,
+		elements:	32 / esize
+	);
+	// if InITBlock() then CONSTRAINED_UNPREDICTABLE;
+	// if sz == '1' && (Da:Qda == M:Qm || Da:Qda == N:Qn) then CONSTRAINED_UNPREDICTABLE;
+}
+
+void
+execute_vcmla_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	auto ib = get_cur_instr_beat(vm);
+	uint res;
+	auto dest = get_Q(instr.rda, ib.curr_beat, vm);
+	if (instr.esize == 32) {
+		uint element_1, element_2;
+		if (slice(ib.curr_beat, 0, 1) == 0) {
+			switch (instr.rot) {
+				case 0b00:
+					element_1 = get_Q(instr.rm, ib.curr_beat, vm);
+					element_2 = get_Q(instr.rn, ib.curr_beat, vm);
+					break;
+				case 0b01:
+					element_1 = fp_neg!(uint,32)(get_Q(instr.rm, ib.curr_beat + 1, vm));
+					element_2 = get_Q(instr.rn, ib.curr_beat + 1, vm);
+					break;
+				case 0b10:
+					element_1 = fp_neg!(uint,32)(get_Q(instr.rm, ib.curr_beat, vm));
+					element_2 = get_Q(instr.rn, ib.curr_beat, vm);
+					break;
+				case 0b11:
+					element_1 = get_Q(instr.rm, ib.curr_beat + 1, vm);
+					element_2 = get_Q(instr.rn, ib.curr_beat + 1, vm);
+					break;
+				default:
+					assert(0);
+			}
+		} else {
+			switch (instr.rot) {
+				case 0b00:
+					element_1 = get_Q(instr.rm, ib.curr_beat, vm);
+					element_2 = get_Q(instr.rn, ib.curr_beat - 1, vm);
+					break;
+				case 0b01:
+					element_1 = get_Q(instr.rm, ib.curr_beat - 1, vm);
+					element_2 = get_Q(instr.rn, ib.curr_beat, vm);
+					break;
+				case 0b10:
+					element_1 = fp_neg!(uint,32)(get_Q(instr.rm, ib.curr_beat, vm));
+					element_2 = get_Q(instr.rn, ib.curr_beat - 1, vm);
+					break;
+				case 0b11:
+					element_1 = fp_neg!(uint,32)(get_Q(instr.rm, ib.curr_beat - 1, vm));
+					element_2 = get_Q(instr.rn, ib.curr_beat, vm);
+					break;
+				default:
+					assert(0);
+			}
+		}
+		res = cast(uint)fp_mul_add!(float,uint,32)(dest, element_2, element_1, false, vm);
+	} else {
+		auto op_1 = get_Q(instr.rm, ib.curr_beat, vm);
+		auto op_2 = get_Q(instr.rn, ib.curr_beat, vm);
+		uint elem_1, elem_2, elem_3, elem_4;
+		switch (instr.rot) {
+			case 0b00:
+				elem_1 = elem!(uint)(op_1, 0, instr.esize,);
+				elem_2 = elem!(uint)(op_2, 0, instr.esize,);
+				elem_3 = elem!(uint)(op_1, 1, instr.esize,);
+				elem_4 = elem!(uint)(op_2, 0, instr.esize,);
+				break;
+			case 0b01:
+				elem_1 = fp_neg!(uint,32)(elem!(uint)(op_1, 1, instr.esize));
+				elem_2 = elem!(uint)(op_2, 1, instr.esize);
+				elem_3 = elem!(uint)(op_1, 0, instr.esize);
+				elem_4 = elem!(uint)(op_2, 1, instr.esize);
+				break;
+			case 0b10:
+				elem_1 = fp_neg!(uint,32)(elem!(uint)(op_1, 0, instr.esize));
+				elem_2 = elem!(uint)(op_2, 0, instr.esize);
+				elem_3 = fp_neg!(uint,32)(elem!(uint)(op_1, 1, instr.esize));
+				elem_4 = elem!(uint)(op_2, 0, instr.esize);
+				break;
+			case 0b11:
+				elem_1 = elem!(uint)(op_1, 1, instr.esize);
+				elem_2 = elem!(uint)(op_2, 1, instr.esize);
+				elem_3 = fp_neg!(uint,32)(elem!(uint)(op_1, 0, instr.esize));
+				elem_4 = elem!(uint)(op_2, 1, instr.esize);
+				break;
+			default:
+				assert(0);
+		}
+		auto v1 = set_elem(res, 0, instr.esize, cast(uint)fp_mul_add!(float,uint,32)(elem!(uint)(dest, 0, instr.esize), elem_2, elem_1, false, vm));
+		auto v2 = set_elem(res, 1, instr.esize, cast(uint)fp_mul_add!(float,uint,32)(elem!(uint)(dest, 1, instr.esize), elem_4, elem_3, false, vm));
+		vm.set_reg_s(q_to_s(instr.rda, 0), v1);
+		vm.set_reg_s(q_to_s(instr.rda, 1), v2);	
+	}
+
+	foreach (e; 0 .. 3) 
+		if (slice(ib.elmt_mask, e, 1) == 1) 
+			auto v = set_elem(get_Q(instr.rda, ib.curr_beat, vm), e, 8, elem!(uint)(res, e, 8));
 }
 
 ulong 
@@ -1274,4 +1401,17 @@ fp_round
 (T value, fpscr_t fpscr_val, bool predicated, ref vm_t vm) {
 	SET_FPSCR_AHP(vm, fpscr_val, 0);
 	return fp_round_base!(T,R,N)(value, fpscr_val, vm);
+}
+
+// FPUnpack()
+// ==========
+//
+// Used by data processing and int/fixed [-] FP conversion instructions.
+// For half-precision data it ignores AHP, and observes FZ16.
+unpacked_fp
+fp_unpack
+(T,size_t N,vm_t)
+(T value, fpscr_t fpscr_val, ref vm_t vm) {
+	SET_FPSCR_AHP(vm, fpscr_val, 0);
+	return fp_unpack_base!(T,N)(value, fpscr_val, vm);
 }

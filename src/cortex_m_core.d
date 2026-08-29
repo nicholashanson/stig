@@ -1038,9 +1038,13 @@ version (ARMv7_M) {
 mixin define_bitfield_helpers_scb!(FPCCR, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
 										  "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
 										  "THREAD", 3, 1, "S", 2, 1, "USER", 1, 1, "LSPACT", 0, 1);
-mixin define_bitfield_helpers_scb!(CPACR, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
-									      "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
 }
+mixin define_bitfield_helpers_scb_secure!(CPACR, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
+									      		 "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
+mixin define_bitfield_helpers_scb!(CPACR_S, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
+									        "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
+mixin define_bitfield_helpers_scb!(CPACR_NS, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
+									         "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
 version (ARMv8_M) {
 mixin define_bitfield_helpers_scb_secure!(FPCCR, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
 										  		 "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
@@ -1051,12 +1055,6 @@ mixin define_bitfield_helpers_scb!(FPCCR_S, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LS
 mixin define_bitfield_helpers_scb!(FPCCR_NS, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
 										     "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
 										     "THREAD", 3, 1, "S", 2, 1, "USER", 1, 1, "LSPACT", 0, 1);		
-mixin define_bitfield_helpers_scb_secure!(CPACR, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
-									      		 "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
-mixin define_bitfield_helpers_scb!(CPACR_S, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
-									        "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
-mixin define_bitfield_helpers_scb!(CPACR_NS, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
-									         "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
 // SFSR, Secure Fault Status Register
 mixin define_bitfield_helpers_scb!(SFSR, "LSERR", 7, 1, "SFARVALID", 6, 1, "LSPERR", 5, 1, "INVTRAN", 4, 1, 
 										 "AUVIOL", 3, 1, "INVER", 2, 1, "INVIS", 1, 1, "INVEP", 0, 1);

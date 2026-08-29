@@ -285,6 +285,7 @@ struct instr_32 {
 	union {
 		reg 		    rd;
 		reg             qd;
+		reg            rda;
 	}
 	union {
 		reg 			rn;
