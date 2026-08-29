@@ -96,8 +96,8 @@ enum special_reg : ubyte {
 // ===========
 
 enum string EXCEPTION = q{
+	thread_mode  = 0,		// this needs to be first
 	nmi 		 = -2,
-	thread_mode  = 0,
 	svc_irqn     = 11,
 	pendsv_irqn  = 14,
 	systick_irqn = 15,
