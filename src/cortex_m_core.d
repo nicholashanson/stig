@@ -1122,6 +1122,7 @@ mixin(() {
         );
     }
 
+version (ARMv8_M) {
     static foreach (n; 0 .. 14)
     {
         code ~= format(
@@ -1129,6 +1130,7 @@ mixin(() {
             n
         );
     }
+}
 
     return code;
 }());

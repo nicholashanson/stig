@@ -225,6 +225,8 @@ SFSR = 0xE000EDE4,
 };
 
 enum string ARMv8_M_SCB_REGS = q{
+// Coprocessor Access Control Register
+// Specifies the access privileges for coprocessors.
 CPACR = 0xE000ED88,
 CPACR_S = CPACR,
 CPACR_NS = 0xE002ED88, 
@@ -265,6 +267,19 @@ FPCCR_NS = 0xE002EF34,
 CPPWR = 0xE000E00C,
 CPPWR_S = CPPWR,
 CPPWR_NS = 0xE002E00C,
+
+FPCAR = 0xE000EF38,
+FPCAR_S = FPCAR, 
+FPCAR_NS = 0xE002EF38,
+
+UFSR_S = UFSR,
+UFSR_NS = 0xE002ED2A,
+
+ICSR_S = ICSR,
+ICSR_NS = 0xE002ED04,
+
+SHCSR_S = SHCSR, 
+SHCSR_NS = 0xE002ED24,  
 };         
 
 mixin(() {
