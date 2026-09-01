@@ -909,7 +909,22 @@ opcode decode_vector_load(const uint instr) {
 	return opcode.invalid;
 }
 
+bool cmp1xx1(uint v, uint t) {
+	return ((v & 0b1001) == t);
+}
+
 opcode decode_vector_store(const uint instr) {
+	immutable op0 = slice(instr, 28, 1);
+	immutable op1 = slice(instr, 21, 4);
+	immutable op2 = slice(instr, 19, 1);
+	immutable op3 = slice(instr, 12, 1);
+	immutable op4 = slice(instr,  7, 2);
+	immutable op5 = slice(instr,  6, 1);
+	immutable op6 = slice(instr,  4, 1);
+	immutable op7 = slice(instr,  0, 1);
+	if ((cmp1xx1(op1, 0b1000) || cmp1xx1(op1, 0b1001) || cmp1xx1(op1, 0b0001)) && (op3 == 0b0) && (op4 == 0b11)) {
+		return opcode.vstr_t1;
+	}
 	return opcode.invalid;
 }
 

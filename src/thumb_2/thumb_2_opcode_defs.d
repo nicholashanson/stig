@@ -294,6 +294,9 @@ enum string ARMv8_M_OPCODES = q{
 
 	tt_t1,
 
+	// vector store
+	vvstr_t1,
+
 	lda_t1, ldaex_t1, stlex_t1, 
 };
 

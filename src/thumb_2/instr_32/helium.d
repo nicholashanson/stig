@@ -1415,3 +1415,459 @@ fp_unpack
 	SET_FPSCR_AHP(vm, fpscr_val, 0);
 	return fp_unpack_base!(T,N)(value, fpscr_val, vm);
 }
+
+void
+execute_vvstr_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	preserve_fp_state(vm);
+}
+
+
+exc_info_t 
+check_cp_enabled
+(vm_t)
+(int cp, bool privileged, bool secure, ref vm_t vm) {
+	auto res = is_cp_enabled(cp, privileged, secure, vm);
+	bool enabled   = res[0];
+	bool to_secure = res[1];
+	exc_info_t exc_info;
+	if (!enabled) {
+		if (to_secure) 
+			SET_UFSR_S_NOCP(vm, 1);
+		else
+			SET_UFSR_NS_NOCP(vm, 1);
+		exc_info = create_exception(exception.usage_fault, true, to_secure, vm);
+	} else {
+		exc_info = default_exc_info();
+	}
+	return exc_info;
+}
+
+exc_info_t 
+check_cp_enabled
+(vm_t)
+(int cp, ref vm_t) {
+	return check_cp_enabled(cp, vm.current_mode_is_privileged(), vm.is_secure(), vm);
+}
+
+// ===================
+//  PreserveFPState()
+// ===================
+
+void 
+end_of_instruction() {
+	return;
+}
+
+void 
+invalidate_fp_regs
+(vm_t)
+(bool should_clear, bool do_callee, ref vm_t vm) {
+	return;
+}
+
+void
+preserve_fp_state
+(vm_t)
+(ref vm_t vm) {
+	// Check if there is any lazy FP state to be preserved.
+	bool is_secure = (GET_FPCCR_S_S(vm) == 1);
+	bool lspact = (is_secure) ? cast(bool)GET_FPCCR_S_LSPACT(vm) : cast(bool)GET_FPCCR_NS_LSPACT(vm);
+	if (!lspact)
+		return;
+	// Preserve FP state using address, privilege and relative
+	// priorities recorded during original stacking. Derived
+	// exceptions are handled by TakePreserveFPException().
+	
+	// The checks usually performed for stacking using ValidateAddress()
+	// are performed, with the value of ExecutionPriority()
+	// overridden by -1 if FPCCR.HFRDY == '0'.
+
+	bool is_priv;
+	bool sp_lim_viol;
+	uint fpcar;
+	if (is_secure) {
+		is_priv = (GET_FPCCR_S_USER(vm) == 0);
+		sp_lim_viol = (GET_FPCCR_S_SPLIMVIOL(vm) == 1);
+		fpcar = GET_FPCAR_S_ADDR(vm);
+	} else {
+		is_priv = (GET_FPCCR_NS_USER(vm) == 0);
+		sp_lim_viol = (GET_FPCCR_NS_SPLIMVIOL(vm) == 1);
+ 		fpcar = GET_FPCAR_NS_ADDR(vm);
+ 	}
+
+ 	uint addr;
+
+	// Check if the background context had access to the FPU
+	auto exc_info = check_cp_enabled(10, is_priv, is_secure, vm);
+	// Only perform the memory accesses if the stack limit hasn't been violated
+	auto bf_exc_info = default_exc_info();
+	if (!sp_lim_viol && exc_info.fault == fault_t.no_fault) {
+		// If IESB are enabled, barrier RAS / BusFault errors raised before Lazy FP stacking.
+
+		// Because errors that are Synchronized at this point belong to the current context (the
+		// context that executed the instruction that triggered the lazy stacking), and are
+		// therefore handled normally and not by TakePreserveFPException.
+		if (GET_AIRCR_IESB(vm) == 1) {
+			// handle_exception(synchronize_bus_fault());
+		}
+
+		// Whether these stores are interruptible is IMPLEMENTATION DEFINED.
+		foreach (i; 0 .. 15) {
+			if (exc_info.fault == fault_t.no_fault) {
+				addr = fpcar + (4 * i);
+				//exc_info = MemA_with_priv_security(addr,4,AccType_LAZYFP,ispriv,isSecure,TRUE,S[i]);
+			}
+		}
+		if (exc_info.fault == fault_t.no_fault) { 
+			addr = fpcar + 0x40;
+			//exc_info = MemA_with_priv_security(addr,4,AccType_LAZYFP,ispriv,isSecure,TRUE,FPSCR);
+		}
+		if (/*HaveMve() &&*/ exc_info.fault == fault_t.no_fault) {
+			addr = fpcar + 0x44;
+			//exc_info = MemA_with_priv_security(addr,4,AccType_LAZYFP,ispriv,isSecure,TRUE,VPR)
+		}
+	}
+
+	if (is_secure && GET_FPCCR_S_TS(vm) == 1) { 
+		foreach (i; 0 .. 15) {
+			if (exc_info.fault == fault_t.no_fault) {
+				addr = fpcar + (4 * i) + 0x48;
+				//exc_info = MemA_with_priv_security(addr,4,AccType_LAZYFP,ispriv,TRUE,TRUE,S[i+16]);
+			}
+		}
+	}
+	// If IESB are enabled, barrier RAS / BusFault errors raised during Lazy FP stacking
+
+	// the original context. If errors do occur, BFSR.LSPERR is set.
+	if (GET_AIRCR_IESB(vm) == 1) {
+		//bf_exc_info = synchronize_bus_fault(acc_type.lazy_fp);
+	}
+	// Handle any faults that have occured
+	bool term_inst = false;	
+	if (exc_info.fault != fault_t.no_fault) {
+		term_inst = (term_inst /*|| take_preserve_fp_exception(exc_info)*/);
+	}
+	if (bf_exc_info.fault != fault_t.no_fault) {
+		term_inst = (term_inst /*|| take_preserve_fp_exception(bf_exc_info)*/);
+	}
+
+	// If exception with sufficient priority to pre-empt current instruction execution is
+	// raised during FP state preserve, then termInst will be true and execution of the current
+	// instruction should be terminated by calling EndOfInstruction(). If the exception
+	// results in a lockup state, termInst will also be true.
+	if (term_inst) { 
+		end_of_instruction();
+	} else {
+		// In case of NoFault or, on successful return from TakePreserveFPException(), the current
+		// instruction execution continues and FPCCR.LSPACT will be cleared.
+		// NOTE: If the stores are interrupted, the register content and LSPACT remain
+		// unchanged.
+		if (is_secure) {
+			SET_FPCCR_S_LSPACT(vm, 0); 
+		} else {
+			SET_FPCCR_NS_LSPACT(vm, 0);
+			// If the FP state is being treated as Secure then the registers are zeroed
+			invalidate_fp_regs((is_secure && (GET_FPCCR_S_TS(vm) == 1)), (is_secure && (GET_FPCCR_S_TS(vm) == 1)), vm);
+		}
+	}
+}
+
+// ===================
+//  CreateException()
+// ===================
+
+exc_info_t 
+create_exception
+(vm_t)
+(exception exc, bool force_security, bool is_secure, bool is_synchronous, ref vm_t vm) {
+	// Work out the effective target state of the exception
+	// if HaveSecurityExt() then
+	// if !forceSecurity then
+	is_secure = exception_targets_secure(exc, is_secure, vm);
+	// else isSecure = FALSE;
+
+	// An implementation without Security Extensions cannot cause a fault targettig Secure state
+	// assert HaveSecurityExt() || !isSecure;
+
+	// Get the remaining exception details
+	auto res = exception_details(exc, is_secure, is_synchronous, vm);
+	bool escalate_to_hf = res[0];
+	bool term_inst = res[1];
+
+	// Fill in the default exception info
+	auto info = default_exc_info();
+	info.fault = cast(fault_t)exc;
+	info.term_inst = term_inst;
+	info.orig_fault = cast(fault_t)exc;
+	info.orig_fault_is_secure = is_secure;
+	// Check for HardFault escalation
+	// NOTE: In same cases (for example faults during lazy floating-point state preservation)
+	// the decision to escalate below is ignored and instead based on the info.origFault*
+	// fields and other factors.
+	if (escalate_to_hf && (info.fault != fault_t.hard_fault))
+		// Update the exception info with the escalation details, including
+		// whether there's a change in destination Security state.
+		info.fault = fault_t.hard_fault;
+	is_secure = exception_targets_secure(exception.hard_fault, is_secure, vm);
+	escalate_to_hf = exception_details(exception.hard_fault, is_secure, is_synchronous, vm)[0];
+
+	// If the requested exception was already a HardFault then we can't escalate
+	// to a HardFault, so lockup. NOTE: Asynchronous BusFaults never cause
+	// lockups, if the BusFault is disabled it escalates to a HardFault that is
+	// pended.
+	if (escalate_to_hf && is_synchronous && (info.fault == fault_t.hard_fault)) 
+		info.lockup = true;
+	// Fill in the remaining exception info
+	info.is_secure = is_secure;
+	return info;
+}
+
+exc_info_t 
+create_exception
+(vm_t)
+(exception exc, bool force_security, bool is_secure, ref vm_t vm) {
+	return create_exception(exc, force_security, is_secure, true, vm);
+}
+
+exc_info_t 
+create_exception
+(vm_t)
+(exception exc, ref vm_t vm) {
+	return create_exception(exc, false, vm.is_secure(), true, vm);
+}
+// ==========================
+//  ExceptionTargetsSecure()
+// ==========================
+
+// Determine the default Security state an exception is expected to target if the
+// exception is not forced to a specific domain.
+
+unittest {
+	{
+		cortex_m_vm!rad8d1_mem vm;
+		assert(exception_targets_secure(exception.nmi, false, vm));
+		SET_AIRCR_BFHFNMINS(vm, 1);
+		assert(!exception_targets_secure(exception.nmi, false, vm));
+	}
+	{
+		cortex_m_vm!rad8d1_mem vm;
+		assert(exception_targets_secure(exception.nmi, false, vm));
+		SET_AIRCR_BFHFNMINS(vm, 1);
+		assert(!exception_targets_secure(exception.nmi, false, vm));
+	}
+}
+
+bool
+exception_targets_secure
+(vm_t)
+(exception exception_number, bool is_secure, ref vm_t vm) {
+	// if !HaveSecurityExt() then return FALSE;
+	bool target_secure = false;
+	switch (exception_number) {
+		case exception.nmi:
+			target_secure = (GET_AIRCR_BFHFNMINS(vm) == 0);
+			break;
+		case exception.hard_fault:
+			target_secure = (GET_AIRCR_BFHFNMINS(vm) == 0) || is_secure;
+			break;
+		case exception.mem_manage_fault:
+			target_secure = is_secure;
+			break;	
+		case exception.bus_fault:
+			target_secure = (GET_AIRCR_BFHFNMINS(vm) == 0);
+			break;
+		case exception.usage_fault:
+			target_secure = is_secure;
+			break;
+		case exception.secure_fault:
+			// SecureFault always targets Secure state.
+			target_secure = true;
+			break;
+		case exception.svc:
+			target_secure = is_secure;
+			break;
+		case exception.debug_monitor:
+			target_secure = (GET_DEMCR_SDME(vm) == 1);
+			break;
+		case exception.pendsv:
+			// This state should be unreachable as PendSV is a banked interrupt
+			// and it is directly pended for the correct security state, so this
+			// function is not called for this exception.
+			assert(0);
+			break;
+		case exception.systick:
+			// if HaveSysTick() != 1 then
+			// If there is a SysTick for each domain, then the exception
+			// targets the domain associated with the SysTick instance that
+			// raised the exception.
+			// This state should be unreachable as SysTick exception is banked
+			// and it is directly pended for the correct security state. This
+			// function can only be called when 1 SysTick is implemented.
+			// assert FALSE;
+			// else
+			// SysTick target state is configurable
+			target_secure = (GET_ICSR_S_STTNS(vm) == 0);
+			break;
+		default:
+			if (exception_number >= 16)
+				// Interrupts target the state defined by the NVIC_ITNS register
+				target_secure = (get_val!("NVIC_ITNS", "ITNS")(vm, (cast(uint)exception_number - 16)) == 0);
+	}
+	return target_secure;
+}
+
+// ====================
+//  ExceptionDetails()
+// ====================
+
+Tuple!(bool,bool) 
+exception_details
+(vm_t)
+(exception exc, bool is_secure, bool is_synchronous, ref vm_t vm) {
+	// Is the exception subject to escalation
+	bool term_inst;
+	bool can_pend;
+	bool can_escalate;
+	bool escalate_to_hf;
+	bool target_secure;
+	switch (exc) {
+		case exception.hard_fault:
+			term_inst = true;
+			can_pend = true;
+			can_escalate = true;
+			break;
+		case exception.mem_manage_fault:
+			term_inst = target_secure;
+			// if HaveMainExt() then val = if isSecure then SHCSR_S else SHCSR_NS;
+			can_pend = (GET_SHCSR_MEMFAULTENA(vm) == 1);
+			// else canPend = FALSE;
+			can_escalate = true;
+			break;
+		case exception.bus_fault:
+			term_inst = is_synchronous;
+			//canPend = if HaveMainExt() then SHCSR_S.BUSFAULTENA == '1' else FALSE;
+			can_pend = (GET_SHCSR_S_BUSFAULTENA(vm) == 1);
+			// Async BusFaults only escalate if they are disabled
+			can_escalate = term_inst || !can_pend;
+			break;
+		case exception.usage_fault:
+			term_inst = true;
+			// if HaveMainExt() then val = if isSecure then SHCSR_S else SHCSR_NS;
+			// canPend = val.USGFAULTENA == '1';
+			can_pend = (GET_SHCSR_USGFAULTENA(vm) == 1);
+			// else canPend = FALSE;
+			can_escalate = true;
+			break;
+		case exception.secure_fault:
+			term_inst = true;
+			// canPend = if HaveMainExt() then SHCSR_S.SECUREFAULTENA == '1' else FALSE;
+			can_pend = (GET_SHCSR_SECUREFAULTENA(vm) == 1);
+			can_escalate = true;
+			break;
+		case exception.svc:
+			term_inst = false;
+			can_pend = true;
+			can_escalate = true;
+			break;
+		case exception.debug_monitor:
+			term_inst = true;
+			can_pend = true/*HaveMainExt() && (can_pend_monitor_on_event(vm.is_secure(), true, true))*/;
+			can_escalate = true;
+			break;
+		default:
+			term_inst = false;
+			can_escalate = false;
+			break;
+	}
+	// If the fault can escalate then check if exception can be taken immediately, or whether
+	// it should escalate.
+	// NOTE: In same cases (for example faults during lazy floating-point state preservation)
+	// the priority comparison below is ignored and the decision to escalate or not is
+	// based on other factors.
+	escalate_to_hf = false;
+	int exec_pri;
+	int exce_pri;
+	if (can_escalate) {
+		//exec_pri = get_execution_priority(vm);
+		//exce_pri = get_exception_priority(exc, is_secure, true);
+		//if ((exce_pri >= exec_pri) || !can_pend)
+		if (exc >= get_next_executable_exception(vm) || !can_pend)
+			escalate_to_hf = true;       
+	}
+	return tuple(escalate_to_hf, term_inst);
+}
+
+enum string FAULT = q{
+	no_fault  	      = 0,		
+	mem_manage_fault  = 4,
+	bus_fault         = 5,
+	usage_fault       = 6,
+	secure_fault      = 7,	
+};
+
+enum string ARMv7_M_FAULT = q{
+	hard_fault = -1,
+};
+
+enum string ARMv8_M_FAULT = q{
+	hard_fault_secure     = -3,
+	hard_fault            = hard_fault_secure,
+	hard_fault_non_secure = -1,
+};
+
+mixin(() {
+    string code = "enum fault_t : byte {\n";
+
+    code ~= FAULT;
+
+    version (ARMv7_M) {
+    	code ~= ARMv7_M_FAULT;
+    }
+
+    version (ARMv8_M) {
+    	code ~= ARMv8_M_FAULT;
+    }
+
+    code ~= "}\n";
+
+    return code;
+}()); 
+
+exc_info_t default_exc_info() {
+	exc_info_t exc;
+	exc.fault = fault_t.no_fault;
+	exc.orig_fault = fault_t.no_fault;
+	exc.is_secure = false/*boolean UNKNOWN*/;
+	exc.is_terminal = false;
+	exc.in_exc_taken = false;
+	exc.lockup = false;
+	exc.term_inst = true;
+	return exc;
+}
+
+// Exception informations
+struct exc_info_t {
+	fault_t fault; 			   // The ID of the resulting fault, or NoFault (ie 0)
+				   			   // if no fault occurred
+	fault_t orig_fault; 	   // The ID if the original fault raised before
+							   // escalation is considered.
+	bool is_secure; 		   // TRUE if the fault targets the Secure state.
+	bool orig_fault_is_secure; // TRUE if the original fault raised targeted
+							   // Secure state
+	bool is_terminal; 		   // Set to TRUE for derived faults (eg exception on
+							   // exception entry) that prevent the original
+							   // exception being entered (eg a BusFault whilst
+							   // fetching the exception vector address).
+	bool in_exc_taken; 		   // TRUE if the exception occurred during ExceptionTaken()
+							   // This is used to determine if the LR update and the
+							   // callee stacking operations have been performed, and
+							   // therefore whether the derived exception should be
+							   // treated as a tail chain.
+	bool lockup; 			   // Set to TRUE if the exception should cause a lockup.
+	bool term_inst; 		   // Set to TRUE if the exception should cause the
+							   // instruction to be terminated.
+};
+
+

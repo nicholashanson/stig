@@ -91,15 +91,11 @@ execute_msr_t1
     	case special_reg.EPSR:
     		break;
 		case special_reg.APSR:
-			// if mask<0> == ‘1’ then /* GE[3:0] bits */
-			//		if !HaveDSPExt() then
-			//			UNPREDICTABLE
-			//		else
-			//			APSR<19:16> = R[n]<19:16>;
-			// if mask<1> == ‘1’ then /* N, Z, C, V, Q bits */
-			//		APSR<31:27> = R[n]<31:27>;
-			immutable  _nzcvq  = slice(rn, 27, 5);
-			immutable  _g      = slice(rn, 16, 4);
+			// if mask<0> == ‘1’ then /* GE[3:0] bits */ if !HaveDSPExt() then UNPREDICTABLE
+			// else APSR<19:16> = R[n]<19:16>;
+			// if mask<1> == ‘1’ then /* N, Z, C, V, Q bits */ APSR<31:27> = R[n]<31:27>;
+			immutable  _nzcvq  = (slice(rn, 27, 5) << 27);
+			immutable  _g      = (slice(rn, 16, 4) << 16);
 			const uint _nzcvqg = _nzcvq | _g;
 			final switch(instr.mask) {
 				case 0b00: 					     
@@ -119,11 +115,9 @@ execute_msr_t1
 			}
 			break;
 		case special_reg.BASEPRI:
-			// if CurrentModeIsPrivileged() then 
 			if (vm.current_mode_is_privileged()) {
 				auto b = cast(ubyte)(rn & 0xf0); 
-				// BASEPRI<7:0> = R[n]<7:0>;
-				vm.set_basepri(b);  
+				vm.set_basepri(b); // BASEPRI<7:0> = R[n]<7:0>;
 				vm.log_msr("BASEPRI", b);
 			}
 			break;
@@ -134,49 +128,39 @@ execute_msr_t1
 		    if (vm.current_mode_is_privileged()) {
 			    immutable b = cast(ubyte)slice(rn, 0, 8);
 	    		if (b < vm.get_basepri() || vm.get_basepri() == 0) {
-	    			// BASEPRI<7:0> = R[n]<7:0>; 
-	        		vm.set_basepri(b);
+	        		vm.set_basepri(b); // BASEPRI<7:0> = R[n]<7:0>; 
 	        		vm.log_msr("BASEPRI", b);
 	        	}
         	}
     		break;
 		case special_reg.FAULTMASK:
-			// if CurrentModeIsPrivileged() && (ExecutionPriority() > -1) then
 			if (vm.current_mode_is_privileged() && (get_execution_priority(vm) > -1)) {
 				immutable fault_mask = cast(bool)slice(rn, 0, 1);
-				// FAULTMASK<0> = R[n]<0>;
-				vm.set_fault_mask(fault_mask);
+				vm.set_fault_mask(fault_mask); // FAULTMASK<0> = R[n]<0>;
 				vm.log_msr("FAULTMASK", rn);
 			}
 			break;
 		case special_reg.MSP    : 
-			// MSP = R[n];
 			if (vm.current_mode_is_privileged()) {
-				vm.set_msp(rn);						   
+				vm.set_msp(rn); // MSP = R[n];						   
 				vm.log_msr("MSP", rn);
 			}
 			break;
 		case special_reg.PSP    : 
-			// PSP = R[n];
 			if (vm.current_mode_is_privileged()) {
-				vm.set_psp(rn); 						   
+				vm.set_psp(rn); // PSP = R[n];						   
 				vm.log_msr("PSP", rn);
 			}
 			break;
 		case special_reg.CONTROL: 
-			// if CurrentModeIsPrivileged() then
 			if (vm.current_mode_is_privileged()) {
 				immutable npriv  = cast(bool)slice(rn, 0, 1);
 				immutable sp_sel = cast(bool)slice(rn, 1, 1);
 				immutable fpca   = cast(bool)slice(rn, 2, 1);
-				// CONTROL.nPRIV = R[n]<0>;
-		    	vm.set_npriv(npriv);
-		    	// If CurrentMode == Mode_Thread then
-		    	if (vm.get_curr_exc() == exception.thread_mode)
-		    		// CONTROL.SPSEL = R[n]<1>;
-					vm.set_sp_sel(sp_sel);
-				// if HaveFPExt() then CONTROL.FPCA = R[n]<2>;
-				vm.set_fpca(fpca);
+		    	vm.set_npriv(npriv); // CONTROL.nPRIV = R[n]<0>;
+		    	if (vm.get_curr_exc() == exception.thread_mode) 
+					vm.set_sp_sel(sp_sel); // CONTROL.SPSEL = R[n]<1>;
+				vm.set_fpca(fpca); // if HaveFPExt() then CONTROL.FPCA = R[n]<2>;
 				vm.log_msr("CONTROL", rn);
 			} 							   
 			break;
@@ -222,8 +206,7 @@ void
 execute_mrs_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
-	// R[d] = 0;
-	vm.set_reg(instr.rd, 0);
+	vm.set_reg(instr.rd, 0); // R[d] = 0;
 	switch (instr.spec_reg) {
 		case special_reg.IPSR:
 			// IPSR<8:0> = ExceptionNumber
@@ -235,17 +218,13 @@ execute_mrs_t1
     	case special_reg.EPSR:
     		vm.log_mrs("EPSR", 0);
     		break;
-		// if SYSm<2> == ‘0’ then
-		//		R[d]<31:27> = APSR<31:27>;
-		//		if HaveDSPext() then
-		// 			R[d]<19:16> = APSR<19:16>;
+		// if SYSm<2> == ‘0’ then R[d]<31:27> = APSR<31:27>; if HaveDSPext() then R[d]<19:16> = APSR<19:16>;
 		case special_reg.APSR:
 			vm.set_reg(instr.rd, vm.cpu.get_apsr());
 			break;
 		// BASEPRI_MAX: On reads, acts as an alias of BASEPRI.
 		case special_reg.BASEPRI_MAX:
-		// R[d]<7:0> = if CurrentModeIsPrivileged() then
-		//		BASEPRI<7:0> else ‘00000000’;
+		// R[d]<7:0> = if CurrentModeIsPrivileged() then BASEPRI<7:0> else ‘00000000’;
 		case special_reg.BASEPRI:
 			if (vm.current_mode_is_privileged()) {
 				vm.set_reg(instr.rd, vm.get_basepri());
@@ -255,16 +234,14 @@ execute_mrs_t1
 			}
 			break;
 		case special_reg.MSP:
-			// R[d] = MSP;
 			if (vm.current_mode_is_privileged()) {
-				vm.set_reg(instr.rd, vm.get_msp());
+				vm.set_reg(instr.rd, vm.get_msp()); // R[d] = MSP;
 				vm.log_mrs("MSP", vm.get_msp());
 			}
 			break;
 		case special_reg.PSP:
-			// R[d] = PSP;
 			if (vm.current_mode_is_privileged()) {
-				vm.set_reg(instr.rd, vm.get_psp());
+				vm.set_reg(instr.rd, vm.get_psp()); // R[d] = PSP;
 				vm.log_mrs("PSP", vm.get_psp());
 			}
 			break;
@@ -281,10 +258,7 @@ execute_mrs_t1
 			}
 			break;
 		case special_reg.CONTROL:
-			// if HaveFPExt() then
-			// 		R[d]<2:0> = CONTROL<2:0>
-			// else
-			//		R[d]<1:0> = CONTROL<1:0>;
+			// if HaveFPExt() then R[d]<2:0> = CONTROL<2:0> else R[d]<1:0> = CONTROL<1:0>;
 			vm.set_reg(instr.rd, vm.cpu.get_control_reg());
 			vm.log_mrs("CONTROL", vm.cpu.get_control_reg());
 			break;

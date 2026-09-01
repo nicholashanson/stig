@@ -96,11 +96,19 @@ enum special_reg : ubyte {
 // ===========
 
 enum string EXCEPTION = q{
-	thread_mode  = 0,		// this needs to be first
-	nmi 		 = -2,
-	svc_irqn     = 11,
-	pendsv_irqn  = 14,
-	systick_irqn = 15,
+	thread_mode  	  = 0,		// this needs to be first
+	nmi 		 	  = -2,
+	mem_manage_fault  = 4,
+	bus_fault         = 5,
+	usage_fault       = 6,
+	secure_fault      = 7,	
+	svc_irqn          = 11,
+	svc               = svc_irqn,
+	debug_monitor     = 12,
+	pendsv_irqn       = 14,
+	pendsv 			  = pendsv_irqn,
+	systick_irqn 	  = 15,
+	systick           = systick_irqn,
 };
 
 enum string ARMv7_M_EXCEPTION = q{
@@ -111,6 +119,7 @@ enum string ARMv7_M_EXCEPTION = q{
 enum string ARMv8_M_EXCEPTION = q{
 	reset      			  = -4,
 	hard_fault_secure     = -3,
+	hard_fault            = hard_fault_secure,
 	hard_fault_non_secure = -1,
 };
 
@@ -156,7 +165,6 @@ deactivate_exc
 		//	FAULTMASK<0> = ‘0’; 
 		// clear FAULTMASK on any return except NMI
 		vm.set_fault_mask(false);
-	// return;
 }
 // --------------------------------------------------------------------------------------
 // ======================
@@ -1027,10 +1035,24 @@ mixin define_bitfield_helpers_scb!(DHCSR, "DBGKEY", 16, 16,  "S_RESTART_ST", 26,
 mixin define_bitfield_helpers_scb!(DEMCR, "TRCENA", 24, 1, "MONPRKEY", 23, 1, "UMON_EN", 21, 16,  "SDME", 20, 1, "MON_REQ", 19, 1, "MON_STEP", 18, 1, "MON_PEND", 17, 1, "MON_EN", 16, 1, 
 										  "VC_SFERR", 11, 1, "VC_HARDERR", 10, 1, "VC_INTERR", 9, 1, "VC_BUSERR", 8, 1, "VC_STATERR", 7, 1, "VC_CHKERR", 6, 1, "VC_NOCPERR", 5, 1, 
 										  "VC_MMERR", 4, 1, "VC_CORERESET", 0, 1);
-mixin define_bitfield_helpers_scb!(UFSR, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
+mixin define_bitfield_helpers_scb_secure!(UFSR, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
+mixin define_bitfield_helpers_scb!(UFSR_S, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
+mixin define_bitfield_helpers_scb!(UFSR_NS, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
 mixin define_bitfield_helpers_scb!(DWT_CTL, "NUMCOMP", 28, 4, "NOTRCPKT", 27, 1, "NOEXTTRIG", 26, 1, "NOCYCCNT", 25, 1,  "NOPRFCNT", 24, 1, "CYCDISS", 23, 1, "CYCEVTENA", 22, 1, "FOLDEVTENA", 21, 1, "LSUEVTENA", 20, 1, 
 										    "SLEEPEVTENA", 19, 1, "EXCEVTENA", 18, 1, "CPIEVTENA", 17, 1, "EXCTRCENA", 16, 1, "PCSAMPLENA", 12, 1, "SYNCTAP", 10, 2, "CYCTAP", 9, 1, 
 										    "POSTINIT", 5, 4, "POSTPRESET", 4, 1, "CYCCNTENA", 0, 1);
+mixin define_bitfield_helpers_scb_secure!(SHCSR, "HARDFAULTPENDED", 21, 1, "SECUREFAULTPENDED", 20, 1, "SECUREFAULTENA", 19, 1, "USGFAULTENA", 18, 1, "BUSFAULTENA", 17, 1, "MEMFAULTENA", 16, 1, "SVCALLPENDED", 15, 1,
+												 "BUSFAULTPENDED", 14, 1, "MEMFAULTPENDED", 13, 1, "USGFAULTPENDED", 12, 1, "SYSTICKACT", 11, 1,
+												 "PENDSVACT", 10, 1, "MONITORACT", 8, 1, "SVCALLACT", 7, 1, "NMIACT", 5, 1, "SECUREFAULTACT", 4, 1,
+												 "USGFAULTACT", 3, 1, "HARDFAULTACT", 2, 1, "BUSFAULTACT", 1, 1, "MEMFAULTACT", 0, 1);
+mixin define_bitfield_helpers_scb!(SHCSR_S, "HARDFAULTPENDED", 21, 1, "SECUREFAULTPENDED", 20, 1, "SECUREFAULTENA", 19, 1, "USGFAULTENA", 18, 1, "BUSFAULTENA", 17, 1, "MEMFAULTENA", 16, 1, "SVCALLPENDED", 15, 1,
+										    "BUSFAULTPENDED", 14, 1, "MEMFAULTPENDED", 13, 1, "USGFAULTPENDED", 12, 1, "SYSTICKACT", 11, 1,
+										    "PENDSVACT", 10, 1, "MONITORACT", 8, 1, "SVCALLACT", 7, 1, "NMIACT", 5, 1, "SECUREFAULTACT", 4, 1,
+										    "USGFAULTACT", 3, 1, "HARDFAULTACT", 2, 1, "BUSFAULTACT", 1, 1, "MEMFAULTACT", 0, 1);
+mixin define_bitfield_helpers_scb!(SHCSR_NS, "HARDFAULTPENDED", 21, 1, "SECUREFAULTPENDED", 20, 1, "SECUREFAULTENA", 19, 1, "USGFAULTENA", 18, 1, "BUSFAULTENA", 17, 1, "MEMFAULTENA", 16, 1, "SVCALLPENDED", 15, 1,
+										     "BUSFAULTPENDED", 14, 1, "MEMFAULTPENDED", 13, 1, "USGFAULTPENDED", 12, 1, "SYSTICKACT", 11, 1,
+											 "PENDSVACT", 10, 1, "MONITORACT", 8, 1, "SVCALLACT", 7, 1, "NMIACT", 5, 1, "SECUREFAULTACT", 4, 1,
+											 "USGFAULTACT", 3, 1, "HARDFAULTACT", 2, 1, "BUSFAULTACT", 1, 1, "MEMFAULTACT", 0, 1);
 // Non-secure Access Control Register
 mixin define_bitfield_helpers_scb!(NSACR, "CP11", 11, 1, "CP10", 10, 1, "CP7", 7, 1, "CP6", 6, 1, "CP5", 5, 1, "CP4", 4, 1, 
 										  "CP3", 3, 1, "CP2", 2, 1, "CP1", 1, 1, "CP0", 0, 1);
@@ -1045,6 +1067,18 @@ mixin define_bitfield_helpers_scb!(CPACR_S, "CP11", 22, 2, "CP10", 20, 2, "CP7",
 									        "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
 mixin define_bitfield_helpers_scb!(CPACR_NS, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
 									         "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
+mixin define_bitfield_helpers_scb_secure!(FPCAR,  "ADDR", 3, 29);
+mixin define_bitfield_helpers_scb!(FPCAR_S, "ADDR", 3, 29);
+mixin define_bitfield_helpers_scb!(FPCAR_NS, "ADDR", 3, 29);
+mixin define_bitfield_helpers_scb!(AIRCR, "VECTKEYSTAT", 16, 16, "ENDIANNESS", 15, 1, "PRIS", 14, 1, "BFHFNMINS", 13, 1, 
+									      "PRIGROUP", 8, 3, "IESB", 5, 1, "DIT", 4, 1,  "SYSRESETREQS", 3, 1, "SYSRESETREQ", 2, 1, "VECTCLRACTIVE", 0, 1);
+
+mixin define_bitfield_helpers_scb_secure!(ICSR, "PENDNMISET", 31, 1, "PENDNMICLR", 30, 1, "PENSVSET", 28, 1, "PENDSVCLR", 27, 1, 
+									            "PENDSTSET", 26, 1, "PENDSTCLR", 25, 1, "STTNS", 24, 1,  "ISRPREEMPT", 23, 1, "ISRPENDING", 22, 1, "RETTOBASE", 11, 1, "VECTACTIVE", 0, 9);
+mixin define_bitfield_helpers_scb!(ICSR_S, "PENDNMISET", 31, 1, "PENDNMICLR", 30, 1, "PENSVSET", 28, 1, "PENDSVCLR", 27, 1, 
+									       "PENDSTSET", 26, 1, "PENDSTCLR", 25, 1, "STTNS", 24, 1,  "ISRPREEMPT", 23, 1, "ISRPENDING", 22, 1, "RETTOBASE", 11, 1, "VECTACTIVE", 0, 9);
+mixin define_bitfield_helpers_scb!(ICSR_NS, "PENDNMISET", 31, 1, "PENDNMICLR", 30, 1, "PENSVSET", 28, 1, "PENDSVCLR", 27, 1, 
+									        "PENDSTSET", 26, 1, "PENDSTCLR", 25, 1, "STTNS", 24, 1,  "ISRPREEMPT", 23, 1, "ISRPENDING", 22, 1, "RETTOBASE", 11, 1, "VECTACTIVE", 0, 9);
 version (ARMv8_M) {
 mixin define_bitfield_helpers_scb_secure!(FPCCR, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPENS", 29, 1, "CLRONRET", 28, 1, "CLRONRETS", 27, 1, "TS", 26, 1, 
 										  		 "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
@@ -1084,6 +1118,14 @@ mixin(() {
     {
         code ~= format(
             "mixin define_bitfield_helpers_scb!(DWT_FUNCTION%d, \"ID\", 27, 5, \"MATCHED\", 24, 1, \"ACTION\", 4, 2, \"MATCH\", 0, 4);\n",
+            n
+        );
+    }
+
+    static foreach (n; 0 .. 14)
+    {
+        code ~= format(
+            "mixin define_bitfield_helpers_scb!(NVIC_ITNS%d, \"ITNS\", 0, 32);\n",
             n
         );
     }
@@ -1180,7 +1222,7 @@ if (fields.length % 3 == 0)
             enum uint start_pos    = fields[i * 3 + 1];
             enum uint width        = fields[i * 3 + 2];
             
-            enum uint field_mask   = (1u << width) - 1u;
+            enum uint field_mask   = (width == 32) ? 0xffffffff : ((1u << width) - 1u);
             enum uint reg_mask     = field_mask << start_pos;
 
             code ~= format(
@@ -1271,9 +1313,9 @@ if (fields.length % 3 == 0)
             code ~= format(
                 "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, uint val) {\n" ~
                 "    if (vm.get_curr_state == vm.security_state.secure)\n" ~
-                "    	return SET_%s_S_%s(vm);\n" ~
+                "    	return SET_%s_S_%s(vm, val);\n" ~
                 "    else\n" ~
-                "    	return SET_%s_NS_%s(vm);\n" ~
+                "    	return SET_%s_NS_%s(vm, val);\n" ~
                 "}\n",
                 reg_name, field_name, reg_name, field_name, reg_name, field_name
             );
