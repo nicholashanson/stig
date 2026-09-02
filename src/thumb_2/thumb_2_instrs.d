@@ -335,6 +335,7 @@ struct instr_32 {
 	union {
 		bool        is_tbh;
 		bool             D;
+		bool 		m_swap;
 	}
 	special_reg   spec_reg;
 	union 
