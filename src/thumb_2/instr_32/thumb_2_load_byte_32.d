@@ -480,7 +480,26 @@ void execute_ssax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ssub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_sadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_ssub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_qadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+// QADD16{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
+instr_32 parse_qadd16_t1(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr,  0, 4),
+					rd: cast(reg)slice(instr,  8, 4),
+					rn: cast(reg)slice(instr, 16, 4));
+}
+
+void execute_qadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {
+	int sum_1 = cast(int)cast(short)slice(vm.get_reg(instr.rn),  0, 16) + 
+				cast(int)cast(short)slice(vm.get_reg(instr.rm),  0, 16);
+	int sum_2 = cast(int)cast(short)slice(vm.get_reg(instr.rn), 16, 16) + 
+				cast(int)cast(short)slice(vm.get_reg(instr.rm), 16, 16);			
+	ushort sat_1 = cast(ushort)(sum_1 > 32767 ? 32767 : (sum_1 < -32768 ? -32768 : sum_1));
+    ushort sat_2 = cast(ushort)(sum_2 > 32767 ? 32767 : (sum_2 < -32768 ? -32768 : sum_2));
+	uint res = (cast(uint)sat_2 << 16) | cast(uint)sat_1;
+	vm.set_reg(instr.rd, res);
+}
+
+
 void execute_qasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qsax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qsub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

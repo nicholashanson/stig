@@ -688,7 +688,7 @@ opcode decode_signed_parallel_add_and_sub(const uint instr) {
 		case 0b10000: return opcode.ssub8_t1;
 		// Saturating instructions
 		// 001 01 Saturating Add 16-bit QADD16 v7E-M
-		case 0b00101: return opcode.qadd16_t;
+		case 0b00101: return opcode.qadd16_t1;
 		// 010 01 Saturating Add, Subtract QASX v7E-M
 		case 0b01001: return opcode.qasx_t1;
 		// 110 01 Saturating Subtract, Add QSAX v7E-M

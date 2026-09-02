@@ -173,7 +173,7 @@ enum string ARMv7_M_OPCODES = q{
 	ssub16_t1,
 	sadd8_t1,
 	ssub8_t1,
-	qadd16_t,
+	qadd16_t1,
 	qasx_t1,
 	qsax_t1,
 	qsub16_t1,
