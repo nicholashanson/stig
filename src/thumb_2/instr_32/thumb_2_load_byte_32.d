@@ -490,6 +490,30 @@ execute_smuad_t1
 		vm.set_q(true); // APSR.Q
 }
 
+instr_32 parse_smlsd_t1(const uint instr) {
+	return instr_32(rm:     cast(reg)slice(instr,  0, 4),
+					m_swap: cast(bool)slice(instr, 5, 1),
+					ra:     cast(reg)slice(instr, 12, 1),
+					rd:     cast(reg)slice(instr,  8, 4),
+					rn:     cast(reg)slice(instr, 16, 4));
+}
+
+void 
+execute_smlsd_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	uint op_2 = (instr.m_swap) ? rotr(vm.get_reg(instr.rm), 16) : vm.get_reg(instr.rm);
+	int product_1 = cast(int)cast(short)slice(vm.get_reg(instr.rn),  0, 16) * 
+				 	cast(int)cast(short)slice(vm.get_reg(instr.rm),  0, 16);
+	int product_2 = cast(int)cast(short)slice(vm.get_reg(instr.rn), 16, 16) * 
+				 	cast(int)cast(short)slice(vm.get_reg(instr.rm), 16, 16);	
+	const long wide = cast(long)product_1 - cast(long)product_2 + cast(long)vm.get_reg(instr.ra);
+	const int  res  = cast(int )wide;
+	vm.set_reg(instr.rd, cast(uint)res);
+	if (wide != cast(long)res) 
+		vm.set_q(true); // APSR.Q
+}
+
 // SMMUL{R}<c> <Rd>,<Rn>,<Rm>
 instr_32 parse_smmul_t1(const uint instr) {
 	return instr_32(rm: cast(reg)slice(instr,  0, 4),
