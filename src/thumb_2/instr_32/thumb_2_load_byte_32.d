@@ -564,8 +564,26 @@ void execute_qadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {
 	vm.set_reg(instr.rd, res);
 }
 
+instr_32 parse_qasx_t1(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr,  0, 4),
+					rd: cast(reg)slice(instr,  8, 4),
+					rn: cast(reg)slice(instr, 16, 4));
+}
 
-void execute_qasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+void 
+execute_qasx_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	uint sum  = cast(uint)cast(short)slice(vm.get_reg(instr.rn),  0, 16) 
+			  + cast(uint)cast(short)slice(vm.get_reg(instr.rm), 16, 16);
+	uint diff = cast(uint)cast(short)slice(vm.get_reg(instr.rn), 16, 16) 
+			  - cast(uint)cast(short)slice(vm.get_reg(instr.rm), 0, 16);
+	ushort sum_sat  = cast(ushort)(sum  > 32767 ? 32767 : (sum  < -32768 ? -32768 : sum));
+    ushort diff_sat = cast(ushort)(diff > 32767 ? 32767 : (diff < -32768 ? -32768 : diff));
+	uint res = (cast(uint)sum_sat << 16) | cast(uint)diff_sat;
+	vm.set_reg(instr.rd, res);
+}
+
 void execute_qsax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 instr_32 parse_qsub16_t1(const uint instr) {
