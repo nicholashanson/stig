@@ -643,7 +643,25 @@ execute_shadd16_t1
 
 void execute_shasx_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_shsax_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_shsub16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+instr_32 parse_shsub16_t1(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr,  0, 4),
+					rd: cast(reg)slice(instr,  8, 4),
+					rn: cast(reg)slice(instr, 16, 4));
+}
+
+void 
+execute_shsub16_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	uint diff_1 = cast(uint)cast(short)vm.get_reg(instr.rn) 
+	            - cast(uint)cast(short)vm.get_reg(instr.rm);
+	uint diff_2 = cast(uint)cast(short)slice(vm.get_reg(instr.rn), 16, 16) 
+			    - cast(uint)cast(short)slice(vm.get_reg(instr.rm), 16, 16);
+	uint res = (slice(diff_2, 1, 16) << 16) | slice(diff_1, 1, 16);
+	vm.set_reg(instr.rd, res);  
+}
+
 void execute_shadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_shsub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_uadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
