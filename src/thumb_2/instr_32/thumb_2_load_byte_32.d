@@ -764,6 +764,10 @@ execute_shsub16_t1
 	vm.set_reg(instr.rd, res);  
 }
 
+string convert_shsub16_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return optional_rd_string("shsub16", instr, cond);
+}
+
 void execute_shadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_shsub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_uadd16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
