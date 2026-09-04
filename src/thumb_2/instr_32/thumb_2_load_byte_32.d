@@ -482,6 +482,13 @@ execute_smusd_t1
 	vm.set_reg(instr.rd, cast(uint)res);
 }
 
+string convert_smusd_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("smusd%s %s%s, %s", get_condition_string(cond),
+									  (instr.rn == instr.rd) ? "" : (get_reg_name(instr.rd) ~ ", "),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm));
+}
+
 void execute_smlaw_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_smulw_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_smlad_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
