@@ -509,6 +509,13 @@ execute_smuad_t1
 		vm.set_q(true); // APSR.Q
 }
 
+string convert_smuad_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("smuad%s %s%s, %s", get_condition_string(cond),
+									  (instr.rn == instr.rd) ? "" : (get_reg_name(instr.rd) ~ ", "),
+									  get_reg_name(instr.rn),
+									  get_reg_name(instr.rm));
+}
+
 instr_32 parse_smlsd_t1(const uint instr) {
 	return instr_32(rm:     cast(reg)slice(instr,  0, 4),
 					m_swap: cast(bool)slice(instr, 5, 1),
