@@ -1870,4 +1870,23 @@ struct exc_info_t {
 							   // instruction to be terminated.
 };
 
+instr_32
+parse_vmov_gpr_spr_t1
+(const uint instr) {
+	return instr_32(
+		to_arm_registers: cast(bool)slice(instr, 20, 1),
+		vn 			    : cast(reg)((slice(instr, 16, 4) << 1) | slice(instr, 7, 1)),
+		rt  		    : cast(reg)slice(instr, 12, 4)
+	);
+}
 
+void
+execute_vmov_gpr_spr_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	if (instr.to_arm_registers)
+		vm.set_reg(instr.rt, vm.get_reg_s(instr.rn));
+	else
+		vm.set_reg_s(instr.rn, vm.get_reg(instr.rt));
+}
