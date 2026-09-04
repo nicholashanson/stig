@@ -964,7 +964,69 @@ opcode decode_copro_fp_ldst_mv_sec(const uint instr) {
 	return opcode.invalid;
 }
 
+opcode decode_fp_vec_mv_copro_reg(const uint instr) {
+	immutable op0 = slice(instr, 27, 1);
+	immutable op1 = slice(instr, 19, 4);
+	immutable op2 = slice(instr, 16, 1);
+	immutable op3 = slice(instr,  8, 4);
+	immutable op3 = slice(instr,  6, 1);
+	if ((op1 == 0b1110) && (op3 == 0b1010)) {
+		return opcode.vmsr_t1;
+	}
+	if (((op1 & 0b1110) == 0b0000) && (op3 == 0b1010)) {
+		return opcode.vmov_gpr_spr_t1;
+	} 
+	if ((op1 == 0b1111) && (op3 == 0b1010)) {
+		return opcode.vmrs_t1;
+	}
+	if (((op1 & 0b1001) == 0b0000) && (op3 == 0b1011)) {
+		return opcode.vmov_gpr_vl_t1;
+	} 
+	if (((op1 & 0b0001) == 0b0001) && (op3 == 0b1011)) {
+		return opcode.vmov_vl_gpr_t1;
+	} 
+	if (((op1 & 0b1011) == 0b1010) && (op2 == 0b0) && (op3 == 0b1010) && (op4 == 0b0)) {
+		return opcode.vdup_t1;
+	} 
+	return opcode.invalid;
+}
+
+opcode decode_vec_imm_reg_copro_data_proc(const uint instr) {
+	return opcode.invalid;
+}
+
+opcode decode_vec_mv(const uint instr) {
+	return opcode.invalid;
+}
+
+opcode decode_fp_data_proc_min_max_conv(const uint instr) {
+	return opcode.invalid;
+}
+
+opcode decode_copro_data_proc(const uint instr) {
+	return opcode.invalid;
+}
+
 opcode decode_fp_vec_misc(const uint instr) {
+	immutable op0 	   = slice(instr, 9, 3);
+	immutable op1      = slice(instr, 4, 1);
+	immutable combined = (op0 << 1) | op1;
+	switch (combined) {
+		case 0b1011:
+			return decode_fp_vec_mv_copro_reg(instr);
+		case 0b1110:
+			return decode_vec_imm_reg_copro_data_proc(instr);
+		case 0b1001:
+			return decode_vec_mv(instr);
+		case 0b1000:
+		case 0b1010:
+			return decode_fp_data_proc_min_max_conv(instr);
+		case 0b1111:
+			assert(0);
+			break;
+		default:
+			return decode_copro_data_proc(instr);
+	}
 	return opcode.invalid;
 }
 
