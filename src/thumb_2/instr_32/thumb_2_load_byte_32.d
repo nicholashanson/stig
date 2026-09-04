@@ -696,6 +696,14 @@ execute_shadd16_t1
 	vm.set_reg(instr.rd, res);  
 }
 
+// SHADD16{<c>}{<q>} {<Rd>,} <Rn>, <Rm>
+string convert_shadd16_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return format("shadd16%s %s%s, %s", get_condition_string(cond),
+										(instr.rn == instr.rd) ? "" : (get_reg_name(instr.rd) ~ ", "),
+										get_reg_name(instr.rn),
+										get_reg_name(instr.rm));
+}
+
 instr_32 parse_shsub16_t1(const uint instr) {
 	return instr_32(rm: cast(reg)slice(instr,  0, 4),
 					rd: cast(reg)slice(instr,  8, 4),
