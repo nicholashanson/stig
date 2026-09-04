@@ -698,6 +698,10 @@ execute_shsax_t1
 	vm.set_reg(instr.rd, res);
 }
 
+string convert_shsax_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return optional_rd_string("shasx", instr, cond);
+}
+
 instr_32 parse_qsub16_t1(const uint instr) {
 	return instr_32(rm: cast(reg)slice(instr,  0, 4),
 					rd: cast(reg)slice(instr,  8, 4),
