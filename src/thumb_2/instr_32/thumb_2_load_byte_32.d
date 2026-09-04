@@ -517,10 +517,15 @@ execute_smuad_t1
 }
 
 string convert_smuad_t1_to_string(const ref instr_32 instr, const condition cond) {
-	return format("smuad%s %s%s, %s", get_condition_string(cond),
-									  (instr.rn == instr.rd) ? "" : (get_reg_name(instr.rd) ~ ", "),
-									  get_reg_name(instr.rn),
-									  get_reg_name(instr.rm));
+	return optional_rd_string("smuad", instr, cond);
+}
+
+string optional_rd_string(const string opcode, const ref instr_32 instr, const condition cond) {
+	return format("%s%s %s%s, %s", opcode,
+								   get_condition_string(cond),
+								   (instr.rn == instr.rd) ? "" : (get_reg_name(instr.rd) ~ ", "),
+								   get_reg_name(instr.rn),
+								   get_reg_name(instr.rm));
 }
 
 instr_32 parse_smlsd_t1(const uint instr) {
@@ -625,6 +630,10 @@ execute_qasx_t1
 	vm.set_reg(instr.rd, res);
 }
 
+string convert_qasx_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return optional_rd_string("smuad", instr, cond);
+}
+
 instr_32 parse_qsax_t1(const uint instr) {
 	return instr_32(rm: cast(reg)slice(instr,  0, 4),
 					rd: cast(reg)slice(instr,  8, 4),
@@ -643,6 +652,10 @@ execute_qsax_t1
     ushort diff_sat = cast(ushort)(diff > 32767 ? 32767 : (diff < -32768 ? -32768 : diff));
 	uint res = (cast(uint)diff_sat << 16) | cast(uint)sum_sat;
 	vm.set_reg(instr.rd, res);
+}
+
+string convert_qsax_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return optional_rd_string("qsax", instr, cond);
 }
 
 instr_32 parse_shasx_t1(const uint instr) {
