@@ -14,6 +14,8 @@
 
 import std.typecons : Tuple;
 import std.format   : format;
+import std.algorithm.comparison : clamp;
+import std.traits               : isSigned, isIntegral;
 
 import thumb_2_opcodes;
 import thumb_2_instrs;
@@ -360,7 +362,24 @@ void execute_uxtab16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_uxtb16_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 void execute_ror_reg_t2(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
-void execute_qadd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+instr_32 parse_qadd_t1(const uint instr) {
+	return instr_32(rm: cast(reg)slice(instr,  0, 4),
+					rd: cast(reg)slice(instr,  8, 4),
+					rn: cast(reg)slice(instr, 16, 4));
+}
+
+void 
+execute_qadd_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	long sum = cast(long)vm.get_reg(instr.rm) + cast(long)vm.get_reg(instr.rn);
+	auto res = signed_sat_q!int(sum);
+	vm.set_reg(instr.rd, cast(uint)res.value);
+	if (res.saturated)
+		vm.set_q(true);
+}
+
 void execute_qdadd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qdsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
@@ -716,3 +735,17 @@ void execute_uhadd8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_uhsub8_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 
 void execute_qadd16_t(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
+
+struct sat_result(T)
+{
+    T value;
+    bool saturated;
+}
+
+sat_result!T 
+signed_sat_q
+(T)
+(long i) if (isIntegral!T && isSigned!T) {
+    long clamped = clamp(i, cast(long)T.min, cast(long)T.max);
+    return sat_result!T(cast(T) clamped, clamped != i);
+}
