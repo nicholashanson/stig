@@ -1891,6 +1891,37 @@ execute_vmov_gpr_spr_t1
 		vm.set_reg_s(instr.rn, vm.get_reg(instr.rt));
 }
 
+instr_32
+parse_vmov_gpr_vl_t1
+(const uint instr) {
+	uint h_op1_op2 = (slice(instr, 16, 1) << 4) | (slice(instr, 21, 2) << 2) | slice(instr, 5, 2);
+	//bool is_mve;
+	uint index, esize;
+	if ((h_op1_op2 & 0b01000) == 0b01000) {
+		//is_mve = true;
+		esize = 8;
+		index = slice(h_op1_op2, 0, 2);
+	} else if ((h_op1_op2 & 0b01001) == 0b00001) {
+		//is_mve = true;
+		esize = 16;
+		index = slice(h_op1_op2, 1, 1);
+	} else if ((h_op1_op2 & 0b01011) == 0b00000) {
+		//is_mve = false;
+		esize = 32;
+		index = 0;
+	} else {
+		assert(0, "Invalid h_op1_op2 inside parse_vmov_gpr_vl_t1");
+	}
+	return instr_32(
+		rd              : cast(reg)((slice(instr, 7, 1) << 3) | slice(instr, 17, 3)),
+		rt 			    : cast(reg)slice(instr, 12, 4),
+		target_beat     : (slice(h_op1_op2, 4, 1) << 1) | slice(h_op1_op2, 2, 1),
+		//is_mve 			: is_mve,
+		index			: index,
+		esize 			: esize,
+	);
+}
+
 void
 execute_vmov_gpr_vl_t1
 (vm_t)
