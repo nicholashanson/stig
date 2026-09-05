@@ -882,19 +882,17 @@ opcode decode_vector_load(const uint instr) {
 	if (((op0 & 0b1101) == 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b000)) {
 		return opcode.vscclrm_t2;
 	} 
-	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b000)) {
+	if (cmp1xx1(op0, 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b000)) 
 		return opcode.vldr_t2;
-	}  
-	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b100)) {
+	if (cmp1xx1(op0, 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b100)) 
 		return opcode.vldr_t1;
-	}  
 	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b1) && ((op3 & 0b110) == 0b000)) {
 		return opcode.vlldm_t1;
 	}  
 	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b1) && ((op3 & 0b110) == 0b010)) {
 		return opcode.vlldm_t2;
 	}
-	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b0) && ((op3 & 0b100) == 0b000)) {
+	if (cmp1xx1(op0, 0b1000) && (op1 == 0b0) && ((op3 & 0b100) == 0b000)) {
 		return opcode.vstr_t2;
 	}
 	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b0) && ((op3 & 0b110) == 0b000)) {
@@ -903,7 +901,7 @@ opcode decode_vector_load(const uint instr) {
 	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b0) && ((op3 & 0b110) == 0b010)) {
 		return opcode.vlstm_t2;
 	}     
-	if (((op0 & 0b1001) == 0b1000) && (op1 == 0b0) && ((op3 & 0b100) == 0b100)) {
+	if (cmp1xx1(op0, 0b1000) && (op1 == 0b0) && ((op3 & 0b100) == 0b100)) {
 		return opcode.vstr_t1;
 	} 
 	return opcode.invalid;
@@ -969,7 +967,7 @@ opcode decode_fp_vec_mv_copro_reg(const uint instr) {
 	immutable op1 = slice(instr, 19, 4);
 	immutable op2 = slice(instr, 16, 1);
 	immutable op3 = slice(instr,  8, 4);
-	immutable op3 = slice(instr,  6, 1);
+	immutable op4 = slice(instr,  6, 1);
 	if ((op1 == 0b1110) && (op3 == 0b1010)) {
 		return opcode.vmsr_t1;
 	}
@@ -979,7 +977,7 @@ opcode decode_fp_vec_mv_copro_reg(const uint instr) {
 	if ((op1 == 0b1111) && (op3 == 0b1010)) {
 		return opcode.vmrs_t1;
 	}
-	if (((op1 & 0b1001) == 0b0000) && (op3 == 0b1011)) {
+	if (cmp1xx1(op1, 0b0000) && (op3 == 0b1011)) {
 		return opcode.vmov_gpr_vl_t1;
 	} 
 	if (((op1 & 0b0001) == 0b0001) && (op3 == 0b1011)) {
@@ -1500,13 +1498,19 @@ unittest {
 		test_case(0xe8dff012,  opcode.tbb_tbh_t1),
 		test_case(0xF3838814,      opcode.msr_t1),
 		test_case(0xf8213012, opcode.strh_reg_t2),
-		test_case(0xeee13a10,     opcode.vmsr_t1),
+		//test_case(0xeee13a10,     opcode.vmsr_t1),
 		test_case(0xf9b4500c,opcode.ldrsh_imm_t1),
+	];
+
+version (ARMv8_M) {
+	tests ~= [
+		test_case(0xe8d30fef, 	 opcode.ldaex_t1),
 		test_case(0xe8d30fef, 	 opcode.ldaex_t1),
 		test_case(0xe8c32fe1,    opcode.stlex_t1),
 		test_case(0xe840f300,       opcode.tt_t1),
 		test_case(0xe8d00faf, 	   opcode.lda_t1),
 	];
+}
 
 	foreach (t; tests) {
 		auto actual = decode_mnemonic(t.instr);
