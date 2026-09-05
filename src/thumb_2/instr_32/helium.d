@@ -1875,7 +1875,7 @@ parse_vmov_gpr_spr_t1
 (const uint instr) {
 	return instr_32(
 		to_arm_registers: cast(bool)slice(instr, 20, 1),
-		vn 			    : cast(reg)((slice(instr, 16, 4) << 1) | slice(instr, 7, 1)),
+		rn 			    : cast(reg)((slice(instr, 16, 4) << 1) | slice(instr, 7, 1)),
 		rt  		    : cast(reg)slice(instr, 12, 4)
 	);
 }
@@ -1917,7 +1917,7 @@ parse_vmov_gpr_vl_t1
 		rt 			    : cast(reg)slice(instr, 12, 4),
 		target_beat     : (slice(h_op1_op2, 4, 1) << 1) | slice(h_op1_op2, 2, 1),
 		//is_mve 			: is_mve,
-		index			: index,
+		_index			: index,
 		esize 			: esize,
 	);
 }
@@ -1929,12 +1929,12 @@ execute_vmov_gpr_vl_t1
 	execute_fp_check(vm);
 	// if InITBlock() || !HaveMve() then
 	if (vm.in_it_block()) {
-		set_elem(get_Q(instr.rd, instr.target_beat, vm), instr.index, instr.esize,
+		set_elem(get_Q(instr.rd, instr.target_beat, vm), instr._index, instr.esize,
 				 slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
 	} else {
 		auto curr_beat = get_curr_instr_beat(vm).curr_beat;
 		if (curr_beat == instr.target_beat)
-			set_elem(get_Q(instr.rd, curr_beat, vm), instr.index, instr.esize,
+			set_elem(get_Q(instr.rd, curr_beat, vm), instr._index, instr.esize,
 				 slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
 	}
 }
@@ -1946,10 +1946,27 @@ execute_vmov_vl_gpr_t1
 	execute_fp_check(vm);
 	// if InITBlock() || !HaveMve() then
 	if (vm.in_it_block()) {
-		vm.set_reg(instr.rt, elem!uint(get_Q(instr.rd, instr.target_beat, vm), instr.index, instr.esize));
+		vm.set_reg(instr.rt, elem!uint(get_Q(instr.rd, instr.target_beat, vm), instr._index, instr.esize));
 	} else {
 		auto curr_beat = get_curr_instr_beat(vm).curr_beat;
 		if (curr_beat == instr.target_beat)
-			vm.set_reg(instr.rt, elem!uint(get_Q(instr.rd, curr_beat, vm), instr.index, instr.esize));
+			vm.set_reg(instr.rt, elem!uint(get_Q(instr.rd, curr_beat, vm), instr._index, instr.esize));
+	}
+}
+
+void
+execute_vdup_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	auto curr_ib = get_curr_instr_beat(vm);
+	uint res;
+	foreach (e; 0 .. instr.elements - 1) {
+		set_elem(res, e, instr.esize, slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
+	}
+	foreach (e; 0 .. 3) {
+		if (slice(curr_ib.elmt_mask, e, 1) == 1) {	
+			set_elem(get_Q(instr.rd, curr_ib.curr_beat, vm), e, 8, elem!uint(res, e, 8));
+		}
 	}
 }
