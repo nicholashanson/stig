@@ -879,26 +879,26 @@ opcode decode_vector_load(const uint instr) {
 	if (((op0 & 0b1101) == 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b100) && (op5 == 0b0)) {
 		return opcode.vscclrm_t1;
 	}   
-	if (((op0 & 0b1101) == 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b000)) {
+	if (cmp11x1(op0, 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b000)) {
 		return opcode.vscclrm_t2;
 	} 
 	if (cmp1xx1(op0, 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b000)) 
 		return opcode.vldr_t2;
 	if (cmp1xx1(op0, 0b1000) && (op1 == 0b1) && ((op3 & 0b100) == 0b100)) 
 		return opcode.vldr_t1;
-	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b1) && ((op3 & 0b110) == 0b000)) {
+	if (cmp11x1(op0, 0b0001) && (op1 == 0b1) && ((op3 & 0b110) == 0b000)) {
 		return opcode.vlldm_t1;
 	}  
-	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b1) && ((op3 & 0b110) == 0b010)) {
+	if (cmp11x1(op0, 0b0001) && (op1 == 0b1) && ((op3 & 0b110) == 0b010)) {
 		return opcode.vlldm_t2;
 	}
 	if (cmp1xx1(op0, 0b1000) && (op1 == 0b0) && ((op3 & 0b100) == 0b000)) {
 		return opcode.vstr_t2;
 	}
-	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b0) && ((op3 & 0b110) == 0b000)) {
+	if (cmp11x1(op0, 0b0001) && (op1 == 0b0) && ((op3 & 0b110) == 0b000)) {
 		return opcode.vlstm_t1;
 	}
-	if (((op0 & 0b1101) == 0b0001) && (op1 == 0b0) && ((op3 & 0b110) == 0b010)) {
+	if (cmp11x1(op0, 0b0001) && (op1 == 0b0) && ((op3 & 0b110) == 0b010)) {
 		return opcode.vlstm_t2;
 	}     
 	if (cmp1xx1(op0, 0b1000) && (op1 == 0b0) && ((op3 & 0b100) == 0b100)) {
@@ -909,6 +909,10 @@ opcode decode_vector_load(const uint instr) {
 
 bool cmp1xx1(uint v, uint t) {
 	return ((v & 0b1001) == t);
+}
+
+bool cmp11x1(uint v, uint t) {
+	return ((v & 0b1101) == t);
 }
 
 opcode decode_vector_store(const uint instr) {
