@@ -8,6 +8,8 @@ import thumb_2_execute_instr;
 import thumb_2_instrs;
 
 import cortex_m_core;
+import vm;
+import ra81d;
 
 struct instr_beat {
 	uint 	    curr_beat;
@@ -1646,13 +1648,7 @@ create_exception
 
 unittest {
 	{
-		cortex_m_vm!rad8d1_mem vm;
-		assert(exception_targets_secure(exception.nmi, false, vm));
-		SET_AIRCR_BFHFNMINS(vm, 1);
-		assert(!exception_targets_secure(exception.nmi, false, vm));
-	}
-	{
-		cortex_m_vm!rad8d1_mem vm;
+		cortex_m_vm!ra8d1_mem vm;
 		assert(exception_targets_secure(exception.nmi, false, vm));
 		SET_AIRCR_BFHFNMINS(vm, 1);
 		assert(!exception_targets_secure(exception.nmi, false, vm));
