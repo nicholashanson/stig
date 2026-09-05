@@ -1890,3 +1890,20 @@ execute_vmov_gpr_spr_t1
 	else
 		vm.set_reg_s(instr.rn, vm.get_reg(instr.rt));
 }
+
+void
+execute_vmov_gpr_vl_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	// if InITBlock() || !HaveMve() then
+	if (vm.in_it_block()) {
+		set_elem(get_Q(instr.rd, instr.target_beat, vm), instr.index, instr.esize,
+				 slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
+	} else {
+		auto curr_beat = get_cur_instr_beat(vm).curr_beat;
+		if (curr_beat == instr.target_beat)
+		set_elem(get_Q(instr.rd, curr_beat, vm), instr.index, instr.esize,
+				 slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
+	}
+}
