@@ -918,7 +918,7 @@ struct instr_exec_state {
 	// L, T166IND, BTI, LOBranchInfoValid
 	ubyte                 bits;
 	uint            loop_count;
-	bool        reset_ltp_size;
+	bool        reset_ltp_size = true;
 }
 
 mixin template define_bit_helpers(string reg, bits...) 
@@ -990,23 +990,23 @@ if (bits.length % 2 == 0)
 
             code ~= format(
                 "pragma(inline, true) bool %s_%s_CLEAR(vm_t)(ref vm_t vm) {\n" ~
-                "    return (vm.read_word(cast(size_t)%d) & 0x%X) == 0;\n" ~
+                "    return (vm.peek_word(cast(size_t)%d) & 0x%X) == 0;\n" ~
                 "}\n",
                 reg_name, bit_name, reg, mask
             );
 
             code ~= format(
                 "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm) {\n" ~
-                "    auto val = vm.read_word(%d);\n" ~
-                "    vm.write_word(cast(size_t)%d, cast(typeof(val))(val | 0x%X));\n" ~
+                "    auto val = vm.peek_word(%d);\n" ~
+                "    vm.modify_word(cast(size_t)%d, cast(typeof(val))(val | 0x%X));\n" ~
                 "}\n",
                 reg_name, bit_name, reg, reg, mask
             );
 
             code ~= format(
                 "pragma(inline, true) void CLEAR_%s_%s(vm_t)(ref vm_t vm) {\n" ~
-                "    auto val = vm.read_word(%d);\n" ~
-                "    vm.write_word(cast(size_t)%d, cast(typeof(val))(val & ~0x%X));\n" ~
+                "    auto val = vm.peek_word(%d);\n" ~
+                "    vm.modify_word(cast(size_t)%d, cast(typeof(val))(val & ~0x%X));\n" ~
                 "}\n",
                 reg_name, bit_name, reg, reg, mask
             );
@@ -1229,17 +1229,17 @@ if (fields.length % 3 == 0)
 
             code ~= format(
                 "pragma(inline, true) auto GET_%s_%s(vm_t)(ref vm_t vm) {\n" ~
-                "    return (vm.read_word(cast(size_t)%d) >> %d) & 0x%X;\n" ~
+                "    return (vm.peek_word(cast(size_t)%d) >> %d) & 0x%X;\n" ~
                 "}\n",
                 reg_name, field_name, reg, start_pos, field_mask
             );
 
             code ~= format(
                 "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, uint val) {\n" ~
-                "    auto current = vm.read_word(cast(size_t)%d);\n" ~
+                "    auto current = vm.peek_word(cast(size_t)%d);\n" ~
                 "    auto cleared = current & ~0x%Xu;\n" ~
                 "    auto new_val = cleared | ((cast(typeof(current))val & 0x%X) << %d);\n" ~
-                "    vm.write_word(cast(size_t)%d, cast(typeof(current))new_val);\n" ~
+                "    vm.modify_word(cast(size_t)%d, cast(typeof(current))new_val);\n" ~
                 "}\n",
                 reg_name, field_name, reg, reg_mask, field_mask, start_pos, reg
             );
@@ -1448,7 +1448,7 @@ struct cortex_m_cpu {
 	// ===========
 
 	void set_reg_s(const reg r, const uint val) {
-		assert((r > reg.s0) && (r <= reg.s31));
+		assert((r >= reg.s0) && (r <= reg.s31));
 		size_t i = r - reg.s0;
 		fp_registers[i] = val;
 	}
@@ -1458,10 +1458,10 @@ struct cortex_m_cpu {
 	// ===========
 
 	void set_reg_d(reg r, const ulong val) {
-		assert((r > reg.d0) && (r <= reg.d15));
+		assert((r >= reg.d0) && (r <= reg.d15), format("set_reg_d: %s", r.to!string));
 		size_t i = reg.s0 + (r - reg.d0) * 2;
 		set_reg_s(cast(reg)i,       slice(val, 0,  32));
-		set_reg_s(cast(reg)(i + 1), slice(val, 31, 32));
+		set_reg_s(cast(reg)(i + 1), slice(val, 32, 32));
 	}
 
 	// ===========

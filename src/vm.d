@@ -573,6 +573,13 @@ struct cortex_m_vm(mem_t) {
 		return mem.read_word(addr);
 	}
 
+	// =============
+	//  MODIFY WORD
+	// =============	
+	void modify_word(const size_t addr, const uint val) {
+		mem.write_word(addr, val);
+	}
+
 	// ============
 	//  WRITE WORD
 	// ============	
@@ -1014,6 +1021,12 @@ unittest {
 
 	vm.set_basepri(0xD0);
 	assert(get_next_executable_exception(vm) == exception.thread_mode);
+}
+
+unittest {
+	tiny_vm vm;
+	vm.set_reg_q(reg.q0, u128(high: 0xffeeffffffeeffffUL, low: 0xffeeffffffeeffffUL));
+	assert(vm.get_reg_s(reg.s0) == 0xffeeffff, format("s0: 0x%08X", vm.get_reg_s(reg.s0)));
 }
 // --------------------------------------------------------------------------------------
 

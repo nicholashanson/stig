@@ -380,6 +380,10 @@ execute_qadd_t1
 		vm.set_q(true);
 }
 
+string convert_qadd_t1_to_string(const ref instr_32 instr, const condition cond) {
+	return optional_rd_string("qadd", instr, cond);
+}
+
 void execute_qdadd_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}
 void execute_qdsub_t1(vm_t)(const ref instr_32 instr, ref vm_t vm) {}

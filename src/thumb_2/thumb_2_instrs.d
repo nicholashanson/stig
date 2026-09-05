@@ -191,7 +191,7 @@ uint rotr(uint value, uint n) {
 // =====================
 
 uint decimal_to_hex_mask(uint n) pure nothrow @nogc {
-    return (1u << n) - 1;
+    return cast(uint)((1UL << n) - 1UL);
 }
 
 // =======
@@ -314,6 +314,7 @@ struct instr_32 {
 		uint       widthm1;
 		uint          regs;
 		uint           rot;
+		uint        _index;
 	}
 	uint 		       msb;
 	reg 		     rd_hi;
@@ -346,6 +347,7 @@ struct instr_32 {
     union {
 	uint    unexpanded_imm;
 	uint  		    t_size;
+	uint   	   target_beat;
 	}
 	union {
 		bool   	    m_high;

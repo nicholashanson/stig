@@ -43,7 +43,7 @@ elem
 	// assert e >= 0 && (e+1)*size <= N;
 	assert((e >= 0) && (((e + 1) * size) <= (T.sizeof * 8)));
 	// return vector[(e+1)*size-1:e*size];
-	return cast(R)slice(vector, e * size, size - 1);
+	return cast(R)slice(vector, e * size, size);
 }
 
 // bits(size) Elem[bits(N) vector, integer e]
@@ -60,13 +60,22 @@ T
 set_elem
 (T)
 (T vector, const size_t e, const size_t size, T value) pure nothrow @nogc {
-    T mask 		   = cast(T)((1u << size) - 1u);
+    T mask 		   = (size >= 64) ? cast(T)~0UL : cast(T)((1UL << size) - 1UL);
     T shifted_mask = cast(T)(mask << (e * size));
     T cleared 	   = vector & ~shifted_mask;
     T inserted 	   = cast(T)((value & mask) << (e * size));
     return cast(T)(cleared | inserted);
 }
 
+unittest {
+	ulong vec = 0xAAAA_BBBB_CCCC_DDDDUL;
+	ulong val = 0x1234_5678UL;
+        
+	ulong res = set_elem!ulong(vec, 1, 32, val);
+        
+    ulong expected = 0x1234_5678_CCCC_DDDDUL;
+    assert(res == expected, format("32-bit lane 1 insert failed: 0x%016X", res));
+}
 
 // Elem[bits(N) &vector, integer e] = bits(size) value
 	// Elem[vector, e, size] = value;
@@ -107,6 +116,13 @@ get_curr_instr_beat
 	}
 	// return (_BeatID, elmtMask);
 	return instr_beat(curr_beat: vm.get_beat_id(), elmt_mask: elmt_mask);
+}
+
+unittest {
+	tiny_vm vm;
+	auto ib = get_curr_instr_beat(vm);
+	assert(ib == instr_beat(curr_beat: 0, elmt_mask: 0b1111), format("get_curr_instr_beat incorrect on initialisation: curr_beat: %s, elmt_mask: %s",
+																	 get_curr_instr_beat(vm).curr_beat, get_curr_instr_beat(vm).elmt_mask));
 }
 
 // T7: VLDRW variant (Post-indexed: P=0, W=1)
@@ -1935,6 +1951,35 @@ execute_vmov_gpr_vl_t1
 	}
 }
 
+instr_32
+parse_vdup_t1
+(const uint instr) {
+	uint B_E = (slice(instr, 22, 1) << 1) | slice(instr, 5, 1);
+	uint elements, esize;
+	switch (B_E) {
+		case 0b00:
+			esize = 32;
+			elements = 1;
+			break;
+		case 0b01: 
+			esize = 16;
+			elements = 2;
+			break;
+		case 0b10:
+			esize = 8;
+			elements = 4;
+			break;
+		default:
+			assert(0, "Invalid BE inside parse_vdup_t1");
+	}
+	return instr_32(
+		qd:       cast(reg)(slice(instr, 7, 1) << 3 | slice(instr, 17, 3)), 
+		rt:       cast(reg)slice(instr, 12, 4),
+		esize:    esize,
+		elements: elements,
+	);
+}
+
 void
 execute_vmov_vl_gpr_t1
 (vm_t)
@@ -1956,13 +2001,16 @@ execute_vdup_t1
 (const ref instr_32 instr, ref vm_t vm) {
 	execute_fp_check(vm);
 	auto curr_ib = get_curr_instr_beat(vm);
-	uint res;
-	foreach (e; 0 .. instr.elements - 1) {
-		set_elem(res, e, instr.esize, slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
+	uint res = slice(vm.get_reg(instr.rt), 0, instr.esize);
+	foreach (e; 0 .. instr.elements) {
+		auto v = set_elem(res, e, instr.esize, slice(vm.get_reg(instr.rt), 0, instr.esize));
+		res = v;
 	}
-	foreach (e; 0 .. 3) {
+	uint curr_word;
+	foreach (e; 0 .. 4) {
 		if (slice(curr_ib.elmt_mask, e, 1) == 1) {	
-			set_elem(get_Q(instr.rd, curr_ib.curr_beat, vm), e, 8, elem!uint(res, e, 8));
+			curr_word = set_elem!uint(curr_word, e, 8, elem!uint(res, e, 8));
 		}
 	}
-}
+	vm.set_reg_s(q_to_s(instr.qd, curr_ib.curr_beat), curr_word);
+} 

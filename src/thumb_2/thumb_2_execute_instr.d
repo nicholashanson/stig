@@ -559,7 +559,7 @@ execute_instr_v8
   if (fetch_new) {
     execute_instr(instr, vm);
   }
-  dwt_instr_match(vm.get_pc(), vm);
+  //dwt_instr_match(vm.get_pc(), vm);
 }
 }
 
@@ -576,6 +576,15 @@ string cpu_diff(const ref cortex_m_cpu a, const ref cortex_m_cpu b)
 
         if (ra != rb)
             buf ~= format("r%-2d : 0x%08X vs 0x%08X\n", i, ra, rb);
+    }
+
+    foreach (i; 0 .. 32)
+    {
+        auto sa = a.fp_registers[i];
+        auto sb = b.fp_registers[i];
+
+        if (sa != sb)
+            buf ~= format("s%-2d : 0x%08X vs 0x%08X\n", i, sa, sb);
     }
 
     if (a.get_sp() != b.get_sp())
@@ -618,8 +627,24 @@ cortex_m_cpu make_cpu(T...)(T args)
 
     foreach (arg; args)
     {
-        static if (is(typeof(arg[0]) == reg))
-            cpu.set_reg(arg[0], arg[1]);
+        static if (is(typeof(arg[0]) == reg)) {
+          static if (is(typeof(arg[1]) == u128)) {
+            if ((arg[0] >= reg.q0) && (arg[0] <= reg.q7))
+              cpu.set_reg_q(arg[0], arg[1]);
+            else 
+              assert(0, "make_cpu: not a recognised register");
+          } else {
+            if ((arg[0] >= reg.r0) && (arg[0] <= reg.pc))
+              cpu.set_reg(arg[0], arg[1]);
+            else if ((arg[0] >= reg.s0) && (arg[0] <= reg.s31))
+              cpu.set_reg_s(arg[0], arg[1]);
+            else if ((arg[0] >= reg.d0) && (arg[0] <= reg.d15))
+              cpu.set_reg_d(arg[0], arg[1]);
+            else 
+              assert(0, "make_cpu: not a recognised register");
+          }
+        }   
+              
         static if (is(typeof(arg[0]) == flag))
             cpu.set_flag(arg[0], arg[1]);
         static if (is(typeof(arg[0]) == condition))
@@ -999,6 +1024,17 @@ unittest {
                         mem: make_mem(tuple(100, 0x00ee0000)))),
 
   ];
+
+  version (ARMv8_M) {
+  tests ~= [
+    test_case(0xeea23b10, // vdup.32  q1, r3
+              instr_32(op: opcode.vdup_t1, qd: reg.q1, rt: reg.r3, esize: 32, elements: 1),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 0xffeeffff))),
+              tiny_vm(cpu: make_cpu(tuple(reg.r3, 0xffeeffff),
+                                    tuple(reg.pc, 4), 
+                                    tuple(reg.s4, 0xffeeffff)))),
+  ];
+}
 
   foreach (t; tests) {
       record_tested_opcode(t.instr.op);
