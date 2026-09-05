@@ -79,7 +79,7 @@ bool vpt_active() {
 // ===================
 // (integer, bits(4)) GetCurInstrBeat()
 instr_beat 
-get_cur_instr_beat
+get_curr_instr_beat
 (vm_t)
 (ref vm_t vm) {
 	// assert HaveMve();
@@ -151,7 +151,7 @@ execute_vldrw_t7
 	// EncodingSpecificOperations();
 	execute_fp_check(vm);
 	// (curBeat, elmtMask) = GetCurInstrBeat();
-	instr_beat ib = get_cur_instr_beat(vm);
+	instr_beat ib = get_curr_instr_beat(vm);
 	// result = Zeros(32);
 	// offsetAddr = if add then (R[n] + imm32) else (R[n] - imm32);
 	uint offset_addr = instr.add ? (vm.get_reg(instr.rn) + instr.imm) : (vm.get_reg(instr.rn) - instr.imm);
@@ -219,7 +219,7 @@ execute_vctp
 	execute_fp_check(vm);
 
 	// (curBeat, elmtMask) = GetCurInstrBeat();
-	instr_beat ib = get_cur_instr_beat(vm);
+	instr_beat ib = get_curr_instr_beat(vm);
 
 	// loopCount = R[n];
 	uint loop_count = vm.get_reg(instr.rn);
@@ -903,7 +903,7 @@ void
 execute_vcadd_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
-	auto ib = get_cur_instr_beat(vm);
+	auto ib = get_curr_instr_beat(vm);
 	auto op_1 = get_Q(instr.qn, ib.curr_beat, vm);
 	auto op_2 = get_Q(instr.qm, ib.curr_beat, vm);
 
@@ -1063,7 +1063,7 @@ execute_vcmla_t1
 (vm_t)
 (const ref instr_32 instr, ref vm_t vm) {
 	execute_fp_check(vm);
-	auto ib = get_cur_instr_beat(vm);
+	auto ib = get_curr_instr_beat(vm);
 	uint res;
 	auto dest = get_Q(instr.rda, ib.curr_beat, vm);
 	if (instr.esize == 32) {
@@ -1901,7 +1901,7 @@ execute_vmov_gpr_vl_t1
 		set_elem(get_Q(instr.rd, instr.target_beat, vm), instr.index, instr.esize,
 				 slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
 	} else {
-		auto curr_beat = get_cur_instr_beat(vm).curr_beat;
+		auto curr_beat = get_curr_instr_beat(vm).curr_beat;
 		if (curr_beat == instr.target_beat)
 		set_elem(get_Q(instr.rd, curr_beat, vm), instr.index, instr.esize,
 				 slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
