@@ -1934,7 +1934,22 @@ execute_vmov_gpr_vl_t1
 	} else {
 		auto curr_beat = get_curr_instr_beat(vm).curr_beat;
 		if (curr_beat == instr.target_beat)
-		set_elem(get_Q(instr.rd, curr_beat, vm), instr.index, instr.esize,
+			set_elem(get_Q(instr.rd, curr_beat, vm), instr.index, instr.esize,
 				 slice(vm.get_reg(instr.rt), 0, instr.esize - 1));
+	}
+}
+
+void
+execute_vmov_vl_gpr_t1
+(vm_t)
+(const ref instr_32 instr, ref vm_t vm) {
+	execute_fp_check(vm);
+	// if InITBlock() || !HaveMve() then
+	if (vm.in_it_block()) {
+		vm.set_reg(instr.rt, elem!uint(get_Q(instr.rd, instr.target_beat, vm), instr.index, instr.esize));
+	} else {
+		auto curr_beat = get_curr_instr_beat(vm).curr_beat;
+		if (curr_beat == instr.target_beat)
+			vm.set_reg(instr.rt, elem!uint(get_Q(instr.rd, curr_beat, vm), instr.index, instr.esize));
 	}
 }
