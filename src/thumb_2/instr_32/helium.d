@@ -1999,23 +1999,3 @@ execute_vmov_vl_gpr_t1
 			vm.set_reg(instr.rt, elem!uint(get_Q(instr.rd, curr_beat, vm), instr._index, instr.esize));
 	}
 }
-
-void
-execute_vdup_t1
-(vm_t)
-(const ref instr_32 instr, ref vm_t vm) {
-	execute_fp_check(vm);
-	auto curr_ib = get_curr_instr_beat(vm);
-	uint res = slice(vm.get_reg(instr.rt), 0, instr.esize);
-	foreach (e; 0 .. instr.elements) {
-		auto v = set_elem(res, e, instr.esize, slice(vm.get_reg(instr.rt), 0, instr.esize));
-		res = v;
-	}
-	uint curr_word;
-	foreach (e; 0 .. 4) {
-		if (slice(curr_ib.elmt_mask, e, 1) == 1) {	
-			curr_word = set_elem!uint(curr_word, e, 8, elem!uint(res, e, 8));
-		}
-	}
-	vm.set_reg_s(q_to_s(instr.qd, curr_ib.curr_beat), curr_word);
-} 

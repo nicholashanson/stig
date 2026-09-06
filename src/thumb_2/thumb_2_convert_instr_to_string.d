@@ -329,8 +329,14 @@ unittest {
 		test_case(0xf890f000, 										  "pld [r0]"),
 		test_case(0xf9b1100e, 							 "ldrsh.w r1, [r1, #14]"),
 		test_case(0xe8533f00, 									"ldrex r3, [r3]"),
-		test_case(0xe8b04ff0,"ldmia.w r0!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}")
+		test_case(0xe8b04ff0,"ldmia.w r0!, {r4, r5, r6, r7, r8, r9, sl, fp, lr}"),
 	];
+
+version (ARMv8_M) {
+	tests ~= [
+		test_case(0xeea23b10, 									"vdup.32 q1, r3"),
+	];
+}
 
 	foreach (t; tests) {
 		string actual = convert_instr_to_string!(uint,instr_32)(t.instr, t.cond);

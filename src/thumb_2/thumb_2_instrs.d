@@ -7,6 +7,10 @@ import thumb_2_opcodes;
 import thumb_2_opcode_defs;
 import cortex_m_core;
 
+reg to_q_reg(const uint r) {
+	return cast(reg)(r + cast(uint)reg.q0);
+}
+
 bool matches(const uint target, const uint mask, const uint val) {
   return ((target & mask) == val);
 }
