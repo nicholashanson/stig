@@ -47,6 +47,7 @@ version (ARMv8_M) {
   import vm8_loop;
   import vm8_M_se;
   import helium;
+  import floating_point_and_vector_move_and_coprocessor_register;
 }
 
 __gshared opcode[] tested_opcodes;
