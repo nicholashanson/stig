@@ -876,7 +876,7 @@ opcode decode_vector_load(const uint instr) {
 	if ((op0 == 0b0) && (op3 == 0b1) && (op4 == 0b10)) {
 		return opcode.vldrw_t7;
 	}
-	if (((op0 & 0b1101) == 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b100) && (op5 == 0b0)) {
+	if (cmp11x1(op0, 0b0001) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b100) && (op5 == 0b0)) {
 		return opcode.vscclrm_t1;
 	}   
 	if (cmp11x1(op0, 0b0100) && (op1 == 0b1) && (op2 == 0b1111) && ((op3 & 0b100) == 0b000)) {
@@ -968,7 +968,7 @@ opcode decode_copro_fp_ldst_mv_sec(const uint instr) {
 
 opcode decode_fp_vec_mv_copro_reg(const uint instr) {
 	immutable op0 = slice(instr, 27, 1);
-	immutable op1 = slice(instr, 19, 4);
+	immutable op1 = slice(instr, 20, 4);
 	immutable op2 = slice(instr, 16, 1);
 	immutable op3 = slice(instr,  8, 4);
 	immutable op4 = slice(instr,  6, 1);
@@ -987,7 +987,7 @@ opcode decode_fp_vec_mv_copro_reg(const uint instr) {
 	if (((op1 & 0b0001) == 0b0001) && (op3 == 0b1011)) {
 		return opcode.vmov_vl_gpr_t1;
 	} 
-	if (((op1 & 0b1011) == 0b1010) && (op2 == 0b0) && (op3 == 0b1010) && (op4 == 0b0)) {
+	if (((op1 & 0b1011) == 0b1010) && (op2 == 0b0) && (op3 == 0b1011) && (op4 == 0b0)) {
 		return opcode.vdup_t1;
 	} 
 	return opcode.invalid;
@@ -1513,6 +1513,7 @@ version (ARMv8_M) {
 		test_case(0xe8c32fe1,    opcode.stlex_t1),
 		test_case(0xe840f300,       opcode.tt_t1),
 		test_case(0xe8d00faf, 	   opcode.lda_t1),
+		test_case(0xeea81b10,     opcode.vdup_t1), 
 	];
 }
 

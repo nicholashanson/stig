@@ -1922,7 +1922,7 @@ parse_vmov_gpr_vl_t1
 		esize = 32;
 		index = 0;
 	} else {
-		assert(0, "Invalid h_op1_op2 inside parse_vmov_gpr_vl_t1");
+		assert(0, "Invalid h_op1_op2 inside parse_vmov_gpr_vl_t1: 0X");
 	}
 	return instr_32(
 		rd              : cast(reg)((slice(instr, 7, 1) << 3) | slice(instr, 17, 3)),
@@ -1931,6 +1931,40 @@ parse_vmov_gpr_vl_t1
 		//is_mve 			: is_mve,
 		_index			: index,
 		esize 			: esize,
+	);
+}
+
+instr_32
+parse_vmov_vl_gpr_t1
+(const uint instr) {
+	uint h_op1_op2   = (slice(instr, 16, 1) << 4) | (slice(instr, 21, 2) << 2) | slice(instr, 5, 2);
+	uint U           = slice(instr, 23,1);
+	uint U_h_op1_op2 = (U << 5) | h_op1_op2;
+	//bool is_mve;
+	uint index, esize;
+	if ((U_h_op1_op2 & 0b001000) == 0b001000) {
+		//is_mve = true;
+		esize = 8;
+		index = slice(h_op1_op2, 0, 2);
+	} else if ((U_h_op1_op2 & 0b001001) == 0b000001) {
+		//is_mve = true;
+		esize = 16;
+		index = slice(h_op1_op2, 1, 1);
+	} else if ((U_h_op1_op2 & 0b101011) == 0b000000) {
+		//is_mve = false;
+		esize = 32;
+		index = 0;
+	} else {
+		assert(0, format("Invalid h_op1_op2 inside parse_vmov_gpr_vl_t1: 0x%08X", instr));
+	}
+	return instr_32(
+		rn              : cast(reg)((slice(instr, 7, 1) << 3) | slice(instr, 17, 3)),
+		rt 			    : cast(reg)slice(instr, 12, 4),
+		target_beat     : (slice(h_op1_op2, 4, 1) << 1) | slice(h_op1_op2, 2, 1),
+		//is_mve 			: is_mve,
+		_index			: index,
+		esize 			: esize,
+		unsigned        : U == 1,
 	);
 }
 
@@ -1970,7 +2004,7 @@ parse_vdup_t1
 			elements = 4;
 			break;
 		default:
-			assert(0, "Invalid BE inside parse_vdup_t1");
+			assert(0, format("Invalid BE inside parse_vdup_t10: x%08X", instr));
 	}
 	return instr_32(
 		qd:       cast(reg)(slice(instr, 7, 1) << 3 | slice(instr, 17, 3)), 
