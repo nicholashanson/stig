@@ -34,7 +34,7 @@ parse_vvstr_t1
 		add:        cast(bool)slice(instr, 23, 1),
 		index:      cast(bool)slice(instr, 24, 1),
 		r:          (slice(instr, 22, 1) << 3) | slice(instr, 13, 3),
-		imm: 		slice(instr, 0, 7),
+		imm: 		slice(instr, 0, 7) << 2,
 	);
 }
 
