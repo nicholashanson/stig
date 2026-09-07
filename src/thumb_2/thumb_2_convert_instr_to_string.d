@@ -50,6 +50,7 @@ version (ARMv8_M) {
   import vm8_M_se;
   import helium;
   import floating_point_and_vector_move_and_coprocessor_register;
+  import vector_store;
 }
 
 // =========================
@@ -335,6 +336,7 @@ unittest {
 version (ARMv8_M) {
 	tests ~= [
 		test_case(0xeea23b10, 									"vdup.32 q1, r3"),
+		test_case(0xee100a10, 									   "vmov r0, s0"),
 	];
 }
 

@@ -1434,14 +1434,6 @@ fp_unpack
 	return fp_unpack_base!(T,N)(value, fpscr_val, vm);
 }
 
-void
-execute_vvstr_t1
-(vm_t)
-(const ref instr_32 instr, ref vm_t vm) {
-	preserve_fp_state(vm);
-}
-
-
 exc_info_t 
 check_cp_enabled
 (vm_t)
@@ -1998,4 +1990,18 @@ execute_vmov_vl_gpr_t1
 		if (curr_beat == instr.target_beat)
 			vm.set_reg(instr.rt, elem!uint(get_Q(instr.rd, curr_beat, vm), instr._index, instr.esize));
 	}
+}
+
+// ==============
+//  FPUnpackCV()
+// ==============
+
+// Used for FP [-] FP conversion instructions.
+// For half-precision data ignores FZ16 and observes AHP.
+unpacked_fp 
+fp_unpack_cv
+(T,size_t N,vm_t)
+(T fpval, fpscr_t fpscr_val, ref vm_t vm) {
+	SET_FPSCR_FZ16(vm, fpscr_val, 0);
+	return fp_unpack_base!(T,N)(value, fpscr_val, vm);
 }

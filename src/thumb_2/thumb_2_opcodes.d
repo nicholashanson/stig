@@ -925,7 +925,7 @@ opcode decode_vector_store(const uint instr) {
 	immutable op6 = slice(instr,  4, 1);
 	immutable op7 = slice(instr,  0, 1);
 	if ((cmp1xx1(op1, 0b1000) || cmp1xx1(op1, 0b1001) || cmp1xx1(op1, 0b0001)) && (op3 == 0b0) && (op4 == 0b11)) {
-		return opcode.vstr_t1;
+		return opcode.vvstr_t1;
 	}
 	return opcode.invalid;
 }
