@@ -28,13 +28,14 @@ import helium;
 instr_32
 parse_vvstr_t1
 (const uint instr) {
-	// n = UInt(Rn);
-	// index = (P == '1');
-	// add = (A == '1');
-	// wback = (W == '1');
-	// r = regh:regl;
-	// imm32 = ZeroExtend(imm:'00', 32);
-	return instr_32();
+	return instr_32(
+		rn:  		cast(reg)slice(instr, 16, 4),
+		wback: 		cast(bool)slice(instr, 21, 1),
+		add:        cast(bool)slice(instr, 23, 1),
+		index:      cast(bool)slice(instr, 24, 1),
+		r:          (slice(instr, 22, 1) << 3) | slice(instr, 13, 3),
+		imm: 		slice(instr, 0, 7),
+	);
 }
 
 // ==============

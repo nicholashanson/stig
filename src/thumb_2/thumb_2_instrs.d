@@ -310,6 +310,7 @@ struct instr_32 {
 	uint         pred_size;
 	uint 		   fp_size;
 	uint          elements;
+	uint                 r;
 	}
 	int 		    offset;
 	reg[] 	      reg_list;
