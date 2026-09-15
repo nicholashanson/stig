@@ -294,6 +294,7 @@ exc_rtr
 	const uint rtr_excn = vm.get_ipsr();
 	// integer NestedActivation; // used for Handler => Thread check when value == 1
 	// NestedActivation = ExceptionActiveBitCount(); // Number of active exceptions
+	uint nested_activation_cnt = get_active_execption_bit_count(vm);
 	// if ExceptionActive[ReturningExceptionNumber] == ‘0’ then
 	// DeActivate(ReturningExceptionNumber);
 	// UFSR.INVPC = ‘1’;
