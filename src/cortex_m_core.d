@@ -265,6 +265,17 @@ pop_stack
 //  EXCEPTION RETURN
 // ==================
 
+uint
+get_active_execption_bit_count
+(vm_t)
+(ref vm_t vm) {
+	uint c = 0;
+	foreach (i; 1 .. 256)
+		if (exception_is_active(cast(exception)i, vm)) 
+			c++;
+	return c;
+}
+
 void 
 exc_rtr
 (vm_t)
