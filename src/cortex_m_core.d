@@ -201,24 +201,15 @@ pop_stack
 (vm_t)
 (uint frame_ptr, const uint exc_return, ref vm_t vm) {
 	// if HaveFPExt() && EXC_RETURN<4> == ‘0’ then framesize = 0x68; forcealign = ‘1’;
-	// else framesize = 0x20;
 	const uint frame_size = 32;
-	// forcealign = CCR.STKALIGN;
-	// R[0] = MemA[frameptr,4];
+	bool force_align = CCR_STKALIGN_SET(vm);
 	vm.set_reg(reg.r0,  vm.read_word(frame_ptr));
-	// R[1] = MemA[frameptr+0x4,4];
 	vm.set_reg(reg.r1,  vm.read_word(frame_ptr + 4));
-	// R[2] = MemA[frameptr+0x8,4];
 	vm.set_reg(reg.r2,  vm.read_word(frame_ptr + 8));
-	// R[3] = MemA[frameptr+0xC,4];
 	vm.set_reg(reg.r3,  vm.read_word(frame_ptr + 12));
-	// R[12] = MemA[frameptr+0x10,4];
 	vm.set_reg(reg.r12, vm.read_word(frame_ptr + 16));
-	// LR = MemA[frameptr+0x14,4];
 	vm.set_reg(reg.lr,  vm.read_word(frame_ptr + 20));
-	// PC = MemA[frameptr+0x18,4]; // UNPREDICTABLE if the new PC not halfword aligned
-	vm.set_reg(reg.pc,  vm.read_word(frame_ptr + 24));
-	// psr = MemA[frameptr+0x1C,4];
+	vm.set_reg(reg.pc,  vm.read_word(frame_ptr + 24)); // UNPREDICTABLE if the new PC not halfword aligned
 	vm.set_xpsr(vm.read_word(frame_ptr + 28));
 	// if HaveFPExt() then
 	// if EXC_RETURN<4> == ‘0’ then
@@ -240,8 +231,7 @@ pop_stack
 			// SP_main = (SP_main + framesize) OR spmask;
 			vm.set_msp(vm.get_msp() + frame_size);
 			break;
-		// when ‘1001’ // returning to Thread using Main stack
-		case 0b1001:
+		case 0b1001: // returning to Thread using Main stack
 			// SP_main = (SP_main + framesize) OR spmask;
 			vm.set_msp(vm.get_msp() + frame_size);
 			break;
@@ -280,8 +270,6 @@ void
 exc_rtr
 (vm_t)
 (const uint exc_return, ref vm_t vm) {
-    // ExceptionReturn(bits(28) EXC_RETURN)
-	// assert CurrentMode == Mode_Handler;
 	assert(vm.get_curr_exc() != exception.thread_mode,
 		   "Trying to return from exception in thread mode");
 	// if HaveFPExt() then
@@ -290,83 +278,66 @@ exc_rtr
 	// 		if !IsOnes(EXC_RETURN<27:4>) then UNPREDICTABLE;
 	assert(slice(exc_return, 5, 12) == 0xfff, 
 		   format("Invalid exception return: %08X", exc_return));
-	// integer ReturningExceptionNumber = UInt(IPSR<8:0>);
 	const uint rtr_excn = vm.get_ipsr();
-	// integer NestedActivation; // used for Handler => Thread check when value == 1
-	// NestedActivation = ExceptionActiveBitCount(); // Number of active exceptions
-	uint nested_activation_cnt = get_active_execption_bit_count(vm);
-	// if ExceptionActive[ReturningExceptionNumber] == ‘0’ then
-	// DeActivate(ReturningExceptionNumber);
-	// UFSR.INVPC = ‘1’;
-	// LR = 0xF0000000 + EXC_RETURN;
+	uint nested_activation_cnt = 0;
+	//uint nested_activation_cnt = get_active_execption_bit_count(vm); // used for Handler => Thread check when value == 1
+	//if (exc_is_active(rtr_excn, vm)) {}
+	// deactivate_exc(rtr_excn, vm);
+	// SET_UFSR_INVPC(vm, 1);
+	uint LR = 0xF0000000 + exc_return;
 	// ExceptionTaken(UsageFault); 
 	// returning from an inactive handler
 	// return;
 	// else
 	uint frame_ptr;
-	// case EXC_RETURN<3:0> of
 	immutable exc_rtr_lb = slice(exc_return, 0, 4);
-	switch (exc_rtr_lb) {
-		// when ‘0001’ 
-		// return to Handler
+	switch (exc_rtr_lb) { 
 		case 0b0001:
-			// frameptr = SP_main;
 			frame_ptr = vm.get_msp();
 			// CurrentMode = Mode_Handler;
-			// CONTROL.SPSEL = ‘0’;
 			vm.set_sp_sel(false);
 			break;
-		// when ‘1001’ 
-		// returning to Thread using Main stack
-		case 0b1001:
-			// if NestedActivation != 1 && CCR.NONBASETHRDENA == ‘0’ then
-			// DeActivate(ReturningExceptionNumber);
-			// UFSR.INVPC = ‘1’;
-			// LR = 0xF0000000 + EXC_RETURN;
+		case 0b1001: // returning to Thread using Main stack
+			if ((nested_activation_cnt != 1) && !CCR_NONBASETHRDENA_SET(vm)) {
+
+			}
+			deactivate_exc(rtr_excn, vm);
+			SET_UFSR_INVPC(vm, 1);
+			LR = 0xF0000000 + exc_return;
 			// ExceptionTaken(UsageFault); 
 			// return to Thread exception mismatch
 			// return;
-			// else
-			// frameptr = SP_main;
 			frame_ptr = vm.get_msp();
-			// CurrentMode = Mode_Thread;
 			vm.set_curr_exc(exception.thread_mode);
-			// CONTROL.SPSEL = ‘0’;
 			vm.set_sp_sel(false);
-			break;
-		// when ‘1101’ 
+			break; 
 		// returning to Thread using Process stack
 		case 0b1101:
-			// if NestedActivation != 1 && CCR.NONBASETHRDENA == ‘0’ then
-			// DeActivate(ReturningExceptionNumber);
-			// UFSR.INVPC = ‘1’;
-			// LR = 0xF0000000 + EXC_RETURN;
+			if ((nested_activation_cnt != 1) && !CCR_NONBASETHRDENA_SET(vm)) {
+
+			}
+			deactivate_exc(rtr_excn, vm);
+			SET_UFSR_INVPC(vm, 1);
+			LR = 0xF0000000 + exc_return;
 			// ExceptionTaken(UsageFault); 
 			// return to Thread exception mismatch
 			// return;
-			// else
-			// frameptr = SP_process;
 			frame_ptr = vm.get_psp();
-			// CurrentMode = Mode_Thread;
 			vm.set_curr_exc(exception.thread_mode);
-			// CONTROL.SPSEL = ‘1’;
 			vm.set_sp_sel(true);
 			break;
-		// otherwise
 		default:
 			// DeActivate(ReturningExceptionNumber);
-			// UFSR.INVPC = ‘1’;
-			// LR = 0xF0000000 + EXC_RETURN;
+			SET_UFSR_INVPC(vm, 1);
+			LR = 0xF0000000 + exc_return;
 			// ExceptionTaken(UsageFault); 
 			// illegal EXC_RETURN
 			// return;
-			// DeActivate(ReturningExceptionNumber);
+			deactivate_exc(rtr_excn, vm);
 			assert(0);
 			break;
 	}
-	// DeActivate(ReturningExceptionNumber);
 	deactivate_exc(rtr_excn, vm);
-	// PopStack(frameptr);
 	pop_stack(frame_ptr, exc_return, vm);
 	// if CurrentMode==Mode_Handler AND IPSR<8:0> == ‘000000000’ then
 	// 		UFSR.INVPC = ‘1’;
@@ -497,6 +468,35 @@ set_exc_as_active
 	const uint shift_n  = i % 32;
 	reg                |= (1u << shift_n);
 	vm.write_word(reg_addr, reg);
+}
+// --------------------------------------------------------------------------------------
+// =====================
+//  EXCEPTION IS ACTIVE
+// =====================
+
+bool 
+exc_is_active 
+(vm_t)
+(const exception exc, ref vm_t vm) {
+	const uint i        = cast(uint)exc;
+	const uint reg_n    = i / 32;
+	const uint reg_addr = IABR_BASE + (reg_n * 4);
+	uint       reg      = vm.peek_word(reg_addr);
+	const uint shift_n  = i % 32;
+	return ((reg & (1u << shift_n)) != 0);
+}
+
+bool 
+exc_is_active
+(vm_t)
+(const uint exc, ref vm_t vm) {
+	return exc_is_active(cast(exception)exc, vm);
+}
+
+unittest {
+	test_vm vm;
+	set_exc_as_active(cast(exception)10, vm);
+	assert(exc_is_active(cast(exception)10), vm);
 }
 // --------------------------------------------------------------------------------------
 // =============================
@@ -1045,7 +1045,38 @@ mixin define_bit_helpers!("lo_branch_info_high", "BF", 0);
 mixin define_bit_helpers!("lo_branch_info_high_2", "LF", 0, "T16IND", 1);
 }
 mixin define_bit_helpers!("fpscr", "AHP", 26, "DN", 25, "FZ", 24, "FZ16", 19, "IDC", 7, "IXC", 4, "UFC", 3, "OFC", 2, "DZC", 1, "IOC", 0);
-mixin define_bit_helpers!("ccr", "TRD", 20, "LOB", 19, "BP", 18, "IC", 17, "DC", 16, "STKOFHFNMIGN", 10, "BFHFNMIGN", 8, "DIV_0_TRP", 4, "UNALIGN_TRP", 3, "USERSETMPEND", 1);
+
+// --------------------------------------------------------------------------------------
+// =====
+//  CCR
+// =====
+
+version (ARMv8_M) {
+mixin define_bit_helpers!("ccr", "TRD", 20, 
+								 "LOB", 19, 
+								 "BP", 18, 
+								 "IC", 17, 
+								 "DC", 16, 
+								 "STKOFHFNMIGN", 10, 
+								 "BFHFNMIGN", 8, 
+								 "DIV_0_TRP", 4, 
+								 "UNALIGN_TRP", 3, 
+								 "USERSETMPEND", 1,
+								 "NONBASETHRDENA", 0);
+}
+
+version (ARMv7_M) {
+mixin define_bit_helpers!("ccr", "BP", 18, 
+								 "IC", 17, 
+								 "DC", 16, 
+								 "STKALIGN", 9, 
+								 "BFHFNMIGN", 8, 
+								 "DIV_0_TRP", 4, 
+								 "UNALIGN_TRP", 3, 
+								 "USERSETMPEND", 1,
+								 "NONBASETHRDENA", 0);
+}
+// --------------------------------------------------------------------------------------
 
 mixin define_bit_helpers_scb!(FP_CTRL, "CTRL_KEY", 1, "ENABLE", 0);
 mixin define_bit_helpers_scb!(DFSR, "PMU", 5, "EXTERNAL", 4, "VCATCH", 3, "DWTTRAP", 2, "BKPT", 1, "HALTED", 0);
@@ -1057,16 +1088,41 @@ mixin define_bitfield_helpers_scb!(DHCSR, "DBGKEY", 16, 16,  "S_RESTART_ST", 26,
 mixin define_bitfield_helpers_scb!(DEMCR, "TRCENA", 24, 1, "MONPRKEY", 23, 1, "UMON_EN", 21, 16,  "SDME", 20, 1, "MON_REQ", 19, 1, "MON_STEP", 18, 1, "MON_PEND", 17, 1, "MON_EN", 16, 1, 
 										  "VC_SFERR", 11, 1, "VC_HARDERR", 10, 1, "VC_INTERR", 9, 1, "VC_BUSERR", 8, 1, "VC_STATERR", 7, 1, "VC_CHKERR", 6, 1, "VC_NOCPERR", 5, 1, 
 										  "VC_MMERR", 4, 1, "VC_CORERESET", 0, 1);
-mixin define_bitfield_helpers_scb_secure!(UFSR, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
-mixin define_bitfield_helpers_scb!(UFSR_S, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
-mixin define_bitfield_helpers_scb!(UFSR_NS, "DIVBYZERO", 9, 1, "UNALIGNED", 8, 1, "STKOF", 4, 1, "NOCP", 3, 1, "INVPC", 2, 1, "INVSTATE", 1, 1, "UNDEFINSTR", 0, 1);
+
+// --------------------------------------------------------------------------------------
+// ======
+//  UFSR
+// ======
+
+import std.meta : AliasSeq;
+
+alias UFSR_bitfields = AliasSeq!(
+"DIVBYZERO", 9, 1, 
+"UNALIGNED", 8, 1, 
+"STKOF", 4, 1, 
+"NOCP", 3, 1, 
+"INVPC", 2, 1, 
+"INVSTATE", 1, 1, 
+"UNDEFINSTR", 0, 1);
+version (ARMv8_M) {
+mixin define_bitfield_helpers_scb_secure!(UFSR, UFSR_bitfields);
+mixin define_bitfield_helpers_scb!(UFSR_S, UFSR_bitfields);
+mixin define_bitfield_helpers_scb!(UFSR_NS, UFSR_bitfields);
+}
+version (ARMv7_M) {
+mixin define_bitfield_helpers_scb!(UFSR, UFSR_bitfields);
+}
+// --------------------------------------------------------------------------------------
+
 mixin define_bitfield_helpers_scb!(DWT_CTL, "NUMCOMP", 28, 4, "NOTRCPKT", 27, 1, "NOEXTTRIG", 26, 1, "NOCYCCNT", 25, 1,  "NOPRFCNT", 24, 1, "CYCDISS", 23, 1, "CYCEVTENA", 22, 1, "FOLDEVTENA", 21, 1, "LSUEVTENA", 20, 1, 
 										    "SLEEPEVTENA", 19, 1, "EXCEVTENA", 18, 1, "CPIEVTENA", 17, 1, "EXCTRCENA", 16, 1, "PCSAMPLENA", 12, 1, "SYNCTAP", 10, 2, "CYCTAP", 9, 1, 
 										    "POSTINIT", 5, 4, "POSTPRESET", 4, 1, "CYCCNTENA", 0, 1);
+version (ARMv8_M) {
 mixin define_bitfield_helpers_scb_secure!(SHCSR, "HARDFAULTPENDED", 21, 1, "SECUREFAULTPENDED", 20, 1, "SECUREFAULTENA", 19, 1, "USGFAULTENA", 18, 1, "BUSFAULTENA", 17, 1, "MEMFAULTENA", 16, 1, "SVCALLPENDED", 15, 1,
 												 "BUSFAULTPENDED", 14, 1, "MEMFAULTPENDED", 13, 1, "USGFAULTPENDED", 12, 1, "SYSTICKACT", 11, 1,
 												 "PENDSVACT", 10, 1, "MONITORACT", 8, 1, "SVCALLACT", 7, 1, "NMIACT", 5, 1, "SECUREFAULTACT", 4, 1,
 												 "USGFAULTACT", 3, 1, "HARDFAULTACT", 2, 1, "BUSFAULTACT", 1, 1, "MEMFAULTACT", 0, 1);
+}
 mixin define_bitfield_helpers_scb!(SHCSR_S, "HARDFAULTPENDED", 21, 1, "SECUREFAULTPENDED", 20, 1, "SECUREFAULTENA", 19, 1, "USGFAULTENA", 18, 1, "BUSFAULTENA", 17, 1, "MEMFAULTENA", 16, 1, "SVCALLPENDED", 15, 1,
 										    "BUSFAULTPENDED", 14, 1, "MEMFAULTPENDED", 13, 1, "USGFAULTPENDED", 12, 1, "SYSTICKACT", 11, 1,
 										    "PENDSVACT", 10, 1, "MONITORACT", 8, 1, "SVCALLACT", 7, 1, "NMIACT", 5, 1, "SECUREFAULTACT", 4, 1,
@@ -1083,20 +1139,26 @@ mixin define_bitfield_helpers_scb!(FPCCR, "ASPEN", 31, 1,  "LSPEN", 30, 1, "LSPE
 										  "UFRDY", 10, 1, "SPLIMVIOL", 9, 1, "MONRDY", 8, 1, "SFRDY", 7, 1, "BFRDY", 6, 1, "MMRDY", 5, 1, "HFRDY", 4, 1, 
 										  "THREAD", 3, 1, "S", 2, 1, "USER", 1, 1, "LSPACT", 0, 1);
 }
+version (ARMv8_M) {
 mixin define_bitfield_helpers_scb_secure!(CPACR, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
 									      		 "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
+}
 mixin define_bitfield_helpers_scb!(CPACR_S, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
 									        "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
 mixin define_bitfield_helpers_scb!(CPACR_NS, "CP11", 22, 2, "CP10", 20, 2, "CP7", 14, 2, "CP6", 12, 2, 
 									         "CP5", 10, 2,  "CP4", 8, 2,   "CP3", 6, 2,  "CP2", 4, 2, "CP1", 2, 2, "CP0", 0, 2);
-mixin define_bitfield_helpers_scb_secure!(FPCAR,  "ADDR", 3, 29);
+version (ARMv8_M) {
+mixin define_bitfieldssssss_helpers_scb_secure!(FPCAR,  "ADDR", 3, 29);
+}
 mixin define_bitfield_helpers_scb!(FPCAR_S, "ADDR", 3, 29);
 mixin define_bitfield_helpers_scb!(FPCAR_NS, "ADDR", 3, 29);
 mixin define_bitfield_helpers_scb!(AIRCR, "VECTKEYSTAT", 16, 16, "ENDIANNESS", 15, 1, "PRIS", 14, 1, "BFHFNMINS", 13, 1, 
 									      "PRIGROUP", 8, 3, "IESB", 5, 1, "DIT", 4, 1,  "SYSRESETREQS", 3, 1, "SYSRESETREQ", 2, 1, "VECTCLRACTIVE", 0, 1);
 
+version (ARMv8_M) {
 mixin define_bitfield_helpers_scb_secure!(ICSR, "PENDNMISET", 31, 1, "PENDNMICLR", 30, 1, "PENSVSET", 28, 1, "PENDSVCLR", 27, 1, 
 									            "PENDSTSET", 26, 1, "PENDSTCLR", 25, 1, "STTNS", 24, 1,  "ISRPREEMPT", 23, 1, "ISRPENDING", 22, 1, "RETTOBASE", 11, 1, "VECTACTIVE", 0, 9);
+}
 mixin define_bitfield_helpers_scb!(ICSR_S, "PENDNMISET", 31, 1, "PENDNMICLR", 30, 1, "PENSVSET", 28, 1, "PENDSVCLR", 27, 1, 
 									       "PENDSTSET", 26, 1, "PENDSTCLR", 25, 1, "STTNS", 24, 1,  "ISRPREEMPT", 23, 1, "ISRPENDING", 22, 1, "RETTOBASE", 11, 1, "VECTACTIVE", 0, 9);
 mixin define_bitfield_helpers_scb!(ICSR_NS, "PENDNMISET", 31, 1, "PENDNMICLR", 30, 1, "PENSVSET", 28, 1, "PENDSVCLR", 27, 1, 
@@ -1308,6 +1370,7 @@ if (fields.length % 3 == 0)
     }());
 }
 
+version (ARMv8_M) {
 mixin template define_bitfield_helpers_scb_secure(alias reg, fields...)
 if (fields.length % 3 == 0)
 {
@@ -1326,7 +1389,7 @@ if (fields.length % 3 == 0)
 
             code ~= format(
                 "pragma(inline, true) auto GET_%s_%s(vm_t)(ref vm_t vm) {\n" ~
-                "    if (vm.get_curr_state == vm.security_state.secure)\n" ~
+                "    if (vm.get_curr_state() == vm.security_state.secure)\n" ~
                 "	 	return GET_%s_S_%s(vm);\n" ~
                 "    else\n" ~
                 "    	return GET_%s_NS_%s(vm);\n" ~
@@ -1336,7 +1399,7 @@ if (fields.length % 3 == 0)
 
             code ~= format(
                 "pragma(inline, true) void SET_%s_%s(vm_t)(ref vm_t vm, uint val) {\n" ~
-                "    if (vm.get_curr_state == vm.security_state.secure)\n" ~
+                "    if (vm.get_curr_state() == vm.security_state.secure)\n" ~
                 "    	return SET_%s_S_%s(vm, val);\n" ~
                 "    else\n" ~
                 "    	return SET_%s_NS_%s(vm, val);\n" ~
@@ -1347,6 +1410,7 @@ if (fields.length % 3 == 0)
 
         return code;
     }());
+}
 }
 
 mixin define_bitfield_helpers!("fpscr", "RMode", 22, 2, "LTPSIZE", 16, 3);
@@ -1869,12 +1933,12 @@ pure nothrow @nogc {
 	uint fpccr;
 	mixin property!"fpccr";
 
+	uint ccr;
+	mixin property!"ccr";
+
 	version (ARMv8_M) {
 		uint beat_id;
 		mixin property!"beat_id";
-
-		uint ccr;
-		mixin property!"ccr";
 
 		// Indicates a change in instruction fetch address due to branch type operations
 		bool pc_changed;
