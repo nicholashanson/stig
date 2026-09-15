@@ -14,15 +14,24 @@ enum IABR_BASE = 0xE000E300;
 enum IPR_BASE  = 0xE000E400;
 enum ISPR_BASE = 0xE000E200;
 
+// --------------------------------------------------------------------------------------
+// ========
+//  Q TO S
+// ========
+
 reg q_to_s(reg r, uint i) {
 	assert(i < 4);
 	return cast(reg)(cast(uint)reg.s0 + ((cast(uint)r - cast(uint)reg.q0) * 4) + i);
 }
 
+// ======
+//  TEST
+// ======
+
 unittest {
 	assert(q_to_s(reg.q0, 0) == reg.s0);
 }
-
+// --------------------------------------------------------------------------------------
 // ==========================
 //  128-BIT UNSIGNED INTEGER
 // ==========================
@@ -40,6 +49,9 @@ bool is_exc_ret_val(const uint val) {
 	return ((val & 0xff00_0000) == 0xff00_0000);
 }
 // --------------------------------------------------------------------------------------
+// ===================
+//  TEST UNSIGNED NEG
+// ===================
 
 bool test_unsigned_neg(const uint v) {
 	return (v & 0x8000_0000) != 0;
@@ -162,9 +174,7 @@ deactivate_exc
 	// PRIMASK and BASEPRI unchanged on exception exit
 	// if IPSR<8:0> != ‘000000010’ then
 	if (vm.get_ipsr() != 0b10) 
-		//	FAULTMASK<0> = ‘0’; 
-		// clear FAULTMASK on any return except NMI
-		vm.set_fault_mask(false);
+		vm.set_fault_mask(false); // clear FAULTMASK on any return except NMI
 }
 // --------------------------------------------------------------------------------------
 // ======================
