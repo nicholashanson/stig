@@ -1154,10 +1154,32 @@ version (ARMv7_M) {
 mixin define_bitfield_helpers_scb!(UFSR, UFSR_bitfields);
 }
 // --------------------------------------------------------------------------------------
+// =========
+//  DWT CTL
+// =========
 
-mixin define_bitfield_helpers_scb!(DWT_CTL, "NUMCOMP", 28, 4, "NOTRCPKT", 27, 1, "NOEXTTRIG", 26, 1, "NOCYCCNT", 25, 1,  "NOPRFCNT", 24, 1, "CYCDISS", 23, 1, "CYCEVTENA", 22, 1, "FOLDEVTENA", 21, 1, "LSUEVTENA", 20, 1, 
-										    "SLEEPEVTENA", 19, 1, "EXCEVTENA", 18, 1, "CPIEVTENA", 17, 1, "EXCTRCENA", 16, 1, "PCSAMPLENA", 12, 1, "SYNCTAP", 10, 2, "CYCTAP", 9, 1, 
-										    "POSTINIT", 5, 4, "POSTPRESET", 4, 1, "CYCCNTENA", 0, 1);
+alias DWT_CTL_bitfields = AliasSeq!(
+"NUMCOMP", 28, 4,
+"NOTRCPKT", 27, 1,
+"NOEXTTRIG", 26, 1,
+"NOCYCCNT", 25, 1,
+"NOPRFCNT", 24, 1,
+"CYCDISS", 23, 1,
+"CYCEVTENA", 22, 1,
+"FOLDEVTENA", 21, 1,
+"LSUEVTENA", 20, 1,
+"SLEEPEVTENA", 19, 1,
+"EXCEVTENA", 18, 1,
+"CPIEVTENA", 17, 1,
+"EXCTRCENA", 16, 1,
+"PCSAMPLENA", 12, 1,
+"SYNCTAP", 10, 2,
+"CYCTAP", 9, 1,
+"POSTINIT", 5, 4,
+"POSTPRESET", 4, 1,
+"CYCCNTENA", 0, 1);
+mixin define_bitfield_helpers_scb!(DWT_CTL, DWT_CTL_bitfields);
+// --------------------------------------------------------------------------------------
 version (ARMv8_M) {
 mixin define_bitfield_helpers_scb_secure!(SHCSR, "HARDFAULTPENDED", 21, 1, "SECUREFAULTPENDED", 20, 1, "SECUREFAULTENA", 19, 1, "USGFAULTENA", 18, 1, "BUSFAULTENA", 17, 1, "MEMFAULTENA", 16, 1, "SVCALLPENDED", 15, 1,
 												 "BUSFAULTPENDED", 14, 1, "MEMFAULTPENDED", 13, 1, "USGFAULTPENDED", 12, 1, "SYSTICKACT", 11, 1,
