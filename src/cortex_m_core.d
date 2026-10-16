@@ -1180,12 +1180,35 @@ alias DWT_CTL_bitfields = AliasSeq!(
 "CYCCNTENA", 0, 1);
 mixin define_bitfield_helpers_scb!(DWT_CTL, DWT_CTL_bitfields);
 // --------------------------------------------------------------------------------------
+// =======
+//  SHCSR
+// =======
+
 version (ARMv8_M) {
-mixin define_bitfield_helpers_scb_secure!(SHCSR, "HARDFAULTPENDED", 21, 1, "SECUREFAULTPENDED", 20, 1, "SECUREFAULTENA", 19, 1, "USGFAULTENA", 18, 1, "BUSFAULTENA", 17, 1, "MEMFAULTENA", 16, 1, "SVCALLPENDED", 15, 1,
-												 "BUSFAULTPENDED", 14, 1, "MEMFAULTPENDED", 13, 1, "USGFAULTPENDED", 12, 1, "SYSTICKACT", 11, 1,
-												 "PENDSVACT", 10, 1, "MONITORACT", 8, 1, "SVCALLACT", 7, 1, "NMIACT", 5, 1, "SECUREFAULTACT", 4, 1,
-												 "USGFAULTACT", 3, 1, "HARDFAULTACT", 2, 1, "BUSFAULTACT", 1, 1, "MEMFAULTACT", 0, 1);
+alias SHCSR_bitfields = AliasSeq!(
+"HARDFAULTPENDED", 21, 1, 
+"SECUREFAULTPENDED", 20, 1, 
+"SECUREFAULTENA", 19, 1, 
+"USGFAULTENA", 18, 1, 
+"BUSFAULTENA", 17, 1, 
+"MEMFAULTENA", 16, 1, 
+"SVCALLPENDED", 15, 1,
+"BUSFAULTPENDED", 14, 1, 
+"MEMFAULTPENDED", 13, 1, 
+"USGFAULTPENDED", 12, 1, 
+"SYSTICKACT", 11, 1,
+"PENDSVACT", 10, 1, 
+"MONITORACT", 8, 1, 
+"SVCALLACT", 7, 1, 
+"NMIACT", 5, 1, 
+"SECUREFAULTACT", 4, 1,
+"USGFAULTACT", 3, 1, 
+"HARDFAULTACT", 2, 1, 
+"BUSFAULTACT", 1, 1, 
+"MEMFAULTACT", 0, 1);
+mixin define_bitfield_helpers_scb_secure!(SHCSR, SHCSR_bitfields);
 }
+// --------------------------------------------------------------------------------------
 mixin define_bitfield_helpers_scb!(SHCSR_S, "HARDFAULTPENDED", 21, 1, "SECUREFAULTPENDED", 20, 1, "SECUREFAULTENA", 19, 1, "USGFAULTENA", 18, 1, "BUSFAULTENA", 17, 1, "MEMFAULTENA", 16, 1, "SVCALLPENDED", 15, 1,
 										    "BUSFAULTPENDED", 14, 1, "MEMFAULTPENDED", 13, 1, "USGFAULTPENDED", 12, 1, "SYSTICKACT", 11, 1,
 										    "PENDSVACT", 10, 1, "MONITORACT", 8, 1, "SVCALLACT", 7, 1, "NMIACT", 5, 1, "SECUREFAULTACT", 4, 1,
