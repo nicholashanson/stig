@@ -767,20 +767,35 @@ exception
 get_highest_pending_ext_exc
 (vm_t)
 (ref vm_t vm) {
-	immutable exec_pri  = get_execution_priority(vm); 
-    exception candidate = exception.thread_mode;     
-    int lowest_irqn     = 512;                           
+	/*
+		get_execution_priority returns the highest interrupt
+		priority of all active exceptions
+	*/
+	immutable exec_pri  = get_execution_priority(vm);
+	/*
+		if no exceptions are pending, return to thread mode
+	*/
+    exception candidate = exception.thread_mode;
+    /*
+		512 is one beyond the lowest possible exception priority
+    */
+    int lowest_irqn     = 512;
     foreach (uint i; 0 .. 512) {
         if (exc_is_pending(i, vm)) {
             auto pri = get_exception_priority(i, vm);
-            if (pri == cast(uint)exec_pri && i < lowest_irqn) {
+            /*
+				in Cortex-M, if multiple pending interrupts have the
+				same priority, the interrupt with the lowest exception
+				number is serviced first
+            */
+            if ((pri == cast(uint)exec_pri) && (i < lowest_irqn)) {
                 lowest_irqn = i;
                 candidate = cast(exception)i;
             }
         }
     }
     return candidate;
-}  
+}
 
 // --------------------------------------------------------------------------------------
 bool is_system_pending
